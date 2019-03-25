@@ -804,6 +804,7 @@ val read_hex =
 
 local
 open C_ast_simple
+open Scanner
 val many_digit = many Symbol.is_ascii_digit
 val many1_digit = many1 Symbol.is_ascii_digit
 val many_hex = many Symbol.is_ascii_hex

@@ -101,9 +101,8 @@ ML\<open>
 structure C_File =
 struct
 
-fun command files = Toplevel.generic_theory (fn gthy =>
+fun command0 ({src_path, lines, digest, pos}: Token.file) = (fn gthy =>
   let
-    val [{src_path, lines, digest, pos}: Token.file] = files (Context.theory_of gthy);
     val provide = Resources.provide (src_path, digest);
     val source = Input.source true (cat_lines lines) (pos, pos);
   in
@@ -112,6 +111,10 @@ fun command files = Toplevel.generic_theory (fn gthy =>
     |> Local_Theory.propagate_ml_env
     |> Context.mapping provide (Local_Theory.background_theory provide)
   end);
+
+fun command files =
+  Toplevel.generic_theory
+    (fn gthy => command0 (hd (files (Context.theory_of gthy))) gthy);
 
 val C : (theory -> Token.file list) ->
         Toplevel.transition -> Toplevel.transition = command;

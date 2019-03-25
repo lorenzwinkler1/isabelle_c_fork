@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2016-2017 Nanyang Technological University, Singapore
  * @TAG(OTHER_BSD)
  *)
 
@@ -34,6 +35,7 @@ signature REGION =
             val node: 'a t -> 'a
             val makeRegion: 'a * region -> 'a t
             val makeRegion':  'a * SourcePos.t * SourcePos.t -> 'a t
+            val makeRegion'':  'a -> 'a t
             val dest: 'a t -> 'a * region
          end
       sharing type Wrap.region = t
@@ -99,6 +101,7 @@ structure Wrap =
       type region = t
       datatype 'a t = T of {node: 'a,
                             region: region}
+                    | U of 'a
 
       fun node (T {node, ...}) = node
       fun region (T {region, ...}) = region
@@ -106,6 +109,7 @@ structure Wrap =
       fun makeRegion' (node, left, right) = T {node = node,
                                                region = make {left = left,
                                                               right = right}}
+      fun makeRegion'' node = U node
 
       fun dest (T {node, region}) = (node, region)
    end

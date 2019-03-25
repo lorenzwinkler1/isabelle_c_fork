@@ -1,4 +1,6 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Portions Copyright 2016-2017 Nanyang Technological University, Singapore
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -26,20 +28,76 @@ in
   (#1 (StrictCParser.parse(lookahead,lexstream,print_error,pi)), !Feedback.numErrors)
 end
 
-fun parse docpp error_lookahead (includes : string list) fname = let
-  val cpped_fname = docpp {includes=includes,filename=fname}
-  val istream = TextIO.openIn cpped_fname
-  val _ = Feedback.numErrors := 0 (* FIXME - global reference *)
-  val lexarg = StrictCLex.UserDeclarations.new_state fname
-  val lexer = StrictCParser.makeLexer (fn _ => inputLine istream) lexarg
-  val pos = #source lexarg
-in
-  invoke error_lookahead pos lexer before
-  (TextIO.closeIn istream;
-   if cpped_fname <> fname then
-     OS.FileSys.remove cpped_fname
-   else ())
-end
+val last_parsed = Synchronized.var "last parsed" ("", [])
+
+fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (file as {pos, ...}: Token.file) thy =
+  let
+    val fname = Position.file_of pos |> the |> Path.explode |> File.full_path Path.current |> Path.implode
+    fun docpp files f =
+      let val cpped_fname = docpp0 files
+          val res = f cpped_fname
+          val _ = if cpped_fname <> fname then
+                    OS.FileSys.remove cpped_fname
+                  else ()
+      in res end
+  
+    fun open_close f fic =
+      let val istream = TextIO.openIn fic
+          val res = f istream
+          val _ = TextIO.closeIn istream
+      in res end
+  
+    fun parse_without_c11 thy = 
+      docpp {includes=includes,filename=fname}
+        (open_close (fn istream =>
+          let
+            val _ = Feedback.numErrors := 0 (* FIXME - global reference *)
+            val lexarg = StrictCLex.UserDeclarations.new_state fname
+            val lexer = StrictCParser.makeLexer (fn _ => inputLine istream) lexarg
+            val pos = #source lexarg
+          in invoke error_lookahead pos lexer end))
+      |>> (fn v => Synchronized.change_result last_parsed (K (v, (fname, v))))
+      |> curry swap thy
+
+    (* Command.read_file_node' *)
+    fun read_file_node' src_path =
+      let
+        val full_path = File.check_file src_path;
+        val text = File.read full_path;
+        val lines = split_lines text;
+        val digest = SHA1.digest text;
+      in {src_path = src_path, lines = lines, digest = digest, pos = Path.position full_path} end
+
+    fun parse_with_c11 thy =
+      docpp {includes=includes,filename=fname}
+        (fn cpped_fname =>
+          let val thy = Context.theory_map (C_File.command0 file) thy
+              val thy = Context.theory_map (C_File.command0 (read_file_node' (Path.explode cpped_fname))) thy
+              val (_, (res, l_comm)) = hd (C11_core.dest_list thy)
+          in (C_ast.main (res, (map_filter (fn Left {body_begin, body, body_end, range, ...} =>
+                                               SOME (Hsk_c_parser.make_comment body_begin body body_end range)
+                                             | _ => NONE) l_comm, [])), thy) end)
+      |>> (fn x => (IsarPreInstall.of_c_ast x, 0))
+  in
+    case maybe_c11 of
+      SOME true => 
+        let val ((res1, err1), thy) = parse_without_c11 thy
+            val ((res2, err2), thy) = parse_with_c11 thy
+            val rm = StmtDecl.rm_region_ext_decl_list
+            val r1 = rm res1
+            val r2 = rm res2
+            fun upper s = map Char.toUpper (String.explode s)
+        in if #2 (fold2 (fn r1 => fn r2 => fn (n, b) => 
+                          (n + 1,
+                           if ((upper o @{make_string}) r1) = ((upper o @{make_string}) r2) then b
+                           else let val _ = Output.information ("Differing at " ^ Int.toString n)
+                                in false end))
+                        r1 r2 (0, true))
+           then ((res1, err1 + err2), thy)
+           else error "Parsed values are not similar." end
+    | SOME false => parse_without_c11 thy
+    | _ => parse_with_c11 thy
+  end
 
 
 end;

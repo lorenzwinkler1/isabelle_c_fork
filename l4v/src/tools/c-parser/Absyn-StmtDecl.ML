@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2016-2017 Nanyang Technological University, Singapore
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -128,6 +129,7 @@ sig
 
   val sub_stmts : statement -> statement list
 
+  val rm_region_ext_decl_list : ext_decl list -> ext_decl list
 end
 
 structure StmtDecl : STMT_DECL =
@@ -256,4 +258,75 @@ fun stmt_fail (Stmt w, msg) =
 val is_extern = List.exists (fn x => x = SC_EXTERN)
 val is_static = List.exists (fn x => x = SC_STATIC)
 
+val rm_region_gcc_attribute = fn GCC_AttribID string => GCC_AttribID string
+                               | GCC_AttribFn (string, l) => GCC_AttribFn (string, map rm_region_expr l)
+                               | OWNED_BY string => OWNED_BY string
+
+val rm_region_fnspec = fn fnspec w => fnspec (rm_region I w)
+                        | relspec w => relspec (rm_region I w)
+                        | fn_modifies l => fn_modifies l
+                        | didnt_translate => didnt_translate
+                        | gcc_attribs l => gcc_attribs (map rm_region_gcc_attribute l)
+
+val rm_region_cw = map (fn (c,w) => (CType.rm_region_ctype rm_region_expr c, rm_region I w))
+
+val rm_region_declaration = fn
+   VarDecl (c, w, l, opt, l') => VarDecl (CType.rm_region_ctype rm_region_expr c,
+                                          rm_region I w,
+                                          l,
+                                          Option.map rm_region_initializer opt,
+                                          map rm_region_gcc_attribute l')
+ | StructDecl (w, l) => StructDecl (rm_region_with_counter w, rm_region_cw l)
+ | TypeDecl l => TypeDecl (rm_region_cw l)
+ | ExtFnDecl e => ExtFnDecl { rettype = CType.rm_region_ctype rm_region_expr (#rettype e), 
+                              name = rm_region I (#name e),
+                              params = map (fn (c, s) => (CType.rm_region_ctype rm_region_expr c, s)) (#params e),
+                              specs = map rm_region_fnspec (#specs e)}
+ | EnumDecl (w, l) => EnumDecl (rm_region I w, map (fn (w, opt) => (rm_region I w, Option.map rm_region_expr opt)) l)
+
+fun rm_region_namedstringexp (opt, s, expr) = (opt, s, rm_region_expr expr)
+
+fun rm_region_asmblock e =
+  { head = #head e,
+    mod1 = map rm_region_namedstringexp (#mod1 e),
+    mod2 = map rm_region_namedstringexp (#mod2 e),
+    mod3 = #mod3 e }
+
+fun rm_region_statement_node e = case e of
+    Assign (expr1, expr2) => Assign (rm_region_expr expr1, rm_region_expr expr2)
+  | AssignFnCall (opt, expr, l) => AssignFnCall (Option.map rm_region_expr opt, rm_region_expr expr, map rm_region_expr l)
+  | Chaos expr => Chaos (rm_region_expr expr)
+  | EmbFnCall (expr1, expr2, l) => EmbFnCall (rm_region_expr expr1, rm_region_expr expr2, map rm_region_expr l)
+  | Block l => Block (map rm_region_block_item l)
+  | While (expr, opt, statement) => While (rm_region_expr expr, Option.map (rm_region I) opt, rm_region_statement statement)
+  | Trap (trappable, statement) => Trap (trappable, rm_region_statement statement)
+  | Return opt => Return (Option.map rm_region_expr opt)
+  | ReturnFnCall (expr, l) => ReturnFnCall (rm_region_expr expr, map rm_region_expr l)
+  | Break => Break
+  | Continue => Continue
+  | IfStmt (expr, statement1, statement2) => IfStmt (rm_region_expr expr, rm_region_statement statement1, rm_region_statement statement2)
+  | Switch (expr, l) => Switch (rm_region_expr expr, map (fn (l1, l2) => (map (Option.map rm_region_expr) l1, map rm_region_block_item l2)) l)
+  | EmptyStmt => EmptyStmt
+  | Auxupd string => Auxupd string
+  | Ghostupd string => Ghostupd string
+  | Spec ((string1, string2), l, string3) => Spec ((string1, string2), map rm_region_statement l, string3)
+  | AsmStmt a => AsmStmt {volatilep = #volatilep a, asmblock = rm_region_asmblock (#asmblock a)}
+  | LocalInit expr => LocalInit (rm_region_expr expr)
+and rm_region_statement (Stmt w) = Stmt (rm_region rm_region_statement_node w)
+and rm_region_block_item e = case e of
+    BI_Stmt statement => BI_Stmt (rm_region_statement statement)
+  | BI_Decl w => BI_Decl (rm_region rm_region_declaration w)
+
+val rm_region_body = rm_region (map rm_region_block_item)
+
+val rm_region_ext_decl =
+  let fun rm (ctype, w) = (CType.rm_region_ctype rm_region_expr ctype, rm_region I w) in
+    fn FnDefn ((ctype, w), l1, l2, body) =>
+         FnDefn (rm (ctype, w), map rm l1, map rm_region_fnspec l2, rm_region_body body)
+     | Decl w => Decl (rm_region rm_region_declaration w)
+  end
+
+fun rm_region_ext_decl_list l =
+  let val _ = CType.rm_region_init_counter ()
+  in map rm_region_ext_decl l end
 end

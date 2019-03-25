@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2016-2017 Nanyang Technological University, Singapore
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -115,7 +116,10 @@ sig
   val constify_abtype : ecenv -> expr CType.ctype -> int CType.ctype
   val consteval : ecenv -> expr -> IntInf.int
 
-
+  val rm_region : ('a -> 'b) -> 'a Region.Wrap.t -> 'b Region.Wrap.t
+  val rm_region_initializer : initializer -> initializer
+  val rm_region_with_counter : string Region.Wrap.t -> string Region.Wrap.t
+  val rm_region_expr : expr -> expr
 end
 
 structure Expr : EXPR =
@@ -510,4 +514,36 @@ and i_needs_scprot i =
       InitE e => eneeds_sc_protection e
     | InitList dis => List.exists (i_needs_scprot o #2) dis
 
+fun rm_region f v = (*Region.Wrap.makeRegion(f (node v),Region.bogus)*)
+  Region.Wrap.makeRegion''(f (node v))
+
+val rm_region_with_counter = rm_region rm_region_with_counter'
+
+val rm_region_literalconstant = rm_region I
+
+fun rm_region_expr_node e = case e of
+         BinOp (binoptype, expr1, expr2) => BinOp (binoptype, rm_region_expr expr1, rm_region_expr expr2)
+       | UnOp (unoptype, expr) => UnOp (unoptype, rm_region_expr expr)
+       | CondExp (expr1, expr2, expr3) => CondExp (rm_region_expr expr1, rm_region_expr expr2, rm_region_expr expr3)
+       | Constant literalconstant => Constant (rm_region_literalconstant literalconstant)
+       | Var (string, var_info) => Var (string, var_info)
+       | StructDot (expr, string) => StructDot (rm_region_expr expr, string)
+       | ArrayDeref (expr1, expr2) => ArrayDeref (rm_region_expr expr1, rm_region_expr expr2)
+       | Deref expr => Deref (rm_region_expr expr)
+       | TypeCast (w, expr) => TypeCast (rm_region (rm_region_ctype rm_region_expr) w, rm_region_expr expr)
+       | Sizeof expr => Sizeof (rm_region_expr expr)
+       | SizeofTy w => SizeofTy (rm_region (rm_region_ctype rm_region_expr) w)
+       | EFnCall (expr, l) => EFnCall (rm_region_expr expr, map rm_region_expr l)
+       | CompLiteral (ctype, list) => CompLiteral (rm_region_ctype rm_region_expr ctype, rm_region_initializer0 list)
+       | Arbitrary ctype => Arbitrary (rm_region_ctype rm_region_expr ctype)
+       | MKBOOL expr => MKBOOL (rm_region_expr expr)
+and rm_region_expr (E w) = E (rm_region rm_region_expr_node w)
+and rm_region_initializer0 l = map (fn (l, i) => (map rm_region_designator l, rm_region_initializer i)) l
+and rm_region_initializer e = case e of
+    InitE expr => InitE (rm_region_expr expr)
+  | InitList l => InitList (rm_region_initializer0 l)
+and rm_region_designator e = case e of
+    DesignE expr => DesignE (rm_region_expr expr)
+  | DesignFld string => DesignFld string
+ 
 end (* struct *)

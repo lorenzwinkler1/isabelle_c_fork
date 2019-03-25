@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2016-2017 Nanyang Technological University, Singapore
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -65,6 +66,9 @@ sig
     val ptrdiff_t : 'a ctype
     val ptrval_t : 'a ctype
   end
+  val rm_region_ctype : ('a -> 'b) -> 'a ctype -> 'b ctype
+  val rm_region_init_counter : unit -> unit
+  val rm_region_with_counter' : string -> string
 end
 
 structure CType : CTYPE =
@@ -394,4 +398,31 @@ fun eqty(ty1, ty2) =
          ListPair.all eqty (args1, args2)
     | (Void, Void) => true
     | _ => false
+
+local
+val cpt_init = (0, Symtab.empty)
+val cpt = Synchronized.var "counter" cpt_init
+in
+fun rm_region_init_counter () = Synchronized.change cpt (K cpt_init)
+fun rm_region_with_counter' key =
+      Synchronized.change_result cpt
+        (fn (cpt, tab) => case Symtab.lookup tab key of NONE => (cpt, (cpt + 1, Symtab.update (key, cpt) tab))
+                                                      | SOME res => (res, (cpt, tab)))
+     |> Int.toString
+end
+
+fun rm_region_ctype f = fn
+   Signed inttype => Signed inttype
+ | Unsigned inttype => Unsigned inttype
+ | Bool => Bool
+ | PlainChar => PlainChar
+ | StructTy string => StructTy (rm_region_with_counter' string)
+ | EnumTy opt => EnumTy opt
+ | Ptr ctype => Ptr (rm_region_ctype f ctype)
+ | Array (ctype, option) => Array (rm_region_ctype f ctype, Option.map f option)
+ | Bitfield (bool, c) => Bitfield (bool, f c)
+ | Ident string => Ident string
+ | Function (ctype, l) => Function (rm_region_ctype f ctype, map (rm_region_ctype f) l)
+ | Void => Void
+
 end (* struct *)

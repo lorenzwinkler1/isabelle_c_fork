@@ -1,4 +1,6 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Portions Copyright 2016-2017 Nanyang Technological University, Singapore
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -10,6 +12,7 @@
 
 theory CTranslation
 imports
+  "../../../../C11-FrontEnd/semantic-backends/AutoCorres/AC_Command"
   "PackedTypes"
   "PrettyProgs"
   "StaticFun"
@@ -18,8 +21,13 @@ imports
 keywords
   "install_C_file"
   "install_C_types"
-  "new_C_include_dir":: thy_decl
+  "new_C_include_dir":: thy_load % "ML"
 and
+  "all_parsing"
+  "no_C11_parsing"
+  "no_cpp"
+  "parse_then_stop"
+  "sub_decl"
   "memsafe"
   "c_types"
   "c_defs"
@@ -63,9 +71,10 @@ ML_file "tools/mlyacc/mlyacclib/MLY_parser2.ML"
 ML_file "FunctionalRecordUpdate.ML"
 ML_file "topo_sort.ML"
 ML_file "isa_termstypes.ML"
-ML_file "StrictC.grm.sig"
-ML_file "StrictC.grm.sml"
-ML_file "StrictC.lex.sml"
+ML_file "../../../generated/tools/c-parser/StrictC.grm.sig"
+ML_file "../../../generated/tools/c-parser/StrictC.grm.sml"
+ML_file "../../../generated/tools/c-parser/StrictC.lex.sml"
+ML_file "isar_pre_install.ML"
 ML_file "StrictCParser.ML"
 ML_file "complit.ML"
 ML_file "hp_termstypes.ML"

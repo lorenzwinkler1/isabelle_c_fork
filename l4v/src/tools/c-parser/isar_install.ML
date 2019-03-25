@@ -1,4 +1,6 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Portions Copyright 2016-2017 Nanyang Technological University, Singapore
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -13,14 +15,14 @@ sig
 
   type additional_options
   val GhostState : string -> additional_options
-  val get_Csyntax : theory -> string -> Absyn.ext_decl list
-  val gen_umm_types_file : string -> string -> theory -> theory
+  val get_Csyntax : bool option -> bool option -> bool option -> int option -> theory -> Token.file -> Absyn.ext_decl list * theory
+  val gen_umm_types_file : bool option -> bool option -> bool option -> int option -> Token.file -> string -> theory -> theory
   val do_cpp : {error_detail : int, cpp_path : string option} ->
                {includes : string list, filename : string} -> string
-  val install_C_file : (((bool option * bool option) * bool option) * string) *
+  val install_C_file : (((((((bool option * bool option) * bool option) * int option) * bool option) * bool option) * bool option) * (theory -> Token.file list)) *
                        additional_options list option ->
                        theory -> theory
-  val interactive_install : string -> theory -> theory
+  val interactive_install : (theory -> Token.file list) -> theory -> theory
   val mk_thy_relative : theory -> string -> string
 
   val extra_trace_filename : string Config.T
@@ -145,22 +147,28 @@ fun do_cpp {error_detail, cpp_path} {includes, filename} =
              in raise Feedback.WantToExit ("cpp failed on " ^ filename) end
       end
 
-fun get_Csyntax thy s = let
+fun get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy file = let
   val _ = setup_feedback_thy thy
   val cpp_option =
+    case no_cpp of SOME _ => NONE | NONE =>
       case Config.get_global thy cpp_path of
           "" => NONE
         | s => SOME s
   val cpp_error_count = Config.get_global thy report_cpp_errors
-  val (ast0, _) =
+  val ((ast0, _), thy) =
       StrictCParser.parse
+          maybe_c11
           (do_cpp {error_detail = cpp_error_count, cpp_path = cpp_option})
           15
           (C_Includes.get thy)
-          (mk_thy_relative thy s)
+          file
+          thy
       handle IO.Io {name, ...} => error ("I/O error on "^name)
+  val ast0 = case sub_decl of NONE => ast0 | SOME sub_decl => List.take (ast0, sub_decl)
 in
-  ast0 |> SyntaxTransforms.remove_anonstructs |> SyntaxTransforms.remove_typedefs
+  ( case parse_stop of SOME _ => ast0 | _ =>
+     ast0 |> SyntaxTransforms.remove_anonstructs |> SyntaxTransforms.remove_typedefs
+  , thy)
 end
 
 fun define_naming_scheme [] _ = I
@@ -296,10 +304,13 @@ in
   recurse (Binaryset.empty String.compare) slist
 end
 
-fun install_C_file0 (((((memsafe),ctyps),cdefs),s),statetylist_opt) thy = let
-  val _ = setup_feedback_thy thy
+fun install_C_file0 ((((((((maybe_c11,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),files),statetylist_opt) thy = let
+  val [file as {src_path, lines, digest, pos}: Token.file] = files thy;
+  val s = Position.file_of pos |> the |> Path.explode |> File.full_path Path.current |> Path.implode
+
   val {base = localename,...} = OS.Path.splitBaseExt (OS.Path.file s)
-  val _ = not (Long_Name.is_qualified localename) orelse
+  val _ = parse_stop <> NONE orelse
+          not (Long_Name.is_qualified localename) orelse
             raise Fail ("Base of filename looks like qualified Isabelle ID: "^
                         localename)
   val _ = localename <> "" orelse
@@ -325,7 +336,8 @@ fun install_C_file0 (((((memsafe),ctyps),cdefs),s),statetylist_opt) thy = let
   val install_typs = not (o2b cdefs) orelse (o2b ctyps)
   val install_defs = not (o2b ctyps) orelse (o2b cdefs)
   val ms = o2b memsafe
-  val ast = get_Csyntax thy s
+  val (ast, thy) = get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy file
+in case parse_stop of SOME _ => thy | _ => let
   open ProgramAnalysis CalculateState Feedback
   val owners =
       (* non-null if there are any globals that have owned_by annotations *)
@@ -474,6 +486,7 @@ end handle e as TYPE (s,tys,tms) =>
                        ", "
                        (map (Syntax.string_of_typ @{context}) tys));
           raise e)
+end
 
 fun install_C_file args thy =
     thy |> install_C_file0 args
@@ -481,7 +494,7 @@ fun install_C_file args thy =
 
 (* for interactive debugging/testing *)
 fun interactive_install s thy =
-  install_C_file ((((NONE, NONE), NONE), s), NONE) thy
+  install_C_file ((((((((NONE, NONE), NONE), NONE), NONE), NONE), NONE), s), NONE) thy
   handle TYPE (s,tys,tms) =>
          (Feedback.informStr (0, s ^ "\n" ^
                    Int.toString (length tms) ^ " term(s): " ^
@@ -495,9 +508,10 @@ fun interactive_install s thy =
           thy);
 
 
-fun install_C_types s thy = let
+fun install_C_types ((((maybe_c11, no_cpp), parse_stop), sub_decl), files) thy = let
   open CalculateState ProgramAnalysis
-  val ast = get_Csyntax thy s
+  val [file as {src_path, lines, digest, pos}: Token.file] = files thy;
+  val (ast, thy) = get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy file
   val (_, cse) =
       process_decls {
         anon_vars = Config.get_global thy use_anon_vars,
@@ -509,9 +523,9 @@ in
   thy
 end
 
-fun gen_umm_types_file inputfile outputfile thy = let
+fun gen_umm_types_file maybe_c11 no_cpp parse_stop sub_decl inputfile outputfile thy = let
   open ProgramAnalysis
-  val ast = get_Csyntax thy inputfile
+  val (ast, thy) = get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy inputfile
   val (_, cse) =
       process_decls {
         anon_vars = Config.get_global thy use_anon_vars,
@@ -530,6 +544,12 @@ val mtypN = "machinety"
 val ghosttypN = "ghostty"
 val rootsN = "roots"
 
+val parsing_option =
+   Scan.option (@{keyword "all_parsing"} >> K true || @{keyword "no_C11_parsing"} >> K false) --
+   (Scan.option @{keyword "no_cpp"}) --
+   (Scan.option @{keyword "parse_then_stop"}) --
+   (Scan.option (@{keyword "sub_decl"} |-- Parse.nat))
+
 local
   structure P = Parse
   structure K = Keyword
@@ -546,9 +566,10 @@ val file_inclusion = let
       P.reserved ghosttypN |-- (P.$$$ "=" |-- P.text >> GhostState) ||
       P.reserved rootsN |-- (P.$$$ "=" |-- (P.$$$ "[" |-- P.enum1 "," P.text --| P.$$$ "]") >> CRoots)
 in
-    ((Scan.option (P.$$$ memsafeN)) --
+    (parsing_option --
+     (Scan.option (P.$$$ memsafeN)) --
      (Scan.option (P.$$$ typesN)) --
-     (Scan.option (P.$$$ defsN)) -- P.text --
+     (Scan.option (P.$$$ defsN)) -- Resources.parse_files "file_inclusion" --
      (Scan.option
           (P.$$$ "[" |-- P.enum1 "," typoptions --| P.$$$ "]"))) >>
     (Toplevel.theory o install_C_file)
@@ -564,7 +585,7 @@ val _ =
     Outer_Syntax.command
       @{command_keyword "install_C_types"}
       "install types from a C file"
-      (P.text >> (Toplevel.theory o install_C_types))
+      (parsing_option -- Resources.parse_files "install_C_types" >> (Toplevel.theory o install_C_types))
 
 end
 

@@ -38,11 +38,21 @@ theory C_Ast
   imports Main
 begin
 
+ML\<open>
+val fresh_ident0 =
+  let val i = Synchronized.var "counter for new identifier" 38 in
+    fn () => Int.toString (Synchronized.change_result i (fn i => (i, i + 1)))
+  end
+\<close>
+
 ML_file \<open>../generated/C_Ast.ML\<close>
 
 ML\<open>
+structure C_ast_simple = C_ast
 structure C_ast_simple = struct
   open C_ast_simple
+  open Basic_Library
+  val length = List.length
   val Ident = Ident0
 end
 \<close>
