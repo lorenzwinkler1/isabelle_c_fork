@@ -41,10 +41,7 @@ theory "C_Main"
        and "C_export" :: thy_load % "ML"
 begin
 
-section\<open>The Global C11-Module State\<close>
-ML\<open>
-
-\<close>
+section \<open>The Global C11-Module State\<close>
 
 ML\<open>
 structure C_Context' = struct
@@ -74,50 +71,44 @@ ML\<open>
 structure C_Outer_Syntax =
 struct
 
-val C = C_Context'.eval_source
-fun C' err env_lang src context =
-  {context = context, reports_text = Stack_Data_Tree.get context}
-  |> C_Context.eval_source'
+fun C source = 
+  ML_Context.exec (fn () => C_Context'.eval_source source)
+  #> Local_Theory.propagate_ml_env
+
+fun C' err env_lang src =
+  C_Env.empty_env_tree
+  #> C_Context.eval_source'
        env_lang
        err
        C_Context'.accept
        src
-  |> (fn {context, reports_text} => Stack_Data_Tree.put reports_text context)
+  #> (fn {context, reports_text} => Stack_Data_Tree.map (append reports_text) context)
 
 val _ =
   Outer_Syntax.command @{command_keyword C} ""
-    (Parse.input (Parse.group (fn () => "C source") Parse.text) >> (fn source =>
-      Toplevel.generic_theory
-        (ML_Context.exec (fn () =>
-            C source) #>
-          Local_Theory.propagate_ml_env)));
+    (Parse.input (Parse.group (fn () => "C source") Parse.text)
+     >> (Toplevel.generic_theory o C));
 end
 \<close>
 
-section\<open>The Command "C_file"\<close>
+section \<open>The Command @{command C_import}\<close>
 
 ML\<open>
 
 structure C_File =
 struct
 
-fun command0 ({src_path, lines, digest, pos}: Token.file) = (fn gthy =>
+fun command0 ({src_path, lines, digest, pos}: Token.file) =
   let
     val provide = Resources.provide (src_path, digest);
-    val source = Input.source true (cat_lines lines) (pos, pos);
-  in
-    gthy
-    |> ML_Context.exec (fn () => C_Context'.eval_source source)
-    |> Local_Theory.propagate_ml_env
-    |> Context.mapping provide (Local_Theory.background_theory provide)
-  end);
+  in I
+    #> C_Outer_Syntax.C (Input.source true (cat_lines lines) (pos, pos))
+    #> Context.mapping provide (Local_Theory.background_theory provide)
+  end;
 
 fun command files =
   Toplevel.generic_theory
     (fn gthy => command0 (hd (files (Context.theory_of gthy))) gthy);
-
-val C : (theory -> Token.file list) ->
-        Toplevel.transition -> Toplevel.transition = command;
 
 end;
 \<close>
@@ -131,11 +122,11 @@ val semi = Scan.option @{keyword ";"};
 
 val _ =
   Outer_Syntax.command @{command_keyword C_import} "read and evaluate C file"
-    (Resources.parse_files "C_file" --| semi >> C_File.C);
+    (Resources.parse_files "C_file" --| semi >> C_File.command);
 
 val _ =
   Outer_Syntax.command @{command_keyword C_export} "read and evaluate C file"
-    (Resources.parse_files "C_file" --| semi >> C_File.C);   (* HACK TO BE DONE *)
+    (Resources.parse_files "C_file" --| semi >> C_File.command);   (* HACK: TO BE DONE *)
 
 
 in end

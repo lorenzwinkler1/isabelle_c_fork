@@ -35,7 +35,7 @@
  ******************************************************************************)
 
 theory C1
-  imports "../C_Main"
+  imports "../semantic-backends/AutoCorres/AC_Command"
 begin
 
 declare[[C_lexer_trace]]
@@ -106,8 +106,8 @@ section \<open>C Annotations\<close>
 subsection \<open>Actions on the Parsing Stack\<close>
 
 C \<comment> \<open>Nesting ML code in C comments\<close> \<open>
-int a = (((0))); /*@ ML \<open>@{print_stack}\<close> */
-                 /*@ ML \<open>@{print_top}\<close> */
+int a = (((0))); /*@ \<approx>setup \<open>@{print_stack}\<close> */
+                 /*@ \<approx>setup \<open>@{print_top}\<close> */
 \<close>
 
 text \<open>In terms of execution order, nested ML code are not pre-filtered out of the C code, but
@@ -121,7 +121,7 @@ we can conveniently use ML antiquotations for printing and reporting actions.\<c
 
 C \<comment> \<open>Positional navigation: referring to any previous parsed sub-tree in the stack\<close> \<open>
 int a = (((0
-      + 5)))  /*@@ ML \<open>fn _ => fn (_, (value, pos1, pos2)) => fn _ => fn context =>
+      + 5)))  /*@@ \<approx>setup \<open>fn _ => fn (_, (value, pos1, pos2)) => fn _ => fn context =>
                           let
                             val () = writeln (@{make_string} value)
                             val () = Position.reports_text [((Position.range (pos1, pos2) 
@@ -141,16 +141,16 @@ Instead of always referring to the first element of the stack,
 of the \<open>N\<close>-th element.\<close>
 
 C \<comment> \<open>Positional navigation: referring to any previous parsed sub-tree in the stack\<close> \<open>
-int a = (((0 + 5)))  /*@@ ML \<open>@{print_top}\<close> */
+int a = (((0 + 5)))  /*@@ \<approx>setup \<open>@{print_top}\<close> */
       * 4;
 
-int a = (((0 + 5)))  /*@& ML \<open>@{print_top}\<close> */
+int a = (((0 + 5)))  /*@& \<approx>setup \<open>@{print_top}\<close> */
       * 4;
 
-int a = (((0 + 5)))  /*@@@@@ ML \<open>@{print_top}\<close> */
+int a = (((0 + 5)))  /*@@@@@ \<approx>setup \<open>@{print_top}\<close> */
       * 4;
 
-int a = (((0 + 5)))  /*@&&&& ML \<open>@{print_top}\<close> */
+int a = (((0 + 5)))  /*@&&&& \<approx>setup \<open>@{print_top}\<close> */
       * 4;
 \<close>
 
@@ -161,7 +161,7 @@ being built).\<close>
 
 C \<comment> \<open>Positional navigation: moving the comment after a number of C token\<close> \<open>
 int b = 7 / (3) * 50;
-/*@+++@@ ML \<open>@{print_top}\<close>*/
+/*@+++@@ \<approx>setup \<open>@{print_top}\<close>*/
 long long f (int a) {
   while (0) { return 0; }
 }
@@ -173,16 +173,16 @@ which is ignored at the place it is written. The comment is only really consider
 C parser has treated \<open>N\<close> more tokens.\<close>
 
 C \<comment> \<open>Closing C comments \<open>*/\<close> must close anything, even when editing ML code\<close> \<open>
-int a = (((0 //@ (* inline *) ML \<open>fn _ => fn _ => fn _ => fn context => let in (* */ *) context end\<close>
-             /*@ ML \<open>(K o K o K) I\<close> (*   * /   *) */
+int a = (((0 //@ (* inline *) \<approx>setup \<open>fn _ => fn _ => fn _ => fn context => let in (* */ *) context end\<close>
+             /*@ \<approx>setup \<open>(K o K o K) I\<close> (*   * /   *) */
          )));
 \<close>
 
 C \<comment> \<open>Inline comments with antiquotations\<close> \<open>
- /*@ ML\<open>(K o K o K) (fn x => K x @{con\
+ /*@ \<approx>setup\<open>(K o K o K) (fn x => K x @{con\
 text (**)})\<close> */ // break of line activated everywhere (also in antiquotations)
 int a = 0; //\
-@ ML\<open>(K o K o K) (fn x => K x @{term \<open>a \
+@ \<approx>setup\<open>(K o K o K) (fn x => K x @{term \<open>a \
           + b (* (**) *\      
 \     
 )\<close>})\<close>
@@ -190,12 +190,12 @@ int a = 0; //\
 
 C \<comment> \<open>Permissive Types of Antiquotations\<close> \<open>
 int a = 0;
-  /*@ ML (* Errors: Explicit warning + Explicit markup reporting *)
+  /*@ \<approx>setup (* Errors: Explicit warning + Explicit markup reporting *)
    */
-  /** ML (* Errors: Turned into tracing report information *)
+  /** \<approx>setup (* Errors: Turned into tracing report information *)
    */
 
-  /** ML \<open>fn _ => fn _ => fn _ => I\<close> (* An example of correct syntax accepted as usual *)
+  /** \<approx>setup \<open>fn _ => fn _ => fn _ => I\<close> (* An example of correct syntax accepted as usual *)
    */
 \<close>
 
@@ -203,24 +203,24 @@ subsection \<open>Mixing Together Any Types of Antiquotations\<close>
 
 C \<comment> \<open>Permissive Types of Antiquotations\<close> \<open>
 int a = 0;
-  /*@ ML \<open>fn _ => fn _ => fn _ => I\<close>
-      ML (* Parsing error of a single command does not propagate to other commands *)
-      ML \<open>fn _ => fn _ => fn _ => I\<close>
+  /*@ \<approx>setup \<open>fn _ => fn _ => fn _ => I\<close>
+      \<approx>setup (* Parsing error of a single command does not propagate to other commands *)
+      \<approx>setup \<open>fn _ => fn _ => fn _ => I\<close>
       context
    */
-  /** ML \<open>fn _ => fn _ => fn _ => I\<close>
-      ML (* Parsing error of a single command does not propagate to other commands *)
-      ML \<open>fn _ => fn _ => fn _ => I\<close>
+  /** \<approx>setup \<open>fn _ => fn _ => fn _ => I\<close>
+      \<approx>setup (* Parsing error of a single command does not propagate to other commands *)
+      \<approx>setup \<open>fn _ => fn _ => fn _ => I\<close>
       context
    */
   
-  /*@ ML (* Errors in all commands are all rendered *)
-      ML (* Errors in all commands are all rendered *)
-      ML (* Errors in all commands are all rendered *)
+  /*@ \<approx>setup (* Errors in all commands are all rendered *)
+      \<approx>setup (* Errors in all commands are all rendered *)
+      \<approx>setup (* Errors in all commands are all rendered *)
    */
-  /** ML (* Errors in all commands makes the whole comment considered as an usual comment *)
-      ML (* Errors in all commands makes the whole comment considered as an usual comment *)
-      ML (* Errors in all commands makes the whole comment considered as an usual comment *)
+  /** \<approx>setup (* Errors in all commands makes the whole comment considered as an usual comment *)
+      \<approx>setup (* Errors in all commands makes the whole comment considered as an usual comment *)
+      \<approx>setup (* Errors in all commands makes the whole comment considered as an usual comment *)
    */
 \<close>
 
@@ -242,19 +242,19 @@ declare[[C_parser_trace]]
 C \<comment> \<open>Arbitrary interleaving of effects\<close> \<open>
 int x /** OWNED_BY foo */, hh /*@
   MODIFIES: [*] x
-  ML \<open>@{print_stack "evaluation of 2_print_stack"}\<close>
-  +++++@@ ML \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "2_print_top"\<close>
+  \<approx>setup \<open>@{print_stack "evaluation of 2_print_stack"}\<close>
+  +++++@@ \<approx>setup \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "2_print_top"\<close>
   OWNED_BY bar
-  @ML \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "1_print_top"\<close>
-  ML \<open>@{print_stack "evaluation of 1_print_stack"}\<close>
+  @\<approx>setup \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "1_print_top"\<close>
+  \<approx>setup \<open>@{print_stack "evaluation of 1_print_stack"}\<close>
 */, z;
 
 int b = 0;
 \<close>
 
-C \<comment> \<open>Arbitrary interleaving of effects: \<open>ML\<close> vs \<open>ML_reverse\<close>\<close> \<open>
-int b,c,d/*@@ ML \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "3_print_top"\<close> */,e = 0; /*@@ ML \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "4_print_top"\<close> */
-int b,c,d/*@@ ML_reverse \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "6_print_top"\<close> */,e = 0; /*@@ ML_reverse \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "5_print_top"\<close> */
+C \<comment> \<open>Arbitrary interleaving of effects: \<open>\<approx>setup\<close> vs \<open>\<approx>setup\<Down>\<close>\<close> \<open>
+int b,c,d/*@@ \<approx>setup \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "3_print_top"\<close> */,e = 0; /*@@ \<approx>setup \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "4_print_top"\<close> */
+int b,c,d/*@@ \<approx>setup\<Down> \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "6_print_top"\<close> */,e = 0; /*@@ \<approx>setup\<Down> \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "5_print_top"\<close> */
 \<close>
 
 subsection \<open>Reporting of Positions and Contextual Update of Environment\<close>
@@ -266,7 +266,7 @@ declare [[C_lexer_trace = false]]
 
 C \<comment> \<open>Reporting of Positions\<close> \<open>
 typedef int i, j;
-  /*@@ ML \<open>@{print_top'}\<close> */ //@ +++++@ ML \<open>@{print_top'}\<close>
+  /*@@ \<approx>setup \<open>@{print_top'}\<close> */ //@ +++++@ \<approx>setup \<open>@{print_top'}\<close>
 int j = 0;
 typedef int i, j;
 j jj1 = 0;
@@ -291,7 +291,7 @@ fun show_env0 make_string f msg context =
 
 val show_env = tap o show_env0 @{make_string} length
 
-fun C src = tap (fn _ => C_Outer_Syntax.C src)
+val C = tap o C_Outer_Syntax.C
 val C' = C_Outer_Syntax.C' (fn _ => fn _ => fn pos =>
                              tap (fn _ => warning ("Parser: No matching grammar rule " ^ Position.here pos)))
 \<close>
@@ -299,7 +299,7 @@ val C' = C_Outer_Syntax.C' (fn _ => fn _ => fn pos =>
 C \<comment> \<open>Nesting C code without propagating the C environment\<close> \<open>
 int a = 0;
 int b = 7 / (3) * 50
-  /*@@@@@ ML \<open>fn _ => fn _ => fn _ =>
+  /*@@@@@ \<approx>setup \<open>fn _ => fn _ => fn _ =>
                C      \<open>int b = a + a + a + a + a + a + a
                        ;\<close> \<close> */;
 \<close>
@@ -307,24 +307,103 @@ int b = 7 / (3) * 50
 C \<comment> \<open>Nesting C code and propagating the C environment\<close> \<open>
 int a = 0;
 int b = 7 / (3) * 50
-  /*@@@@@ ML \<open>fn _ => fn _ => fn env =>
+  /*@@@@@ \<approx>setup \<open>fn _ => fn _ => fn env =>
                C' env \<open>int b = a + a + a + a + a + a + a
                        ;\<close> \<close> */;
 \<close>
+
+subsubsection \<open>3\<close>
+
+ML\<open>
+local
+fun command dir f_cmd name =
+  C_Annotation.command' name ""
+    (fn (stack1, (to_delay, stack2)) =>
+      C_Parse.range C_Parse.ML_source >>
+        (fn (src, range) =>
+          (fn f => Once ((stack1, stack2), (range, dir, to_delay, f)))
+            (fn _ => fn context => f_cmd (Stack_Data_Lang.get context |> #2) src context)))
+in
+val _ = Theory.setup (   command Bottom_up (K C) ("C", \<^here>)
+                      #> command Top_down (K C) ("C_reverse", \<^here>)
+                      #> command Bottom_up C' ("C'", \<^here>)
+                      #> command Top_down C' ("C'_reverse", \<^here>))
+end
+\<close>
+
+C \<comment> \<open>Nesting C code without propagating the C environment\<close> \<open>
+int f (int a) {
+  int b = 7 / (3) * 50 /*@ C  \<open>int b = a + a + a + a + a + a + a;\<close> */;
+  int c = b + a + a + a + a + a + a;
+} \<close>
+
+C \<comment> \<open>Nesting C code and propagating the C environment\<close> \<open>
+int f (int a) {
+  int b = 7 / (3) * 50 /*@ C' \<open>int b = a + a + a + a + a + a + a;\<close> */;
+  int c = b + b + b + b + a + a + a + a + a + a;
+} \<close>
+
+C \<comment> \<open>Miscellaneous\<close> \<open>
+int f (int a) {
+  int b = 7 / (3) * 50 /*@ C  \<open>int b = a + a + a + a + a; //@ C' \<open>int c = b + b + b + b + a;\<close> \<close> */;
+  int b = 7 / (3) * 50 /*@ C' \<open>int b = a + a + a + a + a; //@ C' \<open>int c = b + b + b + b + a;\<close> \<close> */;
+  int c = b + b + b + b + a + a + a + a + a + a;
+} \<close>
+
+subsubsection \<open>4\<close>
+
+ML\<open>
+fun command_c' name _ _ _ =
+  Context.map_theory 
+    (C_Annotation.command' name ""
+      (fn (stack1, (to_delay, stack2)) =>
+        C_Parse.range C_Parse.ML_source >>
+          (fn (src, range) =>
+            (fn f => Once ((stack1, stack2), (range, Bottom_up, to_delay, f)))
+              (fn _ => fn context => C' (Stack_Data_Lang.get context |> #2) src context))))
+
+fun fun_decl a v s ctxt =
+  let
+    val (b, ctxt') = ML_Context.variant a ctxt;
+    val env = "fun " ^ b ^ " " ^ v ^ " = " ^ s ^ " " ^ v ^ ";\n";
+    val body = ML_Context.struct_name ctxt ^ "." ^ b;
+    fun decl (_: Proof.context) = (env, body);
+  in (decl, ctxt') end;
+
+val _ = Theory.setup
+  (ML_Antiquotation.declaration (Binding.make ("C_def", \<^here>)) (Scan.lift (Parse.position Parse.name))
+    (fn _ => fn (name, pos) =>
+      tap (fn ctxt => Context_Position.reports ctxt [(pos, Markup.keyword1)]) #>
+      fun_decl "cmd" "x" ("command_c' (\"" ^ name ^ "\", " ^ ML_Syntax.print_position pos ^ ")")))
+
+\<close>
+
+C \<comment> \<open>Miscellaneous\<close> \<open>
+int f (int a) {
+  int b = 7
+    /*@ @@ C' \<open>int c = 0; //@ C++ \<open>int d = c; //@ \<approx>setup \<open>@{C_def "C#"}\<close> \
+                                                  C++ \<open>int d = c + a;\<close>\<close>
+                          //@ \<approx>setup \<open>fn _ => fn _ => fn _ => \
+                                  C \<open>int b = a; //@ C# \<open>int d = c + a;\<close>\<close>\<close>\<close>
+         @ \<approx>setup \<open>@{C_def "C++"}\<close>
+     */;
+} \<close>
+
+subsubsection \<open>5\<close>
 
 C \<comment> \<open>Propagation of Updates\<close> \<open>
 typedef int i, j;
 int j = 0;
 typedef int i, j;
 j jj1 = 0;
-j jj = jj1; /*@@ ML \<open>fn _ => fn _ => fn _ => show_env "POSITION 0"\<close> @ML \<open>@{print_top'}\<close> */
-typedef int k; /*@@ ML \<open>fn _ => fn _ => fn env =>
-                          C' env \<open>k jj = jj; //@@ ML \<open>@{print_top'}\<close>
+j jj = jj1; /*@@ \<approx>setup \<open>fn _ => fn _ => fn _ => show_env "POSITION 0"\<close> @\<approx>setup \<open>@{print_top'}\<close> */
+typedef int k; /*@@ \<approx>setup \<open>fn _ => fn _ => fn env =>
+                          C' env \<open>k jj = jj; //@@ \<approx>setup \<open>@{print_top'}\<close>
                                   k jj = jj + jj1;
-                                  typedef k l; //@@ ML \<open>@{print_top'}\<close>\<close>
+                                  typedef k l; //@@ \<approx>setup \<open>@{print_top'}\<close>\<close>
                           #> show_env "POSITION 1"\<close> */
-j j = jj1 + jj; //@@ ML \<open>@{print_top'}\<close>
-typedef i j; /*@@ ML \<open>fn _ => fn _ => fn _ => show_env "POSITION 2"\<close> */
+j j = jj1 + jj; //@@ \<approx>setup \<open>@{print_top'}\<close>
+typedef i j; /*@@ \<approx>setup \<open>fn _ => fn _ => fn _ => show_env "POSITION 2"\<close> */
 typedef i j;
 typedef i j;
 i jj = jj;

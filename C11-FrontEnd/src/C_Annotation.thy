@@ -41,8 +41,9 @@ begin
 section \<open>The Construction of an C-Context (analogously to the standard ML context)\<close>
 
 ML\<open>
+(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
 (*  Title:      Pure/Isar/keyword.ML
-    Author:     Frederic Tuong, Makarius
+    Author:     Makarius
 
 Isar keyword classification.
 *)
@@ -535,8 +536,9 @@ end;
 \<close>
 
 ML\<open>
+(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
 (*  Title:      Pure/Thy/thy_header.ML
-    Author:     Frederic Tuong, Makarius
+    Author:     Makarius
 
 Static theory header information.
 *)
@@ -680,12 +682,13 @@ val before_command =
 end
 
 fun parse_command thy =
-  Scan.ahead (before_command |-- C_Parse.position C_Parse.command_) :|-- (fn (name, _) =>
+  Scan.ahead (before_command |-- C_Parse.position C_Parse.command_) :|-- (fn (name, pos) =>
     let val command_tags = before_command --| C_Parse.command_;
     in
       case lookup_commands thy name of
-        SOME (Command {command_parser = Parser parse, ...}) =>
+        SOME (cmd as Command {command_parser = Parser parse, ...}) =>
           C_Parse.!!! (command_tags :|-- parse)
+          >> (pair [((pos, command_markup false (name, cmd)), "")])
       | NONE =>
           Scan.fail_with (fn _ => fn _ =>
             let
@@ -696,8 +699,9 @@ end
 \<close>
 
 ML\<open>
+(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
 (*  Title:      Pure/ML/ml_context.ML
-    Author:     Frederic Tuong, Makarius
+    Author:     Makarius
 
 ML context and antiquotations.
 *)
@@ -931,7 +935,8 @@ fun eval'0 env err accept ants {context, reports_text} =
       val _ = Position.reports_text (maps C_Lex.token_report ants_none
                                      @ maps (fn Left (_, _, [(Antiq_none _, _)]) => []
                                               | Left (_, l, ls) =>
-                                                  maps (maps (C_Token.reports ())) (l :: map #2 ls)
+                                                  maps (fn (Antiq_stack (pos, _), _) => pos | _ => []) ls
+                                                  @ maps (maps (C_Token.reports ())) (l :: map #2 ls)
                                               | _ => [])
                                             ants);
       val _ = C_Lex.check ants_none;
@@ -945,6 +950,7 @@ fun eval'0 env err accept ants {context, reports_text} =
 fun eval' env err accept ants =
   Context.>> (C_Env_Ext.context_map
                let val tap_report = tap (Position.reports_text o #reports_text)
+                                    #> (C_Env.empty_env_tree o #context)
                in eval'0 env
                          (fn env_lang => fn stack => fn pos => tap_report #> err env_lang stack pos)
                          (fn env_lang => fn stack => accept env_lang stack #> tap_report)
@@ -973,38 +979,69 @@ fun expression range name constraint body ants context = context |>
       ML_Lex.read (": " ^ constraint ^ " =") @ ants @
       ML_Lex.read ("in " ^ body ^ " end (Context.the_generic_context ())));")) end;
 
-fun command dir name =
+structure C_Toplevel =
+struct
+val theory = Context.map_theory
+val generic_theory = I
+end
+
+structure Isar_Cmd0 = 
+struct
+fun ML source =  ML_Context.exec (fn () =>
+                    ML_Context.eval_source (ML_Compiler.verbose true ML_Compiler.flags) source) #>
+                  Local_Theory.propagate_ml_env
+end
+
+structure C_Isar_Cmd = 
+struct
+fun setup src =
+ fn NONE =>
+    let val setup = "setup"
+    in expression
+        (Input.range_of src)
+        setup
+        "stack_data -> stack_data_elem -> C_Env.env_lang -> Context.generic -> Context.generic"
+        ("fn context => \
+           \let val (stack, env_lang) = Stack_Data_Lang.get context \
+           \in " ^ setup ^ " stack (stack |> hd) env_lang end context")
+        (ML_Lex.read_source false src) end
+  | SOME rule => 
+    let val hook = "hook"
+    in expression
+        (Input.range_of src)
+        hook
+        ("stack_data -> " ^ MlyValue.type_reduce rule ^ " stack_elem -> C_Env.env_lang -> Context.generic -> Context.generic")
+        ("fn context => \
+           \let val (stack, env_lang) = Stack_Data_Lang.get context \
+           \in " ^ hook ^ " stack (stack |> hd |> map_svalue0 MlyValue.reduce" ^ Int.toString rule ^ ") env_lang end context")
+        (ML_Lex.read_source false src)
+    end
+
+end
+
+fun command0 f dir name =
   C_Annotation.command' name ""
     (fn (stack1, (to_delay, stack2)) =>
       C_Parse.range C_Parse.ML_source >>
         (fn (src, range) =>
-          (fn f => Once ((stack1, stack2), (range, dir, to_delay, f)))
-            (fn NONE =>
-                let val setup = "setup"
-                in expression
-                    (Input.range_of src)
-                    setup
-                    "stack_data -> stack_data_elem -> C_Env.env_lang -> Context.generic -> Context.generic"
-                    ("fn context => \
-                       \let val (stack, env_lang) = Stack_Data_Lang.get context \
-                       \in " ^ setup ^ " stack (stack |> hd) env_lang end context")
-                    (ML_Lex.read_source false src) end
-              | SOME rule => 
-                let val hook = "hook"
-                in expression
-                    (Input.range_of src)
-                    hook
-                    ("stack_data -> " ^ MlyValue.type_reduce rule ^ " stack_elem -> C_Env.env_lang -> Context.generic -> Context.generic")
-                    ("fn context => \
-                       \let val (stack, env_lang) = Stack_Data_Lang.get context \
-                       \in " ^ hook ^ " stack (stack |> hd |> map_svalue0 MlyValue.reduce" ^ Int.toString rule ^ ") env_lang end context")
-                    (ML_Lex.read_source false src)
-                end)))
+          Once ((stack1, stack2), (range, dir, to_delay, K (f src)))))
+
+fun command f dir name =
+  C_Annotation.command' name ""
+    (fn (stack1, (to_delay, stack2)) =>
+      C_Parse.range C_Parse.ML_source >>
+        (fn (src, range) =>
+          Once ((stack1, stack2), (range, dir, to_delay, f src))))
 
 in
-val _ = Theory.setup (   command Bottom_up ("ML", \<^here>)
-                      #> command Top_down ("ML_reverse", \<^here>))
+val _ = Theory.setup (   command (C_Toplevel.generic_theory oo C_Isar_Cmd.setup) Bottom_up ("\<approx>setup", \<^here>)
+                      #> command (C_Toplevel.generic_theory oo C_Isar_Cmd.setup) Top_down ("\<approx>setup\<Down>", \<^here>)
+                      #> command0 (C_Toplevel.theory o Isar_Cmd.setup) Bottom_up ("setup", \<^here>)
+                      #> command0 (C_Toplevel.theory o Isar_Cmd.setup) Top_down ("setup\<Down>", \<^here>)
+                      #> command0 (C_Toplevel.generic_theory o Isar_Cmd0.ML) Bottom_up ("ML", \<^here>)
+                      #> command0 (C_Toplevel.generic_theory o Isar_Cmd0.ML) Top_down ("ML\<Down>", \<^here>))
 end
+
 \<close>
 
 end

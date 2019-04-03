@@ -53,7 +53,7 @@ sig
   val >> : unit p * 'a p -> 'a p
 
   (**)
-  val report : Position.T list -> ('a -> Markup.T list) -> 'a -> C_Env.reports_text -> C_Env.reports_text
+  val report : Position.T list -> ('a -> Markup.T list) -> 'a -> reports_text -> reports_text
   val markup_tvar : bool -> Position.T list -> string * serial -> Markup.T list
   val markup_var : bool -> bool -> Position.T list -> string * serial -> Markup.T list
 
@@ -739,10 +739,19 @@ structure Stack_Data_Lang = Generic_Data
    val merge = #2)
 
 structure Stack_Data_Tree = Generic_Data
-  (type T = C_Env.reports_text
+  (type T = reports_text
    val empty = []
    val extend = I
    val merge = #2)
+
+fun setmp_tree f context =
+  let val x = Stack_Data_Tree.get context
+      val context = f context
+  in (Stack_Data_Tree.get context, Stack_Data_Tree.put x context) end
+
+fun stack_exec data_put f {context, reports_text} =
+  let val (r, context) = setmp_tree (Stack_Data_Lang.put data_put #> f) context
+  in {context = context, reports_text = append r reports_text} end
 
 structure StrictCLex : ARG_LEXER1 =
 struct
@@ -771,9 +780,8 @@ fun advance_hook stack = (fn f => fn (arg, stack_ml) => f (#stream_hook arg) (ar
           I #>>
           (case ml_exec of
              (_, Bottom_up, _, exec) =>
-              (fn arg => C_Env_Ext.map_context (I #> Stack_Data_Lang.put (stack, #env_lang arg)
-                                                  #> exec NONE)
-                                               arg)
+              (fn arg => C_Env.map_env_tree (stack_exec (stack, #env_lang arg) (exec NONE))
+                                            arg)
            | ((pos, _), _, _, _) =>
               C_Env_Ext.map_context (fn _ => error ("Style of evaluation not yet implemented" ^ Position.here pos)))
         else
@@ -822,7 +830,7 @@ fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
         makeLexer
           ( (stack, stack_ml, stack_pos, stack_tree)
           , (arg, false)
-             |> fold (fn Antiq_stack (Once ((syms_shift, syms), ml_exec)) =>
+             |> fold (fn Antiq_stack (_, Once ((syms_shift, syms), ml_exec)) =>
                          I #>>
                            (C_Env.map_stream_hook
                              (fn stream_hook => 
@@ -837,7 +845,7 @@ fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
                                                         eval1
                                                         (case eval2 of e :: es => ((syms_shift, syms, ml_exec) :: e) :: es
                                                                      | [] => [[(syms_shift, syms, ml_exec)]])))
-                       | Antiq_stack Never => I ##> K true
+                       | Antiq_stack (_, Never) => I ##> K true
                        | _ => I)
                      l_antiq
              |> (fn (arg, false) => arg
@@ -905,8 +913,7 @@ fun exec_tree write msg (Tree ({rule_pos, rule_type}, l_tree)) =
       #> (case rule_static of SOME rule_static => rule_static #>> SOME | NONE => pair NONE)
       #-> (fn env_lang =>
             fold (fn (stack0, env_lang0, (_, Top_down, _, exec)) =>
-                     C_Env.map_context (I #> Stack_Data_Lang.put (stack0, Option.getOpt (env_lang, env_lang0))
-                                          #> exec (SOME rule0))
+                     stack_exec (stack0, Option.getOpt (env_lang, env_lang0)) (exec (SOME rule0))
                    | _ => I)
                  rule_antiq)
       #> fold (exec_tree write (msg ^ " ")) l_tree
@@ -921,8 +928,6 @@ fun exec_tree' l env_tree = env_tree
                      end
                      "")
           l
-  |> (fn env_tree =>
-       env_tree |> C_Env.map_reports_text (append (Stack_Data_Tree.get (#context env_tree))))
 
 fun uncurry_context f pos = uncurry (fn x => fn arg => map_env_tree (f pos x (#env_lang arg)) arg)
 
@@ -965,8 +970,7 @@ fun parse env_lang err accept stream_lang =
           in
             ( (delayed, map (fn x => (stack0, env_lang, x)) actual, rule_output)
             , fold (fn (_, Bottom_up, _, exec) =>
-                       C_Env_Ext.map_context (I #> Stack_Data_Lang.put (stack0, env_lang)
-                                                #> exec (SOME rule0))
+                       C_Env.map_env_tree (stack_exec (stack0, env_lang) (exec (SOME rule0)))
                      | _ => I)
                    actual
                    arg)
