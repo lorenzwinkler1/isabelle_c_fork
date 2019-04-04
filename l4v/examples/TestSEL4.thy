@@ -14,11 +14,15 @@ imports
   "../src/tools/c-parser/CTranslation"
 begin
 
+declare [[allow_underscore_idents]]
+declare [[ML_print_depth = 500]] \<comment> \<open>Any number large enough for @{command install_C_file}
+                                     to completely serialize all provided values\<close>
+
 (*
  * Test to see if we can parse all of seL4.
  * Test to see if all C parsed values are equal without considering positions.
  *)
-declare [[allow_underscore_idents]]
+
 install_C_file all_parsing parse_then_stop
                \<comment> \<open>The following file can be meanwhile CTRL-clicked on it:\<close>
                \<open>../generated/spec/cspec/c/build/ARM/kernel_all.c_pp\<close>
