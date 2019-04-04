@@ -7529,23 +7529,25 @@ and statement0 rbt s =
     s
 and block_item_list0 rbt l =
   (fn (pos1, pos2) =>
-    app_rev (app_rev (if null l then [filter_statement (comment_interval rbt (pos1, pos2))]
-                       else app_rev (app_rev (fold (fn x => fn (acc, pos1a) =>
-                                                     let
-                                                       val n = pos_of_CBlockItem x;
-                                                     in
-                                                       (mapa Inl (case x of CBlockStmt0 s => [BI_Stmt (statement0 rbt s)] | CBlockDecl0 a => declaration (rbt, NONE) BI_Decl a
-                                                                   | CNestedFunDef0 _ => let
-                                                                                           val _ = not_yet_supported (SS_base (ST "CNestedFunDef not yet supported (empty list returned)"));
-                                                                                         in
-                                                                                           []
-                                                                                         end) ::
-                                                          filter_statement (comment_interval rbt (pos1a, p_first_of_NodeInfo n)) :: acc,
-                                                         p_last_of_NodeInfo n)
-                                                     end)
-                                               l ([], pos1))
-                                      fst)
-                              rev)
+    app_rev (app_rev let
+                       val (acc, pos1a) =
+                         fold (fn x => fn (acc, pos1a) =>
+                                let
+                                  val n = pos_of_CBlockItem x;
+                                in
+                                  (mapa Inl (case x of CBlockStmt0 s => [BI_Stmt (statement0 rbt s)] | CBlockDecl0 a => declaration (rbt, NONE) BI_Decl a
+                                              | CNestedFunDef0 _ => let
+                                                                      val _ = not_yet_supported (SS_base (ST "CNestedFunDef not yet supported (empty list returned)"));
+                                                                    in
+                                                                      []
+                                                                    end) ::
+                                     filter_statement (comment_interval rbt (pos1a, p_first_of_NodeInfo n)) :: acc,
+                                    p_last_of_NodeInfo n)
+                                end)
+                           l ([], pos1);
+                     in
+                       app_rev (filter_statement (comment_interval rbt (pos1a, pos2)) :: acc) rev
+                     end
               concat)
       group_spec);
 
