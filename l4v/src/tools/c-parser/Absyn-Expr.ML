@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Portions Copyright 2016-2017 Nanyang Technological University, Singapore
  * Copyright 2014, NICTA
  *
@@ -519,7 +520,15 @@ fun rm_region f v = (*Region.Wrap.makeRegion(f (node v),Region.bogus)*)
 
 val rm_region_with_counter = rm_region rm_region_with_counter'
 
-val rm_region_literalconstant = rm_region I
+val rm_region_literalconstant =
+  rm_region (fn NUMCONST {value, suffix, base} =>
+                  NUMCONST { value = value
+                           , suffix = suffix |> String.explode
+                                             |> map Char.toUpper
+                                             |> sort Char.compare
+                                             |> String.implode
+                           , base = base}
+              | STRING_LIT s => STRING_LIT s)
 
 fun rm_region_expr_node e = case e of
          BinOp (binoptype, expr1, expr2) => BinOp (binoptype, rm_region_expr expr1, rm_region_expr expr2)

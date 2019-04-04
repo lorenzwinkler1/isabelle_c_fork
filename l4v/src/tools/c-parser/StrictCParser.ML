@@ -30,9 +30,8 @@ end
 
 val last_parsed = Synchronized.var "last parsed" ("", [])
 
-fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (file as {pos, ...}: Token.file) thy =
+fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (file, fname) thy =
   let
-    val fname = Position.file_of pos |> the |> Path.explode |> File.full_path Path.current |> Path.implode
     fun docpp files f =
       let val cpped_fname = docpp0 files
           val res = f cpped_fname
@@ -86,10 +85,12 @@ fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (file as {po
             val rm = StmtDecl.rm_region_ext_decl_list
             val r1 = rm res1
             val r2 = rm res2
-            fun upper s = map Char.toUpper (String.explode s)
         in if #2 (fold2 (fn r1 => fn r2 => fn (n, b) => 
                           (n + 1,
-                           if ((upper o @{make_string}) r1) = ((upper o @{make_string}) r2) then b
+                           if r1 = r2 then b
+                           else if ((@{make_string}) r1) = ((@{make_string}) r2)
+                           then let val _ = tracing ("Equal with make_string comparison at " ^ Int.toString n)
+                                in b end
                            else let val _ = Output.information ("Differing at " ^ Int.toString n)
                                 in false end))
                         r1 r2 (0, true))

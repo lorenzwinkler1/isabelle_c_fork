@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Portions Copyright 2016-2017 Nanyang Technological University, Singapore
  * Copyright 2014, NICTA
  *
@@ -264,7 +265,7 @@ val rm_region_gcc_attribute = fn GCC_AttribID string => GCC_AttribID string
 
 val rm_region_fnspec = fn fnspec w => fnspec (rm_region I w)
                         | relspec w => relspec (rm_region I w)
-                        | fn_modifies l => fn_modifies l
+                        | fn_modifies l => fn_modifies (sort string_ord l)
                         | didnt_translate => didnt_translate
                         | gcc_attribs l => gcc_attribs (map rm_region_gcc_attribute l)
 

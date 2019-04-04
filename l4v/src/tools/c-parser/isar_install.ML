@@ -15,8 +15,8 @@ sig
 
   type additional_options
   val GhostState : string -> additional_options
-  val get_Csyntax : bool option -> bool option -> bool option -> int option -> theory -> Token.file -> Absyn.ext_decl list * theory
-  val gen_umm_types_file : bool option -> bool option -> bool option -> int option -> Token.file -> string -> theory -> theory
+  val get_Csyntax : bool option -> bool option -> bool option -> int option -> theory -> Token.file * string -> Absyn.ext_decl list * theory
+  val gen_umm_types_file : bool option -> bool option -> bool option -> int option -> Token.file * string -> string -> theory -> theory
   val do_cpp : {error_detail : int, cpp_path : string option} ->
                {includes : string list, filename : string} -> string
   val install_C_file : (((((((bool option * bool option) * bool option) * int option) * bool option) * bool option) * bool option) * (theory -> Token.file list)) *
@@ -304,9 +304,13 @@ in
   recurse (Binaryset.empty String.compare) slist
 end
 
+fun relative_name files thy =
+  let
+    val [file as {src_path, lines, digest, pos}: Token.file] = files thy
+  in (file, Position.file_of pos |> the |> Path.explode |> File.full_path Path.current |> Path.implode) end
+
 fun install_C_file0 ((((((((maybe_c11,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),files),statetylist_opt) thy = let
-  val [file as {src_path, lines, digest, pos}: Token.file] = files thy;
-  val s = Position.file_of pos |> the |> Path.explode |> File.full_path Path.current |> Path.implode
+  val (file, s) = relative_name files thy
 
   val {base = localename,...} = OS.Path.splitBaseExt (OS.Path.file s)
   val _ = parse_stop <> NONE orelse
@@ -336,7 +340,7 @@ fun install_C_file0 ((((((((maybe_c11,no_cpp),parse_stop),sub_decl),memsafe),cty
   val install_typs = not (o2b cdefs) orelse (o2b ctyps)
   val install_defs = not (o2b ctyps) orelse (o2b cdefs)
   val ms = o2b memsafe
-  val (ast, thy) = get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy file
+  val (ast, thy) = get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy (file, s)
 in case parse_stop of SOME _ => thy | _ => let
   open ProgramAnalysis CalculateState Feedback
   val owners =
@@ -510,8 +514,7 @@ fun interactive_install s thy =
 
 fun install_C_types ((((maybe_c11, no_cpp), parse_stop), sub_decl), files) thy = let
   open CalculateState ProgramAnalysis
-  val [file as {src_path, lines, digest, pos}: Token.file] = files thy;
-  val (ast, thy) = get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy file
+  val (ast, thy) = get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy (relative_name files thy)
   val (_, cse) =
       process_decls {
         anon_vars = Config.get_global thy use_anon_vars,
