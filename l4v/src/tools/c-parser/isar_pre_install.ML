@@ -1,5 +1,6 @@
 (*
  * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Portions Copyright 2017-2018 Virginia Tech, USA
  * Portions Copyright 2016-2017 Nanyang Technological University, Singapore
  * Copyright 2014, NICTA
  *
