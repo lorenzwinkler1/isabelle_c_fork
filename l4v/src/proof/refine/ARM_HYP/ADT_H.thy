@@ -12,7 +12,7 @@ chapter {* Abstract datatype for the executable specification *}
 
 theory ADT_H
 imports
-  "../../invariant-abstract/ADT_AI"
+  "AInvs.ADT_AI"
   Syscall_R
 begin
 
@@ -136,9 +136,8 @@ definition
    | KOPDE _ \<Rightarrow>
        if is_aligned a pd_bits then Some (PageDirectory (absPageDirectory h a))
        else None
-   | KOVCPU (VCPUObj tcb actlr vgic regs) \<Rightarrow>
+   | KOVCPU (VCPUObj tcb vgic regs) \<Rightarrow>
        Some (VCPU \<lparr> vcpu_tcb    = tcb,
-                    vcpu_actlr  = actlr,
                     vcpu_vgic   = absVGIC vgic,
                     vcpu_regs   = regs \<rparr>))"
 
@@ -412,7 +411,6 @@ shows
   apply (subgoal_tac "x + y \<le> x + mask (obj_bits ko)", simp)
   apply (rule word_add_le_mono2)
    apply (simp add: mask_def plus_one_helper)
-  apply (thin_tac "~ P" for P)+
   apply (thin_tac "(x::'a::len word) < y" for x y)+
   apply (thin_tac "x = Some y" for x y)+
   apply (thin_tac "x && mask (obj_bits ko') = 0" for x)
@@ -571,7 +569,7 @@ proof -
         apply (frule_tac y="n*2^pageBits" in pspace_aligned_distinct_None'
                                                 [OF pspace_aligned pspace_distinct])
          apply simp
-         apply (rule conjI, clarsimp simp add: word_gt_0)
+         apply (rule conjI, clarsimp simp add: Word.word_gt_0)
          apply (simp add: is_aligned_mask)
          apply (clarsimp simp add: pageBits_def mask_def)
          apply (case_tac vmpage_size; simp)
@@ -597,7 +595,7 @@ proof -
        apply (frule_tac y="n*2^pageBits" in pspace_aligned_distinct_None'
                                                [OF pspace_aligned pspace_distinct])
         apply simp
-        apply (rule conjI, clarsimp simp add: word_gt_0)
+        apply (rule conjI, clarsimp simp add: Word.word_gt_0)
         apply (simp add: is_aligned_mask)
         apply (clarsimp simp add: pageBits_def mask_def)
         apply (case_tac vmpage_size; simp)
@@ -719,7 +717,7 @@ proof -
                  (simp add: vspace_bits_defs)+)
           apply (cut_tac x=ya and n="2^12" in
                       ucast_less_shiftl3_helper[where 'a=32,simplified word_bits_conv], simp+)
-          apply (clarsimp simp add: word_gt_0)
+          apply (clarsimp simp add: Word.word_gt_0)
          apply clarsimp
          apply (subgoal_tac "ucast ya << 3 = 0")
           prefer 2
@@ -761,7 +759,7 @@ proof -
                (simp add: vspace_bits_defs)+)
         apply (cut_tac x=ya and n="2^14" in
                   ucast_less_shiftl3_helper[where 'a=32, simplified word_bits_conv], simp+)
-        apply (clarsimp simp add: word_gt_0)
+        apply (clarsimp simp add: Word.word_gt_0)
        apply clarsimp
        apply (subgoal_tac "ucast ya << 3 = 0")
         prefer 2
@@ -1175,7 +1173,7 @@ lemma cte_map_inj_through_cnp:
   by (drule arg_cong[where f=cnp]) metis
 
 lemma ctes_of_cte_wp_atD:
-  "ctes_of s p = Some cte \<Longrightarrow> cte_wp_at' (op = cte) p s"
+  "ctes_of s p = Some cte \<Longrightarrow> cte_wp_at' ((=) cte) p s"
 by (simp add: KHeap_R.cte_wp_at_ctes_of)
 
 
@@ -1364,12 +1362,6 @@ lemmas absCDT_correct = absCDT_correct'(1)
 lemmas cdt_simple_rel =  absCDT_correct'(2)
 
 
-lemma has_parent_cte_at:"valid_mdb s \<Longrightarrow> (cdt s) c = Some p \<Longrightarrow> cte_at c s"
-  apply (rule cte_wp_cte_at)
-  apply (simp add: valid_mdb_def mdb_cte_at_def del: split_paired_All)
-  apply blast
-  done
-
 lemma has_child_cte_at:"valid_mdb s \<Longrightarrow> (cdt s) c = Some p \<Longrightarrow> cte_at p s"
   apply (rule cte_wp_cte_at)
   apply (simp add: valid_mdb_def mdb_cte_at_def del: split_paired_All)
@@ -1473,7 +1465,7 @@ lemma next_slot_cte_at:
   apply force
   done
 
-lemma cte_at_has_cap: "cte_at slot s \<Longrightarrow> \<exists>c. cte_wp_at (op = c) slot s"
+lemma cte_at_has_cap: "cte_at slot s \<Longrightarrow> \<exists>c. cte_wp_at ((=) c) slot s"
   apply (drule cte_at_get_cap_wp)
   apply force
   done

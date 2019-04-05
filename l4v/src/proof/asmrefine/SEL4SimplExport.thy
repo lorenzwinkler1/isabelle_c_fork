@@ -9,11 +9,7 @@
  *)
 
 theory SEL4SimplExport
-
-imports
-  "../../tools/asmrefine/SimplExport"
-  "../../spec/cspec/Substitute"
-
+imports "AsmRefine.SimplExport" "CSpec.Substitute"
 begin
 
 ML {*
@@ -39,6 +35,8 @@ lemma clzl_body_refines:
   apply (rule simple_simpl_refines_guarded_Basic_guarded_spec_body)
   apply (clarsimp simp: bv_clz_def meq_def)
   done
+
+declare ctcb_offset_defs[simp]
 
 ML {*
   emit_C_everything_relative @{context} (csenv ()) "CFunDump.txt";

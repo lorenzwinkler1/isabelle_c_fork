@@ -250,8 +250,7 @@ where
             whenE (pool_ptr = None) $ throwError $ FailedLookup False InvalidRoot;
             whenE (p \<noteq> the pool_ptr) $ throwError $ InvalidCapability 0;
             pool \<leftarrow> liftE $ get_asid_pool p;
-            free_set \<leftarrow> returnOk
-                   (- dom pool \<inter> {x. x \<le> 2 ^ asid_low_bits - 1 \<and> ucast x + base \<noteq> 0});
+            free_set \<leftarrow> returnOk (- dom pool \<inter> {x. ucast x + base \<noteq> 0});
             whenE (free_set = {}) $ throwError DeleteFirst;
             offset \<leftarrow> liftE $ select_ext (\<lambda>_. free_asid_pool_select pool base) free_set;
             returnOk $ InvokeASIDPool $ Assign (ucast offset + base) p pd_cap_slot
@@ -260,12 +259,6 @@ where
   else  throwError TruncatedMessage
   else  throwError IllegalOperation"
 
-
-text "ARM does not support additional interrupt control operations"
-definition
-  arch_decode_irq_control_invocation ::
-  "data \<Rightarrow> data list \<Rightarrow> cslot_ptr \<Rightarrow> cap list \<Rightarrow> (arch_irq_control_invocation,'z::state_ext) se_monad" where
-  "arch_decode_irq_control_invocation label args slot excaps \<equiv> throwError IllegalOperation"
 
 definition
   arch_data_to_obj_type :: "nat \<Rightarrow> aobject_type option" where
@@ -282,6 +275,31 @@ definition
   arch_check_irq :: "data \<Rightarrow> (unit,'z::state_ext) se_monad"
 where
   "arch_check_irq irq \<equiv> whenE (irq > ucast maxIRQ) $ throwError (RangeError 0 (ucast maxIRQ))"
+
+definition arch_decode_irq_control_invocation ::
+  "data \<Rightarrow> data list \<Rightarrow> cslot_ptr \<Rightarrow> cap list \<Rightarrow> (arch_irq_control_invocation,'z::state_ext) se_monad"
+  where
+  "arch_decode_irq_control_invocation label args src_slot cps \<equiv>
+    (if invocation_type label = ArchInvocationLabel ARMIRQIssueIRQHandler
+      then if length args \<ge> 4 \<and> length cps \<ge> 1
+        then let irq_word = args ! 0;
+                 trigger = args ! 1;
+                 index = args ! 2;
+                 depth = args ! 3;
+                 cnode = cps ! 0;
+                 irq = ucast irq_word
+        in doE
+          arch_check_irq irq_word;
+          irq_active \<leftarrow> liftE $ is_irq_active irq;
+          whenE irq_active $ throwError RevokeFirst;
+
+          dest_slot \<leftarrow> lookup_target_slot cnode (data_to_cptr index) (unat depth);
+          ensure_empty dest_slot;
+
+          returnOk $ ArchIRQControlIssue irq dest_slot src_slot (trigger \<noteq> 0)
+        odE
+      else throwError TruncatedMessage
+    else throwError IllegalOperation)"
 
 end
 

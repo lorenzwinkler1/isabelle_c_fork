@@ -10,7 +10,7 @@ abstracts the result to produce a result that is (hopefully)
 more pleasant to reason about.
 
   [1]: https://www.cl.cam.ac.uk/research/hvg/Isabelle/
-  [2]: https://ssrg.nicta.com.au/software/TS/c-parser/
+  [2]: https://ts.data61.csiro.au/software/TS/c-parser/
 
 
 
@@ -29,7 +29,7 @@ Contents of this README
 Installation
 ------------
 
-AutoCorres is packaged as a theory for Isabelle2016-1:
+AutoCorres is packaged as a theory for Isabelle2018:
 
     https://isabelle.in.tum.de
 
@@ -49,20 +49,20 @@ For X64:
 To build or use AutoCorres, you must set the L4V_ARCH environment variable
 according to your choice of platform.
 
-To build AutoCorres for ARM, type the following in tools/autocorres:
+To build AutoCorres for ARM, run the following in the L4.verified directory:
 
-    L4V_ARCH=ARM isabelle build -d . AutoCorres
+    L4V_ARCH=ARM misc/regression/run_tests.py AutoCorres
 
 This builds the C parser and AutoCorres itself.
 
 To build AutoCorres for X64:
 
-    L4V_ARCH=X64 isabelle build -d . AutoCorres
+    L4V_ARCH=X64 misc/regression/run_tests.py AutoCorres
 
 There is also a test suite, which can be run using:
 
-    L4V_ARCH=ARM make AutoCorresTest
-    L4V_ARCH=X64 make AutoCorresTest
+    L4V_ARCH=ARM misc/regression/run_tests.py AutoCorresTest
+    L4V_ARCH=X64 misc/regression/run_tests.py AutoCorresTest
 
 
 
@@ -79,7 +79,7 @@ Development and reporting bugs
 ------------------------------
 
 AutoCorres is currently maintained by
-Matthew Brecknell <Matthew.Brecknell@data61.csiro.au>
+Matthew Brecknell <Matthew.Brecknell@data61.csiro.au>.
 
 Additionally, the latest development version is available on GitHub
 as part of the L4.verified project:
@@ -288,7 +288,7 @@ L1 (SimplConv), L2 (LocalVarExtract) and TS (TypeStrengthen) were described in
     David Greenaway, June Andronick, Gerwin Klein
     Proceedings of the Third International
             Conference on Interactive Theorem Proving (ITP), August 2012.
-    https://ssrg.nicta.com.au/publications/nictaabstracts/5662.pdf
+    https://ts.data61.csiro.au/publications/nicta_full_text/5662.pdf
 
 HL (heap abstraction) and WA (word abstraction) were described in
 
@@ -297,11 +297,11 @@ HL (heap abstraction) and WA (word abstraction) were described in
     David Greenaway, Japheth Lim, June Andronick, Gerwin Klein
     Proceedings of the 35th ACM SIGPLAN Conference on
             Programming Language Design and Implementation. ACM, June 2014.
-    https://ssrg.nicta.com.au/publications/nictaabstracts/7629.pdf
+    https://ts.data61.csiro.au/publications/nicta_full_text/7629.pdf
 
 A more comprehensive source is
 
     "Automated proof-producing abstraction of C code"
     David Greenaway
     PhD thesis, March 2015.
-    https://ssrg.nicta.com.au/publications/nictaabstracts/8758.pdf
+    https://ts.data61.csiro.au/publications/nicta_full_text/8758.pdf

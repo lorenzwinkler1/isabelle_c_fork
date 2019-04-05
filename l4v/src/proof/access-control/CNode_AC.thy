@@ -15,6 +15,12 @@ begin
 context begin interpretation Arch . (*FIXME: arch_split*)
 
 declare arch_post_modify_registers_def[simp]
+declare arch_post_cap_deletion_def[simp]
+declare arch_cap_cleanup_opt_def[simp]
+
+(* FIXME: arch-split *)
+lemmas post_cap_deletion_simps[simp] = post_cap_deletion_def[simplified arch_post_cap_deletion_def]
+                                       cap_cleanup_opt_def[simplified arch_cap_cleanup_opt_def]
 
 (* FIXME: Move. *)
 lemma tcb_domain_map_wellformed_ekheap[intro!, simp]:
@@ -114,19 +120,20 @@ end
 
 context begin interpretation Arch . (*FIXME: arch_split*)
 
-crunch ekheap[wp]: cap_insert_ext,cap_swap_ext,cap_move_ext,empty_slot_ext,create_cap_ext "\<lambda>s. P (ekheap s)"
+crunch ekheap[wp]: cap_swap_ext,cap_move_ext,empty_slot_ext "\<lambda>s. P (ekheap s)"
 
-crunch ready_queues[wp]: cap_insert_ext,cap_swap_ext,cap_move_ext,empty_slot_ext,create_cap_ext "\<lambda>s. P (ready_queues s)"
+crunch ready_queues[wp]: cap_swap_ext,cap_move_ext,empty_slot_ext "\<lambda>s. P (ready_queues s)"
 
 crunch integrity_autarch: cap_insert "integrity aag X st"
-  (simp: crunch_simps wp: crunch_wps update_cdt_fun_upd_integrity_autarch cap_insert_ext_extended.list_integ_lift cap_insert_list_integrity ignore:update_cdt cap_insert_ext)
+  (simp: crunch_simps wp: crunch_wps update_cdt_fun_upd_integrity_autarch cap_insert_ext_extended.list_integ_lift cap_insert_list_integrity
+   ignore:update_cdt)
 
 text{*
 
 Establish that the pointers this syscall will change are labelled with
 the current agent's label.
 
-NOTE: @{term "op \<subseteq>"} is used consciously here to block the simplifier
+NOTE: @{term "(\<subseteq>)"} is used consciously here to block the simplifier
 rewriting (the equivalent equalities) in the wp proofs.
 
 *}
@@ -153,7 +160,7 @@ unfolding resolve_address_bits_def
 proof (induct arbitrary: s rule: resolve_address_bits'.induct)
   case (1 z cap' cref' s')
   have P: "\<And>s f P Q. s \<turnstile> \<lbrace>P\<rbrace> throwError f \<lbrace>Q\<rbrace>,\<lbrace>\<lambda>rv s. True\<rbrace>"
-    by wp
+    by wp+
   show ?case
     apply (subst resolve_address_bits'.simps)
     apply (cases cap', simp_all add: P split del: if_split)
@@ -334,7 +341,7 @@ lemma set_cap_pas_refined [wp]:
   apply (rule hoare_pre)
    apply (wp set_cap_caps_of_state| wps)+
   apply clarsimp
-  apply (intro conjI)  -- "auth_graph_map"
+  apply (intro conjI)  \<comment> \<open>auth_graph_map\<close>
    apply (clarsimp dest!: auth_graph_map_memD)
    apply (erule state_bits_to_policy.cases, auto simp: cap_links_asid_slot_def label_owns_asid_slot_def intro: auth_graph_map_memI state_bits_to_policy.intros
         split: if_split_asm)[1]
@@ -448,13 +455,17 @@ crunch respects[wp]: deleted_irq_handler "integrity aag X st"
 lemmas cases_simp_options
     = cases_simp_option cases_simp_option[where 'a="'b \<times> 'c", simplified]
 
+abbreviation
+  cleanup_info_wf :: "cap \<Rightarrow> 'a PAS \<Rightarrow> bool"
+where
+  "cleanup_info_wf c aag \<equiv> c \<noteq> NullCap \<longrightarrow> (\<exists>irq. c = (IRQHandlerCap irq) \<and> is_subject_irq aag irq)"
+
 lemma empty_slointegrity_spec:
   notes split_paired_All[simp del]
   shows
   "s \<turnstile> \<lbrace>integrity aag X st and pas_refined aag and valid_list and
-             K (is_subject aag (fst slot) \<and>
-                (\<forall>irq. free_irq = Some irq \<longrightarrow> is_subject_irq aag irq))\<rbrace>
-        empty_slot slot free_irq \<lbrace>\<lambda>rv. integrity aag X st\<rbrace>"
+             K (is_subject aag (fst slot) \<and> (cleanup_info_wf cleanup_info aag))\<rbrace>
+        empty_slot slot cleanup_info \<lbrace>\<lambda>rv. integrity aag X st\<rbrace>"
    apply (simp add: spec_valid_def)
   apply (simp add: empty_slot_def)
   apply (wp get_cap_wp set_cap_integrity_autarch set_original_integrity_autarch
@@ -463,16 +474,17 @@ lemma empty_slointegrity_spec:
          simp add: set_cdt_def |
          wpc)+
   apply (clarsimp simp: pas_refined_all_children)
-  apply (simp add: integrity_def |
-        (clarsimp simp: integrity_cdt_def) |
-        (drule(1) pas_refined_mem[OF sta_cdt], simp) |
-        (drule(1) pas_refined_Control,simp))+
+  apply safe
+   apply (simp add: integrity_def |
+         (clarsimp simp: integrity_cdt_def) |
+         (drule(1) pas_refined_mem[OF sta_cdt], simp) |
+         (drule(1) pas_refined_Control,simp))+
   done
 
 
 lemma empty_slointegrity[wp]:
-  "\<lbrace>integrity aag X st and pas_refined aag and valid_list and K (is_subject aag (fst slot) \<and> (\<forall> irq. free_irq = Some irq \<longrightarrow> is_subject_irq aag irq))\<rbrace>
-       empty_slot slot free_irq \<lbrace>\<lambda>rv. integrity aag X st\<rbrace>"
+  "\<lbrace>integrity aag X st and pas_refined aag and valid_list and K (is_subject aag (fst slot) \<and> cleanup_info_wf c aag)\<rbrace>
+       empty_slot slot c \<lbrace>\<lambda>rv. integrity aag X st\<rbrace>"
   apply (rule use_spec)
   apply (rule empty_slointegrity_spec)
   done
@@ -618,7 +630,7 @@ lemma cap_move_pas_refined[wp]:
 lemma empty_slot_pas_refined[wp]:
   "\<lbrace>pas_refined aag and K (is_subject aag (fst slot))\<rbrace> empty_slot slot irqopt \<lbrace>\<lambda>rv. pas_refined aag\<rbrace>"
   apply (simp add: empty_slot_def)
-  apply (wp get_cap_wp set_cdt_pas_refined tcb_domain_map_wellformed_lift | simp | wpc)+
+  apply (wp get_cap_wp set_cdt_pas_refined tcb_domain_map_wellformed_lift hoare_drop_imps | simp | wpc)+
   apply (clarsimp simp: imp_disjL[symmetric] simp del: imp_disjL)
   apply (fastforce dest: pas_refined_mem[OF sta_cdt] pas_refined_Control)
   done
@@ -805,7 +817,7 @@ lemma thread_set_thread_bound_ntfns_trivT:
                  split: Structures_A.kernel_object.split_asm)
   done
 
-lemma thread_set_pas_refined_trivT:
+lemma thread_set_pas_refined_triv:
   assumes cps: "\<And>tcb. \<forall>(getF, v)\<in>ran tcb_cap_cases. getF (f tcb) = getF tcb"
        and st: "\<And>tcb. tcb_state (f tcb) = tcb_state tcb"
       and ntfn: "\<And>tcb. tcb_bound_notification (f tcb) = tcb_bound_notification tcb"
@@ -819,7 +831,7 @@ lemma thread_set_pas_refined_trivT:
         | simp)+
   done
 
-lemmas thread_set_pas_refined_triv = thread_set_pas_refined_trivT[OF ball_tcb_cap_casesI]
+lemmas thread_set_pas_refined = thread_set_pas_refined_triv[OF ball_tcb_cap_casesI]
 
 lemma aag_owned_cdt_link:
   "\<lbrakk> cdt s x = Some y; is_subject aag (fst y); pas_refined aag s \<rbrakk> \<Longrightarrow> is_subject aag (fst x)"
@@ -1169,6 +1181,12 @@ lemma a_type_arch_object_not_tcb[simp]:
   "a_type (ArchObj arch_kernel_obj) \<noteq> ATCB"
   by auto
 
+crunch cur_domain[wp]: deleted_irq_handler "\<lambda>s. P (cur_domain s)"
+
+lemma post_cap_deletion_cur_domain[wp]:
+  "\<lbrace>\<lambda>s. P (cur_domain s)\<rbrace> post_cap_deletion c \<lbrace>\<lambda>rv s. P (cur_domain s)\<rbrace>"
+  by (wpsimp)
+
 crunch cur_domain[wp]: cap_swap_for_delete, empty_slot, finalise_cap  "\<lambda>s. P (cur_domain s)"
   (wp: crunch_wps select_wp hoare_vcg_if_lift2 simp: unless_def)
 
@@ -1279,7 +1297,7 @@ lemma derive_cap_clas:
 lemma arch_derive_cap_obj_refs_auth:
   "\<lbrace>K (\<forall>r\<in>obj_refs (cap.ArchObjectCap cap). \<forall>auth\<in>cap_auth_conferred (cap.ArchObjectCap cap). aag_has_auth_to aag auth r)\<rbrace>
   arch_derive_cap cap
-  \<lbrace>(\<lambda>x s. \<forall>r\<in>obj_refs x. \<forall>auth\<in>cap_auth_conferred x. aag_has_auth_to aag auth r) \<circ> cap.ArchObjectCap\<rbrace>, -"
+  \<lbrace>(\<lambda>x s. \<forall>r\<in>obj_refs x. \<forall>auth\<in>cap_auth_conferred x. aag_has_auth_to aag auth r)\<rbrace>, -"
   unfolding arch_derive_cap_def
   apply (rule hoare_pre)
   apply (wp | wpc)+
@@ -1295,13 +1313,19 @@ lemma derive_cap_obj_refs_auth:
   apply (wp arch_derive_cap_obj_refs_auth | wpc | simp)+
   done
 
+lemma arch_derive_cap_cli:
+  "\<lbrace>K (cap_links_irq aag l (ArchObjectCap ac))\<rbrace>
+   arch_derive_cap ac
+   \<lbrace>\<lambda>x s. cap_links_irq aag l x\<rbrace>, -"
+  by (wpsimp simp: arch_derive_cap_def comp_def cli_no_irqs)
+
 lemma derive_cap_cli:
   "\<lbrace>K (cap_links_irq aag l cap)\<rbrace>
   derive_cap slot cap
   \<lbrace>\<lambda>x s. cap_links_irq aag l x \<rbrace>, -"
   unfolding derive_cap_def
   apply (rule hoare_pre)
-  apply (wp  | wpc | simp add: comp_def cli_no_irqs)+
+  apply (wp arch_derive_cap_cli | wpc | simp add: comp_def cli_no_irqs)+
   apply fastforce
   done
 

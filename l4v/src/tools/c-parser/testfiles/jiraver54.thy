@@ -9,9 +9,10 @@
  *)
 
 theory jiraver54
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "jiraver54.c"
 install_C_file "jiraver54.c"
 
 context jiraver54

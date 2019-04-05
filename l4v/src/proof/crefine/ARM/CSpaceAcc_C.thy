@@ -11,7 +11,7 @@
 (* collects lemmas common to the various CSpace branches *)
 
 theory CSpaceAcc_C
-imports "../../refine/$L4V_ARCH/EmptyFail" Ctac_lemmas_C
+imports "Refine.EmptyFail" Ctac_lemmas_C
 begin
 
 (* For resolving schematics *)
@@ -291,21 +291,6 @@ lemma wordFromRights_spec:
   apply (simp add: word_ao_dist2[symmetric])
   done
 
-lemma errlookup_fault_errstate [simp]:
-  "errlookup_fault (errstate s) = lookup_fault_lift (current_lookup_fault_' (globals s))"
-  unfolding errstate_def
-  by simp
-
-lemma errfault_errstate [simp]:
-  "errfault (errstate s) = seL4_Fault_lift (current_fault_' (globals s))"
-  unfolding errstate_def
-  by simp
-
-lemma errsyscall_errstate [simp]:
-  "errsyscall (errstate s) = (current_syscall_error_' (globals s))"
-  unfolding errstate_def
-  by simp
-
 lemma array_assertion_abs_cnode_ctes:
   "\<forall>s s'. (s, s') \<in> rf_sr \<and> (\<exists>n. gsCNodes s p = Some n \<and> n' \<le> 2 ^ n) \<and> True
     \<longrightarrow> (x s' = 0 \<or> array_assertion (cte_Ptr p) n' (hrs_htd (t_hrs_' (globals s'))))"
@@ -318,7 +303,7 @@ lemmas ccorres_move_array_assertion_cnode_ctes [corres_pre]
       ccorres_move_Guard [OF array_assertion_abs_cnode_ctes]
 
 lemma locateSlotCNode_ccorres [corres]:
-  assumes gl: "\<And>v s. globals (xfu v s) = globals s" -- "for state rel. preservation"
+  assumes gl: "\<And>v s. globals (xfu v s) = globals s" \<comment> \<open>for state rel. preservation\<close>
   and     fg: "\<And>v s. xf (xfu (\<lambda>_. v) s) = v"
   shows "ccorres (\<lambda>v v'. v' = Ptr v) xf \<top> {_. cnode = cnode' \<and> offset = offset'} hs
     (locateSlotCNode cnode bits offset)
@@ -339,7 +324,7 @@ lemma locateSlotCNode_ccorres [corres]:
   done
 
 lemma locateSlotTCB_ccorres [corres]:
-  assumes gl: "\<And>v s. globals (xfu v s) = globals s" -- "for state rel. preservation"
+  assumes gl: "\<And>v s. globals (xfu v s) = globals s" \<comment> \<open>for state rel. preservation\<close>
   and     fg: "\<And>v s. xf (xfu (\<lambda>_. v) s) = v"
   shows "ccorres (\<lambda>v v'. v' = Ptr v) xf \<top> {_. cnode = cnode' \<and> offset = offset'} hs
     (locateSlotTCB cnode offset)
@@ -355,13 +340,13 @@ lemma locateSlotTCB_ccorres [corres]:
 
 lemma getSlotCap_h_val_ccorres [corres]:
   fixes p :: "cstate \<Rightarrow> cte_C ptr"
-  assumes gl: "\<And>v s. globals (xfu v s) = globals s" -- "for state rel. preservation"
+  assumes gl: "\<And>v s. globals (xfu v s) = globals s" \<comment> \<open>for state rel. preservation\<close>
   and     fg: "\<And>v s. xf (xfu (\<lambda>_. v) s) = v"
   shows "ccorres ccap_relation xf \<top> {s. p s = Ptr a} hs
          (getSlotCap a) (Basic (\<lambda>s. xfu (\<lambda>_. h_val (hrs_mem (t_hrs_' (globals s))) (Ptr &(p s\<rightarrow>[''cap_C'']) :: cap_C ptr)) s))"
   unfolding getSlotCap_def
   apply (rule ccorres_add_UNIV_Int)
-  apply (cinitlift p) -- "EVIL!"
+  apply (cinitlift p) \<comment> \<open>EVIL!\<close>
   apply simp
   apply (rule ccorres_guard_imp2)
   apply (rule ccorres_pre_getCTE)

@@ -48,7 +48,7 @@ definition
 
 definition
   "init_arch_state \<equiv> \<lparr>
-    x64_asid_table = empty,
+    x64_asid_table = Map.empty,
     x64_global_pml4 = init_global_pml4,
     x64_kernel_vspace =
       \<lambda>ref. if ref \<in> {pptr_base .. pptr_base + mask pml4_shift_bits}
@@ -57,7 +57,10 @@ definition
     x64_global_pts = [],
     x64_global_pdpts = [init_global_pdpt],
     x64_global_pds = [init_global_pd],
-    x64_current_cr3 = cr3 0 0
+    x64_current_cr3 = cr3 0 0,
+    x64_allocated_io_ports = \<lambda>_. False,
+    x64_num_ioapics = 1,
+    x64_irq_state = K IRQFree
    \<rparr>"
 
 definition [simp]:
@@ -100,7 +103,7 @@ definition
     )"
 
 definition
-  "init_cdt \<equiv> empty"
+  "init_cdt \<equiv> Map.empty"
 
 definition
   "init_ioc \<equiv>

@@ -9,9 +9,10 @@
  *)
 
 theory parse_c99block
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "parse_c99block.c"
 install_C_file "parse_c99block.c"
 
 thm parse_c99block_global_addresses.f_body_def

@@ -9,9 +9,10 @@
  *)
 
 theory dc_20081211
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "dc_20081211.c"
 install_C_file "dc_20081211.c"
 
 declare [[show_types]]

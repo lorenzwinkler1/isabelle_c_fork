@@ -10,8 +10,8 @@
 
 theory Hoare_Sep_Tactics
 imports
-  "../Monad_WP/NonDetMonadVCG"
-  "../sep_algebra/Sep_Algebra_L4v"
+  Lib.NonDetMonadVCG
+  Sep_Algebra.Sep_Algebra_L4v
 begin
 
 (* FIXME: needs cleanup *)
@@ -93,8 +93,6 @@ schematic_goal strong_sep_impl_sep_wp':
  apply (erule_tac x=r in allE)
  apply (sep_solve)
 done
-
-thm strong_sep_impl_sep_wp'
 
 lemma strong_sep_impl_sep_wp'':
     "\<And>sep_lift.
@@ -375,14 +373,16 @@ ML {*
    fun sep_wp thms ctxt  =
    let
      val thms' = map (sep_wandise_helper ctxt |> J) thms;
-     val wp = WeakestPre.apply_once_tac false ctxt thms'  (Unsynchronized.ref [] : thm list Unsynchronized.ref)
+     val wp = WeakestPre.apply_rules_tac_n false ctxt thms'  (Unsynchronized.ref [] : thm list Unsynchronized.ref)
      val sep_impi = (REPEAT_ALL_NEW  (sep_match_trivial_tac ctxt)) THEN' assume_tac ctxt
      val schemsolve = sep_rule_tac (eresolve0_tac [@{thm boxsolve}]) ctxt
      val hoare_post = (resolve0_tac [(rotate_prems ~1 @{thm hoare_strengthen_post})])
+     val wp_pre_tac = SELECT_GOAL (Method.NO_CONTEXT_TACTIC ctxt
+                      (Method_Closure.apply_method ctxt @{method wp_pre} [] [] [] ctxt []))
    in
-     K wp THEN' (TRY o sep_flatten ctxt) THEN' (TRY o (hoare_post THEN' (schemsolve ORELSE' sep_impi))) THEN'
+     (wp THEN' (TRY o sep_flatten ctxt) THEN' (TRY o (hoare_post THEN' (schemsolve ORELSE' sep_impi))) THEN'
      (TRY o (sep_match_trivial_tac ctxt |> REPEAT_ALL_NEW)) THEN'
-     (TRY o sep_flatten ctxt)
+     (TRY o sep_flatten ctxt)) ORELSE' (CHANGED o wp_pre_tac)
    end
 *}
 

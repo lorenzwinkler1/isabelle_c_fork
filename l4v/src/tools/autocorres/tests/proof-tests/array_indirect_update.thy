@@ -13,8 +13,9 @@
  * Here we prove that writing a pointer that points into an array
  * will update the array.
  *)
-theory array_indirect_update imports "../../AutoCorres" begin
+theory array_indirect_update imports "AutoCorres.AutoCorres" begin
 
+external_file "array_indirect_update.c"
 install_C_file "array_indirect_update.c"
 autocorres "array_indirect_update.c"
 

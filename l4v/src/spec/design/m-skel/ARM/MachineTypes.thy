@@ -12,7 +12,8 @@ chapter "ARM Machine Types"
 
 theory MachineTypes
 imports
-  "../../../lib/Monad_WP/NonDetMonad"
+  "Word_Lib.WordSetup"
+  "Lib.OptionMonadND"
   "../Setup_Locale"
   Platform
 begin
@@ -26,17 +27,8 @@ text {*
 
 section "Types"
 
-#INCLUDE_HASKELL SEL4/Machine/RegisterSet/ARM.lhs CONTEXT ARM decls_only
+#INCLUDE_HASKELL SEL4/Machine/RegisterSet/ARM.lhs CONTEXT ARM decls_only NOT UserContext UserMonad Word getRegister setRegister newContext
 (*<*)
-
-section "Machine Words"
-
-type_synonym machine_word_len = 32
-
-definition
-  word_size_bits :: "'a :: numeral"
-where
-  "word_size_bits \<equiv> 2"
 
 end
 
@@ -48,7 +40,7 @@ context Arch begin global_naming ARM
 
 #INCLUDE_HASKELL SEL4/Machine/RegisterSet/ARM.lhs CONTEXT ARM instanceproofs
 (*>*)
-#INCLUDE_HASKELL SEL4/Machine/RegisterSet/ARM.lhs CONTEXT ARM bodies_only
+#INCLUDE_HASKELL SEL4/Machine/RegisterSet/ARM.lhs CONTEXT ARM bodies_only NOT getRegister setRegister newContext
 
 section "Machine State"
 
@@ -138,7 +130,7 @@ definition
  "init_machine_state \<equiv> \<lparr> irq_masks = init_irq_masks,
                          irq_state = 0,
                          underlying_memory = init_underlying_memory,
-                         device_state = empty,
+                         device_state = Map.empty,
                          exclusive_state = default_exclusive_state,
                          machine_state_rest = undefined \<rparr>"
 

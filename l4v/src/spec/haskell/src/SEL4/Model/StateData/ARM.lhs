@@ -20,6 +20,7 @@ This module contains the architecture-specific kernel global data for the ARM ar
 
 \begin{impdetails}
 
+> import Prelude hiding (Word)
 > import SEL4.Machine
 > import SEL4.Machine.Hardware.ARM
 >     (HardwareASID(..), PTE(..), PDE(..), ptBits, pdBits)
@@ -55,7 +56,7 @@ armKSASIDMap to map from page directories to hardware ASIDs.
 
 armKSKernelVSpace is ghost state.
 
-FIXME ARMHYP missing IO ASID to PD map for SMMU
+FIXME ARMHYP_SMMU ARMHYP missing IO ASID to PD map for SMMU
 
 > data KernelState = ARMKernelState {
 >     armKSASIDTable :: Array ASID (Maybe (PPtr ASIDPool)),

@@ -9,7 +9,7 @@
  *)
 
 theory PackedTypes
-imports "../../lib/$L4V_ARCH/WordSetup" CProof
+imports "Word_Lib.WordSetup" CProof
 begin
 
 section {* Underlying definitions for the class axioms *}
@@ -292,7 +292,7 @@ next
   from Cons_typ_desc.prems show ?case
     apply simp
     apply (erule conjE)
-    apply (rule arg_cong2 [where f = "op @"])
+    apply (rule arg_cong2 [where f = "(@)"])
     apply (erule Cons_typ_desc.hyps, simp, simp)
     apply (erule Cons_typ_desc.hyps, simp, simp)
     done
@@ -597,19 +597,19 @@ class packed_type = mem_type +
   assumes td_fa_hi:     "td_fa_hi (typ_info_t TYPE('a::c_type))"
 
 lemmas td_fafu_idem_intro_simps =
-  -- "Axioms"
+  \<comment> \<open>Axioms\<close>
   td_fafu_idem
-  -- "Combinators"
+  \<comment> \<open>Combinators\<close>
   td_fafu_idem_final_pad td_fafu_idem_ti_typ_pad_combine td_fafu_idem_ti_typ_combine td_fafu_idem_empty_typ_info
-  -- "Constructors"
+  \<comment> \<open>Constructors\<close>
   td_fafu_idem_ptr td_fafu_idem_word td_fafu_idem_array
 
 lemmas td_fa_hi_intro_simps =
-  -- "Axioms"
+  \<comment> \<open>Axioms\<close>
   td_fa_hi
-  -- "Combinators"
+  \<comment> \<open>Combinators\<close>
   td_fa_hi_final_pad td_fa_hi_ti_typ_pad_combine td_fa_hi_ti_typ_combine td_fa_hi_empty_typ_info
-  -- "Constructors"
+  \<comment> \<open>Constructors\<close>
   td_fa_hi_ptr td_fa_hi_word td_fa_hi_array
 
 lemma align_td_array':
@@ -802,45 +802,7 @@ next
     done
 qed
 
-(* Similar in TypHeap, but for w32 *)
-lemma unat_minus':
-  fixes x :: "'a :: len word"
-  shows "x \<noteq> 0 \<Longrightarrow> unat (-x) = 2 ^ len_of TYPE('a) - unat x"
-  apply (simp add: unat_def word_minus_def)
-  apply (simp add: int_word_uint zmod_zminus1_eq_if uint_0_iff)
-  apply (subst nat_diff_distrib)
-    apply simp
-   apply (rule order_less_imp_le [OF uint_lt2p])
-   apply (clarsimp simp: nat_power_eq)
-   done
 
-lemma word_wrap_of_natD:
-  fixes x :: "'a :: len word"
-  assumes wraps: "\<not> x \<le> x + of_nat n"
-  shows   "\<exists>k. x + of_nat k = 0 \<and> k \<le> n"
-proof -
-  show ?thesis
-  proof (rule exI [where x = "unat (- x)"], intro conjI)
-    show "x + of_nat (unat (-x)) = 0"
-      by simp
-  next
-    show "unat (-x) \<le> n"
-    proof (subst unat_minus')
-      from wraps show "x \<noteq> 0"
-        by (rule contrapos_pn, simp add: not_le)
-    next
-      show "2 ^ len_of TYPE('a) - unat x \<le> n" using wraps
-        apply (simp add: no_olen_add_nat le_diff_conv not_less)
-        apply (erule order_trans)
-        apply (simp add: unat_of_nat)
-        done
-    qed
-  qed
-qed
-
-lemma nat_le_Suc_less:
-  "0 < y \<Longrightarrow> (x \<le> y - Suc 0) = (x < y)"
-  by arith
 
 lemma c_guard_no_wrap:
   fixes p :: "'a :: mem_type ptr"

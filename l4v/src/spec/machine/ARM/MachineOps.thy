@@ -65,6 +65,14 @@ where
     gets getKernelDevices_val
   od"
 
+consts'
+  setIRQTrigger_impl :: "irq \<Rightarrow> bool \<Rightarrow> unit machine_rest_monad"
+
+definition
+  setIRQTrigger :: "irq \<Rightarrow> bool \<Rightarrow> unit machine_monad"
+where
+  "setIRQTrigger irq trigger \<equiv> machine_op_lift (setIRQTrigger_impl irq trigger)"
+
 definition
   loadWord :: "machine_word \<Rightarrow> machine_word machine_monad"
   where "loadWord p \<equiv> do m \<leftarrow> gets underlying_memory;
@@ -156,15 +164,6 @@ consts'
 definition
   dmb :: "unit machine_monad"
 where "dmb \<equiv> machine_op_lift dmb_impl"
-
-
-definition
-  setCurrentPD :: "paddr \<Rightarrow> unit machine_monad"
-where "setCurrentPD pd \<equiv> do
-             dsb;
-             writeTTBR0 pd;
-             isb
-          od"
 
 consts'
   invalidateLocalTLB_impl :: "unit machine_rest_monad"
@@ -281,7 +280,9 @@ definition
   initIRQController :: "unit machine_monad"
 where "initIRQController \<equiv> machine_op_lift initIRQController_impl"
 
-
+definition
+  IRQ :: "irq \<Rightarrow> irq"
+where "IRQ \<equiv> id"
 
 consts'
   writeContextID_impl :: "unit machine_rest_monad"
@@ -327,7 +328,7 @@ where
   "ackInterrupt irq \<equiv> machine_op_lift (ackInterrupt_impl irq)"
 
 
--- "Interrupt controller operations"
+\<comment> \<open>Interrupt controller operations\<close>
 
 text {*
   Interrupts that cannot occur while the kernel is running (e.g. at preemption points),
@@ -481,7 +482,7 @@ abbreviation (input) "initMemory == clearMemory"
 
 text {*
   Free memory that had been initialized as user memory.
-  While freeing memory is a no-op in the implementation,
+  While freeing memory is a no-(in) the implementation,
   we zero out the underlying memory in the specifications to avoid garbage.
   If we know that there is no garbage,
   we can compute from the implementation state
@@ -521,7 +522,7 @@ definition
 end
 
 translations
-  (type) "'a ARM.user_monad" <= (type) "(ARM.register \<Rightarrow> ARM.machine_word, 'a) nondet_monad"
+  (type) "'a ARM.user_monad" <= (type) "(ARM.register \<Rightarrow> machine_word, 'a) nondet_monad"
 
 
 end

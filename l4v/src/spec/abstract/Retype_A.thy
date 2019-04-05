@@ -134,8 +134,8 @@ definition
 
 (* FIXME: we need a sensible place for these configurable constants. *)
 definition
-  reset_chunk_bits :: nat
-where "reset_chunk_bits = 8"
+  reset_chunk_bits :: nat where
+  "reset_chunk_bits = 8"
 
 definition
   get_free_ref :: "obj_ref \<Rightarrow> nat \<Rightarrow> obj_ref" where
@@ -196,12 +196,12 @@ doE
 
   cap \<leftarrow> get_cap src_slot;
 
-  (* Update the untyped cap to track the amount of space used. *)
+  \<comment> \<open>Update the untyped cap to track the amount of space used.\<close>
   total_object_size \<leftarrow> return $ (of_nat (length slots) << (obj_bits_api new_type obj_sz));
   free_ref \<leftarrow> return $ retype_base + total_object_size;
   set_cap (UntypedCap is_device base (bits_of cap) (unat (free_ref - base))) src_slot;
 
-  (* Create new objects. *)
+  \<comment> \<open>Create new objects.\<close>
   orefs \<leftarrow> retype_region retype_base (length slots) obj_sz new_type is_device;
   init_arch_objects new_type retype_base (length slots) obj_sz orefs;
   sequence_x (map (create_cap new_type obj_sz src_slot is_device) (zip slots orefs))

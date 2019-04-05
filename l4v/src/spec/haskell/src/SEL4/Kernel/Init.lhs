@@ -17,9 +17,10 @@ This module contains functions that create a new kernel state and set up the add
 
 \begin{impdetails}
 
-% {-# BOOT-IMPORTS: SEL4.Machine SEL4.Model SEL4.API.Failures SEL4.Object.Structures SEL4.API.Types Control.Monad.State Control.Monad.Error #-}
+% {-# BOOT-IMPORTS: SEL4.Machine SEL4.Model SEL4.API.Failures SEL4.Object.Structures SEL4.API.Types Control.Monad.State Control.Monad.Except #-}
 % {-# BOOT-EXPORTS: #InitData KernelInitState KernelInit allocRegion allocFrame provideCap doKernelOp noInitFailure #-}
 
+> import Prelude hiding (Word)
 > import SEL4.Config
 > import SEL4.API.Types
 > import SEL4.API.Failures
@@ -33,7 +34,7 @@ This module contains functions that create a new kernel state and set up the add
 
 > import Data.Bits
 > import Control.Monad.State(StateT, runStateT)
-> import Control.Monad.Error
+> import Control.Monad.Except
 > import Data.Word(Word8)
 
 \end{impdetails}
@@ -51,7 +52,7 @@ The various kernel initialisation functions run in a monad that extends the usua
 The KernelInit monad can fail - however, we do not care what type of failure occurred, only that a failure has happened.
 
 > type KernelInitState = StateT InitData Kernel
-> type KernelInit = ErrorT InitFailure KernelInitState
+> type KernelInit = ExceptT InitFailure KernelInitState
 
 > doKernelOp :: Kernel a -> KernelInit a
 > doKernelOp = lift . lift
@@ -234,7 +235,7 @@ We should clean cache, but we did not have a good interface so far.
 >                       initVPtrOffset = vptr,
 >                       initBootInfoFrame = 0 }
 >     (flip runStateT) initData $ do
->         result <- runErrorT oper
+>         result <- runExceptT oper
 >         either (\_ -> fail $ "initKernel Fail") return result
 >     return ()
 

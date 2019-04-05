@@ -21,6 +21,7 @@ This module makes use of the GHC extension allowing data types with no construct
 
 \begin{impdetails}
 
+> import Prelude hiding (Word)
 > import SEL4.Machine
 > import SEL4.Machine.Hardware.X64 as Arch hiding (PAddr, IRQ)
 > import SEL4.Object.Structures
@@ -43,6 +44,7 @@ ASID pool structures, and on IO ports.
 >     | InvokeASIDControl ASIDControlInvocation
 >     | InvokeASIDPool ASIDPoolInvocation
 >     | InvokeIOPort IOPortInvocation
+>     | InvokeIOPortControl IOPortControlInvocation
 >     deriving Show
 
 > data PDPTInvocation
@@ -151,6 +153,14 @@ point to the invoked IO page table.
 >     deriving Show
 
 > data IOPortInvocation = IOPortInvocation IOPort IOPortInvocationData
+>     deriving Show
+
+> data IOPortControlInvocation
+>     = IOPortControlIssue {
+>         issueFirst :: IOPort,
+>         issueLast :: IOPort,
+>         issueDestSlot,
+>         issueControlSlot :: PPtr CTE }
 >     deriving Show
 
 \subsection{Interrupt Control}

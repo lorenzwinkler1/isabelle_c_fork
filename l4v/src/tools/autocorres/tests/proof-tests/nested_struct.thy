@@ -12,8 +12,9 @@
  * Accessing nested structs.
  * Testcase for bug VER-321.
  *)
-theory nested_struct imports "../../AutoCorres" begin
+theory nested_struct imports "AutoCorres.AutoCorres" begin
 
+external_file "nested_struct.c"
 install_C_file "nested_struct.c"
 (* Nested struct translation currently only works for packed_type types. *)
 instance s1_C :: array_outer_packed by intro_classes auto

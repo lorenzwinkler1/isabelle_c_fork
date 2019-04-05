@@ -13,6 +13,7 @@ This module defines the handling of the x64 hardware-defined page tables.
 
 \begin{impdetails}
 
+> import Prelude hiding (Word)
 > import SEL4.API.Types
 > import SEL4.API.Failures
 > import SEL4.API.Failures.X64
@@ -64,13 +65,13 @@ When a new page directory is created, the kernel copies all of the global mappin
 
 > copyGlobalMappings :: PPtr PML4E -> Kernel ()
 > copyGlobalMappings newPM = do
->     globalPM <- gets (x64KSGlobalPML4 . ksArchState)
+>     skimPM <- gets (x64KSSKIMPML4 . ksArchState)
 >     let base = getPML4Index pptrBase
 >     let pml4eBits = objBits (undefined :: PML4E) -- = 3, size of word
 >     let pmSize = 1 `shiftL` ptTranslationBits -- 512 entries in table
 >     forM_ [base .. pmSize - 1] $ \index -> do
 >         let offset = PPtr index `shiftL` pml4eBits
->         pml4e <- getObject $ globalPM + offset
+>         pml4e <- getObject $ skimPM + offset
 >         storePML4E (newPM + offset) pml4e
 
 > createMappingEntries :: PAddr -> VPtr ->
@@ -123,22 +124,20 @@ The following function is called before creating or modifying mappings in a page
 > ensureSafeMapping (VMPDE InvalidPDE, _) = return ()
 > ensureSafeMapping (VMPDPTE InvalidPDPTE, _) = return ()
 >
-> ensureSafeMapping (VMPTE (SmallPagePTE {}), VMPTEPtr slot) = do
->         pte <- withoutFailure $ getObject slot
->         case pte of
->             InvalidPTE -> return ()
->             _ -> throw DeleteFirst
+> ensureSafeMapping (VMPTE (SmallPagePTE {}), VMPTEPtr slot) = return ()
 >
 > ensureSafeMapping (VMPDE (LargePagePDE {}), VMPDEPtr slot) = do
 >         pde <- withoutFailure $ getObject slot
 >         case pde of
 >             InvalidPDE -> return ()
+>             LargePagePDE {} -> return ()
 >             _ -> throw DeleteFirst
 >
 > ensureSafeMapping (VMPDPTE (HugePagePDPTE {}), VMPDPTEPtr slot) = do
 >         pdpte <- withoutFailure $ getObject slot
 >         case pdpte of
 >             InvalidPDPTE -> return ()
+>             HugePagePDPTE {} -> return ()
 >             _ -> throw DeleteFirst
 >
 > ensureSafeMapping _ = fail "This should never happen"
@@ -179,7 +178,7 @@ Locating the page directory for a given ASID is necessary when updating or delet
 >     ASIDPool pool <- case poolPtr of
 >         Just ptr -> withoutFailure $ getObject ptr
 >         Nothing -> throw InvalidRoot
->     let pm = pool!(asid .&. mask asidLowBits)
+>     let pm = pool!(asidLowBitsOf asid)
 >     case pm of
 >         Just ptr -> do
 >             assert (ptr /= 0) "findVSpaceForASID: found null PD"
@@ -293,13 +292,13 @@ When a capability backing a virtual memory mapping is deleted, or when an explic
 
 > deleteASIDPool :: ASID -> PPtr ASIDPool -> Kernel ()
 > deleteASIDPool base ptr = do
->     assert (base .&. mask asidLowBits == 0)
+>     assert (asidLowBitsOf base == 0)
 >         "ASID pool's base must be aligned"
 >     asidTable <- gets (x64KSASIDTable . ksArchState)
 >     when (asidTable!(asidHighBitsOf base) == Just ptr) $ do
 >         ASIDPool pool <- getObject ptr
 >         forM [0 .. (bit asidLowBits) - 1] $ \offset -> do
->             when (isJust $ pool ! offset) $ invalidateASIDEntry (base + offset) $ fromJust $ pool ! offset
+>             when (isJust $ pool ! offset) $ hwASIDInvalidate (base + offset) $ fromJust $ pool ! offset
 >         let asidTable' = asidTable//[(asidHighBitsOf base, Nothing)]
 >         modify (\s -> s {
 >             ksArchState = (ksArchState s) { x64KSASIDTable = asidTable' }})
@@ -315,9 +314,9 @@ When a capability backing a virtual memory mapping is deleted, or when an explic
 >         Nothing -> return ()
 >         Just poolPtr -> do
 >             ASIDPool pool <- getObject poolPtr
->             when (pool!(asid .&. mask asidLowBits) == Just pm) $ do
->                 invalidateASIDEntry asid pm
->                 let pool' = pool//[(asid .&. mask asidLowBits, Nothing)]
+>             when (pool!(asidLowBitsOf asid) == Just pm) $ do
+>                 hwASIDInvalidate asid pm
+>                 let pool' = pool//[(asidLowBitsOf asid, Nothing)]
 >                 setObject poolPtr $ ASIDPool pool'
 >                 tcb <- getCurThread
 >                 setVMRoot tcb
@@ -414,35 +413,19 @@ This helper function checks that the mapping installed at a given PT or PD slot 
 
 \subsection{Address Space Switching}
 
-> getCurrentCR3 :: Kernel CR3
-> getCurrentCR3 = gets (x64KSCurrentCR3 . ksArchState)
+> getCurrentUserCR3 :: Kernel CR3
+> getCurrentUserCR3 = gets (x64KSCurrentUserCR3 . ksArchState)
 
-> setCurrentCR3 :: CR3 -> Kernel ()
-> setCurrentCR3 cr3 = do
->     modify (\s -> s { ksArchState = (ksArchState s) { x64KSCurrentCR3 = cr3 }})
->     doMachineOp $ writeCR3 (cr3BaseAddress cr3) $ fromASID $ cr3pcid cr3
-
-> invalidateLocalPageStructureCacheASID :: PAddr -> ASID -> Kernel ()
-> invalidateLocalPageStructureCacheASID ptr asid = do
->     curCR3 <- getCurrentCR3
->     setCurrentCR3 (CR3 ptr asid)
->     setCurrentCR3 curCR3
+> setCurrentUserCR3 :: CR3 -> Kernel ()
+> setCurrentUserCR3 cr3 =
+>     modify (\s -> s { ksArchState = (ksArchState s) { x64KSCurrentUserCR3 = cr3 }})
 
 > invalidatePageStructureCacheASID :: PAddr -> ASID -> Kernel ()
-> invalidatePageStructureCacheASID p a = invalidateLocalPageStructureCacheASID p a
+> invalidatePageStructureCacheASID p a = doMachineOp $ invalidateLocalPageStructureCacheASID p (fromASID a)
 
-> getCurrentVSpaceRoot :: Kernel PAddr
-> getCurrentVSpaceRoot = do
->     cur <- getCurrentCR3
->     return $ cr3BaseAddress cur
+> setCurrentUserVSpaceRoot :: PAddr -> ASID -> Kernel ()
+> setCurrentUserVSpaceRoot vspace asid = setCurrentUserCR3 $ makeCR3 vspace asid
 
-> setCurrentVSpaceRoot :: PAddr -> ASID -> Kernel ()
-> setCurrentVSpaceRoot vspace asid = setCurrentCR3 $ CR3 vspace asid
-
-> -- FIXME x64: Currently we don't have global state for the CR3 so
-> -- we can't test whether or not we should write to it. We should
-> -- add global state to remember the CR3 and actually avoid the write/flush
-> -- when we can.
 > setVMRoot :: PPtr TCB -> Kernel ()
 > setVMRoot tcb = do
 >     threadRootSlot <- getThreadVSpaceRoot tcb
@@ -451,16 +434,16 @@ This helper function checks that the mapping installed at a given PT or PD slot 
 >         (case threadRoot of
 >             ArchObjectCap (PML4Cap {
 >                     capPML4MappedASID = Just asid,
->                     capPML4BasePtr = pd }) -> do
->                 pd' <- findVSpaceForASID asid
->                 when (pd /= pd') $ throw InvalidRoot
->                 curCR3 <- withoutFailure $ getCurrentCR3
->                 when (curCR3 /= CR3 (addrFromPPtr pd) asid) $
->                         withoutFailure $ setCurrentCR3 $ CR3 (addrFromPPtr pd) asid
+>                     capPML4BasePtr = pml4 }) -> do
+>                 pml4' <- findVSpaceForASID asid
+>                 when (pml4 /= pml4') $ throw InvalidRoot
+>                 curCR3 <- withoutFailure $ getCurrentUserCR3
+>                 when (curCR3 /= makeCR3 (addrFromPPtr pml4) asid) $
+>                         withoutFailure $ setCurrentUserCR3 $ makeCR3 (addrFromPPtr pml4) asid
 >             _ -> throw InvalidRoot)
 >         (\_ -> do
->             globalPML4 <- gets (x64KSGlobalPML4 . ksArchState)
->             setCurrentVSpaceRoot (addrFromKPPtr globalPML4) 0)
+>             skimPML4 <- gets (x64KSSKIMPML4 . ksArchState)
+>             setCurrentUserVSpaceRoot (addrFromKPPtr skimPML4) 0)
 
 \subsection{Helper Functions}
 
@@ -520,17 +503,17 @@ Note that implementations with separate high and low memory regions may also wis
 
 \subsection{Managing ASID Map}
 
-> invalidateASIDEntry :: ASID -> PPtr PML4E -> Kernel ()
-> invalidateASIDEntry asid vspace =
->     doMachineOp $ hwASIDInvalidate (fromPPtr vspace) (fromASID asid)
+> hwASIDInvalidate :: ASID -> PPtr PML4E -> Kernel ()
+> hwASIDInvalidate asid vspace =
+>     doMachineOp $ invalidateASID (fromPPtr vspace) (fromASID asid)
 
 \subsection{Decoding x64 Invocations}
 
 > attribsFromWord :: Word -> VMAttributes
 > attribsFromWord w = VMAttributes {
 >     x64WriteThrough = w `testBit` 0,
->     x64PAT = w `testBit` 1,
->     x64CacheDisabled = w `testBit` 2 }
+>     x64PAT = w `testBit` 2,
+>     x64CacheDisabled = w `testBit` 1 }
 
 > pageBase :: VPtr -> VMPageSize -> VPtr
 > pageBase vaddr size = vaddr .&. (complement $ mask (pageBitsForSize size))
@@ -554,43 +537,41 @@ Note that implementations with separate high and low memory regions may also wis
 >                 _ -> throw $ InvalidCapability 1
 >             vspaceCheck <- lookupErrorOnFailure False $ findVSpaceForASID asid
 >             when (vspaceCheck /= vspace) $ throw $ InvalidCapability 1
->             let vaddr' = vaddr .&. userVTop
->             let vtop = vaddr' + (bit (pageBitsForSize $ capVPSize cap) - 1)
->             when (VPtr vtop > VPtr userVTop) $
+>             let vtop = vaddr + bit (pageBitsForSize $ capVPSize cap)
+>             when (VPtr vaddr > VPtr userVTop || VPtr vtop > VPtr userVTop) $
 >                 throw $ InvalidArgument 0
 >             let vmRights = maskVMRights (capVPRights cap) $
 >                     rightsFromWord rightsMask
->             checkVPAlignment (capVPSize cap) (VPtr vaddr')
+>             checkVPAlignment (capVPSize cap) (VPtr vaddr)
 >             entries <- createMappingEntries (addrFromPPtr $ capVPBasePtr cap)
->                 (VPtr vaddr') (capVPSize cap) vmRights
+>                 (VPtr vaddr) (capVPSize cap) vmRights
 >                 (attribsFromWord attr) vspace
 >             ensureSafeMapping entries
 >             return $ InvokePage $ PageMap {
->                 pageMapCap = ArchObjectCap $ cap { capVPMappedAddress = Just (asid, VPtr vaddr') },
+>                 pageMapCap = ArchObjectCap $ cap { capVPMapType = VMVSpaceMap, capVPMappedAddress = Just (asid, VPtr vaddr) },
 >                 pageMapCTSlot = cte,
 >                 pageMapEntries = entries,
 >                 pageMapVSpace = vspace }
 >         (ArchInvocationLabel X64PageMap, _, _) -> throw TruncatedMessage
 >         (ArchInvocationLabel X64PageRemap, rightsMask:attr:_, (vspaceCap,_):_) -> do
->             when (capVPMapType cap == VMIOSpaceMap) $ throw IllegalOperation
+>             when (capVPMapType cap /= VMVSpaceMap) $ throw IllegalOperation
 >             (vspace,asid) <- case vspaceCap of
 >                 ArchObjectCap (PML4Cap {
 >                         capPML4MappedASID = Just asid,
 >                         capPML4BasePtr = vspace })
 >                     -> return (vspace,asid)
 >                 _ -> throw $ InvalidCapability 1
->             (asid',vaddr) <- case capVPMappedAddress cap of
+>             (asidCheck, vaddr) <- case capVPMappedAddress cap of
 >                 Just v -> return v
 >                 _ -> throw $ InvalidCapability 0
->             vspaceCheck <- lookupErrorOnFailure False $ findVSpaceForASID asid
->             when (vspaceCheck /= vspace || asid /= asid') $ throw $ InvalidCapability 1
->             -- asidCheck not required because ASIDs and HWASIDs are the same on x86
+>             vspaceCheck <- lookupErrorOnFailure False $ findVSpaceForASID asidCheck
+>             when (vspaceCheck /= vspace || asid /= asidCheck) $ throw $ InvalidCapability 1
 >             let vmRights = maskVMRights (capVPRights cap) $
 >                     rightsFromWord rightsMask
 >             checkVPAlignment (capVPSize cap) vaddr
 >             entries <- createMappingEntries (addrFromPPtr $ capVPBasePtr cap)
 >                 vaddr (capVPSize cap) vmRights (attribsFromWord attr) vspace
->             -- x64 allows arbitrary remapping, so no need to call ensureSafeMapping
+>             ensureSafeMapping entries
 >             return $ InvokePage $ PageRemap {
 >                 pageRemapEntries = entries,
 >                 pageRemapASID = asid,
@@ -1186,7 +1167,7 @@ Checking virtual address for page size dependent alignment:
 >     asid <- case cap of
 >         ArchObjectCap (PageCap _ _ _ _ _ (Just (as, _))) -> return as
 >         _ -> fail "impossible"
->     invalidateLocalPageStructureCacheASID (addrFromPPtr vspace) asid
+>     invalidatePageStructureCacheASID (addrFromPPtr vspace) asid
 >
 > performPageInvocation (PageRemap entries asid vspace) = do
 >     case entries of
@@ -1194,17 +1175,14 @@ Checking virtual address for page size dependent alignment:
 >         (VMPDE pde, VMPDEPtr slot) -> storePDE slot pde
 >         (VMPDPTE pdpte, VMPDPTEPtr slot) -> storePDPTE slot pdpte
 >         _ -> fail "impossible"
->     invalidateLocalPageStructureCacheASID (addrFromPPtr vspace) asid
+>     invalidatePageStructureCacheASID (addrFromPPtr vspace) asid
 >
-> performPageInvocation (PageUnmap cap ctSlot) = do
->     case capVPMappedAddress cap of
->         Just (asid, vaddr) -> unmapPage (capVPSize cap) asid vaddr
->                                     (capVPBasePtr cap)
->         _ -> return ()
->     ArchObjectCap cap <- getSlotCap ctSlot
->     updateCap ctSlot (ArchObjectCap $
->                           cap { capVPMappedAddress = Nothing })
->
+> performPageInvocation (PageUnmap cap ctSlot) =
+>     when (isJust $ capVPMappedAddress cap) $ case capVPMapType cap of
+>         VMVSpaceMap -> performPageInvocationUnmap cap ctSlot
+>         _ -> fail "mapped cap has incorrect map type"
+
+
 >-- performPageInvocation (PageIOMap cap cptr vtdpte slot) = do
 >--     updateCap cptr cap
 >--     storeIOPTE slot vtdpte
@@ -1230,6 +1208,17 @@ Checking virtual address for page size dependent alignment:
 >             msgLabel = 0 }
 >     setMessageInfo ct msgInfo
 
+> performPageInvocationUnmap :: ArchCapability -> PPtr CTE -> Kernel ()
+> performPageInvocationUnmap cap ctSlot = do
+>     case capVPMappedAddress cap of
+>         Just (asid, vaddr) -> unmapPage (capVPSize cap) asid vaddr
+>                                     (capVPBasePtr cap)
+>         _ -> return ()
+>     ArchObjectCap cap <- getSlotCap ctSlot
+>     updateCap ctSlot (ArchObjectCap $
+>                           cap { capVPMappedAddress = Nothing,
+>                                 capVPMapType = VMNoMap })
+>
 
 > performASIDControlInvocation :: ASIDControlInvocation -> Kernel ()
 > performASIDControlInvocation (MakePool frame slot parent base) = do
@@ -1239,7 +1228,7 @@ Checking virtual address for page size dependent alignment:
 >     placeNewObject frame (makeObject :: ASIDPool) 0
 >     let poolPtr = PPtr $ fromPPtr frame
 >     cteInsert (ArchObjectCap $ ASIDPoolCap poolPtr base) parent slot
->     assert (base .&. mask asidLowBits == 0)
+>     assert (asidLowBitsOf base == 0)
 >         "ASID pool's base must be aligned"
 >     asidTable <- gets (x64KSASIDTable . ksArchState)
 >     let asidTable' = asidTable//[(asidHighBitsOf base, Just poolPtr)]
@@ -1253,7 +1242,7 @@ Checking virtual address for page size dependent alignment:
 >     let ArchObjectCap cap = oldcap
 >     updateCap ctSlot (ArchObjectCap $ cap { capPML4MappedASID = Just asid })
 >     ASIDPool pool <- getObject poolPtr
->     let pool' = pool//[(asid .&. mask asidLowBits, Just $ capPML4BasePtr cap)]
+>     let pool' = pool//[(asidLowBitsOf asid, Just $ capPML4BasePtr cap)]
 >     setObject poolPtr $ ASIDPool pool'
 
 \subsection{Simulator Support}

@@ -9,9 +9,10 @@
  *)
 
 theory WordAbsFnCall imports
-  "../../AutoCorres"
+  "AutoCorres.AutoCorres"
 begin
 
+external_file "word_abs_fn_call.c"
 install_C_file "word_abs_fn_call.c"
 
 (* Test interaction of abstracted/non-abstracted functions calling the

@@ -138,17 +138,23 @@ status_name = ['RUNNING (***bug***)',
                'CANCELLED']
 status_maxlen = max(len(s) for s in status_name[1:]) + len(" *")
 
-#
-# Run a single test.
-#
-# Return a dict of (name, status, output, cpu time, elapsed time, memory usage).
-# This is placed onto the given queue.
-#
-# Log only contains the output if verbose is *false*; otherwise, the
-# log is output to stdout where we can't easily get to it.
-#
-# kill_switch is a threading.Event that is set if the --fail-fast feature is triggered.
-def run_test(test, status_queue, kill_switch, verbose=False, stuck_timeout=None, grace_period=0):
+def run_test(test, status_queue, kill_switch,
+             verbose=False, stuck_timeout=None,
+             timeout_scale=1.0, timeouts_enabled=True,
+             grace_period=0):
+    '''
+    Run a single test.
+
+    Return a dict of (name, status, output, cpu time, elapsed time, memory usage).
+    This is placed onto the given queue.
+
+    Log only contains the output if verbose is *false*; otherwise, the
+    log is output to stdout where we can't easily get to it.
+
+    kill_switch is a threading.Event that is set if the
+    --fail-fast feature is triggered from some other thread.
+    '''
+
     # Construct the base command.
     command = ["bash", "-c", test.command]
 
@@ -207,8 +213,11 @@ def run_test(test, status_queue, kill_switch, verbose=False, stuck_timeout=None,
         if test_status[0] is RUNNING:
             test_status[0] = TIMEOUT
             kill_family(grace_period, process.pid)
-    timer = threading.Timer(test.timeout, do_timeout)
-    if test.timeout > 0:
+
+    scaled_test_timeout = test.timeout * timeout_scale
+    timer = None
+    if timeouts_enabled and scaled_test_timeout > 0:
+        timer = threading.Timer(scaled_test_timeout, do_timeout)
         timer.start()
 
     # Poll the kill switch.
@@ -227,6 +236,7 @@ def run_test(test, status_queue, kill_switch, verbose=False, stuck_timeout=None,
     kill_switch_thread.daemon = True
     kill_switch_thread.start()
 
+    scaled_cpu_timeout = test.cpu_timeout * timeout_scale
     with cpuusage.process_poller(process.pid) as c:
         # Inactivity timeout
         low_cpu_usage = 0.05 # 5%
@@ -236,7 +246,7 @@ def run_test(test, status_queue, kill_switch, verbose=False, stuck_timeout=None,
         # Also set a CPU timeout. We poll the cpu usage periodically.
         def cpu_timeout():
             last_cpu_usage = 0
-            interval = min(0.5, test.cpu_timeout / 10.0)
+            interval = min(0.5, scaled_cpu_timeout / 10.0)
             while test_status[0] is RUNNING:
                 thread_cpu_usage = c.cpu_usage()
 
@@ -262,7 +272,7 @@ def run_test(test, status_queue, kill_switch, verbose=False, stuck_timeout=None,
                         kill_family(grace_period, process.pid)
                         break
 
-                if thread_cpu_usage > test.cpu_timeout:
+                if thread_cpu_usage > scaled_cpu_timeout:
                     test_status[0] = CPU_TIMEOUT
                     kill_family(grace_period, process.pid)
                     break
@@ -271,7 +281,7 @@ def run_test(test, status_queue, kill_switch, verbose=False, stuck_timeout=None,
                 time.sleep(interval)
 
         cpu_timer = None
-        if test.cpu_timeout > 0:
+        if timeouts_enabled and scaled_cpu_timeout > 0:
             cpu_timer = threading.Thread(target=cpu_timeout)
             cpu_timer.daemon = True
             cpu_timer.start()
@@ -295,12 +305,14 @@ def run_test(test, status_queue, kill_switch, verbose=False, stuck_timeout=None,
     # Cancel the timer. Small race here (if the timer fires just after the
     # process finished), but the return code of our process should still be 0,
     # and hence we won't interpret the result as a timeout.
-    if test_status[0] is not TIMEOUT:
+    if timer is not None and test_status[0] is not TIMEOUT:
         timer.cancel()
 
     if output is None:
         output = ""
     output = output.decode(encoding='utf8', errors='replace')
+    if test_status[0] in [STUCK, TIMEOUT, CPU_TIMEOUT]:
+        output = output + extra_timeout_output(test.name)
 
     status_queue.put({'name': test.name,
                       'status': test_status[0],
@@ -308,6 +320,19 @@ def run_test(test, status_queue, kill_switch, verbose=False, stuck_timeout=None,
                       'real_time': datetime.datetime.now() - start_time,
                       'cpu_time': cpu_usage,
                       'mem_usage': peak_mem_usage})
+
+# run a heuristic script for getting some output on a timeout
+def extra_timeout_output(test_name):
+    # we expect the script to be in the same directory as run_tests.py
+    here = os.path.dirname(os.path.abspath(__file__))
+    command = [os.path.join(here, 'timeout_output'), test_name]
+    try:
+        process = subprocess.Popen(command,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        (output, _) = process.communicate()
+        return output.decode('utf8')
+    except Exception as e:
+        return ("Exception launching timeout_output: %s" % str(e))
 
 # Print a status line.
 def print_test_line_start(test_name):
@@ -357,6 +382,24 @@ def rglob(base_dir, pattern):
     matches.extend([f for e in extras for f in rglob(e, pattern)])
     return sorted(set(matches))
 
+# Print info about tests.
+def print_tests(msg, tests, verbose):
+    if verbose:
+        print('%d tests %s:' % (len(tests), msg))
+    for t in tests:
+        print(t.name)
+        if verbose:
+            print('  #> cd ' + t.cwd)
+            print('  #> ' + t.command)
+            print('  -- depends: %s' % list(t.depends))
+
+def print_test_deps(tests):
+    print('digraph "tests" {')
+    for t in tests:
+        for t_dep in t.depends:
+            print('  "%s" -> "%s";' % (t_dep, t.name))
+    print('}')
+
 #
 # Run tests.
 #
@@ -374,69 +417,109 @@ def main():
     parser.add_argument("-j", "--jobs", type=int, default=1,
             help="Number of tests to run in parallel")
     parser.add_argument("-l", "--list", action="store_true",
-            help="list known tests")
+            help="list all known tests (-v for details)")
+    parser.add_argument("-L", "--dry-run", action="store_true",
+            help="list tests to be run (-v for details)")
     parser.add_argument("--no-dependencies", action="store_true",
             help="don't check for dependencies when running specific tests")
     parser.add_argument("-x", "--exclude", action="append", metavar="TEST", default=[],
-            help="exclude tests (one -x per test)")
+            help="exclude the given test; tests depending on it may still run")
     parser.add_argument("-r", "--remove", action="append", metavar="TEST", default=[],
-                        help="remove tests from the default set (when no implicit goal is given)")
+            help="remove the given test and tests that depend on it")
     parser.add_argument("-v", "--verbose", action="store_true",
-            help="print test output")
+            help="print test output or list more details")
+    parser.add_argument("--dot", action="store_true",
+            help="for -l or -L, output test dependencies in GraphViz format")
     parser.add_argument("--junit-report", metavar="FILE",
             help="write JUnit-style test report")
     parser.add_argument("--stuck-timeout", type=int, default=600, metavar='N',
             help="timeout tests if not using CPU for N seconds (default: 600)")
+    timeout_mod_args = parser.add_mutually_exclusive_group()
+    timeout_mod_args.add_argument("--scale-timeouts", type=float, default=1, metavar='N',
+            help="multiply test timeouts by N (e.g. 2 provides twice as much time)")
+    timeout_mod_args.add_argument("--no-timeouts", action="store_true",
+            help="do not enforce any test timeouts")
     parser.add_argument("--grace-period", type=float, default=5, metavar='N',
-            help="notify processes N seconds before killing them (default: 5)")
+            help="interrupt over-time processes N seconds before killing them (default: 5)")
     parser.add_argument("tests", metavar="TESTS",
-            help="tests to run (defaults to all tests)",
+            help="select these tests to run (defaults to all tests)",
             nargs="*")
     args = parser.parse_args()
 
     if args.jobs < 1:
         parser.error("Number of parallel jobs must be at least 1")
 
+    if args.scale_timeouts <= 0:
+        parser.error("--scale-timeouts value must be greater than 0")
+
     # Search for test files:
     test_xml = sorted(rglob(args.directory, "tests.xml"))
     test_info = testspec.process_test_files(test_xml)
-    tests = test_info.tests
+    all_tests = test_info.tests
 
     # List test names if requested.
     if args.list:
-        for t in tests:
-            print(t.name)
+        if args.dot:
+            print_test_deps(all_tests)
+        else:
+            print_tests('total', all_tests, args.verbose)
         sys.exit(0)
 
-    args.exclude = set(args.exclude)
-
     # Calculate which tests should be run.
-    if len(args.tests) == 0 and not os.environ.get('RUN_TESTS_DEFAULT'):
-        tests_to_run = tests
-        remove_trans = [test_info.reverse_deps.rtrans(r, lambda x: frozenset()) for r in args.remove]
-        args.exclude = args.exclude.union(*remove_trans)
-    else:
-        desired_names = set(args.tests) or set(os.environ.get('RUN_TESTS_DEFAULT').split())
-        bad_names = desired_names - set([t.name for t in tests])
-        if len(bad_names) > 0:
-            parser.error("Unknown test names: %s" % (", ".join(sorted(bad_names))))
-        # Given a list of names return the corresponding set of Test objects.
-        def get_tests(x): return {t for t in tests if t.name in x}
-        # Given a list/set of Tests return a superset that includes all dependencies.
-        def get_deps(x):
-            x.update({t for w in x for t in get_deps(get_tests(w.depends))})
-            return x
-        tests_to_run_set = get_tests(desired_names)
-        # Are we skipping dependencies? if not, add them.
-        if not args.no_dependencies:
-            tests_to_run_set = get_deps(tests_to_run_set)
-        # Preserve the order of the original set of Tests.
-        tests_to_run = [t for t in tests if t in tests_to_run_set]
-
-    bad_names = args.exclude - set(t.name for t in tests)
+    desired_names = set(args.tests) or set(os.environ.get('RUN_TESTS_DEFAULT', '').split())
+    bad_names = desired_names - set([t.name for t in all_tests])
     if bad_names:
-        print("[Warning] Unknown test names: %s" % (", ".join(sorted(bad_names))))
-    tests_to_run = [t for t in tests_to_run if t.name not in args.exclude]
+        parser.error("These tests are requested, but do not exist: %s" % (", ".join(sorted(bad_names))))
+
+    def get_tests(names):
+        '''Given a set of names, return the corresponding set of Tests.'''
+        return {t for t in all_tests if t.name in names}
+    def add_deps(x):
+        '''Given a set of Tests, add all dependencies to it.'''
+        x.update({t for w in x for t in add_deps(get_tests(w.depends))})
+        return x
+
+    if desired_names:
+        tests_to_run_set = get_tests(desired_names)
+    else:
+        tests_to_run_set = set(all_tests)
+
+    # Are we skipping dependencies? If not, add them.
+    if not args.no_dependencies:
+        add_deps(tests_to_run_set)
+
+    # Preserve the order of the original set of Tests.
+    tests_to_run = [t for t in all_tests if t in tests_to_run_set]
+
+    # Process --exclude'd tests.
+    exclude_tests = set(args.exclude)
+    tests_to_run = [t for t in tests_to_run if t.name not in exclude_tests]
+
+    # Process --remove'd tests transitively.
+    remove_trans = frozenset.union(frozenset(), *[
+        test_info.reverse_deps.rtrans(r, lambda x: frozenset())
+        for r in args.remove])
+    conflict_names = {t for t in desired_names if t not in exclude_tests and t in remove_trans}
+    if conflict_names:
+        # It's unclear what we should do if a selected test has been --removed.
+        # For now, just bail out.
+        parser.error(
+            "Cannot run these tests because they depend on removed tests: %s\n" %
+            ", ".join(sorted(conflict_names))
+            + "(The removed tests are: %s)" %
+            ", ".join(args.remove))
+    tests_to_run = [t for t in tests_to_run if t.name not in remove_trans]
+
+    bad_names = set.union(exclude_tests, set(args.remove)) - {t.name for t in all_tests}
+    if bad_names:
+        sys.stderr.write("Warning: These tests are excluded/removed, but do not exist: %s\n" % (", ".join(sorted(bad_names))))
+
+    if args.dry_run:
+        if args.dot:
+            print_test_deps(tests_to_run)
+        else:
+            print_tests('selected', tests_to_run, args.verbose)
+        sys.exit(0)
 
     # Run the tests.
     print("Running %d test(s)..." % len(tests_to_run))
@@ -489,9 +572,12 @@ def main():
                     break
                 # Non-blocked and open. Start it.
                 if real_depends.issubset(passed_tests):
-                    test_thread = threading.Thread(target=run_test, name=t.name,
-                                                   args=(t, status_queue, kill_switch,
-                                                         args.verbose, args.stuck_timeout, args.grace_period))
+                    test_thread = threading.Thread(
+                        target=run_test, name=t.name,
+                        args=(t, status_queue, kill_switch,
+                              args.verbose, args.stuck_timeout,
+                              args.scale_timeouts, not args.no_timeouts,
+                              args.grace_period))
                     wipe_tty_status()
                     print_test_line_start(t.name)
                     test_thread.start()

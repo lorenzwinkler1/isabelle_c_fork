@@ -27,7 +27,7 @@ type_synonym tcb = Structures_A.tcb
 type_synonym pte = ARM_A.pte
 
 (* Transform an abstract-spec cap ptr to a capDL one. This is currently
- * a no-op; however, it is conceivable that the capDL cptr representation could
+ * a no-(;) however, it is conceivable that the capDL cptr representation could
  * be changed. Allowing for this potential change is the purpose of this
  * definition.
  *)
@@ -109,11 +109,6 @@ where
  * are ever added to the capDL spec.
  *)
 definition
-  unpack_priorities :: "word32 \<Rightarrow> word8 \<times> word8"
-where
-  "unpack_priorities _ = (0, 0)"
-
-definition
   prio_from_arg :: "word32 \<Rightarrow> word8"
 where
   "prio_from_arg _ = 0"
@@ -122,8 +117,8 @@ definition
   transform_intent_tcb_configure :: "word32 list \<Rightarrow> cdl_tcb_intent option"
 where
   "transform_intent_tcb_configure args =
-  (case args of fault_ep#prioProps#croot_data#vroot_data#buffer#_ \<Rightarrow>
-    Some (TcbConfigureIntent fault_ep (unpack_priorities prioProps)
+  (case args of fault_ep#croot_data#vroot_data#buffer#_ \<Rightarrow>
+    Some (TcbConfigureIntent fault_ep
                              croot_data vroot_data buffer)
    | _ \<Rightarrow> None)"
 
@@ -141,6 +136,14 @@ where
   "transform_intent_tcb_set_mcpriority args =
   (case args of mcp#_ \<Rightarrow>
     Some (TcbSetMCPriorityIntent (prio_from_arg mcp))
+   | _ \<Rightarrow> None)"
+
+definition
+  transform_intent_tcb_set_sched_params :: "word32 list \<Rightarrow> cdl_tcb_intent option"
+where
+  "transform_intent_tcb_set_sched_params args =
+  (case args of mcp#priority#_ \<Rightarrow>
+    Some (TcbSetSchedParamsIntent (prio_from_arg mcp) (prio_from_arg priority))
    | _ \<Rightarrow> None)"
 
 definition
@@ -227,6 +230,15 @@ where
     | _ \<Rightarrow> Nothing"
 
 definition
+  arch_transform_intent_issue_irq_handler :: "word32 list \<Rightarrow> cdl_irq_control_intent option"
+where
+  "arch_transform_intent_issue_irq_handler args \<equiv>
+   case args of
+      irqW#trigger#index#depth#_ \<Rightarrow>
+         Some (IrqControlIssueIrqHandlerIntent ((ucast irqW)::10 word) index depth)
+    | _ \<Rightarrow> Nothing"
+
+definition
   transform_intent_page_table_map :: "word32 list \<Rightarrow> cdl_page_table_intent option"
 where
   "transform_intent_page_table_map args =
@@ -296,6 +308,9 @@ definition
     | TCBSetMCPriority \<Rightarrow>
          map_option TcbIntent
                    (transform_intent_tcb_set_mcpriority args)
+    | TCBSetSchedParams \<Rightarrow>
+         map_option TcbIntent
+                   (transform_intent_tcb_set_sched_params args)
     | TCBSetIPCBuffer \<Rightarrow>
           map_option TcbIntent
                    (transform_intent_tcb_set_ipc_buffer args)
@@ -306,6 +321,7 @@ definition
     | TCBResume \<Rightarrow> Some (TcbIntent TcbResumeIntent)
     | TCBBindNotification \<Rightarrow> Some (TcbIntent TcbBindNTFNIntent)
     | TCBUnbindNotification \<Rightarrow> Some (TcbIntent TcbUnbindNTFNIntent)
+    | TCBSetTLSBase \<Rightarrow> Some (TcbIntent TcbSetTLSBaseIntent)
     | CNodeRevoke \<Rightarrow>
           map_option CNodeIntent
                    (transform_cnode_index_and_depth CNodeRevokeIntent args)
@@ -363,6 +379,9 @@ definition
                           map_option AsidControlIntent
                                   (transform_cnode_index_and_depth AsidControlMakePoolIntent args)
     | ArchInvocationLabel ARMASIDPoolAssign \<Rightarrow> Some (AsidPoolIntent AsidPoolAssignIntent )
+    | ArchInvocationLabel ARMIRQIssueIRQHandler \<Rightarrow>
+                          map_option IrqControlIntent
+                                   (arch_transform_intent_issue_irq_handler args)
     | DomainSetSet \<Rightarrow> map_option DomainIntent (transform_intent_domain args)"
 
 lemmas transform_intent_tcb_defs =
@@ -372,6 +391,7 @@ lemmas transform_intent_tcb_defs =
   transform_intent_tcb_configure_def
   transform_intent_tcb_set_priority_def
   transform_intent_tcb_set_mcpriority_def
+  transform_intent_tcb_set_sched_params_def
   transform_intent_tcb_set_ipc_buffer_def
   transform_intent_tcb_set_space_def
 
@@ -382,14 +402,16 @@ lemma transform_tcb_intent_invocation:
    ((label = TCBReadRegisters) = (ti = (TcbReadRegistersIntent ((args ! 0)!!0) 0 (args ! 1)) \<and> length args \<ge> 2)) \<and>
    ((label = TCBWriteRegisters) = (ti = (TcbWriteRegistersIntent ((args ! 0)!!0) 0 (args ! 1) (drop 2 args)) \<and> length args \<ge> 2)) \<and>
    ((label = TCBCopyRegisters) = (ti = (TcbCopyRegistersIntent ((args ! 0)!!0) ((args ! 0)!!1) ((args ! 0)!!2) ((args ! 0)!!3) 0) \<and> length args \<ge> 1)) \<and>
-   ((label = TCBConfigure) = (ti = (TcbConfigureIntent (args ! 0) (unpack_priorities (args ! 1)) (args ! 2) (args ! 3) (args ! 4)) \<and> length args \<ge> 5)) \<and>
+   ((label = TCBConfigure) = (ti = (TcbConfigureIntent (args ! 0) (args ! 1) (args ! 2) (args ! 3)) \<and> length args \<ge> 4)) \<and>
    ((label = TCBSetPriority) = (ti = (TcbSetPriorityIntent (prio_from_arg (args ! 0))) \<and> length args \<ge> 1)) \<and>
    ((label = TCBSetMCPriority) = (ti = (TcbSetMCPriorityIntent (prio_from_arg (args ! 0))) \<and> length args \<ge> 1)) \<and>
+   ((label = TCBSetSchedParams) = (ti = (TcbSetSchedParamsIntent (prio_from_arg (args ! 0)) (prio_from_arg (args ! 1))) \<and> length args \<ge> 2)) \<and>
    ((label = TCBSetSpace) = (ti = (TcbSetSpaceIntent (args ! 0) (args ! 1) (args ! 2)) \<and> length args \<ge> 3)) \<and>
    ((label = TCBSuspend) = (ti = TcbSuspendIntent)) \<and>
    ((label = TCBResume) = (ti = TcbResumeIntent)) \<and>
    ((label = TCBBindNotification) = (ti = TcbBindNTFNIntent)) \<and>
-   ((label = TCBUnbindNotification) = (ti = TcbUnbindNTFNIntent))
+   ((label = TCBUnbindNotification) = (ti = TcbUnbindNTFNIntent)) \<and>
+   ((label = TCBSetTLSBase) = (ti = TcbSetTLSBaseIntent))
    ) \<and>
    (
     label \<noteq> InvalidInvocation \<and>
@@ -508,15 +530,17 @@ lemma transform_intent_isnot_TcbIntent:
        = ((label = TCBReadRegisters \<longrightarrow> length args < 2) \<and>
           (label = TCBWriteRegisters \<longrightarrow> length args < 2) \<and>
           (label = TCBCopyRegisters \<longrightarrow> length args < 1) \<and>
-          (label = TCBConfigure \<longrightarrow> length args < 5) \<and>
+          (label = TCBConfigure \<longrightarrow> length args < 4) \<and>
           (label = TCBSetPriority \<longrightarrow> length args < 1) \<and>
           (label = TCBSetMCPriority \<longrightarrow> length args < 1) \<and>
+          (label = TCBSetSchedParams \<longrightarrow> length args < 2) \<and>
           (label = TCBSetIPCBuffer \<longrightarrow> length args < 1) \<and>
           (label = TCBSetSpace \<longrightarrow> length args < 3) \<and>
           (label \<noteq> TCBSuspend) \<and>
           (label \<noteq> TCBResume) \<and>
           (label \<noteq> TCBBindNotification) \<and>
-          (label \<noteq> TCBUnbindNotification))"
+          (label \<noteq> TCBUnbindNotification) \<and>
+          (label \<noteq> TCBSetTLSBase))"
   apply(rule iffI)
    apply(erule contrapos_np)
    apply(clarsimp simp: transform_intent_def)
@@ -635,7 +659,7 @@ where
      map (\<lambda>(cap, slot). (transform_cap cap, transform_cslot_ptr slot))"
 
 
--- "Convert a nat into a bool list of the given size."
+\<comment> \<open>Convert a nat into a bool list of the given size.\<close>
 definition
   nat_to_bl :: "nat \<Rightarrow> nat \<Rightarrow> bool list option"
 where
@@ -797,7 +821,7 @@ where
 
                  cdl_tcb_fault_endpoint = (of_bl (tcb_fault_handler tcb)),
 
-                (* Decode the thread's intent. *)
+                 \<comment> \<open>Decode the thread's intent.\<close>
                  cdl_tcb_intent = transform_full_intent ms ptr tcb,
                  cdl_tcb_has_fault = (tcb_has_fault tcb),
                  cdl_tcb_domain = tcb_domain etcb
@@ -893,7 +917,7 @@ definition
                 cdl_cnode_caps = transform_cnode_contents sz c,
                 cdl_cnode_size_bits = sz
                 \<rparr>
-         | Structures_A.TCB tcb \<Rightarrow> case opt_etcb of Some etcb \<Rightarrow> transform_tcb ms ref tcb etcb | None \<Rightarrow> undefined
+         | Structures_A.TCB tcb \<Rightarrow> (case opt_etcb of Some etcb \<Rightarrow> transform_tcb ms ref tcb etcb | None \<Rightarrow> undefined)
          | Structures_A.Endpoint _ \<Rightarrow> Types_D.Endpoint
          | Structures_A.Notification _ \<Rightarrow> Types_D.Notification
          | Structures_A.ArchObj (ARM_A.ASIDPool ap) \<Rightarrow>
@@ -975,13 +999,13 @@ lemma evalMonad_bind:
   apply (simp add: evalMonad_def)
   apply (clarsimp simp: bind_def)
   apply (insert det)
-  apply (clarsimp simp: det_or_fail_def)
+  apply (clarsimp simp: det_or_fail_def split: if_split_asm)
   apply (erule_tac x=s in allE)
   apply clarsimp
   apply (subgoal_tac "b = s")
    apply simp
   apply (subgoal_tac "(a,b) \<in> fst (f s)")
-   apply (drule use_valid, rule f [where P="op = s"])
+   apply (drule use_valid, rule f [where P="(=) s"])
     apply (rule refl)
    apply simp
   apply simp

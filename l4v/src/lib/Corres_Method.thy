@@ -40,22 +40,13 @@ method no_schematic_concl = (fails \<open>rule my_true\<close>)
 
 end
 
-lemma corres_name_pre:
-  "\<lbrakk> \<And>s s'. \<lbrakk> P s; P' s'; (s, s') \<in> sr \<rbrakk>
-                 \<Longrightarrow> corres_underlying sr nf nf' r (op = s) (op = s') f g \<rbrakk>
-        \<Longrightarrow> corres_underlying sr nf nf' r P P' f g"
-  apply (simp add: corres_underlying_def split_def
-                   Ball_def)
-  apply blast
-  done
-
 definition
   "corres_underlyingK sr nf nf' F r Q Q' f g \<equiv>
     F \<longrightarrow> corres_underlying sr nf nf' r Q Q' f g"
 
 lemma corresK_name_pre:
   "\<lbrakk> \<And>s s'. \<lbrakk> P s; P' s'; F; (s, s') \<in> sr \<rbrakk>
-                 \<Longrightarrow> corres_underlyingK sr nf nf' F r (op = s) (op = s') f g \<rbrakk>
+                 \<Longrightarrow> corres_underlyingK sr nf nf' F r ((=) s) ((=) s') f g \<rbrakk>
         \<Longrightarrow> corres_underlyingK sr nf nf' F r P P' f g"
   apply (clarsimp simp add: corres_underlyingK_def)
   apply (rule corres_name_pre)
@@ -712,7 +703,7 @@ lemma corresK_return_trivial:
   by (simp add: corres_underlyingK_def)
 
 lemma corresK_return_eq:
-  "corres_underlyingK sr nf nf' True (op =) (\<lambda>_. True) (\<lambda>_. True) (return x) (return x)"
+  "corres_underlyingK sr nf nf' True (=) (\<lambda>_. True) (\<lambda>_. True) (return x) (return x)"
   by (simp add: corres_underlyingK_def)
 
 lemma corres_lift_to_K:
@@ -781,7 +772,7 @@ lemma corresK_symb_exec_l_search[corres_symb_exec_ls]:
   fixes x :: "'b \<Rightarrow> 'a \<Rightarrow> ('d \<times> 'a) set \<times> bool"
   notes [simp] = corres_noop_def
   shows
-  "\<lbrakk>\<And>s. \<lbrace>PP s\<rbrace> m \<lbrace>\<lambda>_. op = s\<rbrace>; \<And>rv. corres_underlyingK sr nf True (F rv) r (Q rv) P' (x rv) y;
+  "\<lbrakk>\<And>s. \<lbrace>PP s\<rbrace> m \<lbrace>\<lambda>_. (=) s\<rbrace>; \<And>rv. corres_underlyingK sr nf True (F rv) r (Q rv) P' (x rv) y;
    corres_rv F' dc RR (\<lambda>_. True) m (corres_noop) (\<lambda>rv _. F rv);
    empty_fail m; no_fail P m; \<lbrace>R\<rbrace> m \<lbrace>Q\<rbrace>\<rbrakk>
 \<Longrightarrow> corres_underlyingK sr nf True F' r (RR and P and R and (\<lambda>s. \<forall>s'. s = s' \<longrightarrow> PP s' s)) P' (m >>= x) y"
@@ -816,7 +807,7 @@ lemmas corresK_symb_exec_liftME_l_search[corres_symb_exec_ls] =
 
 lemma corresK_symb_exec_r_search[corres_symb_exec_rs]:
   fixes y :: "'b \<Rightarrow> 'a \<Rightarrow> ('e \<times> 'a) set \<times> bool"
-  assumes X: "\<And>s. \<lbrace>PP' s\<rbrace> m \<lbrace>\<lambda>r. op = s\<rbrace>"
+  assumes X: "\<And>s. \<lbrace>PP' s\<rbrace> m \<lbrace>\<lambda>r. (=) s\<rbrace>"
   assumes corres: "\<And>rv. corres_underlyingK sr nf nf' (F rv) r P (Q' rv) x (y rv)"
   assumes Y: "corres_rv F' dc (\<lambda>_. True) RR (corres_noop) m (\<lambda>_ rv'. F rv')"
   assumes nf: "nf' \<Longrightarrow> no_fail P' m"
@@ -1019,8 +1010,6 @@ lemmas [correswp_wp_comb_del] =
   hoare_vcg_precond_imp
   hoare_vcg_precond_impE
   hoare_vcg_precond_impE_R
-  hoare_wp_state_combsE(1)
-  hoare_wp_state_combsE(2)
 
 lemma corres_inst_conj_lift[correswp_wp_comb]:
   "\<lbrakk>\<lbrace>R\<rbrace> f \<lbrace>Q\<rbrace>; \<lbrace>P'\<rbrace> f \<lbrace>Q'\<rbrace>; \<And>s. corres_inst_eq (R s) (P s)\<rbrakk> \<Longrightarrow>

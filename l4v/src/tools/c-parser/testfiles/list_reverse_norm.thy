@@ -9,7 +9,7 @@
  *)
 
 theory list_reverse_norm
-imports "../CTranslation" "$L4V_ARCH/imports/MachineWords"
+imports "CParser.CTranslation" "$L4V_ARCH/imports/MachineWords"
 begin
 
 declare sep_conj_ac [simp add]
@@ -79,11 +79,12 @@ lemma list_heapE:
   by (subst list_restrict_dom [symmetric]) (simp add: list_restrict_dom)
 
 lemma list_heap_update_ignore [simp]:
-  "ptr_val x \<notin> set xs \<Longrightarrow> list (h (x \<mapsto> v)) xs p = list h xs p"
+  "ptr_val x \<notin> set xs \<Longrightarrow> list (h (x := Some v)) xs p = list h xs p"
   by (cases x) (auto elim: list_heapE)
 
 declare typ_simps [simp]
 
+external_file "list_reverse_norm.c"
 install_C_file "list_reverse_norm.c"
 
 lemma (in list_reverse_norm_global_addresses) reverse_correct:

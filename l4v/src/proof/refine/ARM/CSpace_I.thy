@@ -816,7 +816,7 @@ lemma sameObjectAs_def2:
                  split: arch_capability.split cong: if_cong)
   apply (clarsimp simp: ARM_H.sameRegionAs_def isCap_simps
              split del: if_split cong: if_cong)
-  apply (simp add: capRange_def interval_empty)
+  apply (simp add: capRange_def)
   apply fastforce
   done
 
@@ -1013,7 +1013,7 @@ lemma getCTE_valid_cap:
   apply (clarsimp simp add: getCTE_def valid_def)
   apply (frule in_inv_by_hoareD [OF getObject_cte_inv], clarsimp)
   apply (subst conj_commute)
-  apply (subgoal_tac "cte_wp_at' (op = a) t s")
+  apply (subgoal_tac "cte_wp_at' ((=) a) t s")
    apply (rule conjI)
     apply (clarsimp elim!: cte_wp_at_weakenE')
    apply (drule(1) cte_wp_at_valid_objs_valid_cap')
@@ -1027,7 +1027,7 @@ lemmas getCTE_valid_cap' [wp] =
 
 lemma ctes_of_valid_cap':
   "\<lbrakk> ctes_of s p = Some (CTE c n); valid_objs' s\<rbrakk> \<Longrightarrow> s \<turnstile>' c"
-  apply (rule cte_wp_at_valid_objs_valid_cap'[where P="op = (CTE c n)", simplified])
+  apply (rule cte_wp_at_valid_objs_valid_cap'[where P="(=) (CTE c n)", simplified])
    apply (simp add: cte_wp_at_ctes_of)
   apply assumption
   done
@@ -1094,7 +1094,7 @@ lemma mdb_chunked_init:
   unfolding mdb_chunked_def
 proof clarify
   fix p p' c c' n n'
-  def m' \<equiv> "m (x \<mapsto> CTE cap initMDBNode)"
+  define m' where "m' \<equiv> m (x \<mapsto> CTE cap initMDBNode)"
   assume p: "m' p = Some (CTE c n)"
   assume p': "m' p' = Some (CTE c' n')"
   assume r: "sameRegionAs c c'"
@@ -1288,7 +1288,7 @@ lemma cte_refs_capRange:
     apply (drule minus_one_helper3)
     apply simp
    defer
-   -- "CNodeCap"
+   \<comment> \<open>CNodeCap\<close>
    apply (clarsimp simp: objBits_simps capAligned_def dest!: valid_capAligned)
    apply (rename_tac word1 nat1 word2 nat2 x)
    apply (subgoal_tac "x * 2 ^ cteSizeBits < 2 ^ (cteSizeBits + nat1)")
@@ -1306,7 +1306,7 @@ lemma cte_refs_capRange:
     apply simp
    apply (simp only: power_add)
    apply (simp add: word_bits_def)
-  -- "Zombie"
+  \<comment> \<open>Zombie\<close>
   apply (clarsimp simp: capAligned_def valid_cap'_def objBits_simps)
   apply (rename_tac word zombie_type nat x)
   apply (subgoal_tac "x * 2^cteSizeBits < 2 ^ zBits zombie_type")

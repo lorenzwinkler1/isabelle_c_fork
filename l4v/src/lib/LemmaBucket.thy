@@ -16,7 +16,7 @@ imports
 begin
 
 lemma corres_underlying_trivial:
-  "\<lbrakk> nf' \<Longrightarrow> no_fail P' f \<rbrakk> \<Longrightarrow> corres_underlying Id nf nf' op = \<top> P' f f"
+  "\<lbrakk> nf' \<Longrightarrow> no_fail P' f \<rbrakk> \<Longrightarrow> corres_underlying Id nf nf' (=) \<top> P' f f"
   by (auto simp add: corres_underlying_def Id_def no_fail_def)
 
 lemma hoare_spec_gen_asm:
@@ -29,7 +29,7 @@ lemma hoare_spec_gen_asm:
 
 lemma spec_validE_fail:
   "s \<turnstile> \<lbrace>P\<rbrace> fail \<lbrace>Q\<rbrace>,\<lbrace>E\<rbrace>"
-  by wp
+  by wp+
 
 lemma mresults_fail: "mresults fail = {}"
   by (simp add: mresults_def fail_def)
@@ -294,7 +294,7 @@ lemma sum_suc_pair: "(\<Sum>(a, b) \<leftarrow> xs. Suc (f a b)) = length xs + (
   apply (induct xs)
    by clarsimp+
 
-lemma fold_add_sum: "fold op + ((map (\<lambda>(a, b). f a b) xs)::nat list) 0 = (\<Sum>(a, b) \<leftarrow> xs. f a b)"
+lemma fold_add_sum: "fold (+) ((map (\<lambda>(a, b). f a b) xs)::nat list) 0 = (\<Sum>(a, b) \<leftarrow> xs. f a b)"
   apply (subst fold_plus_sum_list_rev)
   apply (subst sum_list_rev)
   by clarsimp
@@ -347,6 +347,13 @@ lemma map_of_in_set_map: "map_of (map (\<lambda>(n, y). (f n, y)) xs) x = Some z
 
 lemma pair_in_enum: "(a, b) \<in> set (enumerate x ys) \<Longrightarrow> b \<in> set ys"
   by (metis enumerate_eq_zip in_set_zip2)
+
+lemma distinct_inj:
+  "inj f \<Longrightarrow> distinct xs = distinct (map f xs)"
+  apply (induct xs)
+   apply simp
+  apply (simp add: inj_image_mem_iff)
+  done
 
 lemma distinct_map_via_ran: "distinct (map fst xs) \<Longrightarrow> ran (map_of xs) = set (map snd xs)"
   apply (cut_tac xs="map fst xs" and ys="map snd xs" in ran_map_of_zip[symmetric])
@@ -431,7 +438,7 @@ lemma sum_suc_triple: "(\<Sum>(a, b, c)\<leftarrow>xs. Suc (f a b c)) = length x
 lemma sum_enumerate: "(\<Sum>(a, b)\<leftarrow>enumerate n xs. P b) = (\<Sum>b\<leftarrow>xs. P b)"
   by (induct xs arbitrary:n; clarsimp)
 
-lemma dom_map_fold:"dom (fold op ++ (map (\<lambda>x. [f x \<mapsto> g x]) xs) ms) = dom ms \<union> set (map f xs)"
+lemma dom_map_fold:"dom (fold (++) (map (\<lambda>x. [f x \<mapsto> g x]) xs) ms) = dom ms \<union> set (map f xs)"
   by (induct xs arbitrary:f g ms; clarsimp)
 
 lemma list_ran_prop:"map_of (map (\<lambda>x. (f x, g x)) xs) i = Some t \<Longrightarrow> \<exists>x \<in> set xs. g x = t"
@@ -463,5 +470,12 @@ lemma set_list_mem_nonempty:
 lemma strenghten_False_imp:
   "\<not>P \<Longrightarrow> P \<longrightarrow> Q"
   by blast
+
+lemma foldl_fun_or_alt:
+  "foldl (\<lambda>x y. x \<or> f y) b ls = foldl (\<or>) b (map f ls)"
+  apply (induct ls)
+   apply clarsimp
+  apply clarsimp
+  by (simp add: foldl_map)
 
 end

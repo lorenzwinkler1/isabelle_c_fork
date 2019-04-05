@@ -12,9 +12,9 @@ chapter "x64-Specific Data Types"
 
 theory Arch_Structs_A
 imports
-  "../../design/$L4V_ARCH/Arch_Structs_B"
+  "ExecSpec.Arch_Structs_B"
   "../ExceptionTypes_A"
-  ArchVMRights_A
+  "../VMRights_A"
 begin
 
 context Arch begin global_naming X64_A
@@ -25,9 +25,6 @@ including architecture-specific capabilities and objects.
 *}
 
 section {* Architecture-specific virtual memory *}
-
-text {* An ASID is simply a word. *}
-type_synonym asid = "machine_word"
 
 type_synonym io_port = "16 word"
 type_synonym io_asid = "16 word"
@@ -41,6 +38,7 @@ datatype arch_cap =
    ASIDPoolCap (acap_asid_pool : obj_ref) (acap_asid_base : asid)
  | ASIDControlCap
  | IOPortCap (acap_io_port_first_port : io_port) (acap_io_port_last_port : io_port)
+ | IOPortControlCap
 (* FIXME x64-vtd:
  | IOSpaceCap (cap_io_domain_id : "16 word") (cap_io_pci_device : "io_asid option")
  | IOPageTableCap (cap_iopt_base_ptr : obj_ref) (cap_io_pt_level : nat) (cap_iopt_mapped_address : "(io_asid * vspace_ref) option")
@@ -51,37 +49,24 @@ datatype arch_cap =
  | PDPointerTableCap obj_ref "(asid * vspace_ref) option"
  | PML4Cap obj_ref "asid option"
 
-definition
-  asid_high_bits :: nat where
-  "asid_high_bits \<equiv> 3"
-definition
-  asid_low_bits :: nat where
-  "asid_low_bits \<equiv> 9 :: nat"
-definition
-  asid_bits :: nat where
-  "asid_bits \<equiv> 12 :: nat"
-
 (* cr3 Stuff *)
 datatype cr3 = cr3 obj_ref asid
 
-primrec cr3_base_address where
-"cr3_base_address (cr3 v0 _) = v0"
+primrec
+  cr3_base_address :: "cr3 \<Rightarrow> obj_ref"
+where
+  "cr3_base_address (cr3 addr _) = addr"
 
-primrec cr3_base_address_update where
-"cr3_base_address_update f (cr3 v0 v1) = (cr3 (f v0) v1)"
-
-primrec cr3_pcid where
-"cr3_pcid (cr3 _ v1) = v1"
-
-primrec cr3_pcid_update where
-"cr3_pcid_update f (cr3 v0 v1) = (cr3 v0 (f v1))"
+primrec
+  cr3_pcid :: "cr3 \<Rightarrow> asid"
+where
+  "cr3_pcid (cr3 _ pcid) = pcid"
 
 section {* Architecture-specific objects *}
 
 datatype table_attr = Accessed | CacheDisabled | WriteThrough | ExecuteDisable
 type_synonym table_attrs = "table_attr set"
 
-(* FIXME: better keep two separate sets? *)
 datatype frame_attr = PTAttr table_attr | Global | PAT | Dirty
 type_synonym frame_attrs = "frame_attr set"
 
@@ -175,9 +160,10 @@ where
   "arch_obj_size (ASIDPoolCap _ _) = pageBits"
 | "arch_obj_size ASIDControlCap = 0"
 | "arch_obj_size (IOPortCap _ _) = 0"
+| "arch_obj_size IOPortControlCap = 0"
 (* FIXME x64-vtd:
 | "arch_obj_size (IOSpaceCap _ _) = 0"
-| "arch_obj_size (IOPageTableCap _ _ _) = iotable_size" (* FIXME: check *) *)
+| "arch_obj_size (IOPageTableCap _ _ _) = iotable_size" *)
 | "arch_obj_size (PageCap _ _ _ _ sz _) = pageBitsForSize sz"
 | "arch_obj_size (PageTableCap _ _) = table_size"
 | "arch_obj_size (PageDirectoryCap _ _) = table_size"
@@ -190,9 +176,10 @@ where
   "arch_cap_is_device (ASIDPoolCap _ _) = False"
 | "arch_cap_is_device ASIDControlCap = False"
 | "arch_cap_is_device (IOPortCap _ _) = False"
+| "arch_cap_is_device IOPortControlCap = False"
 (* FIXME x64-vtd:
 | "arch_cap_is_device (IOSpaceCap _ _) = False"
-| "arch_cap_is_device (IOPageTableCap _ _ _) = False" (* FIXME: check *) *)
+| "arch_cap_is_device (IOPageTableCap _ _ _) = False" *)
 | "arch_cap_is_device (PageCap is_dev _ _ _ _ _) = is_dev"
 | "arch_cap_is_device (PageTableCap _ _) = False"
 | "arch_cap_is_device (PageDirectoryCap _ _) = False"
@@ -230,6 +217,7 @@ where
   "aobj_ref (ASIDPoolCap x _) = Some x"
 | "aobj_ref ASIDControlCap = None"
 | "aobj_ref (IOPortCap _ _) = None"
+| "aobj_ref IOPortControlCap = None"
 (* FIXME x64-vtd:
 | "aobj_ref (IOSpaceCap _ _) = None"
 | "aobj_ref (IOPageTableCap x _ _) = Some x" *)
@@ -258,6 +246,21 @@ datatype
   | PDPTObj
   | PML4Obj
   | ASIDPoolObj
+
+datatype X64IRQState =
+   IRQFree
+ | IRQReserved
+ | IRQMSI
+      (MSIBus : machine_word)
+      (MSIDev : machine_word)
+      (MSIFunc : machine_word)
+      (MSIHandle : machine_word)
+ | IRQIOAPIC
+      (IRQioapic : machine_word)
+      (IRQPin : machine_word)
+      (IRQLevel : machine_word)
+      (IRQPolarity : machine_word)
+      (IRQMasked : bool)
 
 definition
   arch_is_frame_type :: "aobject_type \<Rightarrow> bool"
@@ -308,6 +311,9 @@ record arch_state =
   x64_global_pdpts          :: "obj_ref list"
   x64_global_pds            :: "obj_ref list"
   x64_current_cr3           :: "X64_A.cr3"
+  x64_allocated_io_ports    :: "X64_A.io_port \<Rightarrow> bool"
+  x64_num_ioapics           :: "64 word"
+  x64_irq_state             :: "8 word \<Rightarrow> X64_A.X64IRQState"
 
 (* FIXME x64-vtd:
   x64_num_io_domain_bits    :: "16 word"
@@ -361,7 +367,7 @@ definition
 
 definition
   vtd_pt_bits :: "nat" where
-  "vtd_pt_bits \<equiv> 9" (* FIXME: seems not correct *)
+  "vtd_pt_bits \<equiv> iotable_size"
 
 definition
   x64_num_io_pt_levels :: "nat" where
@@ -401,9 +407,9 @@ section "Arch-specific TCB"
 
 qualify X64_A (in Arch)
 
-(* arch specific part of tcb: this must have a field for user context *)
+text \<open> Arch-specific part of a TCB: this must have at least a field for user context. \<close>
 record arch_tcb =
-  tcb_context       :: user_context
+  tcb_context :: user_context
 
 end_qualify
 
@@ -413,7 +419,9 @@ definition
   default_arch_tcb :: arch_tcb where
   "default_arch_tcb \<equiv> \<lparr>tcb_context = new_context\<rparr>"
 
-text {* accesors for @{text "tcb_context"} inside @{text "arch_tcb"} *}
+text \<open> Accessors for @{text "tcb_context"} inside @{text "arch_tcb"}.
+  These are later used to implement @{text as_user}, i.e.\ need to be
+  compatible with @{text user_monad}.\<close>
 definition
   arch_tcb_context_set :: "user_context \<Rightarrow> arch_tcb \<Rightarrow> arch_tcb"
 where
@@ -423,6 +431,23 @@ definition
   arch_tcb_context_get :: "arch_tcb \<Rightarrow> user_context"
 where
   "arch_tcb_context_get a_tcb \<equiv> tcb_context a_tcb"
+
+(* FIXME: the following means that we break the set/getRegister abstraction
+          and should move some of this into the machine interface *)
+text \<open>
+ Accessors for the user register part of the @{text "arch_tcb"}.
+ (Because @{typ "register \<Rightarrow> machine_word"} may not be equal to @{typ user_context}).
+\<close>
+definition
+  arch_tcb_set_registers :: "(register \<Rightarrow> machine_word) \<Rightarrow> arch_tcb \<Rightarrow> arch_tcb"
+where
+  "arch_tcb_set_registers regs a_tcb \<equiv>
+    a_tcb \<lparr> tcb_context := UserContext (fpu_state (tcb_context a_tcb)) regs \<rparr>"
+
+definition
+  arch_tcb_get_registers :: "arch_tcb \<Rightarrow> register \<Rightarrow> machine_word"
+where
+  "arch_tcb_get_registers a_tcb \<equiv> user_regs (tcb_context a_tcb)"
 
 end
 

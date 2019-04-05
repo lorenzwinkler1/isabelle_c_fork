@@ -15,7 +15,7 @@ import sys
 
 # Settings
 L4V_ARCH_DEFAULT="ARM"
-L4V_ARCH_LIST=["ARM","ARM_HYP","X64"]
+L4V_ARCH_LIST=["ARM","ARM_HYP","X64","RISCV64"]
 
 # Fetch directory this script is stored in.
 DIR=os.path.dirname(os.path.realpath(__file__))
@@ -42,6 +42,9 @@ if L4V_ARCH not in L4V_ARCH_LIST:
 
 print "Testing for L4V_ARCH=%s:" % L4V_ARCH
 
+# enable timing logs in isabelle builds and set report interval to 3 seconds
+os.environ["ISABELLE_TIMING_LOG"]="3.0s"
+
 # Enable quick_and_dirty mode for various images
 if os.environ.has_key("QUICK_AND_DIRTY"):
     os.environ["AINVS_QUICK_AND_DIRTY"]=1
@@ -56,6 +59,7 @@ EXCLUDE["ARM_HYP"]=[
     "Access",
     "Bisim",
     "DRefine",
+    "RefineOrphanage",
     "SimplExportAndRefine"]
 
 EXCLUDE["ARM"]=[]
@@ -68,8 +72,24 @@ EXCLUDE["X64"]=[
     "CamkesGlueProofs",
     "DBaseRefine",
     "DSpec",
+    "RefineOrphanage",
     "SepTacticsExamples",
-    "SimplExportAndRefine"]
+    "SimplExportAndRefine",
+    "AsmRefine"
+]
+
+EXCLUDE["RISCV64"]=[
+    "AInvs",
+    "ASepSpec",
+    "DSpec",
+    "c-kernel",
+    "CKernel",
+    "CSpec",
+    "CamkesDarpaReport",
+    "CamkesGlueProofs",
+    "RefineOrphanage",
+    "AsmRefine"
+]
 
 # Check EXCLUDE is exhaustive over the available architectures
 if not set(L4V_ARCH_LIST) <= set(EXCLUDE.keys()):

@@ -16,10 +16,6 @@ sig
 
   val debug_get: Proof.context -> wp_rules;
 
-  val derived_rule: thm -> thm -> thm list;
-  val get_combined_rules': thm list -> thm -> thm list;
-  val get_combined_rules: thm list -> thm list -> thm list;
-
   val get_rules: Proof.context -> thm list -> wp_rules;
 
   val apply_rules_tac_n: bool -> Proof.context -> thm list -> thm list Unsynchronized.ref
@@ -127,17 +123,7 @@ let
   val results = case get_key trip_conv thm of
     SOME k => Net.lookup triples (Net.key_of_term k)
   | NONE => others
-
 in exists (fn (_, thm') => Thm.eq_thm_prop (thm, thm')) results end
-
-fun derived_rule rule combinator =
-  [rule RSN (1, combinator)] handle THM _ => [];
-
-fun get_combined_rules' combs' rule =
-  rule :: (List.concat (map (derived_rule rule) combs'));
-
-fun get_combined_rules rules' combs' =
-  List.concat (map (get_combined_rules' combs') rules');
 
 fun add_rule rule rs =
     {trips = #trips rs,
@@ -308,6 +294,7 @@ let
   val used_rules = Unsynchronized.ref [] : thm list Unsynchronized.ref
   val wp_pre_tac = Method.NO_CONTEXT_TACTIC ctxt
                       (Method_Closure.apply_method ctxt @{method wp_pre} [] [] [] ctxt [])
+  val wp_fix_tac = TRY (WPFix.both_tac ctxt 1)
   val cleanup_tac = TRY (REPEAT
                       (resolve_tac ctxt [@{thm TrueI}, @{thm conj_TrueI}, @{thm conj_TrueI2}] 1
                        ORELSE assume_tac ctxt 1))
@@ -317,7 +304,7 @@ in
   SELECT_GOAL (
   (fn t => Seq.map (fn thm => (warn_unused_thms ctxt extras extras_ref used_rules;
                                trace_used_thms trace used_rules ctxt; thm))
-    ((wp_pre_tac THEN steps_tac) t)) THEN_ELSE
+    ((wp_pre_tac THEN wp_fix_tac THEN steps_tac) t)) THEN_ELSE
   (fn t => (warn_unsafe_thms (#unsafe_rules rules) 1 ctxt t; all_tac t),
   fn t => (warn_unsafe_thms (#unsafe_rules rules) 1 ctxt t; no_tac t))) n
 end

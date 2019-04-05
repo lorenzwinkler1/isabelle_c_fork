@@ -17,12 +17,10 @@
 
 theory Lemmas_D
 imports
-  Include_D
+  "DBaseRefine.Include_D"
   MoreHOL
   MoreCorres
-  "../../spec/design/InvocationLabels_H"
-  "../../lib/MonadicRewrite"
-  "../refine/$L4V_ARCH/EmptyFail"
+  "ExecSpec.InvocationLabels_H"
 begin
 
 no_notation bind_drop (infixl ">>" 60)
@@ -41,5 +39,12 @@ lemma pick_singleton[simp]:
    apply fastforce
   apply fastforce
   done
+
+(* FIXME: eventually move to AInvs *)
+lemma is_tcb_TCB[simp]: "is_tcb (TCB t)"
+  by (simp add: is_tcb)
+
+declare dxo_wp_weak[wp del]
+declare is_aligned_no_overflow[simp]
 
 end

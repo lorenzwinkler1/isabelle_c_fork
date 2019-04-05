@@ -19,6 +19,16 @@ ML \<open>
 (* An antiquotation for creating json-like serializers for
    simple records. Serializers for primitive types are automatically used,
    while serializers for complex types are given as parameters. *)
+val JSON_string_encode: string -> string =
+  String.translate (
+      fn #"\\" => "\\\\"
+       | #"\n" => "\\n"
+       | x => if Char.isPrint x then String.str x else
+                "\\u" ^ align_right "0" 4 (Int.fmt StringCvt.HEX (Char.ord x)))
+  #> quote;
+
+fun JSON_int_encode (i: int): string =
+  if i < 0 then "-" ^ Int.toString (~i) else Int.toString i
 
 val _ = Theory.setup(
 ML_Antiquotation.inline @{binding string_record}
@@ -37,9 +47,9 @@ ML_Antiquotation.inline @{binding string_record}
 
         val trim =
         String.explode
-        #> take_prefix (fn #" " => true | _ => false)
+        #> chop_prefix (fn #" " => true | _ => false)
         #> snd
-        #> take_suffix (fn #" " => true | _ => false)
+        #> chop_suffix (fn #" " => true | _ => false)
         #> fst
         #> String.implode
 
@@ -78,18 +88,18 @@ ML_Antiquotation.inline @{binding string_record}
 
       fun mk_encode typ =
       if typ = "string"
-      then "(fn s => quote (String.translate (fn #\"\\n\" => \"\\\\n\" | x => String.str x) s))"
+      then "JSON_string_encode"
       else if typ = "int"
-      then "Int.toString"
+      then "JSON_int_encode"
       else if typ = "bool"
       then "Bool.toString"
       else if typ = "string list"
-      then "(fn xs => (enclose \"[\" \"]\" (String.concatWith \", \" (map quote xs))))"
+      then "(fn xs => (enclose \"[\" \"]\" (String.concatWith \", \" (map JSON_string_encode xs))))"
        else  (sanitize typ) ^ "_encode"
 
 
       fun mk_elem nm _ value =
-        (ML_Syntax.print_string (quote nm) ^ "^ \" : \" ") ^ "^ (" ^ value ^ ")"
+        (ML_Syntax.print_string (JSON_string_encode nm) ^ "^ \" : \" ") ^ "^ (" ^ value ^ ")"
 
       fun mk_head body =
         "(\"" ^ "{\" ^ String.concatWith \", \" (" ^  body ^ ") ^ \"}\")"
@@ -118,7 +128,8 @@ ML_Antiquotation.inline @{binding string_record}
 
 ML \<open>
 
-@{string_record deps = "const_deps : string list, type_deps: string list"}
+@{string_record deps = "consts : string list, types: string list"}
+@{string_record lemma_deps = "consts: string list, types: string list, lemmas: string list"}
 @{string_record location = "file : string, start_line : int, end_line : int"}
 @{string_record levity_tag = "tag : string, location : location"}
 @{string_record apply_dep = "name : string, attribs : string list"}
@@ -130,7 +141,7 @@ ML \<open>
 @{string_record lemma_entry =
   "name : string, command_name : string, levity_tag : levity_tag option, location : location,
    proof_commands : proof_command list,
-   lemma_deps : string list, deps : deps"}
+   deps : lemma_deps"}
 
 @{string_record dep_entry =
   "name : string, command_name : string, levity_tag : levity_tag option, location: location,
@@ -152,7 +163,7 @@ val opt_levity_tag_encode = encode_option (levity_tag_encode location_encode);
 val proof_command_encode = proof_command_encode (location_encode, encode_list apply_dep_encode);
 
 val lemma_entry_encode = lemma_entry_encode
-  (opt_levity_tag_encode, location_encode, encode_list proof_command_encode, deps_encode)
+  (opt_levity_tag_encode, location_encode, encode_list proof_command_encode, lemma_deps_encode)
 
 val dep_entry_encode = dep_entry_encode
   (opt_levity_tag_encode, location_encode, deps_encode)
@@ -324,16 +335,15 @@ in (command_ranges, log) end
 
 
 
-fun base_name_of nm =
-  let
-    val (idx, rest) = space_explode "_" nm |> rev |> List.getItem |> the;
-    val _ = Int.fromString idx |> the;
-  in rest |> rev |> space_implode "_" end handle Option => nm
+fun make_deps (const_deps, type_deps): deps =
+  {consts = distinct (op =) const_deps, types = distinct (op =) type_deps}
 
-
-
-fun make_deps (const_deps, type_deps) =
-  ({const_deps = distinct (op =) const_deps, type_deps = distinct (op =) type_deps} : deps)
+fun make_lemma_deps (const_deps, type_deps, lemma_deps): lemma_deps =
+  {
+    consts = distinct (op =) const_deps,
+    types = distinct (op =) type_deps,
+    lemmas = distinct (op =) lemma_deps
+  }
 
 fun make_tag (SOME (tag, range)) = (case location_from_range range
   of SOME rng => SOME ({tag = tag, location = rng} : levity_tag)
@@ -350,7 +360,7 @@ fun add_deps (((Defs.Const, nm), _) :: rest) =
     (consts, nm :: types) end
   | add_deps _ = ([], [])
 
-fun get_deps ({rhs, ...} : Defs.spec) = (add_deps rhs);
+fun get_deps ({rhs, ...} : Defs.spec) = add_deps rhs
 
 fun typs_of_typ (Type (nm, Ts)) = nm :: (map typs_of_typ Ts |> flat)
   | typs_of_typ _ = []
@@ -372,7 +382,8 @@ fun file_of_thy thy =
 
 fun entry_of_thy thy = ({name = Context.theory_name thy, file = file_of_thy thy} : theory_entry)
 
-fun used_facts thm = map fst (AutoLevity_Base.used_facts NONE thm)
+fun used_facts thy thm = map fst
+  (AutoLevity_Base.used_facts (SOME (Proof_Context.init_global thy)) thm)
 
 fun get_reports_for_thy thy =
   let
@@ -399,21 +410,19 @@ fun get_reports_for_thy thy =
 
              val (real_start, (cmd_name, end_pos, tag, prf_cmds)) = search_backwards pos
 
-             val lemma_deps' = if cmd_name = "datatype" then [] else
-                map used_facts thms'
-                |> flat;
+             val lemma_deps =
+                  if cmd_name = "datatype"
+                  then []
+                  else map (used_facts thy) thms' |> flat |> distinct (op =);
 
-             val lemma_deps = map base_name_of lemma_deps' |> distinct (op =)
-
-             val deps =
-               map deps_of_thm thms' |> ListPair.unzip |> apply2 flat |> make_deps
+             val (consts, types) = map deps_of_thm thms' |> ListPair.unzip |> apply2 flat
+             val deps = make_lemma_deps (consts, types, lemma_deps)
 
              val location = location_from_range (real_start, end_pos) |> the;
 
              val (lemma_entry : lemma_entry) =
               {name  = xnm, command_name = cmd_name, levity_tag = make_tag tag,
-               location = location, proof_commands = prf_cmds,
-               deps = deps, lemma_deps = lemma_deps}
+               location = location, proof_commands = prf_cmds, deps = deps}
 
             in SOME (pos, lemma_entry) end
             else NONE end handle Option => NONE)
@@ -473,7 +482,7 @@ fun add_commas (s :: s' :: ss) = s ^ "," :: (add_commas (s' :: ss))
 
 
 fun string_reports_of (thy_nm, logs, thy_parents, lemmas, consts, types) =
-      ["{\"theory_name\" : " ^ quote thy_nm ^ ","] @
+      ["{\"theory_name\" : " ^ JSON_string_encode thy_nm ^ ","] @
       ["\"logs\" : ["] @
       add_commas (map (log_entry_encode) logs) @
       ["],","\"theory_imports\" : ["] @
@@ -481,9 +490,9 @@ fun string_reports_of (thy_nm, logs, thy_parents, lemmas, consts, types) =
       ["],","\"lemmas\" : ["] @
       add_commas (map (lemma_entry_encode) lemmas) @
       ["],","\"consts\" : ["] @
-      add_commas (map ( dep_entry_encode) consts) @
+      add_commas (map (dep_entry_encode) consts) @
       ["],","\"types\" : ["] @
-      add_commas (map ( dep_entry_encode) types) @
+      add_commas (map (dep_entry_encode) types) @
       ["]}"]
       |> map (fn s => s ^ "\n")
 

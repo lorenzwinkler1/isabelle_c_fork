@@ -23,7 +23,7 @@ instance virq_C :: array_inner_packed
   apply intro_classes
   by (simp add: size_of_def)
 
-definition (* FIXME ARMHYP REMOVE, missing machine op stub *)
+definition (* FIXME ARMHYP REMOVE, missing machine (stub) *)
   setCurrentPDPL2 :: "machine_word \<Rightarrow> unit machine_monad"
 where
   "setCurrentPDPL2 = undefined"
@@ -70,7 +70,7 @@ assumes writeContextIDAndPD_ccorres:
            (Call writeContextIDAndPD_'proc)"
 
 assumes getHSR_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV []
+  "ccorres (=) ret__unsigned_long_' \<top> UNIV []
            (doMachineOp getHSR)
            (Call getHSR_'proc)"
 
@@ -80,12 +80,12 @@ assumes setHCR_ccorres:
            (Call setHCR_'proc)"
 
 assumes getHDFAR_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV []
+  "ccorres (=) ret__unsigned_long_' \<top> UNIV []
            (doMachineOp getHDFAR)
            (Call getHDFAR_'proc)"
 
 assumes getSCTLR_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV []
+  "ccorres (=) ret__unsigned_long_' \<top> UNIV []
            (doMachineOp getSCTLR)
            (Call getSCTLR_'proc)"
 
@@ -94,18 +94,8 @@ assumes setSCTLR_ccorres:
            (doMachineOp (setSCTLR scltr))
            (Call setSCTLR_'proc)"
 
-assumes getACTLR_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV []
-           (doMachineOp getACTLR)
-           (Call getACTLR_'proc)"
-
-assumes setACTLR_ccorres:
-  "ccorres dc xfdc \<top> (\<lbrace>\<acute>actlr = actlr \<rbrace>) []
-           (doMachineOp (setACTLR acltr))
-           (Call setACTLR_'proc)"
-
 assumes addressTranslateS1CPR_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> (\<lbrace>\<acute>vaddr = vaddr \<rbrace>) []
+  "ccorres (=) ret__unsigned_long_' \<top> (\<lbrace>\<acute>vaddr = vaddr \<rbrace>) []
            (doMachineOp (addressTranslateS1CPR vaddr))
            (Call addressTranslateS1CPR_'proc)"
 
@@ -175,15 +165,15 @@ assumes cleanInvalidate_D_PoC_ccorres:
            (doMachineOp cleanInvalidate_D_PoC)
            (Call cleanInvalidate_D_PoC_'proc)"
 
-assumes cleanInvalidateL2Range_ccorres:
+assumes plat_cleanInvalidateL2Range_ccorres:
   "ccorres dc xfdc \<top> (\<lbrace>\<acute>start = w1\<rbrace> \<inter> \<lbrace>\<acute>end = w2\<rbrace>) []
            (doMachineOp (cleanInvalidateL2Range w1 w2))
-           (Call cleanInvalidateL2Range_'proc)"
+           (Call plat_cleanInvalidateL2Range_'proc)"
 
-assumes invalidateL2Range_ccorres:
+assumes plat_invalidateL2Range_ccorres:
   "ccorres dc xfdc \<top> (\<lbrace>\<acute>start = w1\<rbrace> \<inter> \<lbrace>\<acute>end = w2\<rbrace>) []
            (doMachineOp (invalidateL2Range w1 w2))
-           (Call invalidateL2Range_'proc)"
+           (Call plat_invalidateL2Range_'proc)"
 
 assumes cleanL2Range_ccorres:
   "ccorres dc xfdc \<top> (\<lbrace>\<acute>start = w1\<rbrace> \<inter> \<lbrace>\<acute>end = w2\<rbrace>) []
@@ -196,17 +186,17 @@ assumes clearExMonitor_ccorres:
            (Call clearExMonitor_'proc)"
 
 assumes getIFSR_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV []
+  "ccorres (=) ret__unsigned_long_' \<top> UNIV []
            (doMachineOp getIFSR)
            (Call getIFSR_'proc)"
 
 assumes getDFSR_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV []
+  "ccorres (=) ret__unsigned_long_' \<top> UNIV []
            (doMachineOp getDFSR)
            (Call getDFSR_'proc)"
 
 assumes getFAR_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV []
+  "ccorres (=) ret__unsigned_long_' \<top> UNIV []
            (doMachineOp getFAR)
            (Call getFAR_'proc)"
 
@@ -239,98 +229,45 @@ assumes maskInterrupt_ccorres:
            (doMachineOp (maskInterrupt m irq))
            (Call maskInterrupt_'proc)"
 
-assumes invalidateLocalTLB_VAASID_spec:
- "\<Gamma>\<turnstile>\<^bsub>/UNIV\<^esub> UNIV (Call invalidateMVA_'proc) UNIV"
-
 assumes cleanCacheRange_PoU_spec:
  "\<Gamma>\<turnstile>\<^bsub>/UNIV\<^esub> UNIV (Call cleanCacheRange_PoU_'proc) UNIV"
 
 (* ARM Hypervisor banked register save/restoring *)
 
-assumes set_lr_svc_ccorres:
-  "ccorres dc xfdc \<top> (\<lbrace>\<acute>val = v \<rbrace>) [] (doMachineOp (set_lr_svc v)) (Call set_lr_svc_'proc)"
-assumes set_sp_svc_ccorres:
-  "ccorres dc xfdc \<top> (\<lbrace>\<acute>val = v \<rbrace>) [] (doMachineOp (set_sp_svc v)) (Call set_sp_svc_'proc)"
-assumes set_lr_abt_ccorres:
-  "ccorres dc xfdc \<top> (\<lbrace>\<acute>val = v \<rbrace>) [] (doMachineOp (set_lr_abt v)) (Call set_lr_abt_'proc)"
-assumes set_sp_abt_ccorres:
-  "ccorres dc xfdc \<top> (\<lbrace>\<acute>val = v \<rbrace>) [] (doMachineOp (set_sp_abt v)) (Call set_sp_abt_'proc)"
-assumes set_lr_und_ccorres:
-  "ccorres dc xfdc \<top> (\<lbrace>\<acute>val = v \<rbrace>) [] (doMachineOp (set_lr_und v)) (Call set_lr_und_'proc)"
-assumes set_sp_und_ccorres:
-  "ccorres dc xfdc \<top> (\<lbrace>\<acute>val = v \<rbrace>) [] (doMachineOp (set_sp_und v)) (Call set_sp_und_'proc)"
-assumes set_lr_irq_ccorres:
-  "ccorres dc xfdc \<top> (\<lbrace>\<acute>val = v \<rbrace>) [] (doMachineOp (set_lr_irq v)) (Call set_lr_irq_'proc)"
-assumes set_sp_irq_ccorres:
-  "ccorres dc xfdc \<top> (\<lbrace>\<acute>val = v \<rbrace>) [] (doMachineOp (set_sp_irq v)) (Call set_sp_irq_'proc)"
-assumes set_lr_fiq_ccorres:
-  "ccorres dc xfdc \<top> (\<lbrace>\<acute>val = v \<rbrace>) [] (doMachineOp (set_lr_fiq v)) (Call set_lr_fiq_'proc)"
-assumes set_sp_fiq_ccorres:
-  "ccorres dc xfdc \<top> (\<lbrace>\<acute>val = v \<rbrace>) [] (doMachineOp (set_sp_fiq v)) (Call set_sp_fiq_'proc)"
-assumes set_r8_fiq_ccorres:
-  "ccorres dc xfdc \<top> (\<lbrace>\<acute>val = v \<rbrace>) [] (doMachineOp (set_r8_fiq v)) (Call set_r8_fiq_'proc)"
-assumes set_r9_fiq_ccorres:
-  "ccorres dc xfdc \<top> (\<lbrace>\<acute>val = v \<rbrace>) [] (doMachineOp (set_r9_fiq v)) (Call set_r9_fiq_'proc)"
-assumes set_r10_fiq_ccorres:
-  "ccorres dc xfdc \<top> (\<lbrace>\<acute>val = v \<rbrace>) [] (doMachineOp (set_r10_fiq v)) (Call set_r10_fiq_'proc)"
-assumes set_r11_fiq_ccorres:
-  "ccorres dc xfdc \<top> (\<lbrace>\<acute>val = v \<rbrace>) [] (doMachineOp (set_r11_fiq v)) (Call set_r11_fiq_'proc)"
-assumes set_r12_fiq_ccorres:
-  "ccorres dc xfdc \<top> (\<lbrace>\<acute>val = v \<rbrace>) [] (doMachineOp (set_r12_fiq v)) (Call set_r12_fiq_'proc)"
+assumes vcpu_hw_write_reg_ccorres:
+  "\<And>r v. ccorres dc xfdc
+           \<top> (UNIV \<inter> \<lbrace> unat \<acute>reg_index = fromEnum r \<rbrace> \<inter> \<lbrace> \<acute>reg = v \<rbrace>) hs
+           (doMachineOp (writeVCPUHardwareReg r v))
+           (Call vcpu_hw_write_reg_'proc)"
 
-assumes get_lr_svc_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV [] (doMachineOp get_lr_svc) (Call get_lr_svc_'proc)"
-assumes get_sp_svc_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV [] (doMachineOp get_sp_svc) (Call get_sp_svc_'proc)"
-assumes get_lr_abt_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV [] (doMachineOp get_lr_abt) (Call get_lr_abt_'proc)"
-assumes get_sp_abt_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV [] (doMachineOp get_sp_abt) (Call get_sp_abt_'proc)"
-assumes get_lr_und_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV [] (doMachineOp get_lr_und) (Call get_lr_und_'proc)"
-assumes get_sp_und_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV [] (doMachineOp get_sp_und) (Call get_sp_und_'proc)"
-assumes get_lr_irq_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV [] (doMachineOp get_lr_irq) (Call get_lr_irq_'proc)"
-assumes get_sp_irq_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV [] (doMachineOp get_sp_irq) (Call get_sp_irq_'proc)"
-assumes get_lr_fiq_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV [] (doMachineOp get_lr_fiq) (Call get_lr_fiq_'proc)"
-assumes get_sp_fiq_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV [] (doMachineOp get_sp_fiq) (Call get_sp_fiq_'proc)"
-assumes get_r8_fiq_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV [] (doMachineOp get_r8_fiq) (Call get_r8_fiq_'proc)"
-assumes get_r9_fiq_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV [] (doMachineOp get_r9_fiq) (Call get_r9_fiq_'proc)"
-assumes get_r10_fiq_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV [] (doMachineOp get_r10_fiq) (Call get_r10_fiq_'proc)"
-assumes get_r11_fiq_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV [] (doMachineOp get_r11_fiq) (Call get_r11_fiq_'proc)"
-assumes get_r12_fiq_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV [] (doMachineOp get_r12_fiq) (Call get_r12_fiq_'proc)"
+assumes vcpu_hw_read_reg_ccorres:
+  "\<And>r. ccorres (=) ret__unsigned_long_'
+         \<top> (UNIV \<inter> \<lbrace> unat \<acute>reg_index = fromEnum r \<rbrace>) hs
+         (doMachineOp (readVCPUHardwareReg r))
+         (Call vcpu_hw_read_reg_'proc)"
 
 (* ARM Hypervisor Virtual Global Interrupt Controller (VGIC) *)
 
 assumes get_gic_vcpu_ctrl_hcr_ccorres:
-  "ccorres (op =) ret__unsigned_' \<top> UNIV []
+  "ccorres (=) ret__unsigned_' \<top> UNIV []
            (doMachineOp get_gic_vcpu_ctrl_hcr) (Call get_gic_vcpu_ctrl_hcr_'proc)"
 assumes get_gic_vcpu_ctrl_vmcr_ccorres:
-  "ccorres (op =) ret__unsigned_' \<top> UNIV []
+  "ccorres (=) ret__unsigned_' \<top> UNIV []
            (doMachineOp get_gic_vcpu_ctrl_vmcr) (Call get_gic_vcpu_ctrl_vmcr_'proc)"
 assumes get_gic_vcpu_ctrl_apr_ccorres:
-  "ccorres (op =) ret__unsigned_' \<top> UNIV []
+  "ccorres (=) ret__unsigned_' \<top> UNIV []
            (doMachineOp get_gic_vcpu_ctrl_apr) (Call get_gic_vcpu_ctrl_apr_'proc)"
 assumes get_gic_vcpu_ctrl_vtr_ccorres:
-  "ccorres (op =) ret__unsigned_long_' \<top> UNIV []
+  "ccorres (=) ret__unsigned_long_' \<top> UNIV []
            (doMachineOp get_gic_vcpu_ctrl_vtr) (Call get_gic_vcpu_ctrl_vtr_'proc)"
 assumes get_gic_vcpu_ctrl_eisr0_ccorres:
-  "ccorres (op =) ret__unsigned_' \<top> UNIV []
+  "ccorres (=) ret__unsigned_' \<top> UNIV []
            (doMachineOp get_gic_vcpu_ctrl_eisr0) (Call get_gic_vcpu_ctrl_eisr0_'proc)"
 assumes get_gic_vcpu_ctrl_eisr1_ccorres:
-  "ccorres (op =) ret__unsigned_' \<top> UNIV []
+  "ccorres (=) ret__unsigned_' \<top> UNIV []
            (doMachineOp get_gic_vcpu_ctrl_eisr1) (Call get_gic_vcpu_ctrl_eisr1_'proc)"
 assumes get_gic_vcpu_ctrl_misr_ccorres:
-  "ccorres (op =) ret__unsigned_' \<top> UNIV []
+  "ccorres (=) ret__unsigned_' \<top> UNIV []
            (doMachineOp get_gic_vcpu_ctrl_misr) (Call get_gic_vcpu_ctrl_misr_'proc)"
 
 assumes set_gic_vcpu_ctrl_hcr_ccorres:
@@ -367,7 +304,7 @@ assumes clearExMonitor_fp_ccorres:
 *)
 assumes slowpath_ccorres:
   "ccorres dc xfdc
-     (\<lambda>s. invs' s \<and> ct_in_state' (op = Running) s)
+     (\<lambda>s. invs' s \<and> ct_in_state' ((=) Running) s)
      ({s. syscall_' s = syscall_from_H ev})
      [SKIP]
      (callKernel (SyscallEvent ev)) (Call slowpath_'proc)"
@@ -399,6 +336,11 @@ assumes ackInterrupt_ccorres:
            (doMachineOp (ackInterrupt irq))
            (Call ackInterrupt_'proc)"
 
+assumes setIRQTrigger_ccorres:
+  "ccorres dc xfdc \<top> (UNIV \<inter> {s. irq_' s = ucast irq} \<inter> {s. trigger_' s = (from_bool trigger)}) hs
+          (doMachineOp (setIRQTrigger irq trigger))
+          (Call setIRQTrigger_'proc )"
+
 context kernel_m begin
 
 lemma index_xf_for_sequence:
@@ -406,37 +348,15 @@ lemma index_xf_for_sequence:
           \<and> globals (index_'_update f s) = globals s"
   by simp
 
-(* FIXME CLEANUP on all arches: this entire cache op section has:
+(* FIXME CLEANUP on all arches: this entire cache (section) has:
    - a number of useful word lemmas that can go into WordLib
    - a ton of hardcoded "mask 6" and "64", which on sabre is "mask 5" and "32" respectively.
    - The proofs themselves are extremely similar.
      This can be much more generic! *)
 
-lemma upto_enum_word_nth:
-  "\<lbrakk>i \<le> j; k \<le> unat (j - i)\<rbrakk> \<Longrightarrow> [i .e. j] ! k = i + of_nat k"
-  apply (clarsimp simp: upto_enum_def nth_upt nth_append)
-  apply (clarsimp simp: toEnum_of_nat word_le_nat_alt[symmetric])
-  apply (rule conjI, clarsimp)
-   apply (subst toEnum_of_nat, unat_arith)
-   apply unat_arith
-  apply (clarsimp simp: not_less unat_sub[symmetric])
-  apply unat_arith
-  done
-
-lemma upto_enum_step_nth:
-  "\<lbrakk>a \<le> c; n \<le> unat ((c - a) div (b - a))\<rbrakk> \<Longrightarrow> [a, b .e. c] ! n = a + of_nat n * (b - a)"
-  apply (clarsimp simp: upto_enum_step_def not_less[symmetric])
-  apply (subst upto_enum_word_nth)
-    apply (auto simp: not_less word_of_nat_le)
-  done
-
 lemma lineStart_le_mono:
   "x \<le> y \<Longrightarrow> lineStart x \<le> lineStart y"
   by (clarsimp simp: lineStart_def cacheLineBits_def shiftr_shiftl1 neg_mask_mono_le)
-
-lemma neg_mask_add:
-  "y && mask n = 0 \<Longrightarrow> x + y && ~~ mask n = (x && ~~ mask n) + y"
-  by (clarsimp simp: mask_out_sub_mask mask_eqs(7)[symmetric] mask_twice)
 
 lemma lineStart_sub:
   "\<lbrakk> x && mask 6 = y && mask 6\<rbrakk> \<Longrightarrow> lineStart (x - y) = lineStart x - lineStart y"
@@ -445,14 +365,6 @@ lemma lineStart_sub:
   apply (clarsimp simp: mask_eqs(8)[symmetric])
   done
 
-
-lemma minus_minus_swap:
-  "\<lbrakk> a \<le> c; b \<le> d; b \<le> a; d \<le> c\<rbrakk> \<Longrightarrow> (d :: nat) - b = c - a \<Longrightarrow> a - b = c - d"
-  by arith
-
-lemma minus_minus_swap':
-  "\<lbrakk> c \<le> a; d \<le> b; b \<le> a; d \<le> c\<rbrakk> \<Longrightarrow> (b :: nat) - d = a - c \<Longrightarrow> a - b = c - d"
-  by arith
 
 lemma lineStart_mask:
   "lineStart x && mask 6 = 0"
@@ -511,15 +423,6 @@ lemma cachRangeOp_corres_helper:
 definition "lineIndex x \<equiv> lineStart x >> cacheLineBits"
 
 
-lemma shiftr_shiftl_shiftr[simp]:
-  "x >> a << a >> a = (x :: ('a :: len) word) >> a"
-  apply (rule word_eqI)
-  apply (simp add: word_size nth_shiftr nth_shiftl)
-  apply safe
-  apply (drule test_bit_size)
-  apply (simp add: word_size)
-  done
-
 lemma lineIndex_def2:
   "lineIndex x = x >> cacheLineBits"
   by (simp add: lineIndex_def lineStart_def)
@@ -528,24 +431,6 @@ lemma lineIndex_def2:
 lemma lineIndex_le_mono:
   "x \<le> y \<Longrightarrow> lineIndex x \<le> lineIndex y"
   by (clarsimp simp: lineIndex_def2 cacheLineBits_def le_shiftr)
-
-lemma add_right_shift:
-  "\<lbrakk>x && mask n = 0; y && mask n = 0; x \<le> x + y \<rbrakk>
-    \<Longrightarrow> (x + y :: ('a :: len) word) >> n = (x >> n) + (y >> n)"
-  apply (simp add: no_olen_add_nat is_aligned_mask[symmetric])
-  apply (simp add: unat_arith_simps shiftr_div_2n' split del: if_split)
-  apply (subst if_P)
-   apply (erule order_le_less_trans[rotated])
-   apply (simp add: add_mono)
-  apply (simp add: shiftr_div_2n' is_aligned_def)
-  done
-
-lemma sub_right_shift:
-  "\<lbrakk>x && mask n = 0; y && mask n = 0; y \<le> x \<rbrakk>
-    \<Longrightarrow> (x - y) >> n = (x >> n :: ('a :: len) word) - (y >> n)"
-  using add_right_shift[where x="x - y" and y=y and n=n]
-  by (simp add: aligned_sub_aligned is_aligned_mask[symmetric]
-                word_sub_le)
 
 lemma lineIndex_lineStart_diff:
   "w1 \<le> w2 \<Longrightarrow> (unat (lineStart w2 - lineStart w1) div 64) = unat (lineIndex w2 - lineIndex w1)"
@@ -656,7 +541,7 @@ lemma cleanInvalidateCacheRange_RAM_ccorres:
                       empty_fail_cacheRangeOp empty_fail_cleanInvalByVA)
      apply (ctac (no_vcg) add: cleanCacheRange_PoC_ccorres)
       apply (ctac (no_vcg) add: dsb_ccorres)
-       apply (ctac (no_vcg) add: cleanInvalidateL2Range_ccorres)
+       apply (ctac (no_vcg) add: plat_cleanInvalidateL2Range_ccorres)
         apply csymbr
         apply (rule ccorres_split_nothrow_novcg)
             apply (rule cacheRangeOp_ccorres)
@@ -766,7 +651,7 @@ lemma invalidateCacheRange_RAM_ccorres:
           in ccorres_cross_over_guard)
        apply (rule ccorres_Guard_Seq)
        apply (rule ccorres_basic_srnoop2, simp)
-       apply (ctac add: invalidateL2Range_ccorres)
+       apply (ctac add: plat_invalidateL2Range_ccorres)
          apply (rule ccorres_Guard_Seq)
          apply (rule ccorres_basic_srnoop2, simp)
          apply (csymbr)

@@ -23,7 +23,7 @@ crunch_ignore (empty_fail)
         clean_D_PoU_impl cleanInvalidate_D_PoC_impl cleanInvalidateL2Range_impl
         invalidateL2Range_impl cleanL2Range_impl flushBTAC_impl
         writeContextID_impl isb_impl dsb_impl dmb_impl setHardwareASID_impl
-        writeTTBR0_impl cacheRangeOp)
+        writeTTBR0_impl cacheRangeOp setIRQTrigger_impl)
 
 crunch (empty_fail) empty_fail[wp, EmptyFail_AI_assms]:
   loadWord, load_word_offs, storeWord, getRestartPC, get_mrs
@@ -43,7 +43,10 @@ crunch (empty_fail) empty_fail[wp, EmptyFail_AI_assms]: handle_fault
          bool.splits list.splits thread_state.splits split_def catch_def sum.splits
          Let_def wp: zipWithM_x_empty_fail empty_fail_addressTranslateS1CPR)
 
-crunch (empty_fail) empty_fail[wp]: decode_tcb_configure, decode_bind_notification, decode_unbind_notification
+crunch (empty_fail) empty_fail[wp]:
+  decode_tcb_configure, decode_bind_notification, decode_unbind_notification,
+  decode_set_priority, decode_set_mcpriority, decode_set_sched_params,
+  decode_set_tls_base
   (simp: cap.splits arch_cap.splits split_def)
 
 crunch (empty_fail) empty_fail[wp]: decode_vcpu_invocation
@@ -117,11 +120,8 @@ global_interpretation EmptyFail_AI_derive_cap?: EmptyFail_AI_derive_cap
 
 context Arch begin global_naming ARM
 
-crunch (empty_fail) empty_fail[wp]: vcpu_update
+crunch (empty_fail) empty_fail[wp]: vcpu_update, vcpu_save_reg_range, vgic_update_lr
   (ignore: set_object get_object)
-
-lemma vcpu_save_register_empty_fail[wp]: "empty_fail c \<Longrightarrow> empty_fail (vcpu_save_register vcpu f c)"
-  by (simp add:  vcpu_save_register_def) wpsimp
 
 lemma vcpu_save_empty_fail[wp,EmptyFail_AI_assms]: "empty_fail (vcpu_save a)"
   apply (simp add:  vcpu_save_def)
@@ -134,10 +134,8 @@ crunch (empty_fail) empty_fail[wp, EmptyFail_AI_assms]: maskInterrupt, empty_slo
   (simp: Let_def catch_def split_def OR_choiceE_def mk_ef_def option.splits endpoint.splits
          notification.splits thread_state.splits sum.splits cap.splits arch_cap.splits
          kernel_object.splits vmpage_size.splits pde.splits bool.splits list.splits
-   ignore: setACTLR do_machine_op set_gic_vcpu_ctrl_hcr_impl set_lr_svc_impl
-           set_sp_svc_impl set_lr_abt_impl set_sp_abt_impl set_lr_und_impl set_sp_und_impl
-           set_lr_irq_impl set_sp_irq_impl set_lr_fiq_impl set_sp_fiq_impl set_r8_fiq_impl
-           set_r9_fiq_impl set_r10_fiq_impl set_r11_fiq_impl set_r12_fiq_impl
+   ignore: do_machine_op set_gic_vcpu_ctrl_hcr_impl
+           writeVCPUHardwareReg_impl
            get_gic_vcpu_ctrl_lr_impl set_gic_vcpu_ctrl_vmcr_impl set_gic_vcpu_ctrl_apr_impl
            writeContextIDAndPD_impl set_gic_vcpu_ctrl_hcr_impl setSCTLR_impl setHCR_impl
            set_gic_vcpu_ctrl_lr_impl setCurrentPDPL2_impl)

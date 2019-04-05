@@ -18,11 +18,15 @@ named_theorems EmptyFail_AI_assms
 
 crunch_ignore (empty_fail)
   (add: invalidateTLBEntry_impl invalidateTranslationSingleASID_impl
-        resetCR3_impl invalidateASID_impl ioapicMapPinToVector_impl updateIRQState_impl
+        invalidateASID_impl ioapicMapPinToVector_impl
         in8_impl in16_impl in32_impl out8_impl out16_impl out32_impl)
 
+lemma invalidateLocalPageStructureCacheASID_ef[simp,wp]:
+  "empty_fail (invalidateLocalPageStructureCacheASID vs asid)"
+  by (simp add: invalidateLocalPageStructureCacheASID_def)
+
 crunch (empty_fail) empty_fail[wp, EmptyFail_AI_assms]:
-  loadWord, load_word_offs, storeWord, getRestartPC, get_mrs, invalidate_local_page_structure_cache_asid
+  loadWord, load_word_offs, storeWord, getRestartPC, get_mrs, invalidate_page_structure_cache_asid
 
 end
 
@@ -51,7 +55,10 @@ lemma port_in_empty_fail[simp, intro!]:
   apply (simp add: port_in_def)
   by (wp | simp add: ef)+
 
-crunch (empty_fail) empty_fail[wp]: decode_tcb_configure, decode_bind_notification, decode_unbind_notification
+crunch (empty_fail) empty_fail[wp]:
+  decode_tcb_configure, decode_bind_notification, decode_unbind_notification,
+  decode_set_priority, decode_set_mcpriority, decode_set_sched_params,
+  decode_set_tls_base
   (simp: cap.splits arch_cap.splits split_def)
 
 lemma decode_tcb_invocation_empty_fail[wp]:
@@ -59,10 +66,10 @@ lemma decode_tcb_invocation_empty_fail[wp]:
   by (simp add: decode_tcb_invocation_def split: invocation_label.splits | wp | intro conjI impI)+
 
 crunch (empty_fail) empty_fail[wp]: find_vspace_for_asid, check_vp_alignment,
-                   ensure_safe_mapping, get_asid_pool, lookup_pt_slot,
-                   decode_port_invocation
+                   ensure_safe_mapping, get_asid_pool, lookup_pt_slot, get_pt,
+                   decode_port_invocation, decode_ioport_control_invocation
   (simp: kernel_object.splits arch_kernel_obj.splits option.splits pde.splits pte.splits
-         pdpte.splits pml4e.splits vmpage_size.splits)
+         pdpte.splits pml4e.splits vmpage_size.splits Let_def)
 
 lemma create_mapping_entries_empty_fail[wp]:
   "empty_fail (create_mapping_entries a b c d e f)"
@@ -84,7 +91,8 @@ lemma arch_decode_X64ASIDControlMakePool_empty_fail:
                                 returnOk_def lift_def liftE_def fail_def gets_def get_def assert_def select_def split: if_split_asm)
   apply (simp add: Let_def split: cap.splits arch_cap.splits option.splits bool.splits | wp | intro conjI impI allI)+
   by (clarsimp simp add: decode_page_invocation_def decode_page_table_invocation_def
-                         decode_page_directory_invocation_def decode_pdpt_invocation_def split: arch_cap.splits | wp)+
+                         decode_page_directory_invocation_def decode_pdpt_invocation_def
+                  split: arch_cap.splits | wp | intro conjI)+
 
 
 lemma arch_decode_X64ASIDPoolAssign_empty_fail:
@@ -109,7 +117,7 @@ lemma arch_decode_X64ASIDPoolAssign_empty_fail:
                                bind_def return_def returnOk_def lift_def liftE_def select_ext_def
                                gets_def get_def assert_def fail_def)
   apply (clarsimp simp: decode_page_invocation_def decode_page_table_invocation_def
-                         decode_page_directory_invocation_def decode_pdpt_invocation_def | wp)+
+                         decode_page_directory_invocation_def decode_pdpt_invocation_def | wp | intro conjI)+
   done
 
 lemma arch_decode_invocation_empty_fail[wp]:
@@ -147,7 +155,8 @@ crunch (empty_fail) empty_fail[wp, EmptyFail_AI_assms]: maskInterrupt, empty_slo
   (simp: Let_def catch_def split_def OR_choiceE_def mk_ef_def option.splits endpoint.splits
          notification.splits thread_state.splits sum.splits cap.splits arch_cap.splits
          kernel_object.splits vmpage_size.splits pde.splits bool.splits list.splits
-         forM_x_def empty_fail_mapM_x update_object_def)
+         forM_x_def empty_fail_mapM_x update_object_def
+   ignore: nativeThreadUsingFPU_impl switchFpuOwner_impl)
 
 crunch (empty_fail) empty_fail[wp, EmptyFail_AI_assms]: setRegister, setNextPC
 

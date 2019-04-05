@@ -10,10 +10,22 @@
 
 theory Dpolicy
 imports
-  Access
-  "../drefine/Refine_D"
-  "../drefine/Include_D"
+  "Access.Access"
+  "DRefine.Refine_D"
+  "DBaseRefine.Include_D"
 begin
+
+(*
+This file proves that the authority granted by any abstract state that
+satisfies the extended invariants agrees with the authority granted by the
+corresponding capDL state. This result is given by the final lemma in the file,
+pas_refined_transform.
+
+More details of this result and how it is used can be found in Section 6.1 of
+"Comprehensive Formal Verification of an OS Microkernel", which can be
+downloaded from
+https://ts.data61.csiro.au/publications/nictaabstracts/Klein_AEMSKH_14.abstract.pml
+*)
 
 context begin interpretation Arch . (*FIXME: arch_split*)
 
@@ -169,7 +181,8 @@ abbreviation
   "cdl_domains_of_state s \<equiv> cdl_domains_of_state_aux (cdl_objects s)"
 
 definition
-  "cdl_tcb_domain_map_wellformed_aux aag tcbs_doms \<equiv> \<forall>(ptr, d) \<in> tcbs_doms. pasObjectAbs aag ptr = pasDomainAbs aag d"
+  "cdl_tcb_domain_map_wellformed_aux aag tcbs_doms \<equiv>
+      \<forall>(ptr, d) \<in> tcbs_doms. pasObjectAbs aag ptr \<in> pasDomainAbs aag d"
 
 abbreviation
   "cdl_tcb_domain_map_wellformed aag s \<equiv>
@@ -245,11 +258,6 @@ lemma transform_cslot_pre_onto:
   apply (case_tac ptr)
   apply (clarsimp simp: transform_cslot_ptr_def transform_cslot_ptr_rev_def)
   apply (clarsimp simp: nat_to_bl_def bin_bl_bin' bintrunc_mod2p)
-  apply (subst int_mod_eq')
-    apply (clarsimp simp: not_le_imp_less)
-   apply (drule iffD2[OF of_nat_less_iff[where 'a=int]])
-   apply (clarsimp)
-  apply simp
   done
 
 definition
@@ -297,6 +305,10 @@ where
   "is_untyped_cap cap \<equiv> case cap of
     cdl_cap.UntypedCap _ _ _ \<Rightarrow> True
   | _ \<Rightarrow> False"
+
+lemma valid_sched_etcbs[elim]:
+  "valid_sched s \<Longrightarrow> valid_etcbs s"
+  by (simp add: valid_sched_def)
 
 lemma caps_of_state_transform_opt_cap_rev:
   "\<lbrakk> einvs s; opt_cap ptr (transform s) = Some cap;
@@ -388,8 +400,7 @@ lemma opt_cap_None_word_bits:
      apply simp
     apply (rule power_strict_increasing, simp+)
    apply (frule valid_etcbs_tcb_etcb[rotated], fastforce)
-   apply (clarsimp simp:transform_tcb_def tcb_slot_defs word_bits_def
-                        tcb_pending_op_slot_def tcb_boundntfn_slot_def)
+   apply (clarsimp simp:transform_tcb_def tcb_slot_defs word_bits_def)
   apply (rename_tac arch_kernel_obj)
   apply (case_tac arch_kernel_obj; simp)
     apply (simp add:transform_asid_pool_contents_def transform_page_table_contents_def

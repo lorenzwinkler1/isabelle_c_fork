@@ -91,7 +91,6 @@ lemma cap_master_update_cap_data [CNodeInv_AI_assms]:
              split: arch_cap.split)
   done
 
-
 lemma same_object_as_def2:
   "same_object_as cp cp' = (cap_master_cap cp = cap_master_cap cp'
                                 \<and> \<not> cp = NullCap \<and> \<not> is_untyped_cap cp
@@ -99,7 +98,6 @@ lemma same_object_as_def2:
                                 \<and> (is_arch_cap cp \<longrightarrow>
                                      (case the_arch_cap cp of
                                          PageCap d x rs tp sz v \<Rightarrow> x \<le> x + 2 ^ pageBitsForSize sz - 1
-                                       | IOPortCap f l \<Rightarrow> f \<le> l
                                        | _ \<Rightarrow> True)))"
   apply (simp add: same_object_as_def is_cap_simps split: cap.split)
   apply (auto simp: cap_master_cap_def bits_of_def is_cap_simps
@@ -442,6 +440,19 @@ lemma cap_swap_cap_refs_in_kernel_window[wp, CNodeInv_AI_assms]:
   done
 
 
+lemma cap_swap_ioports[wp, CNodeInv_AI_assms]:
+  "\<lbrace>valid_ioports and cte_wp_at (weak_derived c) a and cte_wp_at (weak_derived c') b\<rbrace>
+     cap_swap c a c' b
+   \<lbrace>\<lambda>rv. valid_ioports\<rbrace>"
+  apply (simp add: valid_ioports_def all_ioports_issued_def ioports_no_overlap_def issued_ioports_def)
+  apply (rule hoare_pre)
+   apply (wp hoare_use_eq [where f=arch_state,
+                           OF cap_swap_arch cap_swap_caps_of_state])
+  apply (clarsimp simp: cte_wp_at_caps_of_state
+                 elim!: ranE split: if_split_asm
+                 dest!: weak_derived_cap_ioports)
+  by (fastforce elim!: ranE split: if_split_asm)
+
 lemma cap_swap_vms[wp, CNodeInv_AI_assms]:
   "\<lbrace>valid_machine_state\<rbrace>  cap_swap c a c' b \<lbrace>\<lambda>rv. valid_machine_state\<rbrace>"
   apply (simp add: valid_machine_state_def in_user_frame_def)
@@ -484,7 +495,7 @@ crunch st_tcb_at_halted[wp]: prepare_thread_delete "st_tcb_at halted t"
 
 lemma finalise_cap_makes_halted_proof[CNodeInv_AI_assms]:
   "\<lbrace>invs and valid_cap cap and (\<lambda>s. ex = is_final_cap' cap s)
-         and cte_wp_at (op = cap) slot\<rbrace>
+         and cte_wp_at ((=) cap) slot\<rbrace>
     finalise_cap cap ex
    \<lbrace>\<lambda>rv s. \<forall>t \<in> obj_refs (fst rv). halted_if_tcb t s\<rbrace>"
   apply (case_tac cap, simp_all)
@@ -551,6 +562,31 @@ termination rec_del by (rule rec_del_termination)
 
 context Arch begin global_naming X64
 
+lemma post_cap_delete_pre_is_final_cap':
+  "\<And>rv s'' rva s''a s.
+       \<lbrakk>valid_ioports s; caps_of_state s slot = Some cap; is_final_cap' cap s; cap_cleanup_opt cap \<noteq> NullCap\<rbrakk>
+       \<Longrightarrow> post_cap_delete_pre (cap_cleanup_opt cap) (caps_of_state s(slot \<mapsto> NullCap))"
+  apply (clarsimp simp: cap_cleanup_opt_def cte_wp_at_def post_cap_delete_pre_def
+                      split: cap.split_asm if_split_asm
+                      elim!: ranE dest!: caps_of_state_cteD)
+   (* IRQHandlerCap case *)
+   apply (drule(2) final_cap_duplicate_irq)
+     apply simp+
+   (* IOPort case *)
+  apply (clarsimp simp: arch_cap_cleanup_opt_def arch_post_cap_delete_pre_def
+                        clearable_ioport_range_def get_cap_caps_of_state
+                 elim!: ranE
+                 split: arch_cap.split_asm if_split_asm)
+  apply (drule_tac s="Some c" for c in sym)
+  apply (rule ccontr)
+  apply (frule_tac p=slot and cap="ArchObjectCap (IOPortCap x31 x32)" and cap'=cap'
+                  in valid_ioportsD; (fastforce simp: ran_def)?)
+  apply (case_tac cap'; clarsimp)
+  apply (case_tac x12; clarsimp)
+  apply (frule_tac p=slot and p'="(a,b)" and cap''=cap and cap'=cap
+                         in is_final_cap_caps_of_state_2D; auto simp: gen_obj_refs_def)
+  done
+
 lemma rec_del_invs'':
   notes Inr_in_liftE_simp[simp del]
   assumes set_cap_Q[wp]: "\<And>cap p. \<lbrace>Q and invs\<rbrace> set_cap cap p \<lbrace>\<lambda>_.Q\<rbrace>"
@@ -574,8 +610,8 @@ lemma rec_del_invs'':
        \<lbrace>\<lambda>rv s. Q s \<and> invs s \<and>
                (case call of FinaliseSlotCall sl x \<Rightarrow>
                              ((fst rv \<or> x) \<longrightarrow> cte_wp_at (replaceable s sl cap.NullCap) sl s)
-                             \<and> (\<forall>irq. snd rv = Some irq \<longrightarrow>
-                                   cap.IRQHandlerCap irq \<notin> ran ((caps_of_state s) (sl \<mapsto> cap.NullCap)))
+                             \<and> (snd rv \<noteq> NullCap \<longrightarrow>
+                                   post_cap_delete_pre (snd rv) ((caps_of_state s) (sl \<mapsto> cap.NullCap)))
                           | ReduceZombieCall cap sl x \<Rightarrow>
                              (\<not> x \<longrightarrow> ex_cte_cap_wp_to (\<lambda>cp. cap_irqs cp = {}) sl s)
                           | _ \<Rightarrow> True) \<and>
@@ -624,7 +660,7 @@ next
        apply (wp hoare_vcg_const_Ball_lift)+
       apply (rule hoare_strengthen_post)
        apply (rule_tac Q="\<lambda>fin s. Q s \<and> invs s \<and> replaceable s slot (fst fin) rv
-                                 \<and> cte_wp_at (op = rv) slot s \<and> s \<turnstile> (fst fin)
+                                 \<and> cte_wp_at ((=) rv) slot s \<and> s \<turnstile> (fst fin)
                                  \<and> ex_cte_cap_wp_to (appropriate_cte_cap rv) slot s
                                  \<and> emptyable slot s
                                  \<and> (\<forall>t\<in>obj_refs (fst fin). halted_if_tcb t s)"
@@ -636,17 +672,12 @@ next
       apply (clarsimp simp: cte_wp_at_caps_of_state)
       apply (erule disjE)
        apply clarsimp
-       apply (clarsimp simp: cap_irq_opt_def cte_wp_at_def
-                      split: cap.split_asm if_split_asm
-                      elim!: ranE dest!: caps_of_state_cteD)
-       apply (drule(2) final_cap_duplicate_irq)
-         apply simp+
-      apply clarsimp
+       apply (rule post_cap_delete_pre_is_final_cap', clarsimp+)
       apply (rule conjI)
        apply clarsimp
        apply (subst replaceable_def)
        apply (clarsimp simp: is_cap_simps tcb_cap_valid_NullCapD
-                             no_cap_to_obj_with_diff_ref_Null
+                             no_cap_to_obj_with_diff_ref_Null gen_obj_refs_eq
                         del: disjCI)
        apply (thin_tac "appropriate_cte_cap a = appropriate_cte_cap b" for a b)
        apply (rule conjI)
@@ -662,7 +693,7 @@ next
         apply (drule zombie_cte_bits_less, simp add: word_bits_def)
        apply (clarsimp simp: cte_wp_at_caps_of_state)
       apply (drule_tac s="appropriate_cte_cap c" for c in sym)
-      apply (clarsimp simp: is_cap_simps appropriate_Zombie)
+      apply (clarsimp simp: is_cap_simps appropriate_Zombie gen_obj_refs_eq)
      apply (simp add: is_final_cap_def)
      apply wp
     apply (clarsimp simp: cte_wp_at_eq_simp)
@@ -671,8 +702,8 @@ next
     apply (frule cte_wp_at_valid_objs_valid_cap, clarsimp+)
     apply (frule invs_valid_asid_table)
     apply (frule invs_sym_refs)
-    apply (clarsimp simp add: invs_def valid_state_def
-      invs_valid_objs invs_psp_aligned)
+    apply (clarsimp simp: invs_def valid_state_def
+                          invs_valid_objs invs_psp_aligned)
     apply (drule(1) if_unsafe_then_capD, clarsimp+)
     done
 next
@@ -682,7 +713,7 @@ next
   case (3 ptr bits n slot s)
   show ?case
     apply simp
-    apply wp
+    apply wp+
     apply clarsimp
     apply (rule context_conjI')
      apply (rule context_conjI')
@@ -737,7 +768,7 @@ next
         apply (clarsimp simp: cte_wp_at_caps_of_state)
         apply (erule disjE[where P="val = cap.NullCap" for val])
          apply (clarsimp simp: replaceable_def cap_range_def is_cap_simps
-                               obj_irq_refs_subset vs_cap_ref_def)
+                               gen_obj_refs_subset vs_cap_ref_def)
          apply (rule conjI[rotated])
           apply (rule conjI)
            apply (rule mp [OF tcb_cap_valid_imp'])
@@ -767,7 +798,7 @@ next
         apply (frule_tac x=slot in spec)
         apply (drule_tac x="(ptr, nat_to_cref (zombie_cte_bits bits) n)" in spec)
         apply (clarsimp simp: cte_wp_at_caps_of_state fst_cte_ptrs_def
-                              obj_irq_refs_Int)
+                              gen_obj_refs_Int)
         apply (drule(1) nat_to_cref_replicate_Zombie[OF sym])
          apply simp
         apply simp
@@ -811,8 +842,7 @@ lemma finalise_cap_rvk_prog [CNodeInv_AI_assms]:
    finalise_cap a b
    \<lbrace>\<lambda>_ s. revoke_progress_ord m (\<lambda>x. map_option cap_to_rpo (caps_of_state s x))\<rbrace>"
   apply (case_tac a,simp_all add:liftM_def)
-    apply (wp cancel_all_ipc_rvk_prog cancel_all_signals_rvk_prog
-      suspend_rvk_prog deleting_irq_handler_rvk_prog
+    apply (wp suspend_rvk_prog deleting_irq_handler_rvk_prog
       | clarsimp simp:is_final_cap_def comp_def)+
   done
 
@@ -854,7 +884,7 @@ next
                   set_cap_cte_wp_at_cases
                    | simp)+
        apply (rule hoare_strengthen_post)
-        apply (rule_tac Q="\<lambda>fc s. cte_wp_at (op = rv) sl s
+        apply (rule_tac Q="\<lambda>fc s. cte_wp_at ((=) rv) sl s
                               \<and> revoke_progress_ord m (option_map cap_to_rpo \<circ> caps_of_state s)"
                  in hoare_vcg_conj_lift)
          apply (wp finalise_cap_rvk_prog[folded o_def])[1]
@@ -868,7 +898,7 @@ next
        apply (case_tac "is_zombie rv")
         apply (clarsimp simp: cap_to_rpo_def is_cap_simps fst_cte_ptrs_def)
         apply (simp add: is_final_cap'_def)
-       apply (case_tac rv, simp_all add: cap_to_rpo_def is_cap_simps)[1]
+       apply (case_tac rv, simp_all add: cap_to_rpo_def is_cap_simps gen_obj_refs_eq)[1]
        apply (rename_tac arch_cap)
        apply (case_tac arch_cap, simp_all)[1]
       apply (simp add: is_final_cap_def, wp)
@@ -942,8 +972,23 @@ global_interpretation CNodeInv_AI_4?: CNodeInv_AI_4
 
 context Arch begin global_naming X64
 
+lemma cap_move_ioports:
+  "\<lbrace>valid_ioports and cte_wp_at ((=) cap.NullCap) ptr'
+         and cte_wp_at (weak_derived cap) ptr
+         and cte_wp_at (\<lambda>c. c \<noteq> cap.NullCap) ptr and K (ptr \<noteq> ptr')\<rbrace>
+     cap_move cap ptr ptr'
+   \<lbrace>\<lambda>rv. valid_ioports\<rbrace>"
+  apply (simp add: valid_ioports_def all_ioports_issued_def ioports_no_overlap_def issued_ioports_def)
+  apply (rule hoare_pre)
+   apply (wp hoare_use_eq [where f=arch_state,
+                           OF cap_move_arch cap_move_caps_of_state])
+  apply (clarsimp simp: cte_wp_at_caps_of_state
+                 elim!: ranE split: if_split_asm
+                 dest!: weak_derived_cap_ioports)
+  by (fastforce elim!: ranE split: if_split_asm)
+
 lemma cap_move_invs[wp, CNodeInv_AI_assms]:
-  "\<lbrace>invs and valid_cap cap and cte_wp_at (op = cap.NullCap) ptr'
+  "\<lbrace>invs and valid_cap cap and cte_wp_at ((=) cap.NullCap) ptr'
          and tcb_cap_valid cap ptr'
          and cte_wp_at (weak_derived cap) ptr
          and cte_wp_at (\<lambda>c. c \<noteq> cap.NullCap) ptr
@@ -951,19 +996,17 @@ lemma cap_move_invs[wp, CNodeInv_AI_assms]:
          and K (\<not> is_master_reply_cap cap)\<rbrace>
      cap_move cap ptr ptr'
    \<lbrace>\<lambda>rv. invs\<rbrace>"
-  including no_pre
   unfolding invs_def valid_state_def valid_pspace_def
   apply (simp add: pred_conj_def conj_comms [where Q = "valid_mdb S" for S])
   apply wp
-   apply (rule hoare_vcg_mp, wpsimp wp: cap_move_zombies_final)
-   apply (rule hoare_vcg_mp, wpsimp wp: cap_move_if_live)
-   apply (rule hoare_vcg_mp, wpsimp wp: cap_move_if_unsafe)
-   apply (rule hoare_vcg_mp, wpsimp wp: cap_move_irq_handlers)
-   apply (rule hoare_vcg_mp, wpsimp wp: cap_move_replies)
-   apply (rule hoare_vcg_mp, wpsimp wp: cap_move_valid_arch_caps)
-   apply (rule hoare_vcg_mp, wpsimp wp: cap_move_valid_ioc)
-   apply clarsimp
-   apply (rule hoare_drop_imps)+
+   apply (wpe cap_move_zombies_final)
+   apply (wpe cap_move_if_live)
+   apply (wpe cap_move_if_unsafe)
+   apply (wpe cap_move_irq_handlers)
+   apply (wpe cap_move_replies)
+   apply (wpe cap_move_valid_arch_caps)
+   apply (wpe cap_move_valid_ioc)
+   apply (wpe cap_move_ioports)
    apply (simp add: cap_move_def set_cdt_def)
    apply (rule hoare_pre)
     apply (wp set_cap_valid_objs set_cap_idle set_cap_typ_at
@@ -986,8 +1029,11 @@ lemma cap_move_invs[wp, CNodeInv_AI_assms]:
    apply (rule tcb_cap_valid_NullCapD)
     apply (erule(1) tcb_cap_valid_caps_of_stateD)
    apply (simp add: is_cap_simps)
-  apply (clarsimp simp: cte_wp_at_caps_of_state)
-  done
+   done
+
+lemma arch_derive_is_arch:
+  "\<lbrace>\<top>\<rbrace> arch_derive_cap c \<lbrace>\<lambda>rv s. rv \<noteq> NullCap \<longrightarrow> is_arch_cap rv\<rbrace>,-"
+  by (wpsimp simp: is_arch_cap_def arch_derive_cap_def)
 
 end
 

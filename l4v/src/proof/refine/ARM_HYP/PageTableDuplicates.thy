@@ -54,7 +54,7 @@ crunch valid_duplicates' [wp]: cteInsert "(\<lambda>s. vs_valid_duplicates' (ksP
   (wp: crunch_wps)
 
 crunch valid_duplicates'[wp]: setupReplyMaster "(\<lambda>s. vs_valid_duplicates' (ksPSpace s))"
-  (wp: crunch_wps)
+  (wp: crunch_wps simp: crunch_simps)
 
 
 (* we need the following lemma in Syscall_R *)
@@ -968,6 +968,7 @@ lemma invokeUntyped_valid_duplicates[wp]:
          and valid_untyped_inv' ui and ct_active'\<rbrace>
      invokeUntyped ui
    \<lbrace>\<lambda>rv s. vs_valid_duplicates' (ksPSpace s) \<rbrace>"
+  supply hoare_whenE_wps[wp_split del]
   apply (simp only: invokeUntyped_def updateCap_def)
   apply (rule hoare_name_pre_state)
   apply (cases ui)
@@ -977,7 +978,7 @@ lemma invokeUntyped_valid_duplicates[wp]:
   apply (rule hoare_pre)
    apply simp
    apply (wp updateFreeIndex_pspace_no_overlap')
-   apply (rule hoare_post_impErr)
+   apply ((rule validE_validE_R)?, rule hoare_post_impErr)
      apply (rule combine_validE)
       apply (rule_tac ui=ui in whenE_reset_resetUntypedCap_invs_etc)
      apply (rule hoare_whenE_wp)
@@ -1057,10 +1058,10 @@ lemma set_asid_pool_valid_duplicates'[wp]:
 
 crunch valid_duplicates'[wp]:
   suspend "\<lambda>s. vs_valid_duplicates' (ksPSpace s)"
-  (wp: crunch_wps simp: crunch_simps unless_def)
+  (wp: crunch_wps simp: crunch_simps unless_def o_def)
 
 crunch valid_duplicates'[wp]:
-deletingIRQHandler  "\<lambda>s. vs_valid_duplicates' (ksPSpace s)"
+  deletingIRQHandler "\<lambda>s. vs_valid_duplicates' (ksPSpace s)"
   (wp: crunch_wps simp: crunch_simps unless_def)
 
 lemma storePDE_no_duplicates':
@@ -1254,15 +1255,8 @@ lemma unmapPage_valid_duplicates'[wp]:
     | simp add:split_def conj_comms | wp_once checkMappingPPtr_inv)+
           apply (rule_tac ptr = "p && ~~ mask ptBits" and word = p
             in mapM_x_storePTE_update_helper[where sz = 7])
-          apply wp+
-         apply simp
-         apply (wp mapM_x_mapM_valid)+
-         apply (rule_tac ptr = "p && ~~ mask ptBits" and word = p
-           in mapM_x_storePTE_update_helper[where sz = 7])
-        apply (simp add: largePagePTEOffsets_def)
-        apply wp+
-       apply (clarsimp simp: largePagePTEOffsets_def conj_commute pt_bits_def)
-       apply (wp checkMappingPPtr_inv lookupPTSlot_page_table_at'[unfolded ptBits_eq pt_bits_def])+
+          apply (wp checkMappingPPtr_inv lookupPTSlot_page_table_at'
+                    Arch_R.lookupPTSlot_aligned | simp)+
       apply (rule hoare_post_imp_R[OF lookupPTSlot_aligned[where sz= vmpage_size]])
       apply (simp add:pageBitsForSize_def pt_bits_def pte_bits_def)
       apply (drule upto_enum_step_shift[where n = 7 and m = 3,simplified])
@@ -1275,12 +1269,7 @@ lemma unmapPage_valid_duplicates'[wp]:
           | simp add:split_def conj_comms | wp_once checkMappingPPtr_inv)+
         apply (rule_tac ptr = "p && ~~ mask pdBits" and word = p
                         in mapM_x_storePDE_update_helper[where sz = 7])
-       apply (wp mapM_x_mapM_valid)+
-       apply (rule_tac ptr = "p && ~~ mask pdBits" and word = p
-                       in mapM_x_storePDE_update_helper[where sz = 7])
-      apply wp+
-     apply (clarsimp simp:conj_comms)
-     apply (wp checkMappingPPtr_inv static_imp_wp)+
+       apply (wp mapM_x_mapM_valid checkMappingPPtr_inv)+
    apply (clarsimp simp:conj_comms)
    apply (rule hoare_post_imp_R[where Q'= "\<lambda>r. pspace_aligned' and
      (\<lambda>s. vs_valid_duplicates' (ksPSpace s)) and
@@ -1294,7 +1283,7 @@ lemma unmapPage_valid_duplicates'[wp]:
    apply (drule upto_enum_step_shift[where n = 7 and m = 3,simplified])
    apply (clarsimp simp: mask_def add.commute upto_enum_step_def pd_bits_def
                         superSectionPDEOffsets_def Let_def pde_bits_def)
-  apply (clarsimp simp:ptBits_def pageBits_def nondup_obj_def)
+  apply (clarsimp simp:ptBits_def pt_bits_def pageBits_def nondup_obj_def vmsz_aligned'_def)
   done
 
 crunch ko_wp_at'[wp]:
@@ -1334,14 +1323,9 @@ crunch nondup_obj[wp]:
   (wp: crunch_wps FalseI simp: crunch_simps unless_def
     ignore:getObject updateObject setObject)
 
-lemma setVMRoot_nondup_obj[wp]:
-  "setVMRoot x \<lbrace>ko_wp_at' nondup_obj p \<rbrace>"
-  unfolding setVMRoot_def armv_contextSwitch_def getThreadVSpaceRoot_def
-  by (wpsimp wp: whenE_inv hoare_drop_imp hoare_vcg_all_lift)
-
-crunch ko_wp_at'[wp]:
- setVMRootForFlush "\<lambda>s. ko_wp_at' P p s"
-  (wp: crunch_wps simp: crunch_simps unless_def
+crunch nondup_obj[wp]: setVMRoot, setVMRootForFlush
+    "ko_wp_at' nondup_obj p"
+  (wp: crunch_wps simp: crunch_simps
     ignore:getObject updateObject setObject)
 
 lemma flushTable_nondup_obj[wp]:
@@ -1503,7 +1487,6 @@ lemma invokeIRQControl_valid_duplicates'[wp]:
   apply (simp add:performIRQControl_def )
   apply (rule hoare_pre)
   apply (wp|wpc | simp add:ARM_HYP_H.performIRQControl_def)+
-  apply fastforce
  done
 
 lemma invokeIRQHandler_valid_duplicates'[wp]:
@@ -1693,7 +1676,7 @@ lemma superSectionPDEOffsets_aligned:
   by (auto simp: superSectionPDEOffsets_def upto_enum_step_def vspace_bits_defs zip_map1)
 
 lemma largePagePTEOffsets_unfold:
-  "is_aligned p 7 \<Longrightarrow> map (op + p) largePagePTEOffsets = [p , p + 8 .e. p + mask 7]"
+  "is_aligned p 7 \<Longrightarrow> map ((+) p) largePagePTEOffsets = [p , p + 8 .e. p + mask 7]"
   by (fastforce simp: largePagePTEOffsets_def vspace_bits_defs mask_def upto_enum_step_def
                 dest: is_aligned_no_overflow')
 
@@ -1888,14 +1871,13 @@ lemma performPageInvocation_valid_duplicates'[wp]:
   and (\<lambda>s. vs_valid_duplicates' (ksPSpace s))\<rbrace>
     performPageInvocation page_invocation
     \<lbrace>\<lambda>y a. vs_valid_duplicates' (ksPSpace a)\<rbrace>"
-  including no_pre
   supply vs_entry_align_nondup_obj[simp]
   apply (rule hoare_name_pre_state)
   apply (case_tac page_invocation)
-  -- "PageFlush"
+  \<comment> \<open>PageFlush\<close>
      apply (simp_all add:performPageInvocation_def pteCheckIfMapped_def pdeCheckIfMapped_def)
-     apply (wp|simp|wpc)+
-    -- "PageRemap"
+     apply ((wp|simp|wpc)+)[2]
+    \<comment> \<open>PageRemap\<close>
     apply (rename_tac word sum)
     apply (case_tac sum)
      apply (case_tac a)
@@ -1906,12 +1888,10 @@ lemma performPageInvocation_valid_duplicates'[wp]:
        apply (wp PageTableDuplicates.storePTE_no_duplicates' getPTE_wp | simp)+
        apply (clarsimp simp: nondup_obj_def)
       apply (subst mapM_discarded)
-      apply simp
+      apply (clarsimp simp: valid_arch_inv'_def valid_page_inv'_def valid_slots'_def
+                           valid_slots_duplicated'_def)
       apply (rule hoare_seq_ext[OF _ getObject_pte_sp])
       apply (wp|simp)+
-      apply (clarsimp simp:valid_arch_inv'_def valid_page_inv'_def valid_slots'_def
-                           valid_slots_duplicated'_def)
-      apply (rule hoare_pre)
        apply (rule_tac p=p in mapM_x_largePagePTEOffsets)
       apply (simp add:invs_pspace_aligned' vspace_bits_defs)
      apply (subst mapM_discarded)
@@ -1931,28 +1911,27 @@ lemma performPageInvocation_valid_duplicates'[wp]:
        apply (wp PageTableDuplicates.storePDE_no_duplicates' | simp add: when_def)+
        apply (simp add: nondup_obj_def)+
       apply (rule hoare_seq_ext[OF _ getObject_pde_sp])
-      apply (wp|wpc|simp add:nondup_obj_def)+
       apply (clarsimp simp:valid_arch_inv'_def
           valid_page_inv'_def valid_slots'_def
           valid_slots_duplicated'_def mapM_x_singleton)
+      apply (wp|wpc|simp add:nondup_obj_def)+
       apply ((wp PageTableDuplicates.storePDE_no_duplicates' | wpc | simp)+)[1]
       apply (simp add: nondup_obj_def)+
      apply (rule hoare_seq_ext[OF _ getObject_pde_sp])
-     apply (wp|wpc|simp add:)+
      apply (clarsimp simp:valid_arch_inv'_def
           valid_page_inv'_def valid_slots'_def
           valid_slots_duplicated'_def mapM_x_singleton)
+     apply (wp|wpc|simp add:)+
      apply (wp PageTableDuplicates.storePDE_no_duplicates')
      apply (simp add: nondup_obj_def)+
     apply (rule hoare_seq_ext[OF _ getObject_pde_sp])
-    apply (wp|wpc|simp add:vs_entry_align_def)+
     apply (clarsimp simp:valid_arch_inv'_def
           valid_page_inv'_def valid_slots'_def
           valid_slots_duplicated'_def mapM_x_singleton)
-    apply (rule hoare_pre)
+    apply (wp|wpc|simp add:vs_entry_align_def)+
      apply (rule_tac p=p in mapM_x_superSectionPDEOffsets)
     apply clarsimp
-   -- "PageMap"
+   \<comment> \<open>PageMap\<close>
    apply (clarsimp simp: pteCheckIfMapped_def pdeCheckIfMapped_def)
    apply (clarsimp simp:valid_pde_slots'_def valid_page_inv'_def
        valid_slots_duplicated'_def valid_arch_inv'_def )
@@ -2129,8 +2108,8 @@ lemma tc_valid_duplicates':
     case_option \<top> (valid_cap' o fst) f' and
     K (case_option True (isValidVTableRoot o fst) f') and
     case_option \<top> (valid_cap') (case_option None (case_option None (Some o fst) o snd) g) and
-    K (case_option True (\<lambda>x. x \<le> maxPriority) d) and
-    K (case_option True (\<lambda>x. x \<le> maxPriority) mcp) and
+    K (valid_option_prio d) and
+    K (valid_option_prio mcp) and
     K (case_option True isArchObjectCap (case_option None (case_option None (Some o fst) o snd) g))
     and K (case_option True (swp is_aligned msg_align_bits o fst) g)\<rbrace>
       invokeTCB (tcbinvocation.ThreadControl a sl b' mcp d e' f' g)

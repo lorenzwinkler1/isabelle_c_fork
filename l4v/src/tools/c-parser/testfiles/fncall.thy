@@ -9,7 +9,7 @@
  *)
 
 theory fncall
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
 declare sep_conj_ac [simp add]
@@ -26,6 +26,7 @@ val ast = IsarInstall.get_Csyntax @{theory} "fncall.c"
 
 *}
 
+external_file "fncall.c"
 install_C_file "fncall.c"
 
 context fncall

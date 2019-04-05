@@ -9,9 +9,10 @@
  *)
 
 theory parse_complit
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "parse_complit.c"
 install_C_file "parse_complit.c"
 
 context parse_complit_global_addresses

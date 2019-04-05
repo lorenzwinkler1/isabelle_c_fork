@@ -37,170 +37,6 @@ context Retype_AI_clearMemoryVM begin
 lemmas clearMemoryVM_return_raw = clearMemoryVM_return[abs_def]
 end
 
-lemma upto_enum_inc_1:
-  "a < 2^word_bits - 1 \<Longrightarrow> [(0::machine_word).e.1 + a] = [0.e.a] @ [(1+a)]"
-  apply (simp add:upto_enum_word)
-  apply (subgoal_tac "unat (1 +a) = 1 + unat a")
-    apply simp
-   apply (subst unat_plus_simple[THEN iffD1])
-   apply (rule word_plus_mono_right2[where b = "2^word_bits - 2"])
-    apply (simp add:word_bits_def minus_one_norm)+
-    apply unat_arith
-   apply simp
- done
-
-lemma unat_of_nat_minus_1:
-  "\<lbrakk>n < 2^len_of TYPE('a);n\<noteq> 0\<rbrakk> \<Longrightarrow> (unat (((of_nat n):: 'a :: len word) - 1)) = n - 1"
-  apply (subst unat_minus_one)
-   apply (rule of_nat_neq_0)
-     apply simp
-   apply (simp add:of_nat_neq_0 word_bits_def)
-   apply (simp add:unat_of_nat word_bits_def)
-  done
-
-lemma range_to_bl':
-  "\<lbrakk> is_aligned (ptr :: 'a :: len word) bits; bits < len_of TYPE('a) \<rbrakk> \<Longrightarrow>
-   {ptr .. ptr + (2 ^ bits) - 1} = {x. take (len_of TYPE('a) - bits) (to_bl x)
-                                        = take (len_of TYPE('a) - bits) (to_bl ptr)}"
-  apply (rule set_eqI, rule iffI)
-   apply clarsimp
-   apply (subgoal_tac "\<exists>y. x = ptr + y \<and> y < 2 ^ bits")
-    apply clarsimp
-    apply (subst is_aligned_add_conv)
-       apply assumption
-      apply simp
-    apply simp
-   apply (rule_tac x="x - ptr" in exI)
-   apply (simp add: add_diff_eq[symmetric])
-   apply (simp only: word_less_sub_le[symmetric])
-   apply (rule word_diff_ls')
-    apply (simp add: field_simps)
-   apply assumption
-  apply simp
-  apply (subgoal_tac "\<exists>y. y < 2 ^ bits \<and> to_bl (ptr + y) = to_bl x")
-   apply clarsimp
-   apply (rule conjI)
-    apply (erule(1) is_aligned_no_wrap')
-   apply (simp only: add_diff_eq[symmetric])
-   apply (rule word_plus_mono_right)
-    apply simp
-   apply (erule is_aligned_no_wrap')
-   apply simp
-  apply (rule_tac x="of_bl (drop (len_of TYPE('a) - bits) (to_bl x))" in exI)
-  apply (rule context_conjI)
-   apply (rule order_less_le_trans [OF of_bl_length])
-    apply simp
-   apply simp
-  apply (subst is_aligned_add_conv)
-     apply assumption
-    apply simp
-  apply (drule sym)
-  apply (simp add: word_rep_drop)
-  done
-
-
-lemma range_to_bl:
-  "is_aligned (ptr :: 'a :: len word) bits \<Longrightarrow>
-   {ptr..ptr + 2 ^ bits - 1} =
-     {x. take (len_of TYPE('a) - bits) (to_bl x) =
-         take (len_of TYPE('a) - bits) (to_bl ptr)}"
-  apply (erule is_aligned_get_word_bits)
-   apply (erule(1) range_to_bl')
-  apply (rule set_eqI)
-  apply (simp add: power_overflow)
-  done
-
-
-lemma aligned_ranges_subset_or_disjoint:
-  "\<lbrakk> is_aligned (p :: 'a :: len word) n; is_aligned (p' :: 'a :: len word) n' \<rbrakk>
-     \<Longrightarrow> {p .. p + 2 ^ n - 1} \<inter> {p' .. p' + 2 ^ n' - 1} = {}
-      \<or> {p .. p + 2 ^ n - 1} \<subseteq> {p' .. p' + 2 ^ n' - 1}
-      \<or> {p .. p + 2 ^ n - 1} \<supseteq> {p' .. p' + 2 ^ n' - 1}"
-  apply (simp add: range_to_bl)
-  apply (rule disjCI2)
-  apply (erule nonemptyE)
-  apply simp
-  apply (subgoal_tac "(\<exists>n''. len_of TYPE('a) - n = (len_of TYPE('a) - n') + n'')
-                    \<or> (\<exists>n''. len_of TYPE('a) - n' = (len_of TYPE('a) - n) + n'')")
-   apply (elim conjE disjE exE)
-    apply (rule disjI1)
-    apply (clarsimp simp: take_add)
-   apply (rule disjI2)
-   apply (clarsimp simp: take_add)
-  apply arith
-  done
-
-lemma aligned_range_offset_subset:
-  assumes al: "is_aligned (ptr :: 'a :: len word) sz" and al': "is_aligned x sz'"
-  and     szv: "sz' \<le> sz" and xsz: "x < 2 ^ sz"
-  shows       "{ptr + x .. (ptr + x) + 2 ^ sz' - 1} \<subseteq> {ptr .. ptr + 2 ^ sz - 1}"
-  using al
-proof (rule is_aligned_get_word_bits)
-  assume p0: "ptr = 0" and szv': "len_of TYPE ('a) \<le> sz"
-  hence "(2 :: 'a word) ^ sz = 0" by simp
-
-  thus ?thesis using p0
-    apply -
-    apply (erule ssubst)
-    apply simp
-    done
-next
-  assume szv': "sz < len_of TYPE('a)"
-
-  hence blah: "2 ^ (sz - sz') < (2 :: nat) ^ len_of TYPE('a)"
-    using szv
-    apply -
-    apply (rule power_strict_increasing, simp+)
-    done
-  show ?thesis using szv szv'
-    apply (intro range_subsetI)
-     apply (rule is_aligned_no_wrap' [OF al xsz])
-    apply (simp only: add_diff_eq[symmetric])
-    apply (subst add.assoc, rule word_plus_mono_right)
-    apply (subst iffD1 [OF le_m1_iff_lt])
-    apply (simp add: p2_gt_0 word_bits_conv)
-    apply (rule is_aligned_add_less_t2n[OF al' _ szv xsz])
-    apply simp
-    apply (simp add: field_simps szv al is_aligned_no_overflow)
-    done
-qed
-
-
-lemma aligned_diff:
-  "\<lbrakk>is_aligned (dest :: 'a :: len word) bits; is_aligned (ptr :: 'a :: len word) sz; bits \<le> sz; sz < len_of TYPE('a);
-    dest < ptr\<rbrakk>
-   \<Longrightarrow> (2^ bits - 1) + dest < ptr"
-  apply (frule_tac p' = ptr in aligned_ranges_subset_or_disjoint)
-   apply assumption
-  apply (elim disjE)
-    apply clarsimp
-    apply (drule_tac ptr = dest in is_aligned_no_overflow)
-     apply simp
-    apply (drule is_aligned_no_overflow)
-    apply clarsimp
-    apply (erule impE)
-     apply (erule order_trans[OF less_imp_le])
-     apply (clarsimp simp:field_simps)
-    apply (clarsimp simp:not_less field_simps not_le)
-   apply clarsimp
-   apply (drule_tac ptr = dest in is_aligned_no_overflow)
-    apply simp
-   apply fastforce
-  apply clarsimp
-  apply (frule is_aligned_no_overflow)
-  apply (erule impE)
-  apply (frule(1) is_aligned_no_overflow)
-  apply (rule ccontr)
-  apply (clarsimp simp:not_less p_assoc_help)
-  apply (subst (asm) add.commute[where b = "(2^ sz - 1)"])
-  apply (subst (asm) add.commute[where b = "(2^ bits - 1)"])+
-  apply (drule word_sub_mono2)
-   apply (rule word_le_minus_mono_left)
-   apply (erule(1) two_power_increasing)
-   apply (simp add:word_1_le_power)
-   apply (simp add:field_simps is_aligned_no_overflow)+
-  done
-
 
 lemma default_object_tcbE:
   "\<lbrakk> default_object ty dev us = TCB tcb; ty \<noteq> Untyped;
@@ -313,64 +149,6 @@ lemma (in pspace_update_eq) pspace_no_overlap_update [simp]:
   by (simp add: pspace_no_overlap_def pspace)
 
 
-(* FIXME: move *)
-lemma multi_lessD:
-  "\<lbrakk>(a::nat)*b < c;0<a;0<b\<rbrakk> \<Longrightarrow> a < c \<and> b < c"
-  by (cases a, simp_all,cases b,simp_all)
-
-lemma unat_le_helper: "(x :: 'a :: len word) \<le> of_nat n \<Longrightarrow> unat x \<le> n"
-  by (rule word_unat_less_le)
-
-lemma word_of_nat_plus:
-  "of_nat (a + b) = of_nat a + (of_nat b :: ('a :: len) word)"
-  by (rule of_nat_add)
-
-lemma word_of_nat_minus:
-   "b<= a ==> of_nat (a - b) = of_nat a - (of_nat b :: ('a :: len) word)"
-   by (rule of_nat_diff)
-
-
-lemma unat_shiftl_absorb:
-  "\<lbrakk>x \<le> 2^p ; p + k < len_of TYPE('a)\<rbrakk>
-   \<Longrightarrow> unat (x :: 'a :: len word) * 2^k = unat (x * 2^k)"
-  apply (simp add:unat_word_ariths)
-  apply (subst mod_less)
-   apply (rule le_less_trans[OF mult_le_mono1])
-    apply (erule iffD1[OF word_le_nat_alt])
-   apply (clarsimp simp: power_add[symmetric])+
-  done
-
-
-lemma word_up_bound:
-  "(ptr::('a::len) word) \<le> 2^(len_of TYPE('a)) - 1 "
-  by auto
-
-
-lemma word_plus_mono_right_split:
-  "\<lbrakk>unat ((x :: 'a :: len word) && mask sz) + unat z < 2 ^ sz ; sz < len_of TYPE('a)\<rbrakk>
-   \<Longrightarrow>x \<le> x + z"
-  (is "\<lbrakk>?bound;?len\<rbrakk> \<Longrightarrow>?rhs \<le> ?lhs")
-  apply (subgoal_tac "(x && ~~ mask sz) + (x && mask sz) \<le> (x && ~~ mask sz) + ((x && mask sz) + z)")
-   apply (simp add:word_plus_and_or_coroll2 field_simps)
-  apply (rule word_plus_mono_right)
-    apply (simp add:no_olen_add )
-    apply (rule less_le_trans)
-    apply (simp add:uint_nat)
-    apply (subst of_nat_add[symmetric])
-    apply (drule iffD2[OF of_nat_less_iff])
-    apply simp
-    apply (rule less_imp_le)
-    apply (rule less_le_trans[where y = "2^len_of TYPE('a)"] )
-    apply simp
-   apply (simp add:word_bits_def)
-  apply (rule word_plus_mono_right2)
-    apply (rule is_aligned_no_overflow')
-    apply (rule is_aligned_neg_mask[OF le_refl])
-   apply (rule le_m1_iff_lt[THEN iffD1,THEN iffD2])
-     apply (simp add:p2_gt_0 word_bits_def)
-   apply (rule iffD2[OF word_less_nat_alt])
-   apply (auto simp:unat_plus_if_size word_size word_bits_def not_less)
-  done
 
 lemmas machine_word_plus_mono_right_split = word_plus_mono_right_split[where 'a=machine_word_len, folded word_bits_def]
 
@@ -643,11 +421,6 @@ lemma range_cover_rel:
 done
 
 
-lemma unat_plus_gt:
-  "unat ((a::('a::len word)) + b) \<le>  (unat a + unat b)"
-  by (clarsimp simp:unat_plus_if_size)
-
-
 lemma retype_addrs_subset_ptr_bits:
   assumes cover: "range_cover ptr sz (obj_bits_api ty us) n"
   shows "set (retype_addrs ptr ty n us) \<subseteq> {ptr .. (ptr &&~~ mask sz) + (2 ^ sz - 1)}"
@@ -669,10 +442,10 @@ lemma retype_addrs_subset_ptr_bits:
    apply (rule iffD2[OF word_less_nat_alt])
    apply (rule le_less_trans[OF unat_plus_gt])
     using cover
-   apply (clarsimp simp:unat_power_lower range_cover_def)
+   apply (clarsimp simp: range_cover_def)
   apply (insert cover)
-  apply (rule is_aligned_no_wrap'[OF is_aligned_neg_mask,OF le_refl ])
-   apply (simp add:range_cover_def)+
+  apply (rule is_aligned_no_wrap'[where sz=sz])
+   apply (simp add: range_cover_def)+
 done
 
 
@@ -800,13 +573,13 @@ lemma caps_of_state_foldr:
   (\<lambda>(oref,cref). if oref \<in> set addrs
                  then (case ty of Structures_A.CapTableObject \<Rightarrow> empty_cnode us
                                | Structures_A.TCBObject \<Rightarrow> option_map (\<lambda>x. cap.NullCap) \<circ> tcb_cap_cases
-                               | _ \<Rightarrow> empty) cref
+                               | _ \<Rightarrow> Map.empty) cref
                  else caps_of_state s (oref,cref))"
   apply (rule ext)+
   apply (case_tac x)
   apply (rename_tac oref cref)
   apply (simp add: caps_of_state_cte_wp_at split del: if_split)
-  apply (case_tac "\<exists>cap. cte_wp_at (op = cap) (oref, cref) s'")
+  apply (case_tac "\<exists>cap. cte_wp_at ((=) cap) (oref, cref) s'")
    apply clarsimp
    apply (simp add: s'_def cte_wp_at_cases)
    apply (erule disjE)
@@ -959,7 +732,7 @@ lemma range_cover_cell_subset:
      apply (erule less_le_trans[rotated])
      apply (clarsimp simp:range_cover.unat_of_nat_n[OF cover])
     apply (simp add:range_cover_def p_assoc_help[symmetric])+
-  apply (rule is_aligned_no_overflow[OF is_aligned_neg_mask ,OF le_refl])
+  apply (simp add: is_aligned_no_overflow)
   done
  qed
 
@@ -979,27 +752,27 @@ lemma is_aligned_ptr_add_helper:
 lemma range_cover_no_0:
   "\<lbrakk> ptr \<noteq> 0; range_cover (ptr :: 'a :: len word) sz sbit n;p < n\<rbrakk> \<Longrightarrow>
    ptr + of_nat p * 2 ^ sbit \<noteq> 0"
-  apply (subst word_plus_and_or_coroll2[symmetric,where w = "mask sz"])
+  apply (subst word_plus_and_or_coroll2[symmetric, where w = "mask sz"])
   apply (case_tac  "(ptr && ~~ mask sz) \<noteq> 0")
-    apply (subst add.commute)
-    apply (subst add.assoc)
-    apply (rule aligned_offset_non_zero)
-      apply (rule is_aligned_neg_mask[OF le_refl])
-     apply (simp add:word_less_nat_alt)
-     apply (rule le_less_trans[OF unat_plus_gt])
-     apply (rule less_le_trans[OF range_cover.range_cover_compare])
-       apply simp
-    apply ((simp add:range_cover_def)+)[3]
+   apply (subst add.commute)
+   apply (subst add.assoc)
+   apply (rule aligned_offset_non_zero)
+     apply (rule is_aligned_neg_mask[OF le_refl])
+    apply (simp add:word_less_nat_alt)
+    apply (rule le_less_trans[OF unat_plus_gt])
+    apply (rule less_le_trans[OF range_cover.range_cover_compare])
+      apply simp
+     apply ((simp add:range_cover_def)+)[3]
   apply (subgoal_tac "(ptr && mask sz) \<noteq> 0")
    apply (rule unat_gt_0[THEN iffD1])
    apply (simp add:not_less)
    apply (subst iffD1[OF unat_add_lem])
-     apply (rule less_le_trans[OF range_cover.range_cover_compare])
-       apply simp+
-     apply (simp add:range_cover_def word_bits_def)
+    apply (rule less_le_trans[OF range_cover.range_cover_compare])
+      apply simp+
+    apply (simp add:range_cover_def word_bits_def)
    apply simp
-  apply (rule disjI1)
-    apply unat_arith
+   apply (rule disjI1)
+   apply unat_arith
   apply (rule ccontr)
   apply (subst (asm) word_plus_and_or_coroll2[symmetric,where w = "mask sz" and t = ptr])
   apply (clarsimp simp:not_less)
@@ -1125,7 +898,7 @@ abbreviation(input)
        and valid_asid_map and valid_global_vspace_mappings
        and pspace_in_kernel_window and cap_refs_in_kernel_window
        and pspace_respects_device_region and cap_refs_respects_device_region
-       and cur_tcb and valid_ioc and valid_machine_state"
+       and cur_tcb and valid_ioc and valid_machine_state and valid_ioports"
 
 
 lemma all_invs_but_equal_kernel_mappings_restricted_eq:
@@ -1267,7 +1040,7 @@ lemma unsafe_rep2:
 
 
 lemma descendants_inc_null_filter:
-  "\<lbrakk>mdb_cte_at (swp (cte_wp_at (op \<noteq> cap.NullCap)) s) (cdt s)\<rbrakk>
+  "\<lbrakk>mdb_cte_at (swp (cte_wp_at ((\<noteq>) cap.NullCap)) s) (cdt s)\<rbrakk>
    \<Longrightarrow> descendants_inc (cdt s) (null_filter (caps_of_state s)) =
        descendants_inc (cdt s) (caps_of_state s)"
   apply (simp add:descendants_inc_def descendants_of_def del:split_paired_All)
@@ -1305,11 +1078,10 @@ where
                \<longrightarrow> obj_refs c' \<inter> untyped_range c \<noteq> {} \<longrightarrow> p' \<in> descendants_of p m)
    \<and> descendants_inc m cps
    \<and> (\<forall>p. \<not> m \<Turnstile> p \<rightarrow> p) \<and> untyped_inc m cps \<and> ut_revocable r cps
-   \<and> irq_revocable r cps \<and> reply_master_revocable r cps \<and> reply_mdb m cps"
+   \<and> irq_revocable r cps \<and> reply_master_revocable r cps \<and> reply_mdb m cps \<and> valid_arch_mdb r cps"
 
 
 lemma conj_cong2: "\<lbrakk>P = P'; P \<Longrightarrow> Q = Q'\<rbrakk> \<Longrightarrow> (P \<and> Q) = (P' \<and> Q')" by auto
-
 
 lemma valid_mdb_rep2:
   "valid_mdb = (\<lambda>s. valid_mdb2 (null_filter (caps_of_state s)) (cdt s) (is_original_cap s))"
@@ -1327,27 +1099,29 @@ lemma valid_mdb_rep2:
    apply (clarsimp simp: null_filter_def)
   apply (rule conj_cong)
    apply (simp add:descendants_inc_null_filter)
-  apply (rule arg_cong2 [where f="op \<and>"])
+  apply (rule arg_cong2 [where f="(\<and>)"])
    apply (rule refl)
-  apply (rule arg_cong2 [where f="op \<and>"])
+  apply (rule arg_cong2 [where f="(\<and>)"])
    prefer 2
-   apply (rule arg_cong2 [where f="op \<and>"])
+   apply (rule arg_cong2 [where f="(\<and>)"])
     apply (simp add: ut_revocable_def null_filter_def del: split_paired_All)
     apply (auto simp: is_cap_simps)[1]
-   apply (rule arg_cong2 [where f="op \<and>"])
+   apply (rule arg_cong2 [where f="(\<and>)"])
     apply (simp add: irq_revocable_def null_filter_def del: split_paired_All)
     apply auto[1]
-   apply (rule arg_cong2 [where f="op \<and>"])
+   apply (rule arg_cong2 [where f="(\<and>)"])
     apply (simp add: reply_master_revocable_def null_filter_def del: split_paired_All)
     apply (auto simp: is_cap_simps)[1]
    apply (simp add: reply_mdb_def null_filter_def)
-   apply (rule arg_cong2 [where f="op \<and>"])
+   apply (rule arg_cong2 [where f="(\<and>)"])
     apply (simp add: reply_caps_mdb_def
                 del: split_paired_Ex split_paired_All)
     apply (fastforce intro!: iffI elim!: allEI exEI
                   simp del: split_paired_Ex split_paired_All)
-   apply (fastforce simp: reply_masters_mdb_def intro!: iffI elim!: allEI
-               simp del: split_paired_All split: if_split_asm)
+   apply (rule arg_cong2 [where f="(\<and>)"])
+    apply (fastforce simp: reply_masters_mdb_def intro!: iffI elim!: allEI
+                 simp del: split_paired_All split: if_split_asm)
+   apply (fastforce simp: valid_arch_mdb_null_filter[simplified null_filter_def])
   apply (rule arg_cong[where f=All, OF ext])+
   apply ((clarsimp simp: cte_wp_at_caps_of_state null_filter_def
                | rule conjI iffI
@@ -1454,6 +1228,9 @@ lemma retype_region_cur_tcb[wp]:
      and valid_objs and pspace_aligned\<rbrace>
      retype_region ptr n us ty dev
    \<lbrace>\<lambda>rv. cur_tcb\<rbrace>"
+  supply
+    is_aligned_neg_mask_eq[simp del]
+    is_aligned_neg_mask_weaken[simp del]
   apply (rule hoare_post_imp [where Q="\<lambda>rv s. \<exists>tp. tcb_at tp s \<and> cur_thread s = tp"])
    apply (simp add: cur_tcb_def)
   apply (wpsimp wp: hoare_vcg_ex_lift retype_region_obj_at_other3 simp: retype_region_def)
@@ -1656,7 +1433,7 @@ locale Retype_AI_valid_untyped_helper =
   assumes valid_untyped_helper:
     "\<And>s c q ty ptr sz us n dev.
       \<lbrakk> (s :: 'state_ext state) \<turnstile> c;
-        cte_wp_at (op = c) q s;
+        cte_wp_at ((=) c) q s;
         ty \<noteq> Untyped;
         range_cover ptr sz (obj_bits_api ty us) n;
         is_untyped_cap c \<Longrightarrow>
@@ -1851,7 +1628,7 @@ lemma le_subset: "\<lbrakk>(a::('g::len) word) \<le> c\<rbrakk> \<Longrightarrow
 context retype_region_proofs_gen begin
 
 lemma valid_cap_pres:
-  "\<lbrakk> s \<turnstile> c; cte_wp_at (op = c) (oref,cref) s \<rbrakk> \<Longrightarrow> s' \<turnstile> c"
+  "\<lbrakk> s \<turnstile> c; cte_wp_at ((=) c) (oref,cref) s \<rbrakk> \<Longrightarrow> s' \<turnstile> c"
   using cover mem orth
   apply (simp add:s'_def ps_def)
   apply (rule valid_untyped_helper[ OF _ _ tyunt cover _ _ _ vp ])
@@ -1970,7 +1747,7 @@ lemma (in retype_region_proofs_gen) valid_pspace: "valid_pspace s'"
 (* I have the feeling I'm making this unnecessarily hard,
    but I can't put my finger on where. *)
 
-lemma F: "\<And>x c s. (caps_of_state s x = Some c) = (cte_wp_at (op = c) x s)"
+lemma F: "\<And>x c s. (caps_of_state s x = Some c) = (cte_wp_at ((=) c) x s)"
   apply (simp add: caps_of_state_cte_wp_at)
   apply (fastforce simp: cte_wp_at_def)
   done
@@ -2025,9 +1802,9 @@ lemma caps_retype:
   and      newcap: "caps_of_state s' p = Some cap"
   shows            "caps_of_state s p = Some cap"
 proof -
-  from newcap have "cte_wp_at (op = cap) p s'"
+  from newcap have "cte_wp_at ((=) cap) p s'"
     by (simp add: cte_wp_at_caps_of_state)
-  hence "cte_wp_at (op = cap) p s"
+  hence "cte_wp_at ((=) cap) p s"
     by (rule_tac subst [OF cte_retype], rule_tac nonnull, assumption)
   thus ?thesis
     by (simp add: cte_wp_at_caps_of_state)

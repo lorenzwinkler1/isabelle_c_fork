@@ -21,6 +21,7 @@ This module makes use of the GHC extension allowing declaration of types with no
 
 \begin{impdetails}
 
+> import Prelude hiding (Word)
 > import SEL4.Machine.RegisterSet
 > import SEL4.Machine.Hardware.X64
 > import Data.Array
@@ -42,6 +43,7 @@ This module makes use of the GHC extension allowing declaration of types with no
 >     | IOPortCap {
 >         capIOPortFirstPort :: IOPort,
 >         capIOPortLastPort :: IOPort }
+>     | IOPortControlCap
 >--     | IOSpaceCap {
 >--         capIODomainID :: Word16,
 >--         capIOPCIDevice :: Maybe IOASID }
@@ -142,10 +144,33 @@ ASIDs are mapped to address space roots by a global two-level table. The actual 
 > asidHighBitsOf :: ASID -> ASID
 > asidHighBitsOf asid = (asid `shiftR` asidLowBits) .&. mask asidHighBits
 
+> asidLowBitsOf :: ASID -> ASID
+> asidLowBitsOf asid = asid .&. mask asidLowBits
+
 > data CR3 = CR3 {
 >     cr3BaseAddress :: PAddr,
 >     cr3pcid :: ASID }
 >     deriving (Show, Eq)
 
+> makeCR3 :: PAddr -> ASID -> CR3
+> makeCR3 vspace asid = CR3 vspace' asid
+>     where
+>         vspace' = vspace .&. (mask pml4ShiftBits `shiftL` asidBits)
 
+\subsection{IRQ State}
+
+> data X64IRQState =
+>     X64IRQFree
+>   | X64IRQReserved
+>   | X64IRQMSI {
+>     msiBus :: Word,
+>     msiDev :: Word,
+>     msiFunc :: Word,
+>     msiHandle :: Word }
+>   | X64IRQIOAPIC {
+>     irqIOAPIC :: Word,
+>     irqPin :: Word,
+>     irqLevel :: Word,
+>     irqPolarity :: Word,
+>     irqMasked :: Bool }
 

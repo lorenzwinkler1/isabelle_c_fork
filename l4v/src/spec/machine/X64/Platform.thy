@@ -12,12 +12,11 @@ chapter "Platform Definitions"
 
 theory Platform
 imports
-  "../../../lib/Lib"
-  "../../../lib/Word_Lib/Word_Enum"
-  "../../../lib/Defs"
+  "Lib.Lib"
+  "Word_Lib.Word_Enum"
+  "Lib.Defs"
   "../Setup_Locale"
 begin
-(* FIXME X64: Missing lots of stuff *)
 
 context Arch begin global_naming X64
 
@@ -31,6 +30,14 @@ abbreviation (input) "fromPAddr \<equiv> id"
 definition
   pptrBase :: word64 where
   "pptrBase = 0xffffff8000000000"
+
+definition
+  kpptrBase :: word64 where
+  "kpptrBase = 0xffffffff80000000"
+
+definition
+  pptrUserTop :: word64 where
+  "pptrUserTop = 0x00007fffffffffff"
 
 definition
   cacheLineBits :: nat where
@@ -50,7 +57,7 @@ definition
 
 definition
   addrFromKPPtr :: "word64 \<Rightarrow> paddr" where
-  "addrFromKPPtr pptr \<equiv> undefined"
+  "addrFromKPPtr pptr \<equiv> pptr - kpptrBase"
 
 definition
   pageColourBits :: "nat" where
@@ -64,20 +71,23 @@ definition
   maxIRQ :: "irq" where
   "maxIRQ \<equiv> 125"
 
-datatype cr3 = X64CR3 word64 (*pml4*) word64 (*asid*)
+definition
+  minUserIRQ :: "irq" where
+  "minUserIRQ \<equiv> 16"
 
-primrec CR3BaseAddress where
-"CR3BaseAddress (X64CR3 v0 _) = v0"
+definition
+  maxUserIRQ :: "irq" where
+  "maxUserIRQ \<equiv> 123"
 
-primrec cr3BaseAddress_update where
-"cr3BaseAddress_update f (X64CR3 v0 v1) = (X64CR3 (f v0) v1)"
+datatype cr3 = X64CR3 (CR3BaseAddress: word64) (cr3pcid: word64)
 
-primrec cr3pcid where
-"cr3pcid (X64CR3 _ v1) = v1"
+primrec cr3BaseAddress_update :: "(word64 \<Rightarrow> word64) \<Rightarrow> cr3 \<Rightarrow> cr3"
+where
+  "cr3BaseAddress_update f (X64CR3 v0 v1) = (X64CR3 (f v0) v1)"
 
-primrec cr3pcid_update where
-"cr3pcid_update f (X64CR3 v0 v1) = (X64CR3 v0 (f v1))"
-
+primrec cr3pcid_update :: "(word64 \<Rightarrow> word64) \<Rightarrow> cr3 \<Rightarrow> cr3"
+where
+  "cr3pcid_update f (X64CR3 v0 v1) = (X64CR3 v0 (f v1))"
 
 
 end

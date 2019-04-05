@@ -1178,7 +1178,7 @@ case \x of ((Zombie { capZombieNumber = 0 }), _) -> ((Zombie { capZombiePtr = pt
         in ->3
     else ->4
 
-case \x of ((EndpointCap { capEPPtr = ptr }), final, _) -> ((NotificationCap { capNtfnPtr = ptr }), final, _) -> ((ReplyCap {}), _, _) -> (NullCap, _, _) -> (DomainCap, _, _) -> (_, _, True) -> ((CNodeCap { capCNodePtr = ptr, capCNodeBits = bits }), True, _) -> ((ThreadCap { capTCBPtr = tcb}), True, _) -> (z@(Zombie {}), True, _) -> ((ArchObjectCap { capCap = cap }), final, _) -> ((IRQHandlerCap { capIRQ = irq }), True, _) -> ((Zombie {}), False, _) -> (_, _, _) ->  ---> let (\v0\, \v1\, \v2\) = \x in
+case \x of ((EndpointCap { capEPPtr = ptr }), final, _) -> ((NotificationCap { capNtfnPtr = ptr }), final, _) -> ((ReplyCap {}), _, _) -> (NullCap, _, _) -> (DomainCap, _, _) -> (_, _, True) -> ((CNodeCap { capCNodePtr = ptr, capCNodeBits = bits }), True, _) -> ((ThreadCap { capTCBPtr = tcb}), True, _) -> (z@(Zombie {}), True, _) -> ((ArchObjectCap { capCap = cap }), final, _) -> (cap@(IRQHandlerCap { capIRQ = irq }), True, _) -> ((Zombie {}), False, _) -> (_, _, _) ->  ---> let (\v0\, \v1\, \v2\) = \x in
     if isEndpointCap \v0\
     then let ptr = capEPPtr \v0\; final = \v1\
         in ->1
@@ -1206,7 +1206,7 @@ case \x of ((EndpointCap { capEPPtr = ptr }), final, _) -> ((NotificationCap { c
     then let cap = capCap \v0\; final = \v1\
         in ->10
     else if isIRQHandlerCap \v0\ \<and> \v1\
-    then let irq = capIRQ \v0\
+    then let irq = capIRQ \v0\; cap = \v0\
         in ->11
     else if isZombie \v0\ \<and> \<not> \v1\
     then ->12
@@ -1324,7 +1324,7 @@ case \x of cap@(PageDirectoryCap {}) -> cap@(PageTableCap {}) -> cap@(PageCap {}
     then ->5
     else undefined
 
-case \x of (c@PageTableCap { capPTMappedAddress = Just _ }) -> (PageTableCap { capPTMappedAddress = Nothing }) -> (c@PageDirectoryCap { capPDMappedAddress = Just _ }) -> (PageDirectoryCap { capPDMappedAddress = Nothing }) -> (c@PDPointerTableCap { capPDPTMappedAddress = Just _ }) -> (PDPointerTableCap { capPDPTMappedAddress = Nothing }) -> (c@PML4Cap { capPML4MappedASID = Just _ }) -> (PML4Cap { capPML4MappedASID = Nothing }) -> (c@PageCap {}) -> c@ASIDControlCap -> (c@ASIDPoolCap {}) -> (c@IOPortCap {}) ->  ---> let c = \x in
+case \x of (c@PageTableCap { capPTMappedAddress = Just _ }) -> (PageTableCap { capPTMappedAddress = Nothing }) -> (c@PageDirectoryCap { capPDMappedAddress = Just _ }) -> (PageDirectoryCap { capPDMappedAddress = Nothing }) -> (c@PDPointerTableCap { capPDPTMappedAddress = Just _ }) -> (PDPointerTableCap { capPDPTMappedAddress = Nothing }) -> (c@PML4Cap { capPML4MappedASID = Just _ }) -> (PML4Cap { capPML4MappedASID = Nothing }) -> (c@PageCap {}) -> c@ASIDControlCap -> (c@ASIDPoolCap {}) -> (c@IOPortCap {}) -> IOPortControlCap -> ---> let c = \x in
     if isPageTableCap c \<and> capPTMappedAddress c \<noteq> None
     then ->1
     else if isPageTableCap c \<and> capPTMappedAddress c = None
@@ -1349,6 +1349,8 @@ case \x of (c@PageTableCap { capPTMappedAddress = Just _ }) -> (PageTableCap { c
     then ->11
     else if isIOPortCap c
     then ->12
+    else if isIOPortControlCap c
+    then ->13
     else undefined
 
 case \x of (c@IOPortCap {}) -> c ->  ---> let c = \x in
@@ -1434,7 +1436,7 @@ case \x of Arch.Types.APIObjectType _ -> Arch.Types.SmallPageObject -> Arch.Type
    | PDPointerTableObject => ->7
    | PML4Object => ->8
 
-case \x of ((a@PageCap {}), (b@PageCap {})) -> ((a@PageTableCap {}), (b@PageTableCap {})) -> ((a@PageDirectoryCap {}), (b@PageDirectoryCap {})) -> ((a@PDPointerTableCap {}), (b@PDPointerTableCap {})) -> ((a@PML4Cap {}), (b@PML4Cap {})) -> (ASIDControlCap, ASIDControlCap) -> ((a@ASIDPoolCap {}), (b@ASIDPoolCap {})) -> ((a@IOPortCap {}), (b@IOPortCap {})) -> (_, _) ->  ---> let (a,b) = \x in
+case \x of ((a@PageCap {}), (b@PageCap {})) -> ((a@PageTableCap {}), (b@PageTableCap {})) -> ((a@PageDirectoryCap {}), (b@PageDirectoryCap {})) -> ((a@PDPointerTableCap {}), (b@PDPointerTableCap {})) -> ((a@PML4Cap {}), (b@PML4Cap {})) -> (ASIDControlCap, ASIDControlCap) -> ((a@ASIDPoolCap {}), (b@ASIDPoolCap {})) -> ((a@IOPortCap {}), (b@IOPortCap {})) -> (IOPortControlCap, IOPortControlCap) -> (IOPortControlCap, (IOPortCap {})) -> (_, _) ->  ---> let (a,b) = \x in
     if isPageCap a \<and> isPageCap b
     then ->1
     else if isPageTableCap a \<and> isPageTableCap b
@@ -1451,18 +1453,29 @@ case \x of ((a@PageCap {}), (b@PageCap {})) -> ((a@PageTableCap {}), (b@PageTabl
     then ->7
     else if isIOPortCap a \<and> isIOPortCap b
     then ->8
-    else ->9
+    else if isIOPortControlCap a \<and> isIOPortControlCap b
+    then ->9
+    else if isIOPortControlCap a \<and> isIOPortCap b
+    then ->10
+    else ->11
 
 
-case \x of (oper@(InvokeIOPort _)) -> oper ->  ---> let oper = \x in
+case \x of (oper@(InvokeIOPort _)) -> (oper@(InvokeIOPortControl _)) -> oper ->  ---> let oper = \x in
     case oper of
       InvokeIOPort _ => ->1
-    | _ => ->2
+    | InvokeIOPortControl _ => ->2
+    | _ => ->3
 
 case \x of (cap@PageCap {}) -> _ ->  ---> let cap = \x in
     if isPageCap cap
     then ->1
     else ->2
+
+case \x of (ArchInvocationLabel X64IOPortControlIssue, f:l:index:depth:_, cnode:_) -> (ArchInvocationLabel X64IOPortControlIssue, _, _) -> _ ->  ---> let (label, args, extraCaps) = \x in
+    case (label, args, extraCaps) of
+      (ArchInvocationLabel X64IOPortControlIssue, f#l#index#depth#_, cnode#_) => ->1
+    | (ArchInvocationLabel X64IOPortControlIssue, _, _) => ->2
+    | _ => ->3
 
 case \x of (ArchInvocationLabel X64PDPTMap, vaddr':attr:_, (vspaceCap,_):_) -> (ArchInvocationLabel X64PDPTMap, _, _) -> (ArchInvocationLabel X64PDPTUnmap, _, _) -> _ ->  ---> let (label, args, extraCaps) = \x in
     case (label, args, extraCaps) of
@@ -1536,6 +1549,13 @@ case \x of cap@(IOPortCap {}) -> _ ->  ---> let cap = \x in
     if isIOPortCap cap
     then ->1
     else ->2
+
+case \x of cap@(IOPortCap {}) -> IOPortControlCap -> _ ->  ---> let cap = \x in
+    if isIOPortCap cap
+    then ->1
+    else if isIOPortControlCap cap
+    then ->2
+    else ->3
 
 case \x of (cap @ (CNodeCap {})) -> (cap @ (ThreadCap {})) -> (cap @ (Zombie {})) -> _ ->  ---> let cap = \x in
     if isCNodeCap cap
@@ -1705,14 +1725,12 @@ case \x of (cap@IOPageTableCap {}) -> _ ->  ---> let cap = \x in
 case \x of (X64NoHypFaults) -> ---> let hyp = \x in
   case hyp of X64NoHypFaults => ->1
 
-
-case \x of ((a@PageCap { capVPBasePtr = ptrA }), (b@PageCap {})) -> ((a@IOPortCap { capIOPortFirstPort = fA }), (b@IOPortCap {})) -> (a, b) ->  ---> let (a, b) = \x in
+case \x of ((a@PageCap { capVPBasePtr = ptrA }), (b@PageCap {})) -> (IOPortControlCap, (IOPortCap {})) -> (a, b) ->  ---> let (a, b) = \x in
     if isPageCap a \<and> isPageCap b
     then let ptrA = capVPBasePtr a
         in ->1
-    else if isIOPortCap a \<and> isIOPortCap b
-    then let fA = capIOPortFirstPort a
-        in ->2
+    else if isIOPortControlCap a \<and> isIOPortCap b
+    then -> 2
     else ->3
 
 
@@ -1925,3 +1943,70 @@ case \x of UntypedCap {capIsDevice = False} | capBlockSize untyped == objBits po
     then ->1
     else ->2
 
+case \x of (c@PageTableCap { capPTMappedAddress = Just _ }) -> (PageTableCap { capPTMappedAddress = Nothing }) -> (c@FrameCap {}) -> c@ASIDControlCap -> (c@ASIDPoolCap {}) ->  ---> let c = \x in
+  if isPageTableCap c \<and> capPTMappedAddress c \<noteq> None
+  then ->1
+  else if isPageTableCap c \<and> capPTMappedAddress c = None
+  then ->2
+  else if isFrameCap c
+  then ->3
+  else if c = ASIDControlCap
+  then ->4
+  else if isASIDPoolCap c
+  then ->5
+  else undefined
+
+case \x of c@(FrameCap {}) -> c ->  ---> let c = \x in
+  if isFrameCap c
+  then ->1
+  else ->2
+
+case \x of ((a@FrameCap {}), (b@FrameCap {})) -> ((a@PageTableCap {}), (b@PageTableCap {})) -> (ASIDControlCap, ASIDControlCap) -> ((a@ASIDPoolCap {}), (b@ASIDPoolCap {})) -> (_, _) ->  ---> let (a,b) = \x in
+  if isFrameCap a \<and> isFrameCap b
+  then ->1
+  else if isPageTableCap a \<and> isPageTableCap b
+  then ->2
+  else if a = ASIDControlCap \<and> b = ASIDControlCap
+  then ->3
+  else if isASIDPoolCap a \<and> isASIDPoolCap b
+  then ->4
+  else ->5
+
+case \x of ((a@FrameCap { capFBasePtr = ptrA }), (b@FrameCap {})) -> (a, b) ->  ---> let (a, b) = \x in
+    if isFrameCap a \<and> isFrameCap b
+    then let ptrA = capFBasePtr a in ->1
+    else ->2
+
+case \x of Arch.Types.APIObjectType _ -> Arch.Types.SmallPageObject -> Arch.Types.LargePageObject -> Arch.Types.HugePageObject -> Arch.Types.PageTableObject ->  ---> let t = \x in
+    case t of
+     APIObjectType _ => ->1
+   | SmallPageObject => ->2
+   | LargePageObject => ->3
+   | HugePageObject => ->4
+   | PageTableObject => ->5
+
+case \x of (cap@FrameCap {}) -> _ ->  ---> let cap = \x in
+  if isFrameCap cap
+  then ->1
+  else ->2
+
+case \x of cap@(FrameCap {}) -> cap@(PageTableCap {}) -> cap@(ASIDControlCap {}) -> cap@(ASIDPoolCap {}) ->  ---> let cap = \x in
+  if isFrameCap cap
+  then ->1
+  else if isPageTableCap cap
+  then ->2
+  else if isASIDControlCap cap
+  then ->3
+  else if isASIDPoolCap cap
+  then ->4
+  else undefined
+
+case \x of (ArchInvocationLabel ArchLabels.ARMIRQIssueIRQHandler, irqW:triggerW:index:depth:_, cnode:_) -> (ArchInvocationLabel ArchLabels.ARMIRQIssueIRQHandler,_,_) -> _ ->  ---> let (label, args, extraCaps) = \x in
+    case (label, args, extraCaps) of
+      (ArchInvocationLabel ARMIRQIssueIRQHandler,
+        irqW#triggerW#index#depth#_, cnode#_) => ->1
+    | (ArchInvocationLabel ARMIRQIssueIRQHandler, _, _) => ->2
+    | _ => ->3
+
+case \x of (ArchInv.IssueIRQHandler (IRQ irq) destSlot srcSlot trigger) ->  ---> case \x of
+  IssueIRQHandler irq destSlot srcSlot trigger => ->1

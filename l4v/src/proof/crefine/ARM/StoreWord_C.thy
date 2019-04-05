@@ -207,7 +207,7 @@ lemma user_data_relation_upd:
    apply (clarsimp simp: mask_pageBits_inner_beauty [OF al] byte_to_word_heap_def)
    apply (subst index_update)
     apply (simp, unat_arith, simp)
-   apply (subgoal_tac "map (op ! (word_rsplit w)) [0,1,2,3]
+   apply (subgoal_tac "map ((!) (word_rsplit w)) [0,1,2,3]
                       = (word_rsplit w :: word8 list)")
     apply (clarsimp simp: word_rcat_rsplit)
    apply (cut_tac w=w and m=4 and 'a=8
@@ -255,7 +255,7 @@ lemma user_data_device_relation_upd:
    apply (clarsimp simp: mask_pageBits_inner_beauty [OF al] byte_to_word_heap_def)
    apply (subst index_update)
     apply (simp, unat_arith, simp)
-   apply (subgoal_tac "map (op ! (word_rsplit w)) [0,1,2,3]
+   apply (subgoal_tac "map ((!) (word_rsplit w)) [0,1,2,3]
                       = (word_rsplit w :: word8 list)")
     apply (clarsimp simp: word_rcat_rsplit)
    apply (cut_tac w=w and m=4 and 'a=8
@@ -411,8 +411,8 @@ proof (intro allI impI)
     and piud: "pointerInUserData ptr \<sigma>"
     by simp_all
 
-  def offset \<equiv> "ucast ((ptr && mask pageBits) >> 2) :: 10 word"
-  def base \<equiv> "Ptr (ptr && ~~ mask  pageBits) :: user_data_C ptr"
+  define offset where "offset \<equiv> ucast ((ptr && mask pageBits) >> 2) :: 10 word"
+  define base where "base \<equiv> Ptr (ptr && ~~ mask  pageBits) :: user_data_C ptr"
 
   from piud
   obtain old_w where
@@ -719,8 +719,8 @@ proof (intro allI impI)
     and piud: "pointerInDeviceData ptr \<sigma>"
     by simp_all
 
-  def offset \<equiv> "ucast ((ptr && mask pageBits) >> 2) :: 10 word"
-  def base \<equiv> "Ptr (ptr && ~~ mask  pageBits) :: user_data_device_C ptr"
+  define offset where "offset \<equiv> ucast ((ptr && mask pageBits) >> 2) :: 10 word"
+  define base where "base \<equiv> Ptr (ptr && ~~ mask  pageBits) :: user_data_device_C ptr"
 
   from piud
   obtain old_w where
@@ -1174,7 +1174,7 @@ lemma pointerInUserData_c_guard:
    apply (rule order_trans [rotated])
     apply (rule_tac x="ptr && mask pageBits" and y=4 and z=4096 in intvl_sub_offset)
     apply (cut_tac y=ptr and a="mask pageBits && (~~ mask 2)" in word_and_le1)
-    apply (subst(asm) word_bw_assocs[symmetric], subst(asm) aligned_neg_mask,
+    apply (subst(asm) word_bw_assocs[symmetric], subst(asm) is_aligned_neg_mask_eq,
            erule is_aligned_andI1)
     apply (simp add: word_le_nat_alt mask_def pageBits_def)
    apply (subst word_plus_and_or_coroll2 [where w="~~ mask pageBits", simplified])

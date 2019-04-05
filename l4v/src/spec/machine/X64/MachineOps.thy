@@ -12,8 +12,8 @@ chapter "Machine Operations"
 
 theory MachineOps
 imports
-  "../../../lib/$L4V_ARCH/WordSetup"
-  "../../../lib/Monad_WP/NonDetMonad"
+  "Word_Lib.WordSetup"
+  "Lib.NonDetMonad"
   "../MachineMonad"
 begin
 
@@ -140,7 +140,7 @@ where
  "debugPrint \<equiv> \<lambda>message. return ()"
 
 
--- "Interrupt controller operations"
+\<comment> \<open>Interrupt controller operations\<close>
 
 text {*
   Interrupts that cannot occur while the kernel is running (e.g. at preemption points),
@@ -208,7 +208,7 @@ abbreviation (input) "initMemory == clearMemory"
 
 text {*
   Free memory that had been initialized as user memory.
-  While freeing memory is a no-op in the implementation,
+  While freeing memory is a no-(in) the implementation,
   we zero out the underlying memory in the specifications to avoid garbage.
   If we know that there is no garbage,
   we can compute from the implementation state
@@ -220,28 +220,71 @@ definition
  "freeMemory ptr bits \<equiv>
   mapM_x (\<lambda>p. storeWord p 0) [ptr, ptr + word_size  .e.  ptr + 2 ^ bits - 1]"
 
-
 section "User Monad"
 
-type_synonym user_context = "register \<Rightarrow> machine_word"
+
+text \<open> There are 576 bytes of FPU state. Since there are no operations on this state apart from bulk
+save/restore, we abstract from names and just say how many bytes there are. \<close>
+type_synonym fpu_bytes = 576
+type_synonym fpu_state = "fpu_bytes \<Rightarrow> 8 word"
+
+type_synonym user_regs = "register \<Rightarrow> machine_word"
+
+datatype user_context = UserContext (fpu_state : fpu_state) (user_regs : user_regs)
 
 type_synonym 'a user_monad = "(user_context, 'a) nondet_monad"
 
 definition
   getRegister :: "register \<Rightarrow> machine_word user_monad"
 where
-  "getRegister r \<equiv> gets (\<lambda>uc. uc r)"
+  "getRegister r \<equiv> gets (\<lambda>s. user_regs s r)"
+
+definition
+  "modify_registers f uc \<equiv> UserContext (fpu_state uc) (f (user_regs uc))"
 
 definition
   setRegister :: "register \<Rightarrow> machine_word \<Rightarrow> unit user_monad"
 where
-  "setRegister r v \<equiv> modify (\<lambda>uc. uc (r := v))"
+  "setRegister r v \<equiv> modify (\<lambda>s. UserContext (fpu_state s) ((user_regs s) (r := v)))"
 
 definition
   "getRestartPC \<equiv> getRegister FaultIP"
 
 definition
   "setNextPC \<equiv> setRegister NextIP"
+
+
+definition
+  getFPUState :: "fpu_state user_monad"
+where
+  "getFPUState \<equiv> gets fpu_state"
+
+definition
+  setFPUState :: "fpu_state \<Rightarrow> unit user_monad"
+where
+  "setFPUState fc \<equiv> modify (\<lambda>s. UserContext fc (user_regs s))"
+
+(* The FPU state is opaque; the null state is a constant snapshot taken after initialisation *)
+consts'
+  FPUNullState :: fpu_state
+
+consts'
+  nativeThreadUsingFPU_impl :: "machine_word \<Rightarrow> unit machine_rest_monad"
+  nativeThreadUsingFPU_val :: "machine_state \<Rightarrow> bool"
+definition
+  nativeThreadUsingFPU :: "machine_word \<Rightarrow> bool machine_monad"
+where
+  "nativeThreadUsingFPU thread_ptr \<equiv> do
+       machine_op_lift (nativeThreadUsingFPU_impl thread_ptr);
+       gets nativeThreadUsingFPU_val
+  od"
+
+consts'
+  switchFpuOwner_impl :: "machine_word \<Rightarrow> machine_word \<Rightarrow> unit machine_rest_monad"
+definition
+  switchFpuOwner :: "machine_word \<Rightarrow> machine_word \<Rightarrow> unit machine_monad"
+where
+  "switchFpuOwner new_owner cpu \<equiv> machine_op_lift (switchFpuOwner_impl new_owner cpu)"
 
 consts'
   initL2Cache_impl :: "unit machine_rest_monad"
@@ -288,11 +331,13 @@ where
   "invalidateASID vspace asid \<equiv> machine_op_lift (invalidateASID_impl vspace asid)"
 
 consts'
-  resetCR3_impl :: "unit machine_rest_monad"
+  invalidateLocalPageStructureCacheASID_impl :: "machine_word \<Rightarrow> machine_word \<Rightarrow> unit machine_rest_monad"
 
 definition
-  resetCR3 :: "unit machine_monad" where
-  "resetCR3 \<equiv> machine_op_lift resetCR3_impl "
+  invalidateLocalPageStructureCacheASID :: "machine_word \<Rightarrow> machine_word \<Rightarrow> unit machine_monad"
+where
+  "invalidateLocalPageStructureCacheASID vspace asid \<equiv>
+     machine_op_lift (invalidateLocalPageStructureCacheASID_impl vspace asid)"
 
 (* FIXME x64: VT-d
 definition
@@ -310,7 +355,6 @@ definition
   hwASIDInvalidate :: "word64 \<Rightarrow> machine_word \<Rightarrow> unit machine_monad"
 where
   "hwASIDInvalidate \<equiv> invalidateASID"
-
 
 consts'
   getFaultAddress_val :: "machine_state \<Rightarrow> machine_word"
@@ -342,103 +386,70 @@ where
 "maxPCIFunc \<equiv> 7"
 
 definition
-numIOAPICs :: "machine_word"
-where
-"numIOAPICs \<equiv> 1" (* FIXME x64: bc adrian said so *)
-
-definition
 ioapicIRQLines :: "machine_word"
 where
 "ioapicIRQLines \<equiv> 24"
 
-(* FIXME x64: technically this is defined in c and should be here *)
 consts'
-  ioapicMapPinToVector_impl :: "machine_word \<Rightarrow> machine_word \<Rightarrow> machine_word \<Rightarrow> machine_word \<Rightarrow> machine_word \<Rightarrow> unit machine_rest_monad"
+  ioapicMapPinToVector_impl :: "machine_word \<Rightarrow> machine_word \<Rightarrow> machine_word \<Rightarrow> machine_word \<Rightarrow>
+    machine_word \<Rightarrow> unit machine_rest_monad"
 definition
-ioapicMapPinToVector :: "machine_word \<Rightarrow> machine_word \<Rightarrow> machine_word \<Rightarrow> machine_word \<Rightarrow> machine_word \<Rightarrow> unit machine_monad"
+  ioapicMapPinToVector :: "machine_word \<Rightarrow> machine_word \<Rightarrow> machine_word \<Rightarrow> machine_word \<Rightarrow>
+    machine_word \<Rightarrow> unit machine_monad"
 where
-"ioapicMapPinToVector ioapic pin level polarity vector \<equiv> machine_op_lift (ioapicMapPinToVector_impl ioapic pin level polarity vector)"
+  "ioapicMapPinToVector ioapic pin level polarity vector \<equiv>
+    machine_op_lift (ioapicMapPinToVector_impl ioapic pin level polarity vector)"
 
-datatype X64IRQState =
-   IRQFree
- | IRQReserved
- | IRQMSI
-      (MSIBus : machine_word)
-      (MSIDev : machine_word)
-      (MSIFunc : machine_word)
-      (MSIHandle : machine_word)
- | IRQIOAPIC
-      (IRQioapic : machine_word)
-      (IRQPin : machine_word)
-      (IRQLevel : machine_word)
-      (IRQPolarity : machine_word)
-      (IRQMasked : bool)
-
-
-consts'
-  updateIRQState_impl :: "irq \<Rightarrow> X64IRQState \<Rightarrow> unit machine_rest_monad"
-definition
-updateIRQState :: "irq \<Rightarrow> X64IRQState \<Rightarrow> unit machine_monad"
+definition IRQ :: "word8 \<Rightarrow> irq"
 where
-"updateIRQState arg1 arg2 \<equiv> machine_op_lift (updateIRQState_impl arg1 arg2)"
+  "IRQ \<equiv> id"
 
-(*FIXME: How to deal with this directly? *)
-definition
-IRQ :: "word8 \<Rightarrow> irq"
-where
-"IRQ \<equiv> id"
-
-(* FIXME x64: More underspecified operations *)
 consts'
   in8_impl :: "word16 \<Rightarrow> unit machine_rest_monad"
   in8_val :: "machine_state \<Rightarrow> machine_word"
 definition
-in8 :: "word16 \<Rightarrow> machine_word machine_monad"
+  in8 :: "word16 \<Rightarrow> machine_word machine_monad"
 where
-"in8 port \<equiv> do machine_op_lift $ in8_impl port; gets in8_val od"
+  "in8 port \<equiv> do machine_op_lift $ in8_impl port; gets in8_val od"
 
 consts'
   in16_impl :: "word16 \<Rightarrow> unit machine_rest_monad"
   in16_val :: "machine_state \<Rightarrow> machine_word"
 definition
-in16 :: "word16 \<Rightarrow> machine_word machine_monad"
+  in16 :: "word16 \<Rightarrow> machine_word machine_monad"
 where
-"in16 port \<equiv> do machine_op_lift $ in16_impl port; gets in16_val od"
+  "in16 port \<equiv> do machine_op_lift $ in16_impl port; gets in16_val od"
 
 consts'
   in32_impl :: "word16 \<Rightarrow> unit machine_rest_monad"
   in32_val :: "machine_state \<Rightarrow> machine_word"
 definition
-in32 :: "word16 \<Rightarrow> machine_word machine_monad"
+  in32 :: "word16 \<Rightarrow> machine_word machine_monad"
 where
-"in32 port \<equiv> do machine_op_lift $ in32_impl port; gets in32_val od"
+  "in32 port \<equiv> do machine_op_lift $ in32_impl port; gets in32_val od"
 
 consts'
   out8_impl :: "word16 \<Rightarrow> word8 \<Rightarrow> unit machine_rest_monad"
 definition
-out8 :: "word16 \<Rightarrow> word8 \<Rightarrow> unit machine_monad"
+  out8 :: "word16 \<Rightarrow> word8 \<Rightarrow> unit machine_monad"
 where
-"out8 port dat \<equiv> machine_op_lift $ out8_impl port dat"
+  "out8 port dat \<equiv> machine_op_lift $ out8_impl port dat"
 
 consts'
   out16_impl :: "word16 \<Rightarrow> word16 \<Rightarrow> unit machine_rest_monad"
 definition
-out16 :: "word16 \<Rightarrow> word16 \<Rightarrow> unit machine_monad"
+  out16 :: "word16 \<Rightarrow> word16 \<Rightarrow> unit machine_monad"
 where
-"out16 port dat \<equiv> machine_op_lift $ out16_impl port dat"
+  "out16 port dat \<equiv> machine_op_lift $ out16_impl port dat"
 
 consts'
   out32_impl :: "word16 \<Rightarrow> word32 \<Rightarrow> unit machine_rest_monad"
 definition
-out32 :: "word16 \<Rightarrow> word32 \<Rightarrow> unit machine_monad"
+  out32 :: "word16 \<Rightarrow> word32 \<Rightarrow> unit machine_monad"
 where
-"out32 port dat \<equiv> machine_op_lift $ out32_impl port dat"
+  "out32 port dat \<equiv> machine_op_lift $ out32_impl port dat"
 
 end
-
-
-translations
-  (type) "'a X64.user_monad" <= (type) "(X64.register \<Rightarrow> X64.machine_word, 'a) nondet_monad"
 
 
 end

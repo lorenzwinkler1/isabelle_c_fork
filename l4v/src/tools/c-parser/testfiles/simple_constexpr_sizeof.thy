@@ -9,9 +9,10 @@
  *)
 
 theory simple_constexpr_sizeof
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "simple_constexpr_sizeof.c"
 install_C_file "simple_constexpr_sizeof.c"
 
 thm simple_constexpr_sizeof_global_addresses.f_body_def

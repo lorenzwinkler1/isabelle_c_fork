@@ -59,7 +59,8 @@ where
           \<and> (is_pt_cap cap \<longrightarrow> cap_asid cap \<noteq> None)
           \<and> (is_pd_cap cap \<longrightarrow> cap_asid cap \<noteq> None)
           \<and> (is_pdpt_cap cap \<longrightarrow> cap_asid cap \<noteq> None)
-          \<and> (is_pml4_cap cap \<longrightarrow> cap_asid cap \<noteq> None))"
+          \<and> (is_pml4_cap cap \<longrightarrow> cap_asid cap \<noteq> None)
+          \<and> \<not> is_ioport_control_cap cap)"
 
 
 definition (* arch specific *)
@@ -219,10 +220,10 @@ lemma tc_invs[Tcb_AI_asms]:
        and (case_option \<top> (no_cap_to_obj_dr_emp o fst) e)
        and (case_option \<top> (no_cap_to_obj_dr_emp o fst) f)
        and (case_option \<top> (case_option \<top> (no_cap_to_obj_dr_emp o fst) o snd) g)
-       (* only set prio \<le> mcp *)
-       and (\<lambda>s. case_option True (\<lambda>pr. mcpriority_tcb_at (\<lambda>mcp. pr \<le> mcp) (cur_thread s) s) pr)
-       (* only set mcp \<le> prev_mcp *)
-       and (\<lambda>s. case_option True (\<lambda>mcp. mcpriority_tcb_at (\<lambda>m. mcp \<le> m) (cur_thread s) s) mcp)
+       (* only set prio \<le> mcp of authorising thread *)
+       and (\<lambda>s. case_option True (\<lambda>(pr, auth). mcpriority_tcb_at (\<lambda>mcp. pr \<le> mcp) auth s) pr)
+       (* only set mcp \<le> mcp of authorising thread *)
+       and (\<lambda>s. case_option True (\<lambda>(mcp, auth). mcpriority_tcb_at (\<lambda>m. mcp \<le> m) auth s) mcp)
        and K (case_option True (is_cnode_cap o fst) e)
        and K (case_option True (is_valid_vtable_root o fst) f)
        and K (case_option True (\<lambda>v. case_option True
@@ -237,6 +238,8 @@ lemma tc_invs[Tcb_AI_asms]:
   apply (rule hoare_vcg_precond_imp)
    apply wp
       apply ((simp only: simp_thms
+        | (simp add: conj_comms del: hoare_True_E_R,
+                  strengthen imp_consequent[where Q="x = None" for x], simp cong: conj_cong)
         | rule wp_split_const_if wp_split_const_if_R
                    hoare_vcg_all_lift_R
                    hoare_vcg_E_elim hoare_vcg_const_imp_lift_R
@@ -266,16 +269,15 @@ lemma tc_invs[Tcb_AI_asms]:
         | strengthen use_no_cap_to_obj_asid_strg
                      tcb_cap_always_valid_strg[where p="tcb_cnode_index 0"]
                      tcb_cap_always_valid_strg[where p="tcb_cnode_index (Suc 0)"])+)
-  apply (clarsimp simp: tcb_at_cte_at_0 tcb_at_cte_at_1[simplified] is_nondevice_page_cap_arch_def
-                        is_cap_simps is_valid_vtable_root_def is_nondevice_page_cap_simps
+  apply (intro conjI impI; clarsimp?;
+    (clarsimp simp: tcb_at_cte_at_0 tcb_at_cte_at_1[simplified]
+                        is_cap_simps is_valid_vtable_root_def
                         is_cnode_or_valid_arch_def tcb_cap_valid_def
                         invs_valid_objs cap_asid_def vs_cap_ref_def
-                 split: option.split_asm )+
-      apply (simp add: case_bool_If valid_ipc_buffer_cap_def is_nondevice_page_cap_simps
-                       is_nondevice_page_cap_arch_def
-                split: arch_cap.splits if_splits)+
+                        case_bool_If valid_ipc_buffer_cap_def
+                       | split arch_cap.splits if_splits)+
+  )
   done
-
 
 lemma check_valid_ipc_buffer_inv: (* arch_specific *)
   "\<lbrace>P\<rbrace> check_valid_ipc_buffer vptr cap \<lbrace>\<lambda>rv. P\<rbrace>"
@@ -283,7 +285,7 @@ lemma check_valid_ipc_buffer_inv: (* arch_specific *)
              cong: cap.case_cong arch_cap.case_cong
              split del: if_split)
   apply (rule hoare_pre)
-   apply (wp | simp add: whenE_def split del: if_split | wpcw)+
+   apply (wp | simp add: if_apply_def2 split del: if_split | wpcw)+
   done
 
 lemma check_valid_ipc_buffer_wp[Tcb_AI_asms]:

@@ -16,9 +16,9 @@ chapter "ARM-Specific Data Types"
 
 theory Arch_Structs_A
 imports
-  "../../design/$L4V_ARCH/Arch_Structs_B"
+  "ExecSpec.Arch_Structs_B"
   "../ExceptionTypes_A"
-  ArchVMRights_A
+  "../VMRights_A"
 begin
 
 context Arch begin global_naming ARM_A
@@ -314,6 +314,16 @@ definition
   arch_tcb_context_get :: "arch_tcb \<Rightarrow> user_context"
 where
   "arch_tcb_context_get a_tcb \<equiv> tcb_context a_tcb"
+
+definition
+  arch_tcb_set_registers :: "(register \<Rightarrow> machine_word) \<Rightarrow> arch_tcb \<Rightarrow> arch_tcb"
+where
+  "arch_tcb_set_registers \<equiv> arch_tcb_context_set"
+
+definition
+  arch_tcb_get_registers :: "arch_tcb \<Rightarrow> register \<Rightarrow> machine_word"
+where
+  "arch_tcb_get_registers \<equiv> arch_tcb_context_get"
 
 end
 

@@ -131,13 +131,6 @@ lemma shiftl_power:
 
 lemmas of_bl_reasoning = to_bl_use_of_bl of_bl_append
 
-(*TODO: delete, this will be in the Isabelle main distribution in future*)
-lemma bl_to_bin_lt2p_drop: "bl_to_bin bs < 2 ^ length (dropWhile Not bs)"
-  unfolding bl_to_bin_def
-proof(induction bs)
-  case(Cons b bs) with bl_to_bin_lt2p_aux[where w=1] show ?case by simp
-qed simp
-
 lemma uint_of_bl_is_bl_to_bin_drop:
   "length (dropWhile Not l) \<le> len_of TYPE('a) \<Longrightarrow> uint (of_bl l :: 'a::len word) = bl_to_bin l"
   apply (simp add: of_bl_def)
@@ -155,7 +148,7 @@ corollary uint_of_bl_is_bl_to_bin:
 
 
 lemma bin_to_bl_or:
-  "bin_to_bl n (a OR b) = map2 (op \<or>) (bin_to_bl n a) (bin_to_bl n b)"
+  "bin_to_bl n (a OR b) = map2 (\<or>) (bin_to_bl n a) (bin_to_bl n b)"
   using bl_or_aux_bin[where n=n and v=a and w=b and bs="[]" and cs="[]"]
   by simp
 
@@ -190,6 +183,10 @@ lemma and_mask:
 lemma AND_twice [simp]:
   "(w && m) && m = w && m"
   by (simp add: word_eqI)
+
+lemma word_combine_masks:
+  "w && m = z \<Longrightarrow> w && m' = z' \<Longrightarrow> w && (m || m') = (z || z')"
+  by (auto simp: word_eq_iff)
 
 lemma nth_w2p_same:
   "(2^n :: 'a :: len word) !! n = (n < len_of TYPE('a))"
@@ -257,6 +254,9 @@ lemma and_mask_arith:
 
 lemma mask_2pm1: "mask n = 2 ^ n - 1"
   by (simp add : mask_def)
+
+lemma word_and_mask_le_2pm1: "w && mask n \<le> 2 ^ n - 1"
+  by (simp add: mask_2pm1[symmetric] word_and_le1)
 
 lemma is_aligned_AND_less_0:
   "u && mask n = 0 \<Longrightarrow> v < 2^n \<Longrightarrow> u && v = 0"
@@ -350,6 +350,10 @@ lemma and_mask_eq_iff_shiftr_0:
 
 lemmas and_mask_eq_iff_le_mask = trans
   [OF and_mask_eq_iff_shiftr_0 le_mask_iff [THEN sym]]
+
+lemma mask_shiftl_decompose:
+  "mask m << n = mask (m + n) && ~~ mask n"
+  by (auto intro!: word_eqI simp: and_not_mask nth_shiftl nth_shiftr word_size)
 
 lemma one_bit_shiftl: "set_bit 0 n True = (1 :: 'a :: len word) << n"
   apply (rule word_eqI)
@@ -564,10 +568,7 @@ lemma ucast_of_nat:
   apply (rule nat_int.Rep_eqD)
   apply (simp only: zmod_int)
   apply (rule mod_mod_cancel)
-  apply (subst zdvd_int[symmetric])
-  apply (rule le_imp_power_dvd)
-  apply (simp add: is_down_def target_size_def source_size_def word_size)
-  done
+  by (simp add: is_down le_imp_power_dvd)
 
 (* shortcut for some specific lengths *)
 lemma word_fixed_sint_1[simp]:

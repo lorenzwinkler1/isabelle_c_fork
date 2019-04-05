@@ -9,9 +9,10 @@
  *)
 
 theory globinits
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "globinits.c"
 install_C_file "globinits.c"
 
 context globinits

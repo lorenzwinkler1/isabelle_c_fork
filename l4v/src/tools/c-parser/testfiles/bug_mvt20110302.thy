@@ -9,9 +9,10 @@
  *)
 
 theory bug_mvt20110302
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "bug_mvt20110302.c"
 install_C_file "bug_mvt20110302.c"
 
 context bug_mvt20110302

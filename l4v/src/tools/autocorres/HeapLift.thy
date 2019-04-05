@@ -15,7 +15,7 @@ imports
   L2Defs
   ExecConcrete
   AbstractArrays
-  "../../lib/LemmaBucket_C"
+  "CLib.LemmaBucket_C"
 begin
 
 definition "L2Tcorres st A C = corresXF st (\<lambda>r _. r) (\<lambda>r _. r) \<top> A C"
@@ -282,8 +282,8 @@ lemma L2Tcorres_exec_concrete [heap_abs]:
   apply (rule corresXF_exec_concrete)
   apply (rule corresXF_except)
      apply assumption
-    apply (rule corresXF_fail)
-   including no_pre apply wp
+    apply (rule corresXF_fail[where P="\<top>"])
+   apply wp
   apply simp
   done
 
@@ -302,8 +302,8 @@ lemma L2Tcorres_exec_abstract [heap_abs]:
   apply (rule corresXF_exec_abstract)
   apply (rule corresXF_except)
      apply assumption
-    apply (rule corresXF_fail)
-   including no_pre apply wp
+    apply (rule corresXF_fail[where P="\<top>"])
+   apply wp
   apply simp
   done
 
@@ -865,7 +865,7 @@ lemma read_write_valid_hrs_mem:
  * differently to other "h_val s ptr" terms that were already in the RHS.
  * Thus we define heap_lift__h_val \<equiv> h_val to carry this information around.
  *)
-definition "heap_lift__wrap_h_val \<equiv> op ="
+definition "heap_lift__wrap_h_val \<equiv> (=)"
 
 lemma heap_lift_wrap_h_val [heap_abs]:
   "heap_lift__wrap_h_val (heap_lift__h_val s p) (h_val s p)"
@@ -1490,7 +1490,7 @@ lemma access_ti_list_array_unpacked:
               access_ti_pair (f m) (FCP g) xs = h m xs
    \<rbrakk> \<Longrightarrow>
    access_ti_list (map f [0 ..< n]) (FCP g) xs
-     = foldl (op @) [] (map (\<lambda>m. h m (take v3 (drop (v3 * m) xs))) [0 ..< n])"
+     = foldl (@) [] (map (\<lambda>m. h m (take v3 (drop (v3 * m) xs))) [0 ..< n])"
   apply (subgoal_tac "\<forall>ys. size_td_list (map f ys) = v3 * length ys")
    prefer 2
    apply (rule allI, induct_tac ys, simp+)

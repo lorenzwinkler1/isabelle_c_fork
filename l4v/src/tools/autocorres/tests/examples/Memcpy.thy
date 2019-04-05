@@ -10,8 +10,8 @@
 
 theory Memcpy
 imports
-  "../../../c-parser/CTranslation"
-  "../../AutoCorres"
+  "CParser.CTranslation"
+  "AutoCorres.AutoCorres"
 begin
 
 abbreviation "ADDR_MAX \<equiv> UWORD_MAX TYPE(addr_bitsize)"
@@ -44,6 +44,7 @@ lemma ptr_contained:"\<lbrakk> c_guard (x::('a::c_type) ptr); size_of TYPE('a) =
   apply (clarsimp simp: nat_less_iff of_nat_nat)
   done
 
+external_file "memcpy.c"
 install_C_file "memcpy.c"
 
 (* FIXME: MOVE *)
@@ -1022,6 +1023,7 @@ lemma
         heap_w32 s src = x \<and> dst \<noteq> src\<rbrace>
      exec_concrete lift_global_heap (memcpy' (ptr_coerce dst) (ptr_coerce src) sz)
    \<lbrace>\<lambda>r s. r = ptr_coerce dst \<and> heap_w32 s dst = x\<rbrace>!"
+  including nf_no_pre
   apply (rule allI)+
   apply (wp memcpy_wp)
   apply (clarsimp simp:is_valid_w32_imp_c_guard
@@ -1108,6 +1110,7 @@ lemma
         heap_my_structure_C s src = x \<and> dst \<noteq> src\<rbrace>
      memcpy_struct' dst src
    \<lbrace>\<lambda>r s. r = dst \<and> heap_my_structure_C s dst = x\<rbrace>!"
+  including nf_no_pre
   apply (rule allI)+
   unfolding memcpy_struct'_def
   apply (wp memcpy_wp)

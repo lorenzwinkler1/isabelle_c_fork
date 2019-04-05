@@ -127,9 +127,10 @@ definition
      tcb_sched_action tcb_sched_dequeue tptr;
      thread_set_priority tptr prio;
      ts \<leftarrow> get_thread_state tptr;
-     when (runnable ts) $ tcb_sched_action tcb_sched_enqueue tptr;
-     cur \<leftarrow> gets cur_thread;
-     when (tptr = cur) reschedule_required
+     when (runnable ts) $ do
+       tcb_sched_action tcb_sched_enqueue tptr;
+       reschedule_required
+     od
    od"
 
 definition
@@ -205,6 +206,14 @@ abbreviation
 abbreviation
   set_notification :: "obj_ref \<Rightarrow> notification \<Rightarrow> (unit,'z::state_ext) s_monad" where
   "set_notification \<equiv> set_simple_ko Notification"
+
+abbreviation
+  ntfn_set_bound_tcb :: "notification \<Rightarrow> obj_ref option \<Rightarrow> notification" where
+  "ntfn_set_bound_tcb ntfn t \<equiv> ntfn \<lparr> ntfn_bound_tcb := t \<rparr>"
+
+abbreviation
+  ntfn_set_obj :: "notification \<Rightarrow> ntfn \<Rightarrow> notification" where
+  "ntfn_set_obj ntfn a \<equiv> ntfn \<lparr> ntfn_obj := a \<rparr>"
 
 
 section {* IRQ State and Slot *}

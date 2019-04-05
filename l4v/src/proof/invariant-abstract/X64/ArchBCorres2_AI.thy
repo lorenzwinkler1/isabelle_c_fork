@@ -32,6 +32,8 @@ crunch (bcorres)bcorres[wp]: set_mcpriority,arch_tcb_set_ipc_buffer truncate_sta
 
 crunch (bcorres)bcorres[wp, BCorres2_AI_assms]: arch_get_sanitise_register_info, arch_post_modify_registers truncate_state
 
+crunch (bcorres)bcorres[wp]: updateIRQState truncate_state
+
 lemma invoke_tcb_bcorres[wp]:
   fixes a
   shows "bcorres (invoke_tcb a) (invoke_tcb a)"
@@ -88,8 +90,8 @@ context Arch begin global_naming X64
 
 crunch (bcorres)bcorres[wp]: send_ipc,send_signal,do_reply_transfer,arch_perform_invocation truncate_state
   (simp: gets_the_def swp_def update_object_def
- ignore: freeMemory clearMemory get_register loadWord cap_fault_on_failure
-         set_register storeWord lookup_error_on_failure getRestartPC getRegister mapME )
+ ignore: freeMemory clearMemory loadWord cap_fault_on_failure
+         storeWord lookup_error_on_failure getRestartPC getRegister mapME )
 
 lemma perform_invocation_bcorres[wp]: "bcorres (perform_invocation a b c) (perform_invocation a b c)"
   apply (cases c)
@@ -101,7 +103,10 @@ lemma decode_cnode_invocation[wp]: "bcorres (decode_cnode_invocation a b c d) (d
   apply (wp | wpc | simp add: split_def | intro impI conjI)+
   done
 
-crunch (bcorres)bcorres[wp]: decode_set_ipc_buffer,decode_set_space,decode_set_priority,decode_set_mcpriority,decode_bind_notification,decode_unbind_notification truncate_state
+crunch (bcorres)bcorres[wp]:
+  decode_set_ipc_buffer, decode_set_space, decode_set_priority,
+  decode_set_mcpriority, decode_set_sched_params, decode_bind_notification,
+  decode_unbind_notification, decode_set_tls_base truncate_state
 
 lemma decode_tcb_configure_bcorres[wp]: "bcorres (decode_tcb_configure b (cap.ThreadCap c) d e)
      (decode_tcb_configure b (cap.ThreadCap c) d e)"
@@ -123,7 +128,10 @@ lemma ensure_safe_mapping_bcorres[wp]: "bcorres (ensure_safe_mapping a) (ensure_
   apply (wp | wpc | simp)+
   done
 
-crunch (bcorres)bcorres[wp]: handle_invocation truncate_state (simp:  Syscall_A.syscall_def Let_def gets_the_def ignore: get_register Syscall_A.syscall cap_fault_on_failure set_register without_preemption const_on_failure)
+crunch (bcorres) bcorres[wp]: handle_invocation truncate_state
+  (simp: syscall_def Let_def gets_the_def
+   ignore: syscall cap_fault_on_failure without_preemption const_on_failure
+           decode_tcb_invocation)
 
 crunch (bcorres)bcorres[wp]: receive_ipc,receive_signal,delete_caller_cap truncate_state
 

@@ -9,9 +9,10 @@
  *)
 
 theory decl_only
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "decl_only.c"
 install_C_file "decl_only.c"
 
 print_locale decl_only_global_addresses

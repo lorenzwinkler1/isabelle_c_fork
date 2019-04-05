@@ -9,7 +9,7 @@
  *)
 
 theory Orphanage
-imports Refine
+imports Refine.Refine
 begin
 
 (*FIXME: arch_split: move up? *)
@@ -579,7 +579,7 @@ lemma switchToIdleThread_no_orphans' [wp]:
    \<lbrace> \<lambda>rv s. no_orphans s \<rbrace>"
   unfolding switchToIdleThread_def setCurThread_def ARM_H.switchToIdleThread_def
   apply (simp add: no_orphans_disj all_queued_tcb_ptrs_def)
-  apply (wp hoare_vcg_all_lift hoare_vcg_imp_lift hoare_vcg_disj_lift storeWordUser_typ'
+  apply (wp hoare_vcg_all_lift hoare_vcg_imp_lift hoare_vcg_disj_lift
        | clarsimp)+
   apply (auto simp: no_orphans_disj all_queued_tcb_ptrs_def is_active_tcb_ptr_def
                     st_tcb_at_neg' tcb_at_typ_at')
@@ -952,10 +952,13 @@ lemma tcbSchedAppend_in_ksQ'':
      apply wpsimp+
   done
 
-crunch st_tcb_at': setSchedulerAction "\<lambda>s. P (st_tcb_at' Q t s)"
+crunches setSchedulerAction
+  for pred_tcb_at': "\<lambda>s. P (pred_tcb_at' proj Q t s)"
+  and ct': "\<lambda>s. P (ksCurThread s)"
+  (wp_del: ssa_wp)
 
 lemmas ssa_st_tcb_at'_ksCurThread[wp] =
-  hoare_lift_Pf2[where f=ksCurThread, OF setSchedulerAction_st_tcb_at' setSchedulerAction_ct']
+  hoare_lift_Pf2[where f=ksCurThread, OF setSchedulerAction_pred_tcb_at' setSchedulerAction_ct']
 
 lemma ct_active_st_tcb_at':
   "ct_active' s = st_tcb_at' runnable' (ksCurThread s) s"
@@ -1013,7 +1016,7 @@ lemma scheduleChooseNewThread_no_orphans:
   done
 
 lemma schedule_no_orphans[wp]:
-  notes ssa_lift[wp del]
+  notes ssa_wp[wp del]
   shows
   "\<lbrace> \<lambda>s. no_orphans s \<and> invs' s \<rbrace>
    schedule
@@ -1096,9 +1099,9 @@ proof -
   show ?thesis
   unfolding schedule_def
   apply (wp, wpc)
-       -- "action = ResumeCurrentThread"
+       \<comment> \<open>action = ResumeCurrentThread\<close>
       apply (wp)[1]
-     -- "action = ChooseNewThread"
+     \<comment> \<open>action = ChooseNewThread\<close>
      apply (clarsimp simp: when_def scheduleChooseNewThread_def)
      apply (wp ssa_no_orphans hoare_vcg_all_lift)
          apply (wp hoare_disjI1 chooseThread_nosch)
@@ -1121,7 +1124,7 @@ proof -
              | strengthen all_invs_but_ct_idle_or_in_cur_domain'_strg
              | wps tcbSchedEnqueue_ct')+)[1]
      apply wp[1]
-    -- "action = SwitchToThread candidate"
+    \<comment> \<open>action = SwitchToThread candidate\<close>
      apply (clarsimp)
     apply (rename_tac candidate)
    apply (wpsimp wp: do_switch_to abort_switch_to_enq abort_switch_to_app)
@@ -1972,6 +1975,7 @@ lemma cancelSignal_valid_queues' [wp]:
   done
 
 crunch no_orphans [wp]: setupReplyMaster "no_orphans"
+  (wp: crunch_wps simp: crunch_simps)
 
 crunch valid_queues' [wp]: setupReplyMaster "valid_queues'"
 
@@ -2068,7 +2072,7 @@ lemma tc_no_orphans:
     K (case_option True (swp is_aligned msg_align_bits o fst) g) and
     K (case g of None \<Rightarrow> True | Some x \<Rightarrow> (case_option True (isArchObjectCap \<circ> fst) \<circ> snd) x) and
     K (valid_option_prio d \<and> valid_option_prio mcp) \<rbrace>
-      invokeTCB (tcbinvocation.ThreadControl a sl b' d mcp e' f' g)
+      invokeTCB (tcbinvocation.ThreadControl a sl b' mcp d e' f' g)
    \<lbrace> \<lambda>rv s. no_orphans s \<rbrace>"
   apply (rule hoare_gen_asm)
   apply (rule hoare_gen_asm)
@@ -2080,13 +2084,13 @@ lemma tc_no_orphans:
     apply ((wp case_option_wp threadSet_no_orphans threadSet_invs_trivial
                threadSet_cap_to' hoare_vcg_all_lift static_imp_wp | clarsimp simp: inQ_def)+)[2]
   apply (rule hoare_walk_assmsE)
-    apply (clarsimp simp: pred_conj_def option.splits[where P="\<lambda>x. x s" for s])
+    apply (cases mcp; clarsimp simp: pred_conj_def option.splits[where P="\<lambda>x. x s" for s])
     apply ((wp case_option_wp threadSet_no_orphans threadSet_invs_trivial setMCPriority_invs'
               typ_at_lifts[OF setMCPriority_typ_at']
-               threadSet_cap_to' hoare_vcg_all_lift static_imp_wp | clarsimp simp: inQ_def)+)[2]
+               threadSet_cap_to' hoare_vcg_all_lift static_imp_wp | clarsimp simp: inQ_def)+)[3]
   apply (rule hoare_walk_assmsE)
-    apply (clarsimp simp: pred_conj_def option.splits[where P="\<lambda>x. x s" for s])
-    apply ((wp case_option_wp hoare_vcg_all_lift static_imp_wp setP_invs' | clarsimp)+)[2]
+    apply (cases d; clarsimp simp: pred_conj_def option.splits[where P="\<lambda>x. x s" for s])
+    apply ((wp case_option_wp hoare_vcg_all_lift static_imp_wp setP_invs' | clarsimp)+)[3]
    apply (rule hoare_pre)
     apply ((simp only: simp_thms cong: conj_cong
           | wp cteDelete_deletes cteDelete_invs' cteDelete_sch_act_simple
@@ -2143,6 +2147,8 @@ lemma invokeIRQControl_no_orphans [wp]:
    performIRQControl i
    \<lbrace> \<lambda>rv s. no_orphans s \<rbrace>"
   apply (cases i, simp_all add: performIRQControl_def ARM_H.performIRQControl_def)
+  apply (rename_tac archinv)
+  apply (case_tac archinv)
   apply (wp | clarsimp)+
   done
 
@@ -2222,7 +2228,7 @@ lemma performASIDControlInvocation_no_orphans [wp]:
      apply (simp add:cte invs')+
     done
 
-  show "\<lbrace>op = s\<rbrace>performASIDControlInvocation (asidcontrol_invocation.MakePool ptr_base p cref ptr)
+  show "\<lbrace>(=) s\<rbrace>performASIDControlInvocation (asidcontrol_invocation.MakePool ptr_base p cref ptr)
        \<lbrace>\<lambda>reply. no_orphans\<rbrace>"
   apply (clarsimp simp: performASIDControlInvocation_def
                   split: asidcontrol_invocation.splits)

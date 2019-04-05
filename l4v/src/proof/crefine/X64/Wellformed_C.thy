@@ -13,9 +13,9 @@
 
 theory Wellformed_C
 imports
-  "../../../lib/CTranslationNICTA"
+  "CLib.CTranslationNICTA"
   CLevityCatch
-  "../../../spec/cspec/Substitute"
+  "CSpec.Substitute"
 begin
 
 context begin interpretation Arch . (*FIXME: arch_split*)
@@ -44,6 +44,22 @@ abbreviation
   pdpte_Ptr :: "word64 \<Rightarrow> pdpte_C ptr" where "pdpte_Ptr == Ptr"
 abbreviation
   pml4e_Ptr :: "word64 \<Rightarrow> pml4e_C ptr" where "pml4e_Ptr == Ptr"
+
+(* 1024 = number of entries in ioport table
+        = 2^16 (total number of ioports) / word_bits *)
+type_synonym ioport_table_C = "machine_word[1024]"
+
+type_synonym tcb_cnode_array = "cte_C[5]"
+type_synonym fpu_bytes_array = "word8[fpu_bytes]"
+type_synonym registers_array = "machine_word[23]"
+
+abbreviation "user_context_Ptr \<equiv> Ptr :: addr \<Rightarrow> user_context_C ptr"
+abbreviation "machine_word_Ptr \<equiv> Ptr :: addr \<Rightarrow> machine_word ptr"
+abbreviation "tcb_cnode_Ptr \<equiv> Ptr :: addr \<Rightarrow> tcb_cnode_array ptr"
+abbreviation "fpu_state_Ptr \<equiv> Ptr :: addr \<Rightarrow> user_fpu_state_C ptr"
+abbreviation "fpu_bytes_Ptr \<equiv> Ptr :: addr \<Rightarrow> fpu_bytes_array ptr"
+abbreviation "registers_Ptr \<equiv> Ptr :: addr \<Rightarrow> registers_array ptr"
+abbreviation "ioport_table_Ptr \<equiv> Ptr :: addr \<Rightarrow> ioport_table_C ptr"
 
 lemma halt_spec:
   "Gamma \<turnstile> {} Call halt_'proc {}"
@@ -105,11 +121,11 @@ definition
 definition
   ep_at_C' :: "word64 \<Rightarrow> heap_raw_state \<Rightarrow> bool"
 where
-  "ep_at_C' p h \<equiv> Ptr p \<in> dom (clift h :: endpoint_C typ_heap)" -- "endpoint_lift is total"
+  "ep_at_C' p h \<equiv> Ptr p \<in> dom (clift h :: endpoint_C typ_heap)" \<comment> \<open>endpoint_lift is total\<close>
 
 definition
   ntfn_at_C' :: "word64 \<Rightarrow> heap_raw_state \<Rightarrow> bool"
-  where -- "notification_lift is total"
+  where \<comment> \<open>notification_lift is total\<close>
   "ntfn_at_C' p h \<equiv> Ptr p \<in> dom (clift h :: notification_C typ_heap)"
 
 definition
@@ -121,18 +137,6 @@ definition
   cte_at_C' :: "word64 \<Rightarrow> heap_raw_state \<Rightarrow> bool"
   where
   "cte_at_C' p h \<equiv> Ptr p \<in> dom (clift h :: cte_C typ_heap)"
-
-definition
-  ctcb_size_bits :: nat
-  where
-  "ctcb_size_bits \<equiv> 10"
-
-definition
-  ctcb_offset :: machine_word
-  where
-  "ctcb_offset \<equiv> 2 ^ ctcb_size_bits"
-
-lemmas ctcb_offset_defs = ctcb_offset_def ctcb_size_bits_def
 
 definition
   ctcb_ptr_to_tcb_ptr :: "tcb_C ptr \<Rightarrow> word64"
@@ -200,7 +204,7 @@ capUntypedPtr_C :: "cap_CL \<Rightarrow> word64" where
  | _ \<Rightarrow> error []"
 
 definition ZombieTCB_C_def:
-"ZombieTCB_C \<equiv> bit 5"
+"ZombieTCB_C \<equiv> bit 6" (*wordRadix*)
 
 definition
   isZombieTCB_C :: "word64 \<Rightarrow> bool" where
@@ -209,9 +213,9 @@ definition
 definition
 vmrights_to_H :: "word64 \<Rightarrow> vmrights" where
 "vmrights_to_H c \<equiv>
-  if c = scast Kernel_C.VMKernelOnly then VMKernelOnly
+  if c = scast Kernel_C.VMReadWrite then VMReadWrite
   else if c = scast Kernel_C.VMReadOnly then VMReadOnly
-  else VMReadWrite"
+  else VMKernelOnly"
 
 (* Force clarity over name collisions *)
 abbreviation
@@ -231,6 +235,27 @@ where
     if c = scast Kernel_C.X86_SmallPage then X64SmallPage
     else if c = scast Kernel_C.X86_LargePage then X64LargePage
     else X64HugePage"
+
+definition
+  framesize_from_H :: "vmpage_size \<Rightarrow> machine_word"
+where
+  "framesize_from_H sz \<equiv>
+    case sz of
+         X64SmallPage \<Rightarrow> scast Kernel_C.X86_SmallPage
+       | X64LargePage \<Rightarrow> scast Kernel_C.X86_LargePage
+       | X64HugePage \<Rightarrow> scast Kernel_C.X64_HugePage"
+
+lemma framesize_from_to_H:
+  "framesize_to_H (framesize_from_H sz) = sz"
+  by (simp add: framesize_to_H_def framesize_from_H_def
+                Kernel_C.X86_SmallPage_def Kernel_C.X86_LargePage_def
+                Kernel_C.X64_HugePage_def
+           split: if_split vmpage_size.splits)
+
+lemma framesize_from_H_eq:
+  "(framesize_from_H sz = framesize_from_H sz') = (sz = sz')"
+  by (cases sz; cases sz';
+      simp add: framesize_from_H_def X86_SmallPage_def X86_LargePage_def X64_HugePage_def)
 
 definition
   maptype_to_H :: "machine_word \<Rightarrow> vmmap_type"
@@ -378,6 +403,7 @@ where
                                            then Some (cap_pml4_cap_CL.capPML4MappedASID_CL pdf)
                                            else None))
  | Cap_domain_cap \<Rightarrow> DomainCap
+ | Cap_io_port_control_cap \<Rightarrow> ArchObjectCap IOPortControlCap
  | Cap_io_port_cap ioc \<Rightarrow> ArchObjectCap (IOPortCap (ucast(capIOPortFirstPort_CL ioc)) (ucast(capIOPortLastPort_CL ioc)))"
 
 lemmas cap_to_H_simps = cap_to_H_def[split_simps cap_CL.split]
@@ -394,8 +420,10 @@ cl_valid_cap :: "cap_CL \<Rightarrow> bool"
 where
 "cl_valid_cap c \<equiv>
    case c of
-     Cap_irq_handler_cap fc \<Rightarrow> ((capIRQ_CL fc) && mask 10 = capIRQ_CL fc) (* FIXME x64: don't know if this should stay as 10 *)
-     | x \<Rightarrow> True"
+     Cap_irq_handler_cap fc \<Rightarrow> ((capIRQ_CL fc) && mask 8 = capIRQ_CL fc)
+   | Cap_frame_cap fc \<Rightarrow> capFSize_CL fc < 3 \<and> capFMapType_CL fc < 2 \<and> capFVMRights_CL fc < 4 \<and> capFVMRights_CL fc \<noteq> 0
+   | Cap_pml4_cap pc \<Rightarrow> to_bool (capPML4IsMapped_CL pc) = (capPML4MappedASID_CL pc \<noteq> ucast asidInvalid)
+   | x \<Rightarrow> True"
 
 definition
 c_valid_cap :: "cap_C \<Rightarrow> bool"
@@ -414,8 +442,8 @@ c_valid_cte :: "cte_C \<Rightarrow> bool"
 where
 "c_valid_cte c \<equiv>  c_valid_cap (cte_C.cap_C c)"
 
+(* all uninteresting cases can be deduced from the cap tag *)
 lemma  c_valid_cap_simps [simp]:
-  "cap_get_tag c = scast cap_frame_cap \<Longrightarrow> c_valid_cap c"
   "cap_get_tag c = scast cap_thread_cap \<Longrightarrow> c_valid_cap c"
   "cap_get_tag c = scast cap_notification_cap \<Longrightarrow> c_valid_cap c"
   "cap_get_tag c = scast cap_endpoint_cap \<Longrightarrow> c_valid_cap c"
@@ -430,7 +458,6 @@ lemma  c_valid_cap_simps [simp]:
   "cap_get_tag c = scast cap_reply_cap \<Longrightarrow> c_valid_cap c"
   "cap_get_tag c = scast cap_null_cap \<Longrightarrow> c_valid_cap c"
   "cap_get_tag c = scast cap_pdpt_cap \<Longrightarrow> c_valid_cap c"
-  "cap_get_tag c = scast cap_pml4_cap \<Longrightarrow> c_valid_cap c"
   "cap_get_tag c = scast cap_io_port_cap \<Longrightarrow> c_valid_cap c"
   unfolding c_valid_cap_def  cap_lift_def cap_tag_defs
   by (simp add: cl_valid_cap_def)+

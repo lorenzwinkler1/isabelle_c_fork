@@ -17,10 +17,10 @@ chapter "x64 Machine Instantiation"
 
 theory Machine_A
 imports
-  "../../../lib/$L4V_ARCH/WordSetup"
-  "../../../lib/Monad_WP/NonDetMonad"
-  "../../machine/$L4V_ARCH/MachineTypes"
-  "../../machine/$L4V_ARCH/MachineOps"
+  "Word_Lib.WordSetup"
+  "Lib.NonDetMonad"
+  "ExecSpec.MachineTypes"
+  "ExecSpec.MachineOps"
 begin
 
 context Arch begin global_naming X64_A
@@ -30,17 +30,26 @@ text {*
   references, user pointers, word-based data, cap references, and so
   on. This theory provides an instantiation of these names to concrete
   types for the x64 architecture. Other architectures may have slightly
-  different instantations.
+  different instantiations.
 *}
 type_synonym obj_ref            = machine_word
 type_synonym vspace_ref         = machine_word
-type_synonym data_offset        = "12 word"
 
 type_synonym data               = machine_word
 type_synonym cap_ref            = "bool list"
 type_synonym length_type        = machine_word
-type_synonym asid_pool_index    = "9 word"
-type_synonym asid_index         = "3 word" (* FIXME: better name? *)
+
+type_synonym asid_low_len      = 9
+type_synonym asid_low_index    = "asid_low_len word"
+
+type_synonym asid_high_len      = 3
+type_synonym asid_high_index    = "asid_high_len word"
+
+(* It might be nice if asid was "12 word", but Refine is easier if it is a machine_word.  *)
+(* Making asid a machine_word means that we need invariants that the extra bits are zero. *)
+type_synonym asid_len           = 12
+type_synonym asid_rep_len       = machine_word_len
+type_synonym asid               = "asid_rep_len word"
 
 text {* With the definitions above, most conversions between abstract
 type names boil down to just the identity function, some convert from
@@ -79,10 +88,6 @@ definition
   "data_to_cptr \<equiv> to_bl"
 
 definition
-  data_offset_to_nat :: "data_offset \<Rightarrow> nat" where
-  "data_offset_to_nat \<equiv> unat"
-
-definition
   combine_ntfn_badges :: "data \<Rightarrow> data \<Rightarrow> data" where
   "combine_ntfn_badges \<equiv> bitOR"
 
@@ -95,7 +100,6 @@ text {* These definitions will be unfolded automatically in proofs. *}
 lemmas data_convs [simp] =
   oref_to_data_def data_to_oref_def vref_to_data_def data_to_vref_def
   nat_to_len_def data_to_nat_def data_to_16_def data_to_cptr_def
-  data_offset_to_nat_def
 
 
 text {* The following definitions provide architecture-dependent sizes
@@ -106,11 +110,13 @@ definition
   slot_bits :: nat where
   "slot_bits \<equiv> 5"
 
-type_synonym user_context = "register \<Rightarrow> data"
+definition
+  msg_label_bits :: nat where
+  [simp]: "msg_label_bits \<equiv> 52"
 
 definition
   new_context :: "user_context" where
-  "new_context \<equiv> (\<lambda>r. 0) aLU initContext"
+  "new_context \<equiv> UserContext FPUNullState ((\<lambda>r. 0)(CS := selCS3, SS := selDS3, FLAGS := 0x202))"
 
 definition
   pptr_base :: "machine_word" where
@@ -119,13 +125,13 @@ definition
 (* Virtual address space available to users. *)
 definition
   user_vtop :: "machine_word" where
-  "user_vtop = 0x00007fffffffffff"
+  "user_vtop = Platform.X64.pptrUserTop"
 
 text {* The lowest virtual address in the kernel window. The kernel reserves the
 virtual addresses from here up in every virtual address space. *}
 definition
   kernel_base :: "vspace_ref" where
-  "kernel_base \<equiv> 0xffffffffc0000000"
+  "kernel_base \<equiv> 0xffffffff80000000"
 
 definition
   idle_thread_ptr :: vspace_ref where

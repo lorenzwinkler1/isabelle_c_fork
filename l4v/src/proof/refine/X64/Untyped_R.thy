@@ -43,7 +43,8 @@ where
           \<and> (\<forall>slot \<in> set slots. cte_wp_at' (\<lambda>c. cteCap c = NullCap) slot s)
           \<and> (\<forall>slot \<in> set slots. ex_cte_cap_to' slot s)
           \<and> sch_act_simple s \<and> 0 < length slots
-          \<and> (d \<longrightarrow> ty = APIObjectType ArchTypes_H.Untyped \<or> isFrameType ty))"
+          \<and> (d \<longrightarrow> ty = APIObjectType ArchTypes_H.Untyped \<or> isFrameType ty)
+          \<and> APIType_capBits ty us \<le> maxUntypedSizeBits)"
 
 abbreviation
   "valid_untyped_inv' ui \<equiv> valid_untyped_inv_wcap' ui None"
@@ -137,11 +138,17 @@ lemma is_frame_type_isFrameType_eq[simp]:
 (* FIXME: remove *)
 lemmas APIType_capBits = objSize_eq_capBits
 
+(* FIXME: move *)
+lemma corres_whenE_throw_merge:
+  "corres r P P' f (doE _ \<leftarrow> whenE (A \<or> B) (throwError e); h odE)
+  \<Longrightarrow> corres r P P' f (doE _ \<leftarrow> whenE A (throwError e); _ \<leftarrow>  whenE B (throwError e); h odE)"
+  by (auto simp: whenE_def split: if_splits)
+
 lemma dec_untyped_inv_corres:
   assumes cap_rel: "list_all2 cap_relation cs cs'"
   shows "corres
         (ser \<oplus> untypinv_relation)
-        (invs and cte_wp_at (op = (cap.UntypedCap d w n idx)) slot and (\<lambda>s. \<forall>x \<in> set cs. s \<turnstile> x))
+        (invs and cte_wp_at ((=) (cap.UntypedCap d w n idx)) slot and (\<lambda>s. \<forall>x \<in> set cs. s \<turnstile> x))
         (invs'
           and (\<lambda>s. \<forall>x \<in> set cs'. s \<turnstile>' x))
         (decode_untyped_invocation label args slot (cap.UntypedCap d w n idx) cs)
@@ -283,11 +290,12 @@ next
                cong: if_cong list.case_cong)
     apply (rule corres_guard_imp)
       apply (rule corres_splitEE [OF _ Q])
+        apply (rule corres_whenE_throw_merge)
         apply (rule whenE_throwError_corres)
           apply (simp add: word_bits_def word_size)
-         apply (simp add: word_size word_bits_def fromIntegral_def
-                          toInteger_nat fromInteger_nat linorder_not_less)
-         apply fastforce
+         apply (clarsimp simp: word_size word_bits_def fromIntegral_def ty_size
+                          toInteger_nat fromInteger_nat wordBits_def)
+         apply (simp add: not_le)
         apply (rule whenE_throwError_corres, simp)
          apply (clarsimp simp: fromAPIType_def X64_H.fromAPIType_def)
         apply (rule whenE_throwError_corres, simp)
@@ -452,23 +460,23 @@ lemma ctes_of_ko:
    (\<forall>ptr\<in>capRange cap. \<exists>optr ko. ksPSpace s optr = Some ko \<and>
                                   ptr \<in> obj_range' optr ko)"
   apply (case_tac cap)
-             -- "TCB case"
+             \<comment> \<open>TCB case\<close>
              apply (simp_all add: isCap_simps capRange_def)
        apply (clarsimp simp: valid_cap'_def obj_at'_def)
        apply (intro exI conjI, assumption)
        apply (clarsimp simp: projectKO_eq objBits_def obj_range'_def
                        dest!: projectKO_opt_tcbD simp: objBitsKO_def)
-      -- "NTFN case"
+      \<comment> \<open>NTFN case\<close>
       apply (clarsimp simp: valid_cap'_def obj_at'_def)
       apply (intro exI conjI, assumption)
       apply (clarsimp simp: projectKO_eq objBits_def
      obj_range'_def projectKO_ntfn objBitsKO_def)
-     -- "EP case"
+     \<comment> \<open>EP case\<close>
      apply (clarsimp simp: valid_cap'_def obj_at'_def)
      apply (intro exI conjI, assumption)
      apply (clarsimp simp: projectKO_eq objBits_def
     obj_range'_def projectKO_ep objBitsKO_def)
-    -- "Zombie case"
+    \<comment> \<open>Zombie case\<close>
     apply (rename_tac word zombie_type nat)
     apply (case_tac zombie_type)
      apply (clarsimp simp: valid_cap'_def obj_at'_def)
@@ -483,10 +491,10 @@ lemma ctes_of_ko:
     apply (drule_tac x=idx in spec)
     apply (clarsimp simp: less_mask_eq)
     apply (fastforce simp: obj_range'_def projectKOs objBits_simps' field_simps)[1]
-   -- "Arch cases"
+   \<comment> \<open>Arch cases\<close>
    apply (rename_tac arch_capability)
    apply (case_tac arch_capability)
-       -- "ASID case"
+       \<comment> \<open>ASID case\<close>
           apply (clarsimp simp: valid_cap'_def  typ_at'_def ko_wp_at'_def)
           apply (intro exI conjI, assumption)
           apply (clarsimp simp: obj_range'_def archObjSize_def objBitsKO_def)
@@ -495,9 +503,11 @@ lemma ctes_of_ko:
           apply (case_tac arch_kernel_object;
               simp add: archObjSize_def asid_low_bits_def pageBits_def bit_simps)
          apply simp
-        -- "IOPort case"
+        \<comment> \<open>IOPort case\<close>
         apply clarsimp
-     -- "Page case"
+        \<comment> \<open>IOPortControl case\<close>
+        apply clarsimp
+     \<comment> \<open>Page case\<close>
        apply (rename_tac word vmrights vmpage_size option)
        apply (clarsimp simp: valid_cap'_def typ_at'_def ko_wp_at'_def capAligned_def)
        apply (frule_tac ptr = ptr and sz = "pageBits" in nasty_range [where 'a=machine_word_len, folded word_bits_def])
@@ -508,7 +518,7 @@ lemma ctes_of_ko:
        apply (clarsimp simp: obj_range'_def)
        apply (case_tac ko, simp_all split: if_splits,
              (simp add: objBitsKO_def archObjSize_def field_simps shiftl_t2n)+)[1]
-    -- "PT case"
+    \<comment> \<open>PT case\<close>
       apply (rename_tac word option)
       apply (clarsimp simp: valid_cap'_def obj_at'_def pageBits_def bit_simps
                             page_table_at'_def typ_at'_def ko_wp_at'_def ptBits_def)
@@ -526,7 +536,7 @@ lemma ctes_of_ko:
       apply (rename_tac arch_kernel_object)
       apply (case_tac arch_kernel_object; simp)
       apply (simp add: objBitsKO_def archObjSize_def field_simps shiftl_t2n)
-   -- "PD case"
+   \<comment> \<open>PD case\<close>
      apply (clarsimp simp: valid_cap'_def obj_at'_def pageBits_def pdBits_def bit_simps
                          page_directory_at'_def typ_at'_def ko_wp_at'_def)
      apply (frule_tac ptr=ptr and sz=3 in
@@ -543,7 +553,7 @@ lemma ctes_of_ko:
      apply (rename_tac arch_kernel_object)
      apply (case_tac arch_kernel_object; simp)
      apply (simp add: field_simps archObjSize_def shiftl_t2n)
-   -- "PDPT case"
+   \<comment> \<open>PDPT case\<close>
     apply (clarsimp simp: valid_cap'_def obj_at'_def pageBits_def pdptBits_def bit_simps
                          pd_pointer_table_at'_def typ_at'_def ko_wp_at'_def)
     apply (frule_tac ptr=ptr and sz=3 in
@@ -560,7 +570,7 @@ lemma ctes_of_ko:
     apply (rename_tac arch_kernel_object)
     apply (case_tac arch_kernel_object; simp)
     apply (simp add: field_simps archObjSize_def shiftl_t2n)
-   -- "PML4 case"
+   \<comment> \<open>PML4 case\<close>
    apply (clarsimp simp: valid_cap'_def obj_at'_def pageBits_def pml4Bits_def bit_simps
                          page_map_l4_at'_def typ_at'_def ko_wp_at'_def)
    apply (frule_tac ptr=ptr and sz=3 in
@@ -577,7 +587,7 @@ lemma ctes_of_ko:
    apply (rename_tac arch_kernel_object)
    apply (case_tac arch_kernel_object; simp)
    apply (simp add: field_simps archObjSize_def shiftl_t2n)
-  -- "CNode case"
+  \<comment> \<open>CNode case\<close>
   apply (clarsimp simp: valid_cap'_def obj_at'_def capAligned_def
                         objBits_simps projectKOs)
   apply (frule_tac ptr=ptr and sz=cte_level_bits
@@ -681,7 +691,6 @@ lemma checkFreeIndex_wp:
   "\<lbrace>\<lambda>s. if descendants_of' slot (ctes_of s) = {} then Q y s else Q x s\<rbrace>
    constOnFailure x (doE z \<leftarrow> ensureNoChildren slot; returnOk y odE)
    \<lbrace>Q\<rbrace>"
-  including no_pre
   apply (clarsimp simp:constOnFailure_def const_def)
   apply (wp ensureNoChildren_wp)
   apply simp
@@ -813,53 +822,51 @@ lemma decodeUntyped_wf[wp]:
      decodeUntypedInvocation label args slot
        (UntypedCap d w sz idx) cs
    \<lbrace>valid_untyped_inv'\<rbrace>,-"
-  apply (simp add: decodeUntypedInvocation_def unlessE_def[symmetric]
-                   unlessE_whenE rangeCheck_def whenE_def[symmetric]
-                   returnOk_liftE[symmetric] Let_def
-                   cap_case_CNodeCap_True_throw
-                split del: if_split cong: if_cong list.case_cong)
+  unfolding decodeUntypedInvocation_def
+  apply (simp add: unlessE_def[symmetric] unlessE_whenE rangeCheck_def whenE_def[symmetric]
+                   returnOk_liftE[symmetric] Let_def cap_case_CNodeCap_True_throw
+              split del: if_split cong: if_cong list.case_cong)
   apply (rule list_case_throw_validE_R)
   apply (clarsimp split del: if_split split: list.splits)
   apply (intro conjI impI allI)
    apply (wp+)[6]
-  apply clarify
+  apply (clarsimp split del: if_split)
+  apply (rename_tac ty us nodeIndexW nodeDepthW nodeOffset nodeWindow rootCap cs' xs')
   apply (rule validE_R_sp[OF map_ensure_empty'] validE_R_sp[OF whenE_throwError_sp]
               validE_R_sp[OF dui_sp_helper'])+
   apply (case_tac "\<not> isCNodeCap nodeCap")
    apply (simp add: validE_R_def)
-  apply (simp add: mapM_locate_eq bind_liftE_distrib bindE_assoc
-                         returnOk_liftE[symmetric])
+  apply (simp add: mapM_locate_eq bind_liftE_distrib bindE_assoc returnOk_liftE[symmetric])
   apply (rule validE_R_sp, rule liftE_validE_R, rule stateAssert_sp)
   apply (rule hoare_pre, wp whenE_throwError_wp checkFreeIndex_wp map_ensure_empty')
   apply (clarsimp simp:cte_wp_at_ctes_of not_less shiftL_nat)
-   apply (rename_tac ty us b e srcNode list dimNode s cte)
+  apply (case_tac cte)
+  apply clarsimp
+  apply (frule(1) valid_capAligned[OF ctes_of_valid_cap'[OF _ invs_valid_objs']])
+  apply (clarsimp simp:capAligned_def)
+  apply (subgoal_tac "idx \<le> 2^ sz")
+   prefer 2
+   apply (frule(1) ctes_of_valid_cap'[OF _ invs_valid_objs'])
+   apply (clarsimp simp:valid_cap'_def valid_untyped_def)
+  apply (subgoal_tac "(2 ^ sz - idx) < 2^ word_bits")
+   prefer 2
+   apply (rule le_less_trans[where y = "2^sz"])
+    apply simp+
+  apply (subgoal_tac "of_nat (2 ^ sz - idx) = (2::machine_word)^sz - of_nat idx")
+   prefer 2
+   apply (simp add:word_of_nat_minus)
+  apply (subgoal_tac "valid_cap' nodeCap s")
+   prefer 2
+   apply (erule disjE)
+    apply (fastforce dest: cte_wp_at_valid_objs_valid_cap')
+   apply clarsimp
    apply (case_tac cte)
    apply clarsimp
-   apply (frule(1) valid_capAligned[OF ctes_of_valid_cap'[OF _ invs_valid_objs']])
-   apply (clarsimp simp:capAligned_def)
-   apply (subgoal_tac "idx \<le> 2^ sz")
-    prefer 2
-    apply (frule(1) ctes_of_valid_cap'[OF _ invs_valid_objs'])
-    apply (clarsimp simp:valid_cap'_def valid_untyped_def)
-   apply (subgoal_tac "(2 ^ sz - idx) < 2^ word_bits")
-    prefer 2
-    apply (rule le_less_trans[where y = "2^sz"])
-    apply simp+
-   apply (subgoal_tac "of_nat (2 ^ sz - idx) = (2::machine_word)^sz - of_nat idx")
-    prefer 2
-    apply (simp add:word_of_nat_minus)
-   apply (subgoal_tac "valid_cap' dimNode s")
-    prefer 2
-    apply (erule disjE)
-     apply (fastforce dest: cte_wp_at_valid_objs_valid_cap')
-    apply clarsimp
-    apply (case_tac cte)
-    apply clarsimp
-    apply (drule(1) ctes_of_valid_cap'[OF _ invs_valid_objs'])+
-    apply (drule diminished_valid')
-    apply simp
+   apply (drule(1) ctes_of_valid_cap'[OF _ invs_valid_objs'])+
+   apply (drule diminished_valid')
+   apply simp
   apply (clarsimp simp: toEnum_of_nat [OF less_Suc_unat_less_bound] ucast_id)
-  apply (subgoal_tac "args ! 4 \<le> 2 ^ capCNodeBits dimNode")
+  apply (subgoal_tac "args ! 4 \<le> 2 ^ capCNodeBits nodeCap")
    prefer 2
    apply (clarsimp simp: isCap_simps)
    apply (subst (asm) le_m1_iff_lt[THEN iffD1])
@@ -867,7 +874,7 @@ lemma decodeUntyped_wf[wp]:
    apply (rule less_imp_le)
    apply simp
   apply (subgoal_tac
-    "distinct (map (\<lambda>y. capCNodePtr dimNode + y * 2^cte_level_bits) [args ! 4 .e. args ! 4 + args ! 5 - 1])")
+    "distinct (map (\<lambda>y. capCNodePtr nodeCap + y * 2^cte_level_bits) [args ! 4 .e. args ! 4 + args ! 5 - 1])")
    prefer 2
    apply (simp add: distinct_map upto_enum_def del: upt_Suc)
    apply (rule comp_inj_on)
@@ -877,8 +884,7 @@ lemma decodeUntyped_wf[wp]:
      apply (simp add: unats_def)
     apply (simp add: unats_def)
    apply (rule inj_onI)
-   apply (clarsimp simp: toEnum_of_nat[OF less_Suc_unat_less_bound]
-                         ucast_id isCap_simps)
+   apply (clarsimp simp: toEnum_of_nat[OF less_Suc_unat_less_bound] ucast_id isCap_simps)
    apply (erule(2) inj_bits, simp add: cte_level_bits_def word_bits_def)
    apply (subst Suc_unat_diff_1)
     apply (rule word_le_plus_either,simp)
@@ -891,12 +897,11 @@ lemma decodeUntyped_wf[wp]:
    apply (subst unat_power_lower64[symmetric], simp add: word_bits_def cte_level_bits_def)
    apply (simp add: word_less_nat_alt[symmetric])
    apply (rule two_power_increasing)
-    apply (clarsimp dest!:valid_capAligned
-                     simp:capAligned_def objBits_def objBitsKO_def)
+    apply (clarsimp dest!: valid_capAligned
+                     simp: capAligned_def objBits_def objBitsKO_def)
     apply (simp_all add: word_bits_def cte_level_bits_def objBits_defs)[2]
   apply (clarsimp simp: X64_H.fromAPIType_def)
-  apply (subgoal_tac "Suc (unat (args ! 4 + args ! 5 - 1))
-      = unat (args ! 4) + unat (args ! 5)")
+  apply (subgoal_tac "Suc (unat (args ! 4 + args ! 5 - 1)) = unat (args ! 4) + unat (args ! 5)")
    prefer 2
    apply simp
    apply (subst Suc_unat_diff_1)
@@ -910,11 +915,11 @@ lemma decodeUntyped_wf[wp]:
    apply (erule(1) plus_minus_no_overflow_ab)
   apply clarsimp
   apply (subgoal_tac "(\<forall>x. (args ! 4) \<le> x \<and> x \<le> (args ! 4) + (args ! 5) - 1 \<longrightarrow>
-    ex_cte_cap_wp_to' (\<lambda>_. True) (capCNodePtr dimNode + x * 2^cteSizeBits) s)")
+                      ex_cte_cap_wp_to' (\<lambda>_. True) (capCNodePtr nodeCap + x * 2^cteSizeBits) s)")
    prefer 2
    apply clarsimp
    apply (erule disjE)
-   apply (erule bspec)
+    apply (erule bspec)
     apply (clarsimp simp:isCap_simps image_def)
     apply (rule_tac x = x in bexI,simp)
     apply simp
@@ -928,8 +933,7 @@ lemma decodeUntyped_wf[wp]:
    apply (clarsimp simp:ex_cte_cap_wp_to'_def)
    apply (rule_tac x = nodeSlot in exI)
    apply (case_tac cte)
-   apply (clarsimp simp:cte_wp_at_ctes_of diminished_cte_refs'[symmetric]
-     isCap_simps image_def)
+   apply (clarsimp simp:cte_wp_at_ctes_of diminished_cte_refs'[symmetric] isCap_simps image_def)
    apply (rule_tac x = x in bexI,simp)
    apply simp
    apply (erule order_trans)
@@ -939,10 +943,10 @@ lemma decodeUntyped_wf[wp]:
    apply (subst olen_add_eqv)
    apply (subst add.commute)
    apply (erule(1) plus_minus_no_overflow_ab)
-  apply (intro conjI)
+  apply (simp add: fromIntegral_def toInteger_nat fromInteger_nat)
+  apply (rule conjI)
    apply (simp add: objBits_defs cte_level_bits_def)
-   apply (clarsimp simp: of_nat_shiftR fromIntegral_def toInteger_nat
-                         fromInteger_nat word_le_nat_alt)
+   apply (clarsimp simp:of_nat_shiftR word_le_nat_alt)
    apply (frule_tac n = "unat (args ! 5)"
         and bits = "(APIType_capBits (toEnum (unat (args ! 0))) (unat (args ! 1)))"
        in range_cover_stuff[where rv = 0,rotated -1])
@@ -956,21 +960,22 @@ lemma decodeUntyped_wf[wp]:
     apply (simp add:range_cover_def)
    apply (simp add:empty_descendants_range_in' untypedBits_defs)
    apply (clarsimp simp: image_def isCap_simps nullPointer_def word_size field_simps)
-   apply (rule conjI[rotated], clarsimp) (* peel of device goal *)
-   apply (clarsimp simp: image_def isCap_simps nullPointer_def
-                         word_size field_simps)
+   apply (intro conjI)
+     apply (clarsimp simp: image_def isCap_simps nullPointer_def word_size field_simps)
+     apply (drule_tac x=x in spec)+
+     apply simp
+    apply (clarsimp simp: APIType_capBits_def)
+   apply clarsimp
+  apply (clarsimp simp: image_def getFreeRef_def cte_level_bits_def objBits_simps' field_simps)
+  apply (clarsimp simp: of_nat_shiftR word_le_nat_alt)
+  apply (frule_tac n = "unat (args ! 5)"
+               and bits = "(APIType_capBits (toEnum (unat (args ! 0))) (unat (args ! 1)))"
+                in range_cover_stuff[where w=w and sz=sz and rv = idx,rotated -1]; simp?)
+  apply (intro conjI; clarsimp simp add: image_def word_size)
+   apply (clarsimp simp: image_def isCap_simps nullPointer_def word_size field_simps)
    apply (drule_tac x=x in spec)+
    apply simp
-  apply (clarsimp simp: of_nat_shiftR fromIntegral_def toInteger_nat
-                        fromInteger_nat word_le_nat_alt)
-  apply (frule_tac n = "unat (args ! 5)"
-        and bits = "(APIType_capBits (toEnum (unat (args ! 0))) (unat (args ! 1)))"
-       in range_cover_stuff[rotated -1])
-   apply (simp add:unat_1_0)+
-  apply (clarsimp simp: getFreeRef_def objBits_simps' cte_level_bits_def field_simps)
-  apply (intro conjI; clarsimp simp: image_def word_size)
-  apply (drule_tac x=x in spec)+
-  apply clarsimp
+  apply (clarsimp simp: APIType_capBits_def)
   done
 
 lemma getCTE_known_cap:
@@ -1424,7 +1429,7 @@ lemma mdb_relation_simp:
   by (cases p, clarsimp simp: state_relation_def cdt_relation_def)
 
 lemma in_getCTE2:
-  "((cte, s') \<in> fst (getCTE p s)) = (s' = s \<and> cte_wp_at' (op = cte) p s)"
+  "((cte, s') \<in> fst (getCTE p s)) = (s' = s \<and> cte_wp_at' ((=) cte) p s)"
   apply (safe dest!: in_getCTE)
   apply (clarsimp simp: cte_wp_at'_def getCTE_def)
   done
@@ -1512,9 +1517,9 @@ shows
   "\<lbrakk> cref' = cte_map (fst tup)
      \<and> cap_relation (default_cap tp (snd tup) sz d) cap \<rbrakk> \<Longrightarrow>
    corres dc
-     (cte_wp_at (op = cap.NullCap) (fst tup) and pspace_aligned
+     (cte_wp_at ((=) cap.NullCap) (fst tup) and pspace_aligned
         and pspace_distinct and valid_objs and valid_mdb and valid_list
-        and cte_wp_at (op \<noteq> cap.NullCap) p)
+        and cte_wp_at ((\<noteq>) cap.NullCap) p)
      (cte_wp_at' (\<lambda>c. cteCap c = NullCap) cref' and
       cte_wp_at' (\<lambda>cte. isUntypedCap (cteCap cte) \<and> sameRegionAs (cteCap cte) cap) (cte_map p)
        and valid_mdb' and pspace_aligned' and pspace_distinct' and valid_objs'
@@ -1547,7 +1552,7 @@ shows
                                               prefer 3
                                               apply wp+
                                                  apply (rule hoare_post_imp, simp)
-                                                 apply wp+
+                                                 apply (wp | assumption)+
                                              defer
                                              apply ((wp | simp)+)[1]
                                             apply (simp add: create_cap_ext_def set_cdt_list_def update_cdt_list_def bind_assoc)
@@ -1757,6 +1762,8 @@ lemma setCTE_cteCaps_of[wp]:
 
 lemma insertNewCap_wps[wp]:
   "\<lbrace>pspace_aligned'\<rbrace> insertNewCap parent slot cap \<lbrace>\<lambda>rv. pspace_aligned'\<rbrace>"
+  "\<lbrace>pspace_canonical'\<rbrace> insertNewCap parent slot cap \<lbrace>\<lambda>rv. pspace_canonical'\<rbrace>"
+  "\<lbrace>pspace_in_kernel_mappings'\<rbrace> insertNewCap parent slot cap \<lbrace>\<lambda>rv. pspace_in_kernel_mappings'\<rbrace>"
   "\<lbrace>pspace_distinct'\<rbrace> insertNewCap parent slot cap \<lbrace>\<lambda>rv. pspace_distinct'\<rbrace>"
   "\<lbrace>\<lambda>s. P ((cteCaps_of s)(slot \<mapsto> cap))\<rbrace>
       insertNewCap parent slot cap
@@ -2916,6 +2923,14 @@ lemma irq_control_n' [simp]:
   apply (clarsimp simp: modify_map_if split: if_split_asm)
   done
 
+lemma ioport_control_n' [simp]:
+  "ioport_control n'"
+  using ioport_control phys
+  apply (clarsimp simp: ioport_control_def)
+  apply (clarsimp simp: n'_def n_def)
+  apply (clarsimp simp: modify_map_if split: if_split_asm)
+  done
+
 lemma dist_z_m:
   "distinct_zombies m"
   using valid by auto
@@ -3122,7 +3137,7 @@ lemma inv_untyped_corres_helper1:
               caps_overlap_reserved (untyped_range (default_cap tp (snd tup) sz d)) s)
           \<and> (\<forall>tup \<in> set (zip crefs orefs). real_cte_at (fst tup) s)
           \<and> (\<forall>tup \<in> set (zip crefs orefs).
-              cte_wp_at (op = cap.NullCap) (fst tup) s)
+              cte_wp_at ((=) cap.NullCap) (fst tup) s)
           \<and> distinct (p # (map fst (zip crefs orefs)))
           \<and> distinct_sets (map (\<lambda>tup. cap_range (default_cap tp (snd tup) sz d)) (zip crefs orefs))
           \<and> (\<forall>tup \<in> set (zip crefs orefs).
@@ -3200,6 +3215,8 @@ lemma inv_untyped_corres_helper1:
 
 lemma createNewCaps_valid_pspace_extras:
   "\<lbrace>(\<lambda>s.    n \<noteq> 0 \<and> ptr \<noteq> 0 \<and> range_cover ptr sz (APIType_capBits ty us) n
+          \<and> sz \<le> maxUntypedSizeBits \<and> canonical_address (ptr && ~~ mask sz)
+          \<and> ptr && ~~ mask sz \<in> kernel_mappings
           \<and> pspace_no_overlap' ptr sz s
           \<and> valid_pspace' s \<and> caps_no_overlap'' ptr sz s
           \<and> caps_overlap_reserved' {ptr .. ptr + of_nat n * 2 ^ APIType_capBits ty us - 1} s
@@ -3208,6 +3225,18 @@ lemma createNewCaps_valid_pspace_extras:
      createNewCaps ty ptr n us d
    \<lbrace>\<lambda>rv. pspace_aligned'\<rbrace>"
   "\<lbrace>(\<lambda>s.    n \<noteq> 0 \<and> ptr \<noteq> 0 \<and> range_cover ptr sz (APIType_capBits ty us) n
+          \<and> sz \<le> maxUntypedSizeBits \<and> canonical_address (ptr && ~~ mask sz)
+          \<and> ptr && ~~ mask sz \<in> kernel_mappings
+          \<and> pspace_no_overlap' ptr sz s
+          \<and> valid_pspace' s \<and> caps_no_overlap'' ptr sz s
+          \<and> caps_overlap_reserved' {ptr .. ptr + of_nat n * 2 ^ APIType_capBits ty us - 1} s
+          \<and> ksCurDomain s \<le> maxDomain
+   )\<rbrace>
+     createNewCaps ty ptr n us d
+   \<lbrace>\<lambda>rv. pspace_canonical'\<rbrace>"
+  "\<lbrace>(\<lambda>s.    n \<noteq> 0 \<and> ptr \<noteq> 0 \<and> range_cover ptr sz (APIType_capBits ty us) n
+          \<and> sz \<le> maxUntypedSizeBits \<and> canonical_address (ptr && ~~ mask sz)
+          \<and> ptr && ~~ mask sz \<in> kernel_mappings
           \<and> pspace_no_overlap' ptr sz s
           \<and> valid_pspace' s \<and> caps_no_overlap'' ptr sz s
           \<and> caps_overlap_reserved' {ptr .. ptr + of_nat n * 2 ^ APIType_capBits ty us - 1} s
@@ -3216,6 +3245,8 @@ lemma createNewCaps_valid_pspace_extras:
      createNewCaps ty ptr n us d
    \<lbrace>\<lambda>rv. pspace_distinct'\<rbrace>"
   "\<lbrace>(\<lambda>s.    n \<noteq> 0 \<and> ptr \<noteq> 0 \<and> range_cover ptr sz (APIType_capBits ty us) n
+          \<and> sz \<le> maxUntypedSizeBits \<and> canonical_address (ptr && ~~ mask sz)
+          \<and> ptr && ~~ mask sz \<in> kernel_mappings
           \<and> pspace_no_overlap' ptr sz s
           \<and> valid_pspace' s \<and> caps_no_overlap'' ptr sz s
           \<and> caps_overlap_reserved' {ptr .. ptr + of_nat n * 2 ^ APIType_capBits ty us - 1} s
@@ -3224,6 +3255,8 @@ lemma createNewCaps_valid_pspace_extras:
      createNewCaps ty ptr n us d
    \<lbrace>\<lambda>rv. valid_mdb'\<rbrace>"
   "\<lbrace>(\<lambda>s.    n \<noteq> 0 \<and> ptr \<noteq> 0 \<and> range_cover ptr sz (APIType_capBits ty us) n
+          \<and> sz \<le> maxUntypedSizeBits \<and> canonical_address (ptr && ~~ mask sz)
+          \<and> ptr && ~~ mask sz \<in> kernel_mappings
           \<and> pspace_no_overlap' ptr sz s
           \<and> valid_pspace' s \<and> caps_no_overlap'' ptr sz s
           \<and> caps_overlap_reserved' {ptr .. ptr + of_nat n * 2 ^ APIType_capBits ty us - 1} s
@@ -3231,6 +3264,9 @@ lemma createNewCaps_valid_pspace_extras:
    )\<rbrace>
      createNewCaps ty ptr n us d
    \<lbrace>\<lambda>rv. valid_objs'\<rbrace>"
+  apply (rule hoare_grab_asm)+
+    apply (rule hoare_pre,rule hoare_strengthen_post[OF createNewCaps_valid_pspace])
+    apply (simp add:valid_pspace'_def)+
   apply (rule hoare_grab_asm)+
     apply (rule hoare_pre,rule hoare_strengthen_post[OF createNewCaps_valid_pspace])
     apply (simp add:valid_pspace'_def)+
@@ -3462,8 +3498,8 @@ lemma createNewCaps_not_parents:
    apply (clarsimp simp: tree_cte_cteCap_eq)
    apply (erule_tac x=x in allE)
    apply simp
-  including no_pre
   apply (wp createNewCaps_children hoare_vcg_all_lift createNewCaps_cte_wp_at2)
+  apply (rule conjI[rotated])
    apply (clarsimp simp: tree_cte_cteCap_eq simp del: o_apply)
    apply (rule conjI)
     apply (clarsimp split: option.splits)
@@ -3473,7 +3509,7 @@ lemma createNewCaps_not_parents:
   done
 
 lemma createObjects_distinct:
-  "\<lbrace>\<lambda>s. 0<n \<and> range_cover ptr sz ((objBitsKO obj) + us) n\<rbrace> createObjects ptr n obj us \<lbrace>\<lambda>rv s. distinct_prop op \<noteq> rv\<rbrace>"
+  "\<lbrace>\<lambda>s. 0<n \<and> range_cover ptr sz ((objBitsKO obj) + us) n\<rbrace> createObjects ptr n obj us \<lbrace>\<lambda>rv s. distinct_prop (\<noteq>) rv\<rbrace>"
   apply (simp add: createObjects_def unless_def alignError_def split_def
                    lookupAround2_pspace_no createObjects'_def
              cong: if_cong split del: if_split)
@@ -3554,8 +3590,7 @@ lemma createNewCaps_distinct:
      apply (rule notI)
      apply (erule(3) ptr_add_distinct_helper)
       apply (simp add:range_cover_def word_bits_def)
-     apply (erule range_cover.range_cover_n_le(1)
-       [where 'a=machine_word_len, folded word_bits_def])
+     apply (erule range_cover.range_cover_n_le(1)[where 'a=machine_word_len])
     apply (clarsimp simp: ptr_add_def word_unat_power[symmetric])
     apply (rule is_aligned_add_multI[OF _ le_refl refl])
      apply (simp add:range_cover_def)
@@ -3584,7 +3619,7 @@ lemma createNewCaps_parent_helper:
                        (\<forall>tup\<in>set (zip (xs rv) rv).
                                 sameRegionAs (cteCap cte) (snd tup)))
     p\<rbrace>"
-  apply (rule hoare_post_imp [where Q="\<lambda>rv s. \<exists>cte. cte_wp_at' (op = cte) p s
+  apply (rule hoare_post_imp [where Q="\<lambda>rv s. \<exists>cte. cte_wp_at' ((=) cte) p s
                                            \<and> isUntypedCap (cteCap cte)
                                            \<and> (\<forall>tup\<in>set (zip (xs rv) rv).
                                 sameRegionAs (cteCap cte) (snd tup))"])
@@ -3601,7 +3636,7 @@ lemma createNewCaps_valid_cap':
         range_cover ptr sz (APIType_capBits ty us) n \<and>
         (ty = APIObjectType ArchTypes_H.CapTableObject \<longrightarrow> 0 < us) \<and>
         (ty = APIObjectType apiobject_type.Untyped \<longrightarrow> minUntypedSizeBits \<le> us \<and> us \<le> maxUntypedSizeBits) \<and>
-       ptr \<noteq> 0 \<rbrace>
+        ptr \<noteq> 0 \<and> sz \<le> maxUntypedSizeBits \<and> canonical_address (ptr && ~~ mask sz) \<and> ptr && ~~ mask sz \<in> kernel_mappings \<rbrace>
     createNewCaps ty ptr n us d
   \<lbrace>\<lambda>r s. \<forall>cap\<in>set r. s \<turnstile>' cap\<rbrace>"
   apply (rule hoare_assume_pre)
@@ -3631,8 +3666,7 @@ lemma createNewCaps_ranges:
      apply (rule notI)
      apply (erule(3) ptr_add_distinct_helper)
       apply (simp add:range_cover_def word_bits_def)
-     apply (erule range_cover.range_cover_n_le(1)
-       [where 'a=machine_word_len, folded word_bits_def])
+     apply (erule range_cover.range_cover_n_le(1)[where 'a=machine_word_len])
     apply (clarsimp simp: ptr_add_def word_unat_power[symmetric])
     apply (rule is_aligned_add_multI[OF _ le_refl refl])
      apply (simp add:range_cover_def)+
@@ -3649,7 +3683,7 @@ lemma createNewCaps_ranges':
    apply (rule createNewCaps_ranges)
   apply (simp add: distinct_sets_prop del: map_map)
   apply (erule distinct_prop_prefixE)
-  apply (rule Sublist.map_prefixI)
+  apply (rule Sublist.map_mono_prefix)
   apply (rule map_snd_zip_prefix [unfolded less_eq_list_def])
   done
 
@@ -4155,7 +4189,7 @@ lemma updateFreeIndex_clear_invs':
        apply (wp setCTE_irq_handlers' getCTE_wp)
       apply (simp add:updateCap_def)
       apply (wp irqs_masked_lift valid_queues_lift' cur_tcb_lift ct_idle_or_in_cur_domain'_lift
-                hoare_vcg_disj_lift untyped_ranges_zero_lift getCTE_wp
+                hoare_vcg_disj_lift untyped_ranges_zero_lift getCTE_wp setCTE_ioports'
                | wp_once hoare_use_eq[where f="gsUntypedZeroRanges"]
                | simp add: getSlotCap_def
                | simp add: cte_wp_at_ctes_of)+
@@ -4477,6 +4511,18 @@ abbreviation(input)
       apply (simp add: invs_valid_objs')
       done
 
+lemma ptr_cn[simp]:
+  "canonical_address (ptr && ~~ mask sz)"
+  using vc' unfolding valid_cap'_def by clarsimp
+
+lemma ptr_km[simp]:
+  "ptr && ~~ mask sz \<in> kernel_mappings"
+  using vc' unfolding valid_cap'_def by clarsimp
+
+lemma sz_limit[simp]:
+  "sz \<le> maxUntypedSizeBits"
+  using vc' unfolding valid_cap'_def by clarsimp
+
 lemma ps_no_overlap'[simp]: "\<not> reset \<Longrightarrow> pspace_no_overlap' ptr sz s"
   using misc cte_wp_at' cover idx_cases
   apply clarsimp
@@ -4665,41 +4711,6 @@ lemma cNodeNoOverlap_empty:
    apply wp+
   done
 
-lemma mapME_x_corres_same_xs:
-  assumes x: "\<And>x. x \<in> set xs
-      \<Longrightarrow> corres_underlying sr nf nf' (f \<oplus> dc) (P x) (P' x) (m x) (m' x)"
-  assumes y: "\<And>x. x \<in> set xs \<Longrightarrow> \<lbrace>\<lambda>s. \<forall>y \<in> set xs. P y s\<rbrace> m x \<lbrace>\<lambda>_ s. \<forall>y \<in> set xs. P y s\<rbrace>,-"
-             "\<And>x. x \<in> set xs \<Longrightarrow> \<lbrace>\<lambda>s. \<forall>y \<in> set xs. P' y s\<rbrace> m' x \<lbrace>\<lambda>_ s. \<forall>y \<in> set xs. P' y s\<rbrace>,-"
-  assumes z: "xs = ys"
-  shows      "corres_underlying sr nf nf' (f \<oplus> dc) (\<lambda>s. \<forall>x \<in> set xs. P x s) (\<lambda>s. \<forall>y \<in> set ys. P' y s)
-                              (mapME_x m xs) (mapME_x m' ys)"
-  apply (subgoal_tac "set ys \<subseteq> set xs
-        \<Longrightarrow> corres_underlying sr nf nf' (f \<oplus> dc) (\<lambda>s. \<forall>x \<in> set xs. P x s) (\<lambda>s. \<forall>y \<in> set xs. P' y s)
-                              (mapME_x m ys) (mapME_x m' ys)")
-   apply (simp add: z)
-proof (induct ys)
-  case Nil
-  show ?case
-    by (simp add: mapME_x_def sequenceE_x_def returnOk_def)
-next
-  case (Cons z zs)
-    from Cons have IH:
-      "corres_underlying sr nf nf' (f \<oplus> dc) (\<lambda>s. \<forall>x\<in>set xs. P x s) (\<lambda>s. \<forall>y\<in>set xs. P' y s)
-                       (mapME_x m zs) (mapME_x m' zs)"
-      by (simp add: dc_def)
-    from Cons have in_set:
-      "z \<in> set xs" "set zs \<subseteq> set xs" by auto
-  thus ?case
-    apply (simp add: mapME_x_def sequenceE_x_def)
-    apply (fold mapME_x_def sequenceE_x_def dc_def)
-    apply (rule corres_guard_imp)
-      apply (rule corres_splitEE)
-         apply (rule IH)
-        apply (rule x, simp)
-       apply (wp y | simp)+
-    done
-qed
-
 lemma resetChunkBits_eq[simp]:
   "resetChunkBits = reset_chunk_bits"
   by (simp add: resetChunkBits_def reset_chunk_bits_def)
@@ -4755,24 +4766,6 @@ lemma reset_addrs_same:
    apply clarsimp
    apply (rule order_le_less_trans, rule div_mult_le, simp)
   apply (simp add: Suc_le_eq td_gal_lt[symmetric] power_add[symmetric])
-  done
-
-lemma update_untyped_cap_valid_objs:
-  "\<lbrace> valid_objs and valid_cap cap
-      and cte_wp_at (is_untyped_cap) p and K (is_untyped_cap cap)\<rbrace>
-    set_cap cap p \<lbrace> \<lambda>rv. valid_objs \<rbrace>"
-  apply (wp set_cap_valid_objs)
-  apply (clarsimp simp: is_cap_simps cte_wp_at_caps_of_state)
-  apply (drule tcb_cap_valid_caps_of_stateD, simp+)
-  apply (simp add: tcb_cap_valid_untyped_to_thread)
-  done
-
-lemma valid_untyped_pspace_no_overlap:
-  "pspace_no_overlap {ptr .. ptr + 2 ^ sz - 1} s
-    \<Longrightarrow> valid_untyped (cap.UntypedCap dev ptr sz idx) s"
-  apply (clarsimp simp: valid_untyped_def split del: if_split)
-  apply (drule(1) pspace_no_overlap_obj_range)
-  apply simp
   done
 
 lemmas descendants_of_null_filter' = null_filter_descendants_of'[OF null_filter_simp']
@@ -5129,7 +5122,6 @@ lemma resetUntypedCap_invs_etc:
               sch_act_simple_lift
               pspace_no_overlap'_lift
               doMachineOp_psp_no_overlap
-              doMachineOp_cte_wp_at'
               updateFreeIndex_ctes_of
               updateFreeIndex_cte_wp_at
             | simp | wps | wp_once ex_cte_cap_to'_pres)+
@@ -5250,7 +5242,7 @@ context begin interpretation Arch . (*FIXME: arch_split*)
 
 lemma inv_untyped_corres':
   "\<lbrakk> untypinv_relation ui ui' \<rbrakk> \<Longrightarrow>
-   corres (intr \<oplus> (op =))
+   corres (intr \<oplus> (=))
      (einvs and valid_untyped_inv ui and ct_active)
      (invs' and valid_untyped_inv' ui' and ct_active')
      (invoke_untyped ui) (invokeUntyped ui')"
@@ -5277,7 +5269,7 @@ lemma inv_untyped_corres':
     and    vui': "valid_untyped_inv_wcap' ?ui' (Some (UntypedCap dev (ptr && ~~ mask sz') sz' idx')) s'"
     assume ui: "ui = ?ui" and ui': "ui' = ?ui'"
 
-    have cte_at: "cte_wp_at (op = ?cap) cref s" (is "?cte_cond s")
+    have cte_at: "cte_wp_at ((=) ?cap) cref s" (is "?cte_cond s")
        using vui by (simp add:cte_wp_at_caps_of_state)
 
     have ptr_sz_simp[simp]: "ptr_base = ptr && ~~ mask sz
@@ -5473,13 +5465,22 @@ lemma inv_untyped_corres':
      apply (clarsimp simp: cte_wp_at_caps_of_state)
      done
 
+    have ptr_cn[simp]: "canonical_address (ptr && ~~ mask sz)"
+      using vc' unfolding valid_cap'_def by clarsimp
+
+    have ptr_km[simp]: "ptr && ~~ mask sz \<in> kernel_mappings"
+      using vc' unfolding valid_cap'_def by clarsimp
+
+    have sz_limit[simp]: "sz \<le> maxUntypedSizeBits"
+      using vc' unfolding valid_cap'_def by clarsimp
+
     note set_cap_free_index_invs_spec = set_free_index_invs[where cap = "cap.UntypedCap
         dev (ptr && ~~ mask sz) sz (if reset then 0 else idx)"
       ,unfolded free_index_update_def free_index_of_def,simplified]
 
     note msimp[simp add] = getObjectSize_def_eq neg_mask_add_mask
     note if_split[split del]
-    show " corres (intr \<oplus> (op =)) (op = s) (op = s')
+    show " corres (intr \<oplus> (=)) ((=) s) ((=) s')
            (invoke_untyped ?ui)
            (invokeUntyped ?ui')"
       apply (clarsimp simp:invokeUntyped_def invoke_untyped_def getSlotCap_def bind_assoc)
@@ -5561,17 +5562,18 @@ lemma inv_untyped_corres':
                invs_valid_pspace' invs_arch_state'
                imp_consequent[where Q = "(\<exists>x. x \<in> cte_map ` set slots)"]
              | clarsimp simp: conj_comms simp del: capFreeIndex_update.simps)+
-          apply (wp updateFreeIndex_forward_invs' updateFreeIndex_caps_overlap_reserved
+          apply ((wp updateFreeIndex_forward_invs' updateFreeIndex_caps_overlap_reserved
              updateFreeIndex_caps_no_overlap'' updateFreeIndex_pspace_no_overlap'
              hoare_vcg_const_Ball_lift updateFreeIndex_cte_wp_at
-             updateFreeIndex_descendants_range_in')+
+             updateFreeIndex_descendants_range_in')+)[1]
          apply clarsimp
          apply (clarsimp simp:conj_comms)
          apply (strengthen invs_mdb invs_valid_objs
                 invs_valid_pspace invs_arch_state invs_psp_aligned
                 invs_distinct)
          apply (clarsimp simp:conj_comms ball_conj_distrib ex_in_conv)
-         apply (rule_tac Q'="\<lambda>_ s. valid_etcbs s \<and> valid_list s \<and> invs s \<and> ct_active s
+         apply ((rule validE_R_validE)?,
+          rule_tac Q'="\<lambda>_ s. valid_etcbs s \<and> valid_list s \<and> invs s \<and> ct_active s
           \<and> valid_untyped_inv_wcap ui
             (Some (cap.UntypedCap dev (ptr && ~~ mask sz) sz (if reset then 0 else idx))) s
           \<and> (reset \<longrightarrow> pspace_no_overlap {ptr && ~~ mask sz..(ptr && ~~ mask sz) + 2 ^ sz - 1} s)
@@ -5618,8 +5620,7 @@ lemma inv_untyped_corres':
          apply (drule invoke_untyped_proofs.usable_range_disjoint)
          apply (clarsimp simp: field_simps mask_out_sub_mask shiftl_t2n)
 
-        apply wp
-        apply (rule validE_validE_R, rule hoare_post_impErr,
+        apply ((rule validE_validE_R)?, rule hoare_post_impErr,
                rule whenE_reset_resetUntypedCap_invs_etc[where ptr="ptr && ~~ mask sz"
                    and ptr'=ptr and sz=sz and idx=idx and ui=ui' and dev=dev])
 
@@ -5628,7 +5629,7 @@ lemma inv_untyped_corres':
         apply clarsimp
         apply (simp only: ui')
         apply (frule(2) invokeUntyped_proofs.intro)
-        apply_trace (clarsimp simp: cte_wp_at_ctes_of
+        apply (clarsimp simp: cte_wp_at_ctes_of
                               invokeUntyped_proofs.caps_no_overlap'
                               invokeUntyped_proofs.ps_no_overlap'
                               invokeUntyped_proofs.descendants_range
@@ -5725,7 +5726,8 @@ lemma insertNewCap_valid_pspace':
      insertNewCap parent slot cap
    \<lbrace>\<lambda>rv. valid_pspace'\<rbrace>"
   apply (simp add: valid_pspace'_def)
-  apply (wp insertNewCap_valid_mdb)
+  apply (wp_trace insertNewCap_valid_mdb)
+thm insertNewCap_wps(1)
      apply simp_all
   done
 
@@ -5780,14 +5782,11 @@ lemma insertNewCap_cte_wp_at'':
 
 lemmas insertNewCap_cte_wp_at' = insertNewCap_cte_wp_at''[unfolded o_def]
 
-crunch irq_node'[wp]: insertNewCap "\<lambda>s. P (irq_node' s)"
-  (wp: crunch_wps)
-
 lemma insertNewCap_cap_to'[wp]:
   "\<lbrace>ex_cte_cap_to' p\<rbrace> insertNewCap parent slot cap \<lbrace>\<lambda>rv. ex_cte_cap_to' p\<rbrace>"
   apply (simp add: ex_cte_cap_to'_def)
   apply (rule hoare_pre)
-   apply (rule hoare_use_eq_irq_node'[OF insertNewCap_irq_node'])
+   apply (rule hoare_use_eq_irq_node'[OF insertNewCap_ksInterrupt])
    apply (wp hoare_vcg_ex_lift insertNewCap_cte_wp_at')
   apply clarsimp
   done
@@ -5799,7 +5798,7 @@ lemma insertNewCap_nullcap:
   apply (subgoal_tac "cte_wp_at' (\<lambda>cte. cteCap cte = NullCap) slot s")
    apply fastforce
   apply (clarsimp simp: insertNewCap_def in_monad cte_wp_at_ctes_of liftM_def
-                 dest!: use_valid [OF _ getCTE_sp[where P="op = s" for s], OF _ refl])
+                 dest!: use_valid [OF _ getCTE_sp[where P="(=) s" for s], OF _ refl])
   done
 
 crunch idle'[wp]: insertNewCap "valid_idle'"
@@ -5838,6 +5837,16 @@ lemma insertNewCap_valid_irq_handlers:
   apply (clarsimp simp: cteCaps_of_def cte_wp_at_ctes_of ran_def)
   apply auto
   done
+
+crunch ioports[wp]: updateNewFreeIndex "valid_ioports'"
+
+lemma insertNewCap_ioports':
+  "\<lbrace>valid_ioports' and safe_ioport_insert' cap NullCap\<rbrace>
+     insertNewCap parent slot cap
+   \<lbrace>\<lambda>rv. valid_ioports'\<rbrace>"
+  apply (simp add: insertNewCap_def)
+  apply (wpsimp wp: setCTE_ioports' getCTE_wp)
+  by (clarsimp simp: cte_wp_at_ctes_of)
 
 crunch irq_states' [wp]: insertNewCap valid_irq_states'
   (wp: getCTE_wp')
@@ -5881,6 +5890,9 @@ lemma capRange_subset_capBits:
     \<Longrightarrow> capRange cap \<subseteq> capRange cap'
     \<Longrightarrow> capRange cap \<noteq> {}
     \<Longrightarrow> capBits cap \<le> capBits cap'"
+  supply
+    is_aligned_neg_mask_eq[simp del]
+    is_aligned_neg_mask_weaken[simp del]
   apply (simp add: capRange_def capAligned_def is_aligned_no_overflow
             split: if_split_asm del: atLeastatMost_subset_iff)
   apply (frule_tac c="capUntypedPtr cap" in subsetD)
@@ -5913,6 +5925,12 @@ lemma insertNewCap_urz[wp]:
     apply (auto simp add: cteCaps_of_def untypedZeroRange_def isCap_simps)
   done
 
+lemma safe_ioport_insert'_capRange:
+  "capRange cap \<noteq> {} \<Longrightarrow> safe_ioport_insert' cap cap' s"
+  apply (clarsimp simp: safe_ioport_insert'_def)
+  apply (case_tac cap; clarsimp)
+  by (rename_tac ac, case_tac ac; clarsimp simp: capRange_def)
+
 lemma insertNewCap_invs':
   "\<lbrace>invs' and ct_active'
           and valid_cap' cap
@@ -5931,12 +5949,13 @@ lemma insertNewCap_invs':
    apply (wp insertNewCap_valid_pspace' sch_act_wf_lift
              valid_queues_lift cur_tcb_lift tcb_in_cur_domain'_lift
              insertNewCap_valid_global_refs'
-             valid_arch_state_lift'
+             valid_arch_state_lift' insertNewCap_ioports'
              valid_irq_node_lift insertNewCap_valid_irq_handlers)
   apply (clarsimp simp: cte_wp_at_ctes_of)
   apply (frule ctes_of_valid[rotated, where p=parent, OF valid_pspace_valid_objs'])
    apply (fastforce simp: cte_wp_at_ctes_of)
-  apply (auto simp: isCap_simps sameRegionAs_def3 intro!: capRange_subset_capBits
+  apply (auto simp: isCap_simps sameRegionAs_def3
+            intro!: capRange_subset_capBits safe_ioport_insert'_capRange
               elim: valid_capAligned)
   done
 
@@ -6009,7 +6028,7 @@ lemma zipWithM_x_insertNewCap_invs':
   apply (auto simp: map_snd_zip_prefix [unfolded less_eq_list_def]
               dest!: set_zip_helper
               elim!: distinct_prop_prefixE
-              intro!: Sublist.map_prefixI
+              intro!: Sublist.map_mono_prefix
               simp del: map_map)
   done
 
@@ -6199,6 +6218,9 @@ lemma invokeUntyped_invs'':
     note slots_invD = invokeUntyped_proofs.slots_invD[OF pf]
     note nidx[simp] = add_minus_neg_mask[where ptr = ptr]
     note idx_compare' = invokeUntyped_proofs.idx_compare'[OF pf]
+    note ptr_cn[simp] = invokeUntyped_proofs.ptr_cn[OF pf]
+    note ptr_km[simp] = invokeUntyped_proofs.ptr_km[OF pf]
+    note sz_limit[simp] = invokeUntyped_proofs.sz_limit[OF pf]
 
     have valid_global_refs': "valid_global_refs' s"
       using misc by auto
@@ -6212,7 +6234,7 @@ lemma invokeUntyped_invs'':
     note neg_mask_add_mask = word_plus_and_or_coroll2
     [symmetric,where w = "mask sz" and t = ptr,symmetric]
     note msimp[simp add] =  misc getObjectSize_def_eq neg_mask_add_mask
-    show "\<lbrace>op = s\<rbrace> invokeUntyped ui \<lbrace>\<lambda>rv s. invs' s \<and> Q s\<rbrace>"
+    show "\<lbrace>(=) s\<rbrace> invokeUntyped ui \<lbrace>\<lambda>rv s. invs' s \<and> Q s\<rbrace>"
     including no_pre
     apply (clarsimp simp:invokeUntyped_def getSlotCap_def ui)
     apply (rule validE_valid)
@@ -6324,7 +6346,7 @@ lemma invokeUntyped_invs'[wp]:
 crunch pred_tcb_at'[wp]: updateFreeIndex "pred_tcb_at' pr P p"
 
 lemma resetUntypedCap_st_tcb_at':
-  "\<lbrace>invs' and st_tcb_at' (P and (op \<noteq> Inactive) and (op \<noteq> IdleThreadState)) t
+  "\<lbrace>invs' and st_tcb_at' (P and ((\<noteq>) Inactive) and ((\<noteq>) IdleThreadState)) t
       and cte_wp_at' (\<lambda>cp. isUntypedCap (cteCap cp)) slot
       and ct_active' and sch_act_simple and (\<lambda>s. descendants_of' slot (ctes_of s) = {})\<rbrace>
     resetUntypedCap slot
@@ -6347,7 +6369,7 @@ lemma resetUntypedCap_st_tcb_at':
   done
 
 lemma inv_untyp_st_tcb_at'[wp]:
-  "\<lbrace>invs' and st_tcb_at' (P and (op \<noteq> Inactive) and (op \<noteq> IdleThreadState)) tptr
+  "\<lbrace>invs' and st_tcb_at' (P and ((\<noteq>) Inactive) and ((\<noteq>) IdleThreadState)) tptr
          and valid_untyped_inv' ui and ct_active'\<rbrace>
      invokeUntyped ui
    \<lbrace>\<lambda>rv. st_tcb_at' P tptr\<rbrace>"

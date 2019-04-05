@@ -9,14 +9,14 @@
  *)
 
 theory ArchInvariants_AI
-imports "../InvariantsPre_AI" "../../../lib/Apply_Trace_Cmd"
+imports "../InvariantsPre_AI" "Lib.Apply_Trace_Cmd"
 begin
 
 section "Move this up"
 
 qualify X64 (in Arch)
 
--- ---------------------------------------------------------------------------
+\<comment> \<open>---------------------------------------------------------------------------\<close>
 section "Things to Move Up"
 
 (* FIXME: move to spec level *)
@@ -26,10 +26,34 @@ axiomatization
 
 end_qualify
 
--- ---------------------------------------------------------------------------
+\<comment> \<open>---------------------------------------------------------------------------\<close>
 section "X64-specific invariant definitions"
 
+qualify X64_A (in Arch)
+(* X64 has no interest for iarch_tcb (introduced for ARM_HYP) ,
+    and we consider no non-trivial predicates of iarch_tcb,
+    so an unspecified typedecl seems appropriate.
+   In contrast to using a unit type, this avoids
+    over-simplification of idle_tcb_at predicates,
+    which would make it hard to use facts that talk about idle_tcb_at. *)
+typedecl iarch_tcb
+end_qualify
+
 context Arch begin global_naming X64
+
+definition
+  arch_tcb_to_iarch_tcb :: "arch_tcb \<Rightarrow> iarch_tcb"
+where
+  "arch_tcb_to_iarch_tcb arch_tcb \<equiv> undefined"
+
+lemma iarch_tcb_context_set[simp]:
+  "arch_tcb_to_iarch_tcb (arch_tcb_context_set p tcb) = arch_tcb_to_iarch_tcb tcb"
+  by (auto simp: arch_tcb_to_iarch_tcb_def arch_tcb_context_set_def)
+
+lemma iarch_tcb_set_registers[simp]:
+  "arch_tcb_to_iarch_tcb (arch_tcb_set_registers regs arch_tcb)
+     = arch_tcb_to_iarch_tcb arch_tcb"
+  by (simp add: arch_tcb_to_iarch_tcb_def)
 
 (* These simplifications allows us to keep many arch-specific proofs unchanged. *)
 
@@ -42,7 +66,8 @@ lemma arch_cap_fun_lift_expand[simp]:
                               | PageDirectoryCap obj_ref vr \<Rightarrow> P_PageDirectoryCap obj_ref vr
                               | PDPointerTableCap obj_ref vr \<Rightarrow> P_PDPointerTableCap obj_ref vr
                               | PML4Cap obj_ref asid \<Rightarrow> P_PML4Cap obj_ref asid
-                              | IOPortCap first lst \<Rightarrow> P_IOPortCap first lst)
+                              | IOPortCap first lst \<Rightarrow> P_IOPortCap first lst
+                              | IOPortControlCap \<Rightarrow> P_IOPortControlCap)
                               (* FIXME x64-vtd:
                               | IOSpaceCap domn pci \<Rightarrow> P_IOSpaceCap domn pci
                               | IOPageTableCap obj_ref lvl vr \<Rightarrow> P_IOPageTableCap obj_ref lvl vr)
@@ -57,6 +82,7 @@ lemma arch_cap_fun_lift_expand[simp]:
     | ArchObjectCap (PDPointerTableCap obj_ref vr) \<Rightarrow> P_PDPointerTableCap obj_ref vr
     | ArchObjectCap (PML4Cap obj_ref asid) \<Rightarrow> P_PML4Cap obj_ref asid
     | ArchObjectCap (IOPortCap first lst) \<Rightarrow> P_IOPortCap first lst
+    | ArchObjectCap (IOPortControlCap) \<Rightarrow> P_IOPortControlCap
 (* FIXME x64-vtd:
     | ArchObjectCap (IOSpaceCap domn pci) \<Rightarrow> P_IOSpaceCap domn pci
     | ArchObjectCap (IOPageTableCap obj_ref lvl vr) \<Rightarrow> P_IOPageTableCap obj_ref lvl vr
@@ -107,31 +133,43 @@ definition canonical_address :: "obj_ref \<Rightarrow> bool"
 where
   "canonical_address x \<equiv> canonical_address_of (ucast x) = x"
 
+text \<open>An ASID is well-formed if it is within @{term "mask asid_bits"}.\<close>
 definition
-  "wellformed_mapdata sz \<equiv>
-   \<lambda>(asid, vref). 0 < asid \<and> asid \<le> 2^asid_bits - 1
-                \<and> vmsz_aligned vref sz
-                \<and> vref < pptr_base
-                \<and> canonical_address vref"
+  asid_wf :: "asid \<Rightarrow> bool"
+where
+  "asid_wf a \<equiv> a \<le> 2 ^ asid_bits - 1"
+
+(* Alternative definitions for compatibilty with older proofs. *)
+lemma asid_wf_def2:
+  "asid_wf asid \<equiv> asid \<le> mask asid_bits"
+  by (simp add: asid_wf_def mask_def)
+
+lemma asid_wf_def3:
+  "asid_wf asid \<equiv> asid && mask asid_bits = asid"
+  by (simp add: asid_wf_def2 and_mask_eq_iff_le_mask)
+
+definition
+  "wellformed_mapdata size_bits \<equiv>
+   \<lambda>(asid, vref). 0 < asid \<and> asid_wf asid
+                    \<and> is_aligned vref size_bits
+                    \<and> vref < pptr_base
+                    \<and> canonical_address vref"
 
 definition
   wellformed_acap :: "arch_cap \<Rightarrow> bool"
 where
   "wellformed_acap ac \<equiv>
    case ac of
-     ASIDPoolCap r as
-       \<Rightarrow> is_aligned as asid_low_bits \<and> as \<le> 2^asid_bits - 1
+     ASIDPoolCap r as \<Rightarrow> is_aligned as asid_low_bits \<and> asid_wf as
    | PageCap dev r rghts maptyp sz mapdata \<Rightarrow> rghts \<in> valid_vm_rights \<and>
-     case_option True (wellformed_mapdata sz) mapdata
+     case_option (maptyp=VMNoMap) (wellformed_mapdata (pageBitsForSize sz) and (\<lambda>_. maptyp\<noteq>VMNoMap)) mapdata
    | PageTableCap r (Some mapdata) \<Rightarrow>
-     wellformed_mapdata X64LargePage mapdata
+     wellformed_mapdata pd_shift_bits mapdata
    | PageDirectoryCap r (Some mapdata) \<Rightarrow>
-     wellformed_mapdata X64HugePage mapdata
-   | PDPointerTableCap r (Some (asid,vref)) \<Rightarrow>
-     0 < asid \<and> asid \<le> 2^asid_bits - 1
-     \<and> is_aligned vref pml4_shift_bits \<and> vref < pptr_base \<and> canonical_address vref
-   | PML4Cap r (Some asid) \<Rightarrow>
-     0 < asid \<and> asid \<le> 2^asid_bits - 1
+     wellformed_mapdata pdpt_shift_bits mapdata
+   | PDPointerTableCap r (Some mapdata) \<Rightarrow>
+     wellformed_mapdata pml4_shift_bits mapdata
+   | PML4Cap r (Some asid) \<Rightarrow> 0 < asid \<and> asid_wf asid
    | IOPortCap f l \<Rightarrow> f \<le> l
    | _ \<Rightarrow> True"
 
@@ -212,7 +250,8 @@ where
   | PageTableCap r mapdata \<Rightarrow> typ_at (AArch APageTable) r s
   | PageDirectoryCap r mapdata\<Rightarrow> typ_at (AArch APageDirectory) r s
   | PDPointerTableCap r mapdata \<Rightarrow> typ_at (AArch APDPointerTable) r s
-  | PML4Cap r mapdata \<Rightarrow> typ_at (AArch APageMapL4) r s)"
+  | PML4Cap r mapdata \<Rightarrow> typ_at (AArch APageMapL4) r s
+  | IOPortControlCap \<Rightarrow> True)"
 
 lemmas valid_arch_cap_ref_simps =
   valid_arch_cap_ref_def[split_simps arch_cap.split]
@@ -222,35 +261,27 @@ definition
 where
   "valid_arch_cap ac s \<equiv> (case ac of
     ASIDPoolCap r as \<Rightarrow>
-         typ_at (AArch AASIDPool) r s \<and> is_aligned as asid_low_bits
-           \<and> as \<le> 2^asid_bits - 1
+    typ_at (AArch AASIDPool) r s \<and> is_aligned as asid_low_bits \<and> asid_wf as
   | ASIDControlCap \<Rightarrow> True
   | IOPortCap first_port last_port \<Rightarrow> first_port \<le> last_port
   | PageCap dev r rghts maptyp sz mapdata \<Rightarrow>
     (if dev then (typ_at (AArch (ADeviceData sz)) r s)
             else (typ_at (AArch (AUserData sz)) r s)) \<and>
     (rghts \<in> valid_vm_rights) \<and>
-    (case mapdata of None \<Rightarrow> True | Some (asid, ref) \<Rightarrow> 0 < asid \<and> asid \<le> 2^asid_bits - 1
-                                             \<and> vmsz_aligned ref sz \<and> ref < pptr_base \<and> canonical_address ref)
+    (case_option (maptyp=VMNoMap) (wellformed_mapdata (pageBitsForSize sz) and (\<lambda>_. maptyp\<noteq>VMNoMap)) mapdata)
   | PageTableCap r mapdata \<Rightarrow>
     typ_at (AArch APageTable) r s \<and>
-    (case mapdata of None \<Rightarrow> True
-       | Some (asid, vref) \<Rightarrow> 0 < asid \<and> asid \<le> 2 ^ asid_bits - 1
-                                \<and> vref < pptr_base \<and> canonical_address vref
-                                \<and> is_aligned vref (pageBitsForSize X64LargePage))
+    case_option True (wellformed_mapdata pd_shift_bits) mapdata
   | PageDirectoryCap r mapdata \<Rightarrow>
     typ_at (AArch APageDirectory) r s \<and>
-    (case mapdata of None \<Rightarrow> True
-      | Some mapdata' \<Rightarrow> wellformed_mapdata X64HugePage mapdata')
+    case_option True (wellformed_mapdata pdpt_shift_bits) mapdata
   | PDPointerTableCap r mapdata \<Rightarrow>
     typ_at (AArch APDPointerTable) r s \<and>
-    (case mapdata of None \<Rightarrow> True
-       | Some (asid, vref) \<Rightarrow> 0 < asid \<and> asid \<le> 2 ^ asid_bits - 1
-                                \<and> vref < pptr_base \<and> canonical_address vref
-                                \<and> is_aligned vref (pml4_shift_bits))
+    case_option True (wellformed_mapdata pml4_shift_bits) mapdata
   | PML4Cap r mapdata \<Rightarrow>
     typ_at (AArch APageMapL4) r s \<and>
-    case_option True (\<lambda>asid. 0 < asid \<and> asid \<le> 2^asid_bits - 1) mapdata)"
+    case_option True (\<lambda>asid. 0 < asid \<and> asid_wf asid) mapdata
+  | IOPortControlCap \<Rightarrow> True)"
 
 lemmas valid_arch_cap_simps =
   valid_arch_cap_def[split_simps arch_cap.split]
@@ -281,6 +312,7 @@ where
 | "acap_class (PDPointerTableCap x y) = PhysicalClass"
 | "acap_class (PML4Cap x y)           = PhysicalClass"
 | "acap_class (IOPortCap x y)         = IOPortClass"
+| "acap_class (IOPortControlCap)      = IOPortClass"
 
 definition
   valid_ipc_buffer_cap_arch :: "arch_cap \<Rightarrow> machine_word \<Rightarrow> bool"
@@ -308,6 +340,11 @@ definition
   valid_arch_tcb :: "arch_tcb \<Rightarrow> 'z::state_ext state \<Rightarrow> bool"
 where
   "valid_arch_tcb \<equiv> \<lambda>a. \<top>"
+
+definition
+  valid_arch_idle :: "iarch_tcb \<Rightarrow> bool"
+where
+  "valid_arch_idle \<equiv> \<top>"
 
 (* Validity of vspace table entries, defined shallowly. *)
 
@@ -967,6 +1004,13 @@ where
   "valid_global_pdpts \<equiv> \<lambda>s.
    \<forall>p \<in> set (x64_global_pdpts (arch_state s)). typ_at (AArch APDPointerTable) p s"
 
+definition
+  valid_cr3 :: "cr3 \<Rightarrow> bool"
+where
+  "valid_cr3 r \<equiv> is_aligned (cr3_base_address r) asid_bits
+                   \<and> cr3_base_address r \<le> mask (pml4_shift_bits + asid_bits)
+                   \<and> asid_wf (cr3_pcid r)"
+
 (* arch_live/hyp_live stub *)
 
 definition
@@ -980,12 +1024,48 @@ where
   "hyp_live ko \<equiv> False"
 
 definition
+  issued_ioports :: "arch_state \<Rightarrow> io_port set"
+where
+  "issued_ioports \<equiv> \<lambda>s. Collect (x64_allocated_io_ports s)"
+
+definition
+  cap_ioports :: "cap \<Rightarrow> io_port set"
+where
+  "cap_ioports c \<equiv> case c of ArchObjectCap (IOPortCap f l) \<Rightarrow> {f..l} | _ \<Rightarrow> {}"
+
+definition
+  all_ioports_issued :: "(cslot_ptr \<Rightarrow> cap option) \<Rightarrow> arch_state \<Rightarrow> bool"
+where
+  "all_ioports_issued \<equiv> \<lambda>cs as. \<forall>cap \<in> ran cs. cap_ioports cap \<subseteq> issued_ioports as"
+
+definition
+  ioports_no_overlap :: "(cslot_ptr \<Rightarrow> cap option) \<Rightarrow> bool"
+where
+  "ioports_no_overlap \<equiv> \<lambda>cs. \<forall>cap\<in>ran cs. \<forall>cap' \<in> ran cs.
+     cap_ioports cap \<inter> cap_ioports cap' \<noteq> {} \<longrightarrow> cap_ioports cap = cap_ioports cap'"
+
+definition
+  valid_ioports :: "'z::state_ext state \<Rightarrow> bool"
+where
+  "valid_ioports \<equiv> \<lambda>s. all_ioports_issued (caps_of_state s) (arch_state s) \<and>
+                      ioports_no_overlap (caps_of_state s)"
+
+definition
+  valid_x64_irq_state :: "(8 word \<Rightarrow> X64IRQState) \<Rightarrow> bool"
+where
+  "valid_x64_irq_state irqState \<equiv> \<forall>irq > maxIRQ. irqState irq = IRQFree"
+
+definition
   valid_arch_state :: "'z::state_ext state \<Rightarrow> bool"
 where
   "valid_arch_state \<equiv> \<lambda>s.
-  valid_asid_table (x64_asid_table (arch_state s)) s \<and>
-  page_map_l4_at (x64_global_pml4 (arch_state s)) s \<and>
-  valid_global_pts s \<and> valid_global_pds s \<and> valid_global_pdpts s"
+    valid_asid_table (x64_asid_table (arch_state s)) s
+      \<and> page_map_l4_at (x64_global_pml4 (arch_state s)) s
+      \<and> valid_global_pts s
+      \<and> valid_global_pds s
+      \<and> valid_global_pdpts s
+      \<and> valid_cr3 (x64_current_cr3 (arch_state s))
+      \<and> valid_x64_irq_state (x64_irq_state (arch_state s))"
 
 definition
   vs_cap_ref_arch :: "arch_cap \<Rightarrow> vs_ref list option"
@@ -994,40 +1074,40 @@ where
    ASIDPoolCap _ asid \<Rightarrow>
      Some [VSRef (ucast (asid_high_bits_of asid)) None]
  | PML4Cap _ (Some asid) \<Rightarrow>
-     Some [VSRef (asid && mask asid_low_bits) (Some AASIDPool),
+     Some [VSRef (ucast (asid_low_bits_of asid)) (Some AASIDPool),
            VSRef (ucast (asid_high_bits_of asid)) None]
  | PDPointerTableCap _ (Some (asid, vptr)) \<Rightarrow>
      Some [VSRef ((vptr >> 39) && mask 9) (Some APageMapL4),
-           VSRef (asid && mask asid_low_bits) (Some AASIDPool),
+           VSRef (ucast (asid_low_bits_of asid)) (Some AASIDPool),
            VSRef (ucast (asid_high_bits_of asid)) None]
  | PageDirectoryCap _ (Some (asid, vptr)) \<Rightarrow>
      Some [VSRef ((vptr >> 30) && mask 9) (Some APDPointerTable),
            VSRef ((vptr >> 39) && mask 9) (Some APageMapL4),
-           VSRef (asid && mask asid_low_bits) (Some AASIDPool),
+           VSRef (ucast (asid_low_bits_of asid)) (Some AASIDPool),
            VSRef (ucast (asid_high_bits_of asid)) None]
  | PageTableCap _ (Some (asid, vptr)) \<Rightarrow>
      Some [VSRef ((vptr >> 21) && mask 9) (Some APageDirectory),
            VSRef ((vptr >> 30) && mask 9) (Some APDPointerTable),
            VSRef ((vptr >> 39) && mask 9) (Some APageMapL4),
-           VSRef (asid && mask asid_low_bits) (Some AASIDPool),
+           VSRef (ucast (asid_low_bits_of asid)) (Some AASIDPool),
            VSRef (ucast (asid_high_bits_of asid)) None]
  | PageCap dev word rights typ X64SmallPage (Some (asid, vptr)) \<Rightarrow>
      Some [VSRef ((vptr >> 12) && mask 9) (Some APageTable),
            VSRef ((vptr >> 21) && mask 9) (Some APageDirectory),
            VSRef ((vptr >> 30) && mask 9) (Some APDPointerTable),
            VSRef ((vptr >> 39) && mask 9) (Some APageMapL4),
-           VSRef (asid && mask asid_low_bits) (Some AASIDPool),
+           VSRef (ucast (asid_low_bits_of asid)) (Some AASIDPool),
            VSRef (ucast (asid_high_bits_of asid)) None]
  | PageCap dev word rights typ X64LargePage  (Some (asid, vptr)) \<Rightarrow>
      Some [VSRef ((vptr >> 21) && mask 9) (Some APageDirectory),
            VSRef ((vptr >> 30) && mask 9) (Some APDPointerTable),
            VSRef ((vptr >> 39) && mask 9) (Some APageMapL4),
-           VSRef (asid && mask asid_low_bits) (Some AASIDPool),
+           VSRef (ucast (asid_low_bits_of asid)) (Some AASIDPool),
            VSRef (ucast (asid_high_bits_of asid)) None]
  | PageCap dev word rights typ X64HugePage (Some (asid, vptr)) \<Rightarrow>
      Some [VSRef ((vptr >> 30) && mask 9) (Some APDPointerTable),
            VSRef ((vptr >> 39) && mask 9) (Some APageMapL4),
-           VSRef (asid && mask asid_low_bits) (Some AASIDPool),
+           VSRef (ucast (asid_low_bits_of asid)) (Some AASIDPool),
            VSRef (ucast (asid_high_bits_of asid)) None]
  | _ \<Rightarrow> None"
 
@@ -1062,10 +1142,16 @@ abbreviation
 definition
   "is_asid_pool_cap c \<equiv> \<exists>ptr asid. c = ArchObjectCap (ASIDPoolCap ptr asid)"
 
+definition
+  "is_ioport_control_cap cap \<equiv> cap = ArchObjectCap IOPortControlCap"
+
+definition
+  "is_ioport_cap cap \<equiv> \<exists>f l. cap = ArchObjectCap (IOPortCap f l)"
+
 
 lemmas is_arch_cap_simps [simplified atomize_eq] =
   is_pg_cap_def is_pd_cap_def is_pt_cap_def is_pdpt_cap_def is_pml4_cap_def is_asid_pool_cap_def
-  is_nondevice_page_cap
+  is_nondevice_page_cap is_ioport_control_cap_def is_ioport_cap_def
 
 
 definition
@@ -1141,22 +1227,22 @@ where
      ASIDPoolCap _ asid \<Rightarrow>
        Some [VSRef (ucast (asid_high_bits_of asid)) None]
  | PML4Cap _ (Some asid) \<Rightarrow>
-     Some [VSRef (asid && mask asid_low_bits) (Some AASIDPool),
+     Some [VSRef (ucast (asid_low_bits_of asid)) (Some AASIDPool),
            VSRef (ucast (asid_high_bits_of asid)) None]
  | PDPointerTableCap _ (Some (asid, vptr)) \<Rightarrow>
      Some [VSRef ((vptr >> 39) && mask 9) (Some APageMapL4),
-           VSRef (asid && mask asid_low_bits) (Some AASIDPool),
+           VSRef (ucast (asid_low_bits_of asid)) (Some AASIDPool),
            VSRef (ucast (asid_high_bits_of asid)) None]
  | PageDirectoryCap _ (Some (asid, vptr)) \<Rightarrow>
      Some [VSRef ((vptr >> 30) && mask 9) (Some APDPointerTable),
            VSRef ((vptr >> 39) && mask 9) (Some APageMapL4),
-           VSRef (asid && mask asid_low_bits) (Some AASIDPool),
+           VSRef (ucast (asid_low_bits_of asid)) (Some AASIDPool),
            VSRef (ucast (asid_high_bits_of asid)) None]
  | PageTableCap _ (Some (asid, vptr)) \<Rightarrow>
      Some [VSRef ((vptr >> 21) && mask 9) (Some APageDirectory),
            VSRef ((vptr >> 30) && mask 9) (Some APDPointerTable),
            VSRef ((vptr >> 39) && mask 9) (Some APageMapL4),
-           VSRef (asid && mask asid_low_bits) (Some AASIDPool),
+           VSRef (ucast (asid_low_bits_of asid)) (Some AASIDPool),
            VSRef (ucast (asid_high_bits_of asid)) None]
    | _ \<Rightarrow> None"
 
@@ -1212,7 +1298,7 @@ definition
   vspace_at_asid :: "asid \<Rightarrow> obj_ref \<Rightarrow> 'z::state_ext state \<Rightarrow> bool"
 where
   "vspace_at_asid asid pm \<equiv> \<lambda>s.
-         ([VSRef (asid && mask asid_low_bits) (Some AASIDPool),
+         ([VSRef (ucast (asid_low_bits_of asid)) (Some AASIDPool),
            VSRef (ucast (asid_high_bits_of asid)) None] \<rhd> pm) s"
 
 
@@ -1220,6 +1306,12 @@ definition
   valid_asid_map :: "'z::state_ext state \<Rightarrow> bool"
 where
   "valid_asid_map \<equiv> \<lambda>s. True"
+
+definition
+  "ioport_revocable r cs \<equiv> \<forall>p. cs p = Some (ArchObjectCap IOPortControlCap) \<longrightarrow> r p"
+
+definition
+  "valid_arch_mdb r cs \<equiv> ioport_revocable r cs"
 
 
 section "Lemmas"
@@ -1233,7 +1325,7 @@ lemma valid_arch_cap_def2:
   apply (rule eq_reflection)
   apply (cases c)
     by (auto simp add: wellformed_acap_simps valid_arch_cap_simps
-                       valid_arch_cap_ref_simps vmsz_aligned_X64LargePage
+                       valid_arch_cap_ref_simps
                 split: option.splits)
 
 lemmas vs_ref_aatype_simps[simp] = vs_ref_aatype_def[split_simps vs_ref.split]
@@ -1645,6 +1737,10 @@ lemma valid_vs_lookup_update [iff]:
 lemma valid_table_caps_update [iff]:
   "valid_table_caps (f s) = valid_table_caps s"
   by (simp add: valid_table_caps_def arch)
+
+lemma valid_ioports_update[iff]:
+  "valid_ioports (f s) = valid_ioports s"
+  by (clarsimp simp: valid_ioports_def arch)
 
 end
 
@@ -3165,6 +3261,14 @@ lemma tcb_arch_ref_context_update:
   "tcb_arch_ref (t\<lparr>tcb_arch := (arch_tcb_context_set a (tcb_arch t))\<rparr>) = tcb_arch_ref t"
   by (simp add: tcb_arch_ref_def arch_tcb_context_set_def)
 
+lemma tcb_arch_ref_set_registers:
+  "tcb_arch_ref (tcb\<lparr>tcb_arch := arch_tcb_set_registers regs (tcb_arch tcb)\<rparr>) = tcb_arch_ref tcb"
+  by (simp add: tcb_arch_ref_def arch_tcb_set_registers_def)
+
+lemma valid_arch_arch_tcb_set_registers[simp]:
+  "valid_arch_tcb (arch_tcb_set_registers a t) = valid_arch_tcb t"
+  by (simp add: arch_tcb_set_registers_def)
+
 lemma tcb_arch_ref_ipc_buffer_update: "\<And>tcb.
        tcb_arch_ref (tcb_ipc_buffer_update f tcb) = tcb_arch_ref tcb"
   by (simp add: tcb_arch_ref_def)
@@ -3214,7 +3318,7 @@ lemmas tcb_arch_ref_simps[simp] = tcb_arch_ref_ipc_buffer_update tcb_arch_ref_mc
   tcb_arch_ref_ctable_update tcb_arch_ref_vtable_update tcb_arch_ref_reply_update
   tcb_arch_ref_caller_update tcb_arch_ref_ipcframe_update tcb_arch_ref_state_update
   tcb_arch_ref_fault_handler_update tcb_arch_ref_fault_update tcb_arch_ref_bound_notification_update
-  tcb_arch_ref_context_update
+  tcb_arch_ref_context_update tcb_arch_ref_set_registers
 
 lemma hyp_live_tcb_def: "hyp_live (TCB tcb) = bound (tcb_arch_ref tcb)"
   by (clarsimp simp: hyp_live_def tcb_arch_ref_def)
@@ -3246,6 +3350,41 @@ lemma valid_arch_tcb_lift:
   "(\<And>T p. f \<lbrace>typ_at T p\<rbrace>) \<Longrightarrow> f \<lbrace>valid_arch_tcb t\<rbrace>"
   unfolding valid_arch_tcb_def
   by (wp hoare_vcg_all_lift hoare_vcg_imp_lift; simp)
+
+lemma arch_gen_obj_refs_inD:
+  "x \<in> arch_gen_obj_refs cap \<Longrightarrow> arch_gen_obj_refs cap = {x}"
+  by (simp add: arch_gen_obj_refs_def split: arch_cap.splits)
+
+lemma obj_ref_not_arch_gen_ref:
+  "x \<in> obj_refs cap \<Longrightarrow> arch_gen_refs cap = {}"
+  apply (cases cap; simp add: arch_gen_obj_refs_def split: arch_cap.splits)
+  by (rename_tac ac, case_tac ac; clarsimp)
+
+lemma same_aobject_same_arch_gen_refs:
+  "same_aobject_as ac ac' \<Longrightarrow> arch_gen_obj_refs ac = arch_gen_obj_refs ac'"
+  by (clarsimp simp: arch_gen_obj_refs_def split: arch_cap.split_asm)
+
+lemma arch_gen_ref_not_obj_ref:
+  "x \<in> arch_gen_refs cap \<Longrightarrow> obj_refs cap = {}"
+  by (cases cap; simp add: arch_gen_obj_refs_def split: arch_cap.splits)
+
+lemmas arch_gen_obj_refs_simps[simp] = arch_gen_obj_refs_def[split_simps arch_cap.split]
+
+lemma valid_arch_mdb_eqI:
+  assumes "valid_arch_mdb (is_original_cap s) (caps_of_state s)"
+  assumes "caps_of_state s = caps_of_state s'"
+  assumes "is_original_cap s = is_original_cap s'"
+  shows "valid_arch_mdb (is_original_cap s') (caps_of_state s')" using assms
+  by (clarsimp simp: valid_arch_mdb_def)
+
+
+
+lemma asid_low_bits_of_mask_eq:
+  "ucast (asid_low_bits_of asid) = asid && mask asid_low_bits"
+  by (simp add: asid_bits_defs asid_bits_of_defs ucast_ucast_mask)
+
+lemmas asid_low_bits_of_p2m1_eq =
+  asid_low_bits_of_mask_eq[simplified mask_2pm1]
 
 end
 

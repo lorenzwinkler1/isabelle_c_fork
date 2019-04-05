@@ -9,8 +9,7 @@
  *)
 
 theory ADT_IF_Refine_C
-imports
-    "ADT_IF_Refine" "../crefine/$L4V_ARCH/Refine_C"
+imports ADT_IF_Refine "CRefine.Refine_C"
 begin
 
 context begin interpretation Arch . (*FIXME: arch_split*)
@@ -189,10 +188,10 @@ lemma handleEvent_ccorres:
    apply (wpc, simp_all)[1]
        apply (wpc, simp_all add: handleSyscall_C_body_if_def syscall_from_H_def liftE_def
                                  ccorres_cond_univ_iff syscall_defs ccorres_cond_empty_iff)[1]
-              -- "SysCall"
+              \<comment> \<open>SysCall\<close>
               apply (simp add: handleCall_def)
               apply (ctac (no_vcg) add: handleInvocation_ccorres)
-             -- "SysReplyRecv"
+             \<comment> \<open>SysReplyRecv\<close>
              apply (simp add: bind_assoc)
              apply (rule ccorres_rhs_assoc)+
              apply (ctac (no_vcg) add: handleReply_ccorres)
@@ -208,37 +207,37 @@ lemma handleEvent_ccorres:
                    in hoare_post_imp)
               apply (simp add: ct_in_state'_def)
              apply (wp handleReply_sane handleReply_ct_not_ksQ)
-             -- "SysSend"
+             \<comment> \<open>SysSend\<close>
             apply (simp add: handleSend_def)
             apply (ctac (no_vcg) add: handleInvocation_ccorres)
-           -- "SysNBSend"
+           \<comment> \<open>SysNBSend\<close>
            apply (simp add: handleSend_def)
            apply (ctac (no_vcg) add: handleInvocation_ccorres)
-          -- "SysRecv"
+          \<comment> \<open>SysRecv\<close>
           apply (ctac (no_vcg) add: handleRecv_ccorres)
            apply (rule_tac P=\<top> and P'=UNIV in ccorres_from_vcg)
            apply (rule allI, rule conseqPre, vcg)
            apply (clarsimp simp: return_def)
           apply wp
-         -- "SysReply"
+         \<comment> \<open>SysReply\<close>
          apply (ctac (no_vcg) add: handleReply_ccorres)
           apply (rule_tac P=\<top> and P'=UNIV in ccorres_from_vcg)
           apply (rule allI, rule conseqPre, vcg)
           apply (clarsimp simp: return_def)
          apply wp
-       -- "SysYield"
+       \<comment> \<open>SysYield\<close>
        apply (ctac (no_vcg) add: handleYield_ccorres)
         apply (rule_tac P=\<top> and P'=UNIV in ccorres_from_vcg)
         apply (rule allI, rule conseqPre, vcg)
         apply (clarsimp simp: return_def)
        apply wp
-      -- "SysNBRecv"
+      \<comment> \<open>SysNBRecv\<close>
           apply (ctac (no_vcg) add: handleRecv_ccorres)
            apply (rule_tac P=\<top> and P'=UNIV in ccorres_from_vcg)
            apply (rule allI, rule conseqPre, vcg)
            apply (clarsimp simp: return_def)
           apply wp
-      -- "UnknownSyscall"
+      \<comment> \<open>UnknownSyscall\<close>
       apply (simp add: liftE_def bind_assoc handleUnknownSyscall_C_body_if_def)
       apply (rule ccorres_pre_getCurThread)
       apply (rule ccorres_symb_exec_r)
@@ -249,7 +248,7 @@ lemma handleEvent_ccorres:
         apply wp
        apply (clarsimp, vcg)
       apply (clarsimp, rule conseqPre, vcg, clarsimp)
-     -- "UserLevelFault"
+     \<comment> \<open>UserLevelFault\<close>
      apply (simp add: liftE_def bind_assoc handleUserLevelFault_C_body_if_def)
      apply (rule ccorres_pre_getCurThread)
      apply (rule ccorres_symb_exec_r)
@@ -260,9 +259,9 @@ lemma handleEvent_ccorres:
        apply wp
       apply (clarsimp, vcg)
      apply (clarsimp, rule conseqPre, vcg, clarsimp)
-    -- "Interrupt"
+    \<comment> \<open>Interrupt\<close>
     apply (ctac add: handleInterrupt_ccorres[unfolded handleEvent_def, simplified])
-   -- "VMFaultEvent"
+   \<comment> \<open>VMFaultEvent\<close>
    apply (simp add: liftE_def bind_assoc handleVMFaultEvent_C_body_if_def)
    apply (rule ccorres_pre_getCurThread)
    apply (simp add: catch_def)
@@ -295,7 +294,7 @@ lemma handleEvent_ccorres:
                     is_cap_fault_def
               elim: pred_tcb'_weakenE st_tcb_ex_cap''
               dest: st_tcb_at_idle_thread' rf_sr_ksCurThread)
-  -- "HypervisorEvent"
+  \<comment> \<open>HypervisorEvent\<close>
   apply (simp add: liftE_def bind_assoc)
   apply (rule ccorres_guard_imp2)
    apply (rule ccorres_symb_exec_l)
@@ -427,7 +426,7 @@ lemma corres_select_f':
   by (clarsimp simp: select_f_def corres_underlying_def)
 
 lemma corres_dmo_getExMonitor_C:
-  "corres_underlying rf_sr nf nf' op = \<top> \<top> (doMachineOp getExMonitor) (doMachineOp_C getExMonitor)"
+  "corres_underlying rf_sr nf nf' (=) \<top> \<top> (doMachineOp getExMonitor) (doMachineOp_C getExMonitor)"
   apply (clarsimp simp: doMachineOp_def doMachineOp_C_def)
   apply (rule corres_guard_imp)
     apply (rule_tac r'="\<lambda>ms ms'. exclusive_state ms = exclusive_state ms' \<and> machine_state_rest ms = machine_state_rest ms'
@@ -498,7 +497,7 @@ lemma absKState_crelation:
               split: if_splits)
 
 lemma do_user_op_if_C_corres:
-   "corres_underlying rf_sr False False op =
+   "corres_underlying rf_sr False False (=)
    (invs' and ex_abs einvs and (\<lambda>_. uop_nonempty f)) \<top>
    (doUserOp_if f tc) (doUserOp_C_if f tc)"
   apply (rule corres_gen_asm)
@@ -539,13 +538,13 @@ lemma do_user_op_if_C_corres:
                           Let_def cmachine_state_relation_def)
    apply simp
   apply (rule corres_guard_imp)
-    apply (rule_tac P=\<top> and P'=\<top> and r'="op=" in corres_split)
+    apply (rule_tac P=\<top> and P'=\<top> and r'="(=)" in corres_split)
        prefer 2
        apply (clarsimp simp add: corres_underlying_def fail_def
                                  assert_def return_def
                           split: if_splits)
       apply simp
-      apply (rule_tac P=\<top> and P'=\<top> and r'="op=" in corres_split)
+      apply (rule_tac P=\<top> and P'=\<top> and r'="(=)" in corres_split)
          prefer 2
          apply (clarsimp simp add: corres_underlying_def fail_def
                                    assert_def return_def
@@ -553,7 +552,7 @@ lemma do_user_op_if_C_corres:
         apply simp
         apply (rule corres_split[OF _ corres_dmo_getExMonitor_C])
           apply clarsimp
-          apply (rule_tac r'="op=" in corres_split[OF _ corres_select])
+          apply (rule_tac r'="(=)" in corres_split[OF _ corres_select])
               prefer 2
               apply clarsimp
              apply simp
@@ -589,7 +588,7 @@ definition
   "check_active_irq_C_if \<equiv> {((tc, s), irq, (tc', s')). ((irq, tc'), s') \<in> fst (checkActiveIRQ_C_if tc s)}"
 
 lemma check_active_irq_corres_C:
-  "corres_underlying rf_sr False nf (op =) \<top> \<top>
+  "corres_underlying rf_sr False nf (=) \<top> \<top>
                      (checkActiveIRQ_if tc) (checkActiveIRQ_C_if tc)"
   apply (simp add: checkActiveIRQ_if_def checkActiveIRQ_C_if_def)
   apply (simp add: getActiveIRQ_C_def)
@@ -654,7 +653,7 @@ lemma handleEvent_Interrupt_no_fail: "no_fail (invs' and ex_abs einvs) (handleEv
   done
 
 lemma handle_preemption_corres_C:
-  "corres_underlying rf_sr False nf (op =) (invs' and (\<lambda>s. vs_valid_duplicates' (ksPSpace s)) and ex_abs einvs) \<top>
+  "corres_underlying rf_sr False nf (=) (invs' and (\<lambda>s. vs_valid_duplicates' (ksPSpace s)) and ex_abs einvs) \<top>
                      (handlePreemption_if tc) (handlePreemption_C_if tc)"
   apply (simp add: handlePreemption_if_def2 handlePreemption_C_if_def)
   apply (rule corres_guard_imp)
@@ -701,7 +700,7 @@ lemma ccorres_corres_u':
 
 
 lemma schedule_if_corres_C:
-  "corres_underlying rf_sr False nf (op =) (invs' and ex_abs einvs) \<top>
+  "corres_underlying rf_sr False nf (=) (invs' and ex_abs einvs) \<top>
                      (schedule'_if tc) (schedule_C_if' tc)"
   apply (simp add: schedule'_if_def schedule_C_if'_def)
   apply (rule corres_guard_imp)
@@ -753,7 +752,7 @@ lemma corres_underlying_nf_imp2:
   by (auto simp: corres_underlying_def)
 
 lemma kernel_exit_corres_C:
-  "corres_underlying rf_sr False nf (op =) (invs') \<top>
+  "corres_underlying rf_sr False nf (=) (invs') \<top>
                      (kernelExit_if tc) (kernelExit_C_if tc)"
   apply (rule corres_underlying_nf_imp2)
   apply (simp add: kernelExit_if_def kernelExit_C_if_def)
@@ -867,7 +866,6 @@ lemma c_to_haskell: "uop_nonempty uop \<Longrightarrow> global_automata_refine c
     apply (rule haskell_invs)
    apply (unfold_locales)
                         apply (simp add: ADT_C_if_def)
-                        apply blast
                        apply (simp_all add: preserves_trivial preserves'_trivial)
           apply (clarsimp simp: lift_snd_rel_def ADT_C_if_def ADT_H_if_def absKState_crelation
                                 rf_sr_def full_invs_if'_def)

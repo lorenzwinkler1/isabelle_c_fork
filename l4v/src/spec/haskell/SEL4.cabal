@@ -10,7 +10,7 @@
 
 name:                   SEL4
 version:                1.4-pre
-cabal-version:          >= 1.18
+cabal-version:          == 1.18
 build-type:             Custom
 license:                GPL
 author:                 Philip Derrin et. al., NICTA
@@ -33,12 +33,14 @@ Flag ArchX64
     description:        Include x86 64-bit modules and platforms
     default:            False
 
+Flag ArchRiscV
+    description:        Include RISC-V 64-bit modules and platforms
+    default:            False
+
 Library
     exposed-modules:        SEL4
                             SEL4.Machine.Target
-    -- Newer mtl's cause old APIs to be deprecated, which fails -Werror.
-    -- base-4.8 (ghc 7.10) exports conflicting name Prelude.Word.
-    build-depends:          mtl==2.1.3.1, base==4.7.*, array, containers, transformers
+    build-depends:          mtl==2.2.*, base==4.11.*, array, containers, transformers
 
     if flag(FFI)
     -- FFIBindings currently relies on POSIX signal handlers.  This could
@@ -92,15 +94,15 @@ Library
                             Data.Helpers
                             Data.WordLib
 
-                            SEL4.Machine.Hardware.GICInterface
-                            SEL4.Machine.Hardware.MCTInterface
-                            SEL4.Machine.Hardware.MPTimerInterface
     if flag(ArchArm)
         other-modules:
                             SEL4.Machine.Hardware.ARM.KZM
                             SEL4.Machine.Hardware.ARM.Exynos4210
                             SEL4.Machine.Hardware.ARM.Sabre
                             SEL4.Machine.Hardware.ARM.Callbacks
+                            SEL4.Machine.Hardware.GICInterface
+                            SEL4.Machine.Hardware.MCTInterface
+                            SEL4.Machine.Hardware.MPTimerInterface
 
                             SEL4.API.Types.ARM
                             SEL4.API.InvocationLabels.ARM
@@ -119,10 +121,6 @@ Library
                             SEL4.Machine.RegisterSet.ARM
                             SEL4.Machine.Hardware.ARM
 
-    -- FIXME ideally ARMHYP will share code with the main ARM development,
-    -- but when doing an architecture port we want to make sure we are doing a
-    -- full pass over the Haskell kernel, touching all files
-    -- TODO consolidate later
     if flag(ArchArmHyp)
         other-modules:
                             SEL4.Machine.Hardware.ARM.TK1
@@ -152,6 +150,8 @@ Library
                             SEL4.API.Types.X64
                             SEL4.API.InvocationLabels.X64
                             SEL4.API.Invocation.X64
+                            SEL4.API.Failures.X64
+                            SEL4.API.Faults.X64
                             SEL4.Kernel.VSpace.X64
                             SEL4.Kernel.Thread.X64
                             SEL4.Kernel.Hypervisor.X64
@@ -166,6 +166,27 @@ Library
                             SEL4.Machine.Hardware.X64
 
                             SEL4.Machine.Hardware.X64.PC99
+
+    if flag(ArchRiscV)
+        other-modules:
+                            SEL4.API.Types.RISCV64
+                            SEL4.API.InvocationLabels.RISCV64
+                            SEL4.API.Invocation.RISCV64
+                            SEL4.API.Failures.RISCV64
+                            SEL4.API.Faults.RISCV64
+                            SEL4.Kernel.VSpace.RISCV64
+                            SEL4.Kernel.Thread.RISCV64
+                            SEL4.Kernel.Hypervisor.RISCV64
+                            SEL4.Object.ObjectType.RISCV64
+                            SEL4.Object.Structures.RISCV64
+                            SEL4.Object.Interrupt.RISCV64
+                            SEL4.Object.Instances.RISCV64
+                            SEL4.Object.TCB.RISCV64
+                            SEL4.Model.StateData.RISCV64
+                            SEL4.Machine.RegisterSet.RISCV64
+                            SEL4.Machine.Hardware.RISCV64
+
+                            SEL4.Machine.Hardware.RISCV64.Spike
 
     hs-source-dirs:         src
     ghc-prof-options:       -auto-all -prof -fprof-auto

@@ -16,8 +16,10 @@ text \<open>
   See also: TraceDemo
 \<close>
 theory FunctionInfoDemo imports
-  "../../AutoCorres"
+  "AutoCorres.AutoCorres"
 begin
+
+external_file "function_info.c"
 
 text \<open>Process a source file to populate our data structures.\<close>
 install_C_file "function_info.c"

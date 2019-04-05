@@ -11,7 +11,7 @@
 chapter "Toplevel Refinement Statement"
 
 theory Refine_C
-imports Init_C Fastpath_C "../../../lib/clib/CToCRefine"
+imports Init_C Fastpath_C "../lib/CToCRefine"
 begin
 
 context begin interpretation Arch . (*FIXME: arch_split*)
@@ -266,7 +266,7 @@ lemma handleSyscall_ccorres:
    apply (rule ccorres_split_nothrow_novcg)
        apply wpc
               prefer 3
-              -- "SysSend"
+              \<comment> \<open>SysSend\<close>
               apply (clarsimp simp: syscall_from_H_def syscall_defs)
               apply (rule ccorres_cond_empty |rule ccorres_cond_univ)+
               apply (simp add: handleSend_def)
@@ -301,7 +301,7 @@ lemma handleSyscall_ccorres:
                           |  strengthen None_drop invs'_irq_strg | subst Ex_Some_conv)+
               apply (vcg exspec=handleInvocation_modifies)
              prefer 3
-             -- "SysNBSend"
+             \<comment> \<open>SysNBSend\<close>
              apply (clarsimp simp: syscall_from_H_def syscall_defs)
              apply (rule ccorres_cond_empty |rule ccorres_cond_univ)+
              apply (simp add: handleSend_def)
@@ -334,7 +334,7 @@ lemma handleSyscall_ccorres:
                apply (wp dmo'_getActiveIRQ_non_kernel getActiveIRQ_neq_Some0xFF | simp
                       |  strengthen None_drop invs'_irq_strg | subst Ex_Some_conv)+
              apply (vcg exspec=handleInvocation_modifies)
-            -- "SysCall"
+            \<comment> \<open>SysCall\<close>
             apply (clarsimp simp: syscall_from_H_def syscall_defs)
             apply (rule ccorres_cond_empty |rule ccorres_cond_univ)+
             apply (simp add: handleCall_def)
@@ -368,7 +368,7 @@ lemma handleSyscall_ccorres:
                       |  strengthen None_drop invs'_irq_strg | subst Ex_Some_conv)+
             apply (vcg exspec=handleInvocation_modifies)
            prefer 2
-           -- "SysRecv"
+           \<comment> \<open>SysRecv\<close>
            apply (clarsimp simp: syscall_from_H_def syscall_defs)
            apply (rule ccorres_cond_empty |rule ccorres_cond_univ)+
            apply (simp add: liftE_bind)
@@ -377,7 +377,7 @@ lemma handleSyscall_ccorres:
             apply (rule ccorres_returnOk_skip[unfolded returnOk_def, simplified])
            apply wp
           prefer 2
-          -- "SysReply"
+          \<comment> \<open>SysReply\<close>
           apply (clarsimp simp: syscall_from_H_def syscall_defs)
           apply (rule ccorres_cond_empty |rule ccorres_cond_univ)+
           apply (simp add: liftE_bind)
@@ -385,7 +385,7 @@ lemma handleSyscall_ccorres:
           apply (ctac (no_vcg) add: handleReply_ccorres)
            apply (rule ccorres_returnOk_skip[unfolded returnOk_def, simplified])
           apply wp
-         -- "SysReplyRecv"
+         \<comment> \<open>SysReplyRecv\<close>
          apply (clarsimp simp: syscall_from_H_def syscall_defs)
          apply (rule ccorres_cond_empty |rule ccorres_cond_univ)+
          apply (simp add: liftE_bind bind_assoc)
@@ -401,7 +401,7 @@ lemma handleSyscall_ccorres:
                               in hoare_post_imp)
           apply (simp add: ct_in_state'_def)
          apply (wp handleReply_sane handleReply_ct_not_ksQ)
-        -- "SysYield"
+        \<comment> \<open>SysYield\<close>
         apply (clarsimp simp: syscall_from_H_def syscall_defs)
         apply (rule ccorres_cond_empty |rule ccorres_cond_univ)+
         apply (simp add: liftE_bind)
@@ -409,7 +409,7 @@ lemma handleSyscall_ccorres:
         apply (ctac (no_vcg) add: handleYield_ccorres)
          apply (rule ccorres_returnOk_skip[unfolded returnOk_def, simplified])
         apply wp
-       -- "SysNBRecv"
+       \<comment> \<open>SysNBRecv\<close>
        apply (clarsimp simp: syscall_from_H_def syscall_defs)
        apply (rule ccorres_cond_empty |rule ccorres_cond_univ)+
        apply (simp add: liftE_bind)
@@ -417,7 +417,7 @@ lemma handleSyscall_ccorres:
        apply (ctac (no_vcg) add: handleRecv_ccorres)
         apply (rule ccorres_returnOk_skip[unfolded returnOk_def, simplified])
        apply wp
-      -- " rest of body"
+      \<comment> \<open>rest of body\<close>
       apply ceqv
      apply (ctac (no_vcg) add: schedule_ccorres)
       apply (rule ccorres_add_return2)
@@ -632,7 +632,7 @@ lemma ccorres_get_registers:
 
 (* FIXME: move *)
 lemma st_tcb_at'_opeq_simp:
-  "st_tcb_at' (op = Structures_H.thread_state.Running) (ksCurThread s) s
+  "st_tcb_at' ((=) Structures_H.thread_state.Running) (ksCurThread s) s
     = st_tcb_at' (\<lambda>st. st = Structures_H.thread_state.Running) (ksCurThread s) s"
   by (fastforce simp add: st_tcb_at'_def obj_at'_def)
 
@@ -700,7 +700,7 @@ lemma threadSet_all_invs_triv':
 
 lemma getContext_corres:
   "t' = tcb_ptr_to_ctcb_ptr t \<Longrightarrow>
-  corres_underlying rf_sr False True (op =) (tcb_at' t) \<top>
+  corres_underlying rf_sr False True (=) (tcb_at' t) \<top>
                     (threadGet (atcbContextGet o tcbArch) t) (gets (getContext_C t'))"
   apply (clarsimp simp: corres_underlying_def simpler_gets_def)
   apply (drule obj_at_ko_at')
@@ -725,7 +725,7 @@ lemma callKernel_cur:
   done
 
 lemma entry_corres_C:
-  "corres_underlying rf_sr False True (op =)
+  "corres_underlying rf_sr False True (=)
            (all_invs' e)
            \<top>
            (kernelEntry e uc) (kernelEntry_C fp e uc)"
@@ -887,7 +887,7 @@ lemma user_memory_update_corres_C:
   done
 
 lemma device_update_corres_C:
-  "corres_underlying rf_sr False nf op = (\<lambda>_. True) (\<lambda>_. True)
+  "corres_underlying rf_sr False nf (=) (\<lambda>_. True) (\<lambda>_. True)
    (doMachineOp (device_memory_update ms))
    (setDeviceState_C ms)"
   apply (clarsimp simp: corres_underlying_def)
@@ -937,23 +937,23 @@ lemma dmo_domain_user_mem'[wp]:
   done
 
 lemma do_user_op_corres_C:
-  "corres_underlying rf_sr False False (op =) (invs' and ex_abs einvs) \<top>
+  "corres_underlying rf_sr False False (=) (invs' and ex_abs einvs) \<top>
                      (doUserOp f tc) (doUserOp_C f tc)"
   apply (simp only: doUserOp_C_def doUserOp_def split_def)
   apply (rule corres_guard_imp)
-    apply (rule_tac P=\<top> and P'=\<top> and r'="op=" in corres_split)
+    apply (rule_tac P=\<top> and P'=\<top> and r'="(=)" in corres_split)
        prefer 2
        apply (clarsimp simp: simpler_gets_def getCurThread_def
                 corres_underlying_def rf_sr_def cstate_relation_def Let_def)
-      apply (rule_tac P=valid_state' and P'=\<top> and r'="op=" in corres_split)
+      apply (rule_tac P=valid_state' and P'=\<top> and r'="(=)" in corres_split)
          prefer 2
          apply (clarsimp simp: cstate_to_A_def absKState_def
                                rf_sr_def cstate_to_H_correct ptable_lift_def)
-        apply (rule_tac P=valid_state' and P'=\<top> and r'="op=" in corres_split)
+        apply (rule_tac P=valid_state' and P'=\<top> and r'="(=)" in corres_split)
            prefer 2
            apply (clarsimp simp: cstate_to_A_def absKState_def
                                  rf_sr_def cstate_to_H_correct ptable_rights_def)
-          apply (rule_tac P=pspace_distinct' and P'=\<top> and r'="op="
+          apply (rule_tac P=pspace_distinct' and P'=\<top> and r'="(=)"
                  in corres_split)
              prefer 2
              apply clarsimp
@@ -963,30 +963,30 @@ lemma do_user_op_corres_C:
               apply (simp add: rf_sr_def cstate_relation_def Let_def
                                cpspace_relation_def)
              apply assumption
-            apply (rule_tac P=pspace_distinct' and P'=\<top> and r'="op="
+            apply (rule_tac P=pspace_distinct' and P'=\<top> and r'="(=)"
                  in corres_split)
                prefer 2
                apply (clarsimp simp: rf_sr_def cstate_relation_def Let_def
                                cpspace_relation_def)
                apply (drule(1) device_mem_C_relation[symmetric])
                apply (simp add: comp_def)
-              apply (rule_tac P=valid_state' and P'=\<top> and r'="op=" in corres_split)
+              apply (rule_tac P=valid_state' and P'=\<top> and r'="(=)" in corres_split)
                  prefer 2
                  apply (clarsimp simp: cstate_relation_def rf_sr_def
                    Let_def cmachine_state_relation_def)
-                apply (rule_tac P=\<top> and P'=\<top> and r'="op=" in corres_split)
+                apply (rule_tac P=\<top> and P'=\<top> and r'="(=)" in corres_split)
                    prefer 2
                    apply (clarsimp simp add: corres_underlying_def fail_def
                         assert_def return_def
                         split:if_splits)
                   apply simp
-                  apply (rule_tac P=\<top> and P'=\<top> and r'="op=" in corres_split)
+                  apply (rule_tac P=\<top> and P'=\<top> and r'="(=)" in corres_split)
                     prefer 2
                     apply (clarsimp simp add: corres_underlying_def fail_def
                          assert_def return_def
                          split:if_splits)
                    apply simp
-                   apply (rule_tac r'="op=" in corres_split[OF _ corres_select])
+                   apply (rule_tac r'="(=)" in corres_split[OF _ corres_select])
                       prefer 2
                       apply clarsimp
                      apply simp
@@ -1009,7 +1009,7 @@ lemma do_user_op_corres_C:
   done
 
 lemma check_active_irq_corres_C:
-  "corres_underlying rf_sr False True (op =)
+  "corres_underlying rf_sr False True (=)
              (invs' and (\<lambda>s. ksSchedulerAction s = ResumeCurrentThread) and ex_abs valid_state) \<top>
              (checkActiveIRQ) (checkActiveIRQ_C)"
   apply (simp add: checkActiveIRQ_C_def checkActiveIRQ_def getActiveIRQ_C_def)

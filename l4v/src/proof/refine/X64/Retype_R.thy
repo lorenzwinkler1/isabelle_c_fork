@@ -416,7 +416,7 @@ lemma state_relation_null_filterE:
      ghost_relation (kheap t) (gsUserPages t') (gsCNodes t'); valid_list s;
      pspace_aligned' s'; pspace_distinct' s'; valid_objs s; valid_mdb s;
      pspace_aligned' t'; pspace_distinct' t';
-     mdb_cte_at (swp (cte_wp_at (op \<noteq> cap.NullCap)) s) (cdt s) \<rbrakk>
+     mdb_cte_at (swp (cte_wp_at ((\<noteq>) cap.NullCap)) s) (cdt s) \<rbrakk>
       \<Longrightarrow> (t, t') \<in> state_relation"
   apply (clarsimp simp: state_relation_def)
   apply (intro conjI)
@@ -605,7 +605,7 @@ lemma cte_wp_at_retype':
               "pspace_distinct' (ksPSpace_update (\<lambda>x xa. if xa \<in> set addrs then Some obj else ksPSpace s xa) s)"
       and al: "\<forall>x \<in> set addrs. is_aligned x (objBitsKO obj)"
       and pn: "\<forall>x \<in> set addrs. ksPSpace s x = None"
-   shows
+  shows
   "cte_wp_at' P p (ksPSpace_update (\<lambda>x xa. if xa \<in> set addrs then Some obj else ksPSpace s xa) s)
       = (if tp = Inr (APIObjectType ArchTypes_H.CapTableObject) \<and> p \<in> set addrs
            \<or> tp = Inr (APIObjectType ArchTypes_H.TCBObject)
@@ -633,8 +633,7 @@ lemma cte_wp_at_retype':
       apply (rule order_trans_rules(17))
        apply (clarsimp cong: if_cong)
       apply (rule word_and_le2)
-     apply (drule mask_in_range[where bits = tcbBlockSizeBits and ptr' = p])
-     apply simp
+     apply (simp add: word_neg_and_le[simplified field_simps])
     apply simp
    apply (clarsimp elim!: obj_atE' simp: pn)
   apply (clarsimp elim!: obj_atE' simp: pn)
@@ -655,7 +654,7 @@ lemma ctes_of_retype:
              then Some (CTE NullCap nullMDBNode)
              else map_to_ctes (ksPSpace s) x)"
   (is "map_to_ctes ?ps' = ?map'")
-  using cte_wp_at_retype' [where P="op = cte" for cte, OF ko pv pv' al pn]
+  using cte_wp_at_retype' [where P="(=) cte" for cte, OF ko pv pv' al pn]
         arg_cong [where f=Not, OF cte_wp_at_retype' [OF ko pv pv' al pn, where P="\<top>"]]
   apply (simp(no_asm_use) add: cte_wp_at_ctes_of cong: if_cong)
   apply (rule ext)
@@ -1459,7 +1458,7 @@ lemma retype_state_relation:
   show "valid_list s" using et
     by (clarsimp)
 
-  show "mdb_cte_at (swp (cte_wp_at (op \<noteq> cap.NullCap)) s) (cdt s)" using vs
+  show "mdb_cte_at (swp (cte_wp_at ((\<noteq>) cap.NullCap)) s) (cdt s)" using vs
     by (clarsimp simp: valid_mdb_def)
 
   have pspr: "pspace_relation (kheap s) (ksPSpace s')"
@@ -1698,7 +1697,7 @@ lemma retype_region_ext_modify_kheap_futz:
    apply (simp add: modify_def[symmetric])
 done
 
-lemmas retype_region_ext_modify_kheap_futz' = fun_cong[OF arg_cong[where f=bind, OF retype_region_ext_modify_kheap_futz[symmetric]], simplified bind_assoc]
+lemmas retype_region_ext_modify_kheap_futz' = fun_cong[OF arg_cong[where f=NonDetMonad.bind, OF retype_region_ext_modify_kheap_futz[symmetric]], simplified bind_assoc]
 
 lemma foldr_upd_app_if_eta_futz:
   "foldr (\<lambda>p ps. ps(p \<mapsto> f p)) as = (\<lambda>g x. if x \<in> set as then Some (f x) else g x)"
@@ -2375,7 +2374,12 @@ lemma createNewCaps_valid_cap:
   assumes not_0: "n \<noteq> 0"
   assumes ct: "ty = APIObjectType ArchTypes_H.CapTableObject \<Longrightarrow> 0 < us"
               "ty = APIObjectType apiobject_type.Untyped \<Longrightarrow> minUntypedSizeBits \<le> us \<and> us \<le> maxUntypedSizeBits"
-  assumes ptr: " ptr \<noteq> 0"
+  assumes ptr: "ptr \<noteq> 0"
+
+  assumes ptr_cn: "canonical_address (ptr && ~~ mask sz)"
+  assumes ptr_km: "ptr && ~~ mask sz \<in> kernel_mappings"
+  assumes sz_constrained: "sz \<le> maxUntypedSizeBits"
+
   shows "\<lbrace>\<lambda>s. pspace_no_overlap' ptr sz s \<and> valid_pspace' s\<rbrace>
            createNewCaps ty ptr n us dev
          \<lbrace>\<lambda>r s. (\<forall>cap \<in> set r. s \<turnstile>' cap)\<rbrace>"
@@ -2388,31 +2392,29 @@ proof -
   show ?thesis
   proof(cases "Types_H.toAPIType ty")
     case None thus ?thesis
-      including no_pre
       using not_0
       apply (clarsimp simp: createNewCaps_def Arch_createNewCaps_def)
-      apply wp
       using cover
       apply (simp add: range_cover_def)
       using cover
       apply (clarsimp simp: X64_H.toAPIType_def APIType_capBits_def
           split: X64_H.object_type.splits)
 
-            -- "SmallPageObject"
+            \<comment> \<open>SmallPageObject\<close>
             apply wp
             apply (simp add: valid_cap'_def capAligned_def n_less_word_bits ball_conj_distrib)
             apply (wp createObjects_aligned2 createObjects_nonzero'
                       cwo_ret'[where bs=0, simplified]
                    | simp add: objBits_if_dev pageBits_def ptr range_cover_n_wb)+
             apply (simp add:pageBits_def ptr word_bits_def)
-           -- "LargePageObject"
+           \<comment> \<open>LargePageObject\<close>
            apply wp
            apply (simp add: valid_cap'_def capAligned_def n_less_word_bits ball_conj_distrib)
            apply (wp createObjects_aligned2 createObjects_nonzero'
                      cwo_ret'[where bs=ptTranslationBits, simplified]
                   | simp add: objBits_if_dev pageBits_def ptr range_cover_n_wb)+
            apply (simp add:pageBits_def ptr word_bits_def)
-          -- "HugePageObject"
+          \<comment> \<open>HugePageObject\<close>
           apply wp
           apply (simp add: valid_cap'_def capAligned_def n_less_word_bits ball_conj_distrib)
           apply (wp createObjects_aligned2 createObjects_nonzero'
@@ -2420,66 +2422,70 @@ proof -
                  | simp add: objBits_if_dev pageBits_def ptr range_cover_n_wb)+
           apply (simp add:pageBits_def ptr word_bits_def)
 
-         -- "PageTableObject"
+         \<comment> \<open>PageTableObject\<close>
          apply wp
+          apply (simp add: valid_cap'_def capAligned_def n_less_word_bits)
+          apply (simp only: imp_conv_disj page_table_at'_def typ_at_to_obj_at_arches)
+          apply (rule hoare_chain)
+            apply (rule hoare_vcg_conj_lift)
+             apply (rule createObjects_aligned[OF _ range_cover.range_cover_n_less(1)
+                                                      [where 'a=64, unfolded word_bits_len_of, OF cover]
+                                                  not_0];
+                    simp add: objBits_simps archObjSize_def bit_simps word_bits_def)
+            apply (rule createObjects_obj_at[where 'a=pte, OF _ not_0];
+                   simp add: objBits_simps archObjSize_def bit_simps projectKOs)
+           apply simp
+          apply (clarsimp simp: objBits_simps archObjSize_def bit_simps)
+         apply clarsimp
+
+        \<comment> \<open>PageDirectoryObject\<close>
+        apply wp
          apply (simp add: valid_cap'_def capAligned_def n_less_word_bits)
-         apply (simp only: imp_conv_disj page_table_at'_def typ_at_to_obj_at_arches)
+         apply (simp only: imp_conv_disj page_directory_at'_def typ_at_to_obj_at_arches)
          apply (rule hoare_chain)
            apply (rule hoare_vcg_conj_lift)
             apply (rule createObjects_aligned[OF _ range_cover.range_cover_n_less(1)
                                                      [where 'a=64, unfolded word_bits_len_of, OF cover]
                                                  not_0];
                    simp add: objBits_simps archObjSize_def bit_simps word_bits_def)
-           apply (rule createObjects_obj_at[where 'a=pte, OF _ not_0];
+           apply (rule createObjects_obj_at[where 'a=pde, OF _ not_0];
                   simp add: objBits_simps archObjSize_def bit_simps projectKOs)
           apply simp
          apply (clarsimp simp: objBits_simps archObjSize_def bit_simps)
+        apply simp
 
-        -- "PageDirectoryObject"
-        apply wp
+       \<comment> \<open>PDPointerTableObject\<close>
+       apply wp
         apply (simp add: valid_cap'_def capAligned_def n_less_word_bits)
-        apply (simp only: imp_conv_disj page_directory_at'_def typ_at_to_obj_at_arches)
+        apply (simp only: imp_conv_disj pd_pointer_table_at'_def typ_at_to_obj_at_arches)
         apply (rule hoare_chain)
           apply (rule hoare_vcg_conj_lift)
            apply (rule createObjects_aligned[OF _ range_cover.range_cover_n_less(1)
                                                     [where 'a=64, unfolded word_bits_len_of, OF cover]
                                                 not_0];
                   simp add: objBits_simps archObjSize_def bit_simps word_bits_def)
-          apply (rule createObjects_obj_at[where 'a=pde, OF _ not_0];
+          apply (rule createObjects_obj_at[where 'a=pdpte, OF _ not_0];
                  simp add: objBits_simps archObjSize_def bit_simps projectKOs)
          apply simp
         apply (clarsimp simp: objBits_simps archObjSize_def bit_simps)
+       apply simp
 
-       -- "PDPointerTableObject"
-       apply wp
+      \<comment> \<open>PML4Object\<close>
+      apply (wp hoare_vcg_const_Ball_lift)
+        apply (wp mapM_x_wp' )
        apply (simp add: valid_cap'_def capAligned_def n_less_word_bits)
-       apply (simp only: imp_conv_disj pd_pointer_table_at'_def typ_at_to_obj_at_arches)
+       apply (simp only: imp_conv_disj page_map_l4_at'_def typ_at_to_obj_at_arches)
        apply (rule hoare_chain)
          apply (rule hoare_vcg_conj_lift)
-          apply (rule createObjects_aligned[OF _ range_cover.range_cover_n_less(1)
-                                                   [where 'a=64, unfolded word_bits_len_of, OF cover]
-                                               not_0];
+          apply (rule createObjects_aligned [OF _ range_cover.range_cover_n_less(1)
+                                                    [where 'a=64, unfolded word_bits_len_of, OF cover]
+                                                not_0];
                  simp add: objBits_simps archObjSize_def bit_simps word_bits_def)
-         apply (rule createObjects_obj_at[where 'a=pdpte, OF _ not_0];
+         apply (rule createObjects_obj_at [where 'a=pml4e, OF _  not_0];
                 simp add: objBits_simps archObjSize_def bit_simps projectKOs)
         apply simp
        apply (clarsimp simp: objBits_simps archObjSize_def bit_simps)
-
-      -- "PML4Object"
-      apply (wp hoare_vcg_const_Ball_lift)
-       apply (wp mapM_x_wp' )
-      apply (simp add: valid_cap'_def capAligned_def n_less_word_bits)
-      apply (simp only: imp_conv_disj page_map_l4_at'_def typ_at_to_obj_at_arches)
-      apply (rule hoare_chain)
-        apply (rule hoare_vcg_conj_lift)
-         apply (rule createObjects_aligned [OF _ range_cover.range_cover_n_less(1)
-                                                   [where 'a=64, unfolded word_bits_len_of, OF cover]
-                                               not_0];
-                simp add: objBits_simps archObjSize_def bit_simps word_bits_def)
-        apply (rule createObjects_obj_at [where 'a=pml4e, OF _  not_0];
-               simp add: objBits_simps archObjSize_def bit_simps projectKOs)
-       apply simp
-      apply (clarsimp simp: objBits_simps archObjSize_def bit_simps)
+      apply simp
    done
   next
     case (Some a) thus ?thesis
@@ -2494,23 +2500,27 @@ proof -
         apply (clarsimp simp: image_def upto_enum_red' valid_cap'_def capAligned_def
                        split: capability.splits)
         apply (drule minus_one_helper5[rotated])
-       apply (rule range_cover_not_zero[OF not_0 cover])
-      apply (intro conjI)
-         apply (rule is_aligned_add_multI[OF _ le_refl refl])
-           apply (fastforce simp:range_cover_def word_bits_def)+
-       apply (clarsimp simp:valid_untyped'_def ko_wp_at'_def obj_range'_def)
-       apply (drule(1) pspace_no_overlapD'[rotated])
-       apply (frule(1) range_cover_cell_subset)
-       apply (erule disjE)
-        apply (drule psubset_imp_subset)
-        apply (drule(1) disjoint_subset2[rotated])
-        apply (drule(1) disjoint_subset)
-        apply (drule(1) range_cover_subset_not_empty)
-        apply clarsimp+
-       apply blast
-      apply (drule(1) range_cover_no_0[OF ptr _ unat_less_helper])
-      apply simp
-      done
+         apply (rule range_cover_not_zero[OF not_0 cover])
+        apply (intro conjI)
+             apply (rule is_aligned_add_multI[OF _ le_refl refl])
+             apply (fastforce simp:range_cover_def word_bits_def)+
+           apply (clarsimp simp:valid_untyped'_def ko_wp_at'_def obj_range'_def)
+           apply (drule(1) pspace_no_overlapD'[rotated])
+           apply (frule(1) range_cover_cell_subset)
+           apply (erule disjE)
+            apply (drule psubset_imp_subset)
+            apply (drule(1) disjoint_subset2[rotated])
+            apply (drule(1) disjoint_subset)
+            apply (drule(1) range_cover_subset_not_empty)
+            apply clarsimp+
+           apply blast
+          apply (drule(1) range_cover_no_0[OF ptr _ unat_less_helper])
+          apply simp
+         apply (drule (1) range_cover_canonical_address[OF _ unat_less_helper ptr_cn sz_constrained])
+         apply simp
+        apply (drule (1) range_cover_in_kernel_mappings[OF _ unat_less_helper ptr_km sz_constrained])
+        apply simp
+        done
     next
       case TCBObject with Some cover ct show ?thesis
         including no_pre
@@ -2731,7 +2741,7 @@ lemma corres_retype:
   and             orr: "obj_bits_api (APIType_map2 ty) us \<le> sz \<Longrightarrow>
                         obj_relation_retype (default_object (APIType_map2 ty) dev us) ko"
   and           cover: "range_cover ptr sz (obj_bits_api (APIType_map2 ty) us) n"
-  shows "corres (op =)
+  shows "corres (=)
   (\<lambda>s. valid_pspace s \<and> pspace_no_overlap_range_cover ptr sz s
      \<and> valid_mdb s \<and> valid_etcbs s \<and> valid_list s)
   (\<lambda>s. pspace_aligned' s \<and> pspace_distinct' s \<and> pspace_no_overlap' ptr sz s
@@ -3109,6 +3119,15 @@ lemma irq_control_n:
   apply (erule (1) irq_controlD, rule irq_control)
   done
 
+lemma ioport_control_n:
+  "ioport_control n"
+  apply (clarsimp simp add: ioport_control_def)
+  apply (simp add: n_Some_eq split: if_split_asm)
+  apply (frule ioport_revocable, rule ioport_control)
+  apply clarsimp
+  apply (erule (1) ioport_controlD, rule ioport_control)
+  done
+
 lemma dist_z_m: "distinct_zombies m"
   using valid by auto
 
@@ -3136,7 +3155,7 @@ lemma valid_n:
   by (simp add: valid_mdb_ctes_def dlist_n no_0_n mdb_chain_0_n
                 valid_badges_n caps_contained_n untyped_mdb_n
                 untyped_inc_n mdb_chunked_n valid_nullcaps_n ut_rev_n
-                class_links_n irq_control_n dist_z_n
+                class_links_n irq_control_n dist_z_n ioport_control_n
                 reply_masters_rvk_fb_n)
 
 end
@@ -3312,10 +3331,49 @@ where
  "caps_overlap_reserved' S s \<equiv> \<forall>cte \<in> ran (ctes_of s).
   (isUntypedCap (cteCap cte) \<longrightarrow> usableUntypedRange (cteCap cte) \<inter> S = {})"
 
+lemma retype_canonical':
+  assumes pc': "pspace_canonical' s'"
+      and cover: "range_cover ptr sz (objBitsKO ko) n"
+      and sz_limit: "sz \<le> maxUntypedSizeBits"
+      and ptr_cn: "canonical_address (ptr && ~~ mask sz)"
+  shows
+  "pspace_canonical' (s' \<lparr>ksPSpace := foldr (\<lambda>addr. data_map_insert addr ko)
+                                             (new_cap_addrs n ptr ko) (ksPSpace s')\<rparr>)"
+  (is "pspace_canonical' (s'\<lparr>ksPSpace := ?ps\<rparr>)")
+proof -
+  show "pspace_canonical' (s'\<lparr>ksPSpace := ?ps\<rparr>)" using assms
+    apply (subst foldr_upd_app_if[folded data_map_insert_def])
+    apply (clarsimp simp: pspace_canonical'_def split: if_split_asm)
+     apply (clarsimp simp add: new_cap_addrs_def shiftl_t2n)
+     apply (fastforce intro: range_cover_canonical_address[OF cover] simp: mult.commute)+
+    done
+qed
+
+lemma retype_in_kernel_mappings':
+  assumes pc': "pspace_in_kernel_mappings' s'"
+      and cover: "range_cover ptr sz (objBitsKO ko) n"
+      and sz_limit: "sz \<le> maxUntypedSizeBits"
+      and ptr_cn: "(ptr && ~~ mask sz) \<in> kernel_mappings"
+  shows
+  "pspace_in_kernel_mappings' (s' \<lparr>ksPSpace := foldr (\<lambda>addr. data_map_insert addr ko)
+                                             (new_cap_addrs n ptr ko) (ksPSpace s')\<rparr>)"
+  (is "pspace_in_kernel_mappings' (s'\<lparr>ksPSpace := ?ps\<rparr>)")
+proof -
+  show "pspace_in_kernel_mappings' (s'\<lparr>ksPSpace := ?ps\<rparr>)" using assms
+    apply (subst foldr_upd_app_if[folded data_map_insert_def])
+    apply (clarsimp simp: pspace_in_kernel_mappings'_def split: if_split_asm)
+     apply (clarsimp simp add: new_cap_addrs_def shiftl_t2n)
+     apply (fastforce intro: range_cover_in_kernel_mappings[OF cover] simp: mult.commute)+
+    done
+qed
+
 lemma createObjects_valid_pspace':
   assumes  mko: "makeObjectKO dev ty = Some val"
   and    not_0: "n \<noteq> 0"
   and    cover: "range_cover ptr sz (objBitsKO val + gbits) n"
+  and    sz_limit: "sz \<le> maxUntypedSizeBits"
+  and    ptr_cn: "canonical_address (ptr && ~~ mask sz)"
+  and    ptr_km: "ptr && ~~ mask sz \<in> kernel_mappings"
   shows "\<lbrace>\<lambda>s. pspace_no_overlap' ptr sz s \<and> valid_pspace' s \<and> caps_no_overlap'' ptr sz s
             \<and> caps_overlap_reserved' {ptr .. ptr + of_nat (n * 2^gbits * 2 ^ objBitsKO val ) - 1} s
             \<and> ptr \<noteq> 0\<rbrace>
@@ -3349,6 +3407,8 @@ proof (intro conjI impI)
   assume pn: "pspace_no_overlap' ptr sz s"
      and vo: "valid_objs' s"
      and ad: "pspace_aligned' s" "pspace_distinct' s"
+     and cn: "pspace_canonical' s"
+     and km: "pspace_in_kernel_mappings' s"
      and pc: "caps_no_overlap'' ptr sz s"
     and mdb: "valid_mdb' s"
     and p_0: "ptr \<noteq> 0"
@@ -3371,8 +3431,16 @@ proof (intro conjI impI)
     by (simp add:range_cover_def)
 
   show pspace_aligned: "pspace_aligned' ?s'"
-  using ad' range_cover.unat_of_nat_n_shift[OF cover,where gbits=gbits,simplified]
+  using ad' shift
     by (simp add:field_simps)
+
+  show pspace_canonical: "pspace_canonical' ?s'"
+   using retype_canonical'[OF cn cover' sz_limit ptr_cn]
+   by (clarsimp simp: field_simps)
+
+  show pspace_in_kernel_mappings: "pspace_in_kernel_mappings' ?s'"
+   using retype_in_kernel_mappings'[OF km cover' sz_limit ptr_km]
+   by (clarsimp simp: field_simps)
 
   show "pspace_distinct' ?s'"
   using ad' shift
@@ -3528,10 +3596,13 @@ lemma createObjects_valid_pspace_untyped':
   assumes  mko: "makeObjectKO dev ty = Some val"
   and    not_0: "n \<noteq> 0"
   and    cover: "range_cover ptr sz (objBitsKO val + gbits) n"
+  and    sz_limit: "sz \<le> maxUntypedSizeBits"
+  and    ptr_cn: "canonical_address (ptr && ~~ mask sz)"
+  and    ptr_km: "ptr && ~~ mask sz \<in> kernel_mappings"
   shows "\<lbrace>\<lambda>s. pspace_no_overlap' ptr sz s \<and> valid_pspace' s \<and> caps_no_overlap'' ptr sz s \<and> ptr \<noteq> 0
             \<and> caps_overlap_reserved' {ptr .. ptr + of_nat (n * 2^gbits * 2 ^ objBitsKO val ) - 1} s \<rbrace>
   createObjects' ptr n val gbits \<lbrace>\<lambda>r. valid_pspace'\<rbrace>"
-  apply (wp createObjects_valid_pspace' [OF mko not_0 cover])
+  apply (wp createObjects_valid_pspace' [OF mko not_0 cover sz_limit ptr_cn ptr_km])
   apply simp
   done
 
@@ -3550,6 +3621,10 @@ lemma getObject_valid_pml4e'[wp]:
 crunch valid_objs'[wp]: copyGlobalMappings "valid_objs'"
   (ignore: getObject storePML4E wp: crunch_wps)
 crunch pspace_aligned'[wp]: copyGlobalMappings "pspace_aligned'"
+  (ignore: getObject wp: crunch_wps)
+crunch pspace_canonical'[wp]: copyGlobalMappings "pspace_canonical'"
+  (ignore: getObject wp: crunch_wps)
+crunch pspace_in_kernel_mappings'[wp]: copyGlobalMappings "pspace_in_kernel_mappings'"
   (ignore: getObject wp: crunch_wps)
 crunch pspace_distinct'[wp]: copyGlobalMappings "pspace_distinct'"
   (ignore: getObject wp: crunch_wps)
@@ -4175,8 +4250,8 @@ lemma sch_act_wf_lift_asm:
   \<lbrace>\<lambda>rv s. sch_act_wf (ksSchedulerAction s) s\<rbrace>"
   apply (clarsimp simp: valid_def)
   apply (rule use_valid [OF _ ksA], assumption)
-  apply (frule use_valid[OF _ kCT[of "op = (ksCurThread s)" for s] refl])
-  apply (frule use_valid[OF _ kCD[of "op = (ksCurDomain s)" for s] refl])
+  apply (frule use_valid[OF _ kCT[of "(=) (ksCurThread s)" for s] refl])
+  apply (frule use_valid[OF _ kCD[of "(=) (ksCurDomain s)" for s] refl])
   apply (case_tac "ksSchedulerAction s")
     apply (simp add: ct_in_state'_def)
     apply (drule use_valid [OF _ tcb])
@@ -4256,7 +4331,8 @@ lemma mapM_x_threadSet_createNewCaps_futz:
    \<lbrace>\<lambda>_ s. P (ko_wp_at' P' p s)\<rbrace>" (is "\<lbrace>?PRE\<rbrace> _ \<lbrace>\<lambda>_. ?POST\<rbrace>")
 apply (rule mapM_x_inv_wp[where P="?PRE"])
   apply simp
- apply (wp hoare_vcg_ball_lift threadSet_ko_wp_at2'[where P="id", simplified]
+ apply (rule hoare_pre)
+  apply (wp hoare_vcg_ball_lift threadSet_ko_wp_at2'[where P="id", simplified]
       | wp_once threadSet_ko_wp_at2'_futz[where Q="\<lambda>tcb. \<not>tcbQueued tcb \<and> tcbState tcb = Inactive"]
       | simp)+
 done
@@ -4299,7 +4375,6 @@ lemma createNewCaps_ko_wp_atQ':
                    \<longrightarrow> P' v \<longrightarrow> P True)\<rbrace>
      createNewCaps ty ptr n us d
    \<lbrace>\<lambda>rv s. P (ko_wp_at' P' p s)\<rbrace>"
-  including no_pre
   apply (rule hoare_name_pre_state)
   apply (clarsimp simp: createNewCaps_def X64_H.toAPIType_def
              split del: if_split)
@@ -4315,7 +4390,9 @@ lemma createNewCaps_ko_wp_atQ':
                      copyGlobalMappings_ko_wp_at[where v="\<forall>pml4e :: pml4e. P' (injectKO pml4e)"]
                    | simp add: makeObjectKO_def objBitsKO_def archObjSize_def APIType_capBits_def
                                objBits_def curDomain_def bit_simps
-                   | intro conjI impI | fastforce)+
+                            split del: if_split
+                   | intro conjI impI | fastforce
+                   | split if_split_asm)+
   done
 
 lemmas createNewCaps_ko_wp_at'
@@ -4503,8 +4580,6 @@ lemma createNewCaps_global_refs':
   apply (auto simp: linorder_not_less ball_ran_eq)
   done
 
-crunch ksArchState[wp]: createNewCaps "\<lambda>s. P (ksArchState s)"
-
 lemma koTypeOf_eq_KernelDataT:
   "(koTypeOf ko = KernelDataT)
         = (ko = KOKernelData)"
@@ -4529,7 +4604,7 @@ lemma createNewCaps_valid_arch_state:
                    vspace_table_at'_defs
                    typ_at_to_obj_at_arches)
   apply (rule hoare_pre)
-   apply (rule hoare_use_eq [where f=ksArchState, OF createNewCaps_ksArchState])
+   apply (rule hoare_use_eq [where f=ksArchState, OF createNewCaps_ksArch])
    apply (wp hoare_vcg_const_Ball_lift
              hoare_vcg_prop
              createNewCaps_obj_at''
@@ -4570,6 +4645,30 @@ lemma createNewCaps_irq_handlers':
   apply (clarsimp simp: makeObject_cte)
   apply auto
   done
+
+lemma valid_ioports_cte_wp_at_form':
+  "(\<lambda>s. all_ioports_issued' (cteCaps_of s) f \<and> ioports_no_overlap' (cteCaps_of s)) = (\<lambda>s. (\<forall>irq. irq \<in> issued_ioports' f \<or>
+                               (\<forall>p. \<not> cte_wp_at' (\<lambda>cte. irq \<in> cap_ioports' (cteCap cte)) p s)) \<and>
+     (\<forall>sl sl' cap cap'. cte_wp_at' (\<lambda>cte. cteCap cte = cap) sl s
+                      \<and> cte_wp_at' (\<lambda>cte. cteCap cte = cap') sl' s \<longrightarrow>
+                         cap_ioports' cap = cap_ioports' cap' \<or> cap_ioports' cap \<inter> cap_ioports' cap' = {}))"
+  by (auto simp: valid_ioports'_simps cteCaps_of_def cte_wp_at_ctes_of
+                        fun_eq_iff ran_def | blast)+
+
+lemma createNewCaps_ioports':
+  "\<lbrace>valid_ioports' and pspace_no_overlap' ptr sz
+       and pspace_aligned' and pspace_distinct'
+       and K (range_cover ptr sz (APIType_capBits ty us) n \<and> n \<noteq> 0)\<rbrace>
+     createNewCaps ty ptr n us d
+   \<lbrace>\<lambda>rv. valid_ioports'\<rbrace>"
+  apply (clarsimp simp: valid_ioports'_def)
+  apply (rule hoare_pre)
+   apply (rule hoare_use_eq [where f=ksArchState, OF createNewCaps_ksArch])
+   apply (simp add: valid_ioports_cte_wp_at_form')
+   apply (wpsimp wp: hoare_vcg_all_lift hoare_vcg_disj_lift hoare_vcg_imp_lift' |
+              wp createNewCaps_cte_wp_at2)+
+  apply (clarsimp simp: makeObject_cte)
+  by (auto simp: valid_ioports'_simps cte_wp_at_ctes_of ran_def cteCaps_of_def | blast)+
 
 lemma createObjects'_irq_states' [wp]:
   "\<lbrace>valid_irq_states'\<rbrace> createObjects' a b c d \<lbrace>\<lambda>_. valid_irq_states'\<rbrace>"
@@ -4626,11 +4725,14 @@ lemma mapM_x_threadSet_valid_pspace:
 lemma createNewCaps_valid_pspace:
   assumes  not_0: "n \<noteq> 0"
   and      cover: "range_cover ptr sz (APIType_capBits ty us) n"
+  and      sz_limit: "sz \<le> maxUntypedSizeBits"
+  and      ptr_cn: "canonical_address (ptr && ~~ mask sz)"
+  and      ptr_km: "ptr && ~~ mask sz \<in> kernel_mappings"
   shows "\<lbrace>\<lambda>s. pspace_no_overlap' ptr sz s \<and> valid_pspace' s
   \<and> caps_no_overlap'' ptr sz s \<and> ptr \<noteq> 0 \<and> caps_overlap_reserved' {ptr..ptr + of_nat n * 2^(APIType_capBits ty us) - 1} s \<and> ksCurDomain s \<le> maxDomain\<rbrace>
   createNewCaps ty ptr n us dev \<lbrace>\<lambda>r. valid_pspace'\<rbrace>"
   unfolding createNewCaps_def Arch_createNewCaps_def
-  using valid_obj_makeObject_rules
+  using valid_obj_makeObject_rules ptr_cn sz_limit ptr_km
   apply (clarsimp simp: X64_H.toAPIType_def
              split del: if_split cong: option.case_cong)
   apply (cases ty, simp_all split del: if_split)
@@ -4644,7 +4746,7 @@ lemma createNewCaps_valid_pspace:
                              objBits_simps not_0 createObjects_def curDomain_def bit_simps
                  | intro conjI impI
                  | simp add: power_add field_simps)+
-done
+  done
 
 lemma copyGlobalMappings_inv[wp]:
   "\<lbrace>\<lambda>s. P (ksMachineState s)\<rbrace>
@@ -4802,8 +4904,8 @@ lemma sch_act_wf_lift_asm_futz:
   \<lbrace>\<lambda>rv s. sch_act_wf (ksSchedulerAction s) s\<rbrace>"
   apply (clarsimp simp: valid_def)
   apply (rule use_valid [OF _ ksA], assumption)
-  apply (frule use_valid [OF _ kCT[of "op = (ksCurThread s)" for s] refl])
-  apply (frule use_valid [OF _ kCD[of "op = (ksCurDomain s)" for s] refl])
+  apply (frule use_valid [OF _ kCT[of "(=) (ksCurThread s)" for s] refl])
+  apply (frule use_valid [OF _ kCD[of "(=) (ksCurDomain s)" for s] refl])
   apply (case_tac "ksSchedulerAction s")
     apply (simp add: ct_in_state'_def)
     apply (drule use_valid [OF _ tcb])
@@ -4965,12 +5067,18 @@ lemma createNewCaps_invs':
         \<and> caps_overlap_reserved' {ptr..ptr + of_nat n * 2^(APIType_capBits ty us) - 1} s
         \<and> (ty = APIObjectType ArchTypes_H.CapTableObject \<longrightarrow> us > 0)
         \<and> gsMaxObjectSize s > 0)
-       and K (range_cover ptr sz (APIType_capBits ty us) n \<and> n \<noteq> 0)\<rbrace>
+       and K (range_cover ptr sz (APIType_capBits ty us) n \<and> n \<noteq> 0
+              \<and> sz \<le> maxUntypedSizeBits \<and> canonical_address (ptr && ~~ mask sz)
+              \<and> ptr && ~~ mask sz \<in> kernel_mappings)\<rbrace>
      createNewCaps ty ptr n us dev
    \<lbrace>\<lambda>rv. invs'\<rbrace>"
   (is "\<lbrace>?P and K ?Q\<rbrace> ?f \<lbrace>\<lambda>rv. invs'\<rbrace>")
-proof (rule hoare_gen_asm, erule conjE)
-  assume cover: "range_cover ptr sz (APIType_capBits ty us) n" and not_0: "n \<noteq> 0"
+proof (rule hoare_gen_asm, elim conjE)
+  assume cover: "range_cover ptr sz (APIType_capBits ty us) n"
+    and  not_0: "n \<noteq> 0"
+    and  sz_limit: "sz \<le> maxUntypedSizeBits"
+    and  ptr_cn: "canonical_address (ptr && ~~ mask sz)"
+    and  ptr_km: "ptr && ~~ mask sz \<in> kernel_mappings"
   have cnc_ct_not_inQ:
     "\<lbrace>ct_not_inQ and valid_pspace' and pspace_no_overlap' ptr sz\<rbrace>
      createNewCaps ty ptr n us dev \<lbrace>\<lambda>_. ct_not_inQ\<rbrace>"
@@ -4992,7 +5100,7 @@ proof (rule hoare_gen_asm, erule conjE)
   apply (simp add: invs'_def valid_state'_def
                    pointerInUserData_def typ_at'_def)
     apply (rule hoare_pre)
-     apply (wp createNewCaps_valid_pspace [OF not_0 cover]
+     apply (wp createNewCaps_valid_pspace [OF not_0 cover sz_limit ptr_cn ptr_km]
                createNewCaps_state_refs_of' [OF cover not_0 ]
                createNewCaps_iflive' [OF cover not_0 ]
                irqs_masked_lift
@@ -5001,7 +5109,7 @@ proof (rule hoare_gen_asm, erule conjE)
                createNewCaps_global_refs'
                createNewCaps_valid_arch_state
                valid_irq_node_lift_asm [unfolded pred_conj_def, OF _ createNewCaps_obj_at']
-               createNewCaps_irq_handlers' createNewCaps_vms
+               createNewCaps_irq_handlers' createNewCaps_vms createNewCaps_ioports'
                createNewCaps_valid_queues
                createNewCaps_valid_queues'
                createNewCaps_pred_tcb_at' cnc_ct_not_inQ
@@ -5023,12 +5131,17 @@ lemma createNewCaps_vp:
               caps_no_overlap'' ptr sz s \<and> ptr \<noteq> 0 \<and>
               caps_overlap_reserved' {ptr..ptr + of_nat n * 2^(APIType_capBits ty us) - 1} s \<and>
               ksCurDomain s \<le> maxDomain \<and>
-              range_cover ptr sz (APIType_capBits ty us) n \<and> n \<noteq> 0\<rbrace>
+              range_cover ptr sz (APIType_capBits ty us) n \<and> n \<noteq> 0
+              \<and> sz \<le> maxUntypedSizeBits \<and> canonical_address (ptr && ~~ mask sz)
+              \<and> ptr && ~~ mask sz \<in> kernel_mappings \<rbrace>
   createNewCaps ty ptr n us dev \<lbrace>\<lambda>r. valid_pspace'\<rbrace>"
 proof (rule hoare_assume_pre, elim conjE)
   fix s
   assume cover: "range_cover ptr sz (APIType_capBits ty us) n"
   assume not_0: "n \<noteq> 0"
+  assume sz_limit: "sz \<le> maxUntypedSizeBits"
+  assume ptr_cn: "canonical_address (ptr && ~~ mask sz)"
+  assume ptr_km: "ptr && ~~ mask sz \<in> kernel_mappings"
   assume misc: "caps_no_overlap'' ptr sz s" "caps_overlap_reserved' {ptr..ptr + of_nat n * 2^(APIType_capBits ty us) - 1} s"
               "range_cover ptr sz (APIType_capBits ty us) n"
   show ?thesis
@@ -5042,7 +5155,7 @@ proof (rule hoare_assume_pre, elim conjE)
             apply (rule hoare_pre, wp, simp)
            apply (insert cover)
            apply (wp mapM_x_threadSet_valid_pspace mapM_x_wp'
-                     createObjects_valid_pspace'[OF _  not_0, where ty="Inr ty"]
+                     createObjects_valid_pspace'[OF _ not_0 _ sz_limit ptr_cn ptr_km, where ty="Inr ty"]
                    | simp add: makeObjectKO_def misc power_add field_simps
                    | simp add: caps_no_overlapI'' createObjects_def
                    | simp add: objBits_simps APIType_capBits_def
@@ -5318,6 +5431,26 @@ lemma createObjects_no_cte_irq_handlers:
   apply auto
   done
 
+lemma createObjects_no_cte_ioports:
+  assumes no_cte: "\<And>c. projectKO_opt val \<noteq> Some (c::cte)"
+  assumes no_tcb: "\<And>t. projectKO_opt val \<noteq> Some (t::tcb)"
+  shows
+  "\<lbrace>\<lambda>s. pspace_aligned' s \<and> pspace_distinct' s \<and>
+        pspace_no_overlap' ptr sz s \<and>
+        range_cover ptr sz (objBitsKO val + gbits) n \<and> n \<noteq> 0 \<and>
+        valid_ioports' s\<rbrace>
+      createObjects ptr n val gbits
+   \<lbrace>\<lambda>rv s.  valid_ioports' s\<rbrace>"
+  apply (simp add: valid_ioports'_def)
+  apply (rule hoare_pre)
+   apply (rule hoare_use_eq[where f=ksArchState, OF createObjects_ksArch])
+   apply (clarsimp simp: valid_ioports_cte_wp_at_form' createObjects_def)
+   apply (wpsimp wp: hoare_vcg_all_lift hoare_vcg_disj_lift hoare_vcg_imp_lift' |
+             wp createObjects_orig_cte_wp_at2')+
+  apply (clarsimp simp: no_cte no_tcb split_def split: option.splits)
+  apply (auto simp: valid_ioports'_simps cteCaps_of_def cte_wp_at_ctes_of ran_def | blast)+
+  done
+
 lemma createObjects_cur':
   "\<lbrace>\<lambda>s. pspace_aligned' s \<and> pspace_distinct' s \<and>
         pspace_no_overlap' ptr sz s \<and> range_cover ptr sz (objBitsKO val + gbits) n \<and> n \<noteq> 0 \<and>
@@ -5397,7 +5530,10 @@ lemma createObjects_no_cte_invs:
   assumes no_cte: "\<And>c. projectKO_opt val \<noteq> Some (c::cte)"
   assumes no_tcb: "\<And>t. projectKO_opt val \<noteq> Some (t::tcb)"
   shows
-  "\<lbrace>\<lambda>s. range_cover ptr sz ((objBitsKO val) + gbits) n \<and> n \<noteq> 0 \<and> invs' s \<and> ct_active' s
+  "\<lbrace>\<lambda>s. range_cover ptr sz ((objBitsKO val) + gbits) n \<and> n \<noteq> 0
+        \<and> sz \<le> maxUntypedSizeBits \<and> canonical_address (ptr && ~~ mask sz)
+        \<and> ptr && ~~ mask sz \<in> kernel_mappings
+        \<and> invs' s \<and> ct_active' s
         \<and> pspace_no_overlap' ptr sz s \<and> ptr \<noteq> 0
         \<and> {ptr .. (ptr && ~~ mask sz) + 2 ^ sz - 1} \<inter> kernel_data_refs = {}
         \<and> caps_overlap_reserved' {ptr..ptr + of_nat (n * 2 ^ gbits * 2 ^ objBitsKO val) - 1} s
@@ -5441,7 +5577,7 @@ proof -
              createObjects_idle' createObjects_no_cte_valid_global
              createObjects_valid_arch createObjects_irq_state
              createObjects_no_cte_irq_handlers createObjects_cur'
-             createObjects_queues' [OF no_tcb]
+             createObjects_queues' [OF no_tcb] createObjects_no_cte_ioports
              assms | simp add: objBits_def )+
   apply (rule hoare_vcg_conj_lift)
    apply (simp add: createObjects_def)
@@ -5452,7 +5588,7 @@ proof -
              createObjects_no_cte_irq_handlers createObjects_cur'
              createObjects_queues' [OF no_tcb] assms
              createObjects_pspace_domain_valid co_ct_not_inQ
-             createObjects_ct_idle_or_in_cur_domain'
+             createObjects_ct_idle_or_in_cur_domain' createObjects_no_cte_ioports
              createObjects_untyped_ranges_zero'[OF moKO]
          | simp)+
   apply clarsimp
@@ -5492,7 +5628,7 @@ lemma corres_retype_update_gsI:
 (*FIXME: Move to Deterministic_AI*)
 crunch valid_etcbs[wp]: copy_global_mappings valid_etcbs (wp: mapM_x_wp')
 
-lemma gcd_corres: "corres op = \<top> \<top> (gets cur_domain) curDomain"
+lemma gcd_corres: "corres (=) \<top> \<top> (gets cur_domain) curDomain"
   by (simp add: curDomain_def state_relation_def)
 
 (* FIXME move *)
@@ -5668,7 +5804,7 @@ lemma corres_retype_region_createNewCaps:
   apply (cases ty, simp_all add: Arch_createNewCaps_def split del: if_split)
          apply (rename_tac apiobject_type)
          apply (case_tac apiobject_type, simp_all split del: if_split)
-             -- "Untyped"
+             \<comment> \<open>Untyped\<close>
              apply (simp add: retype_region_def obj_bits_api_def APIType_map2_def
                          split del: if_split cong: if_cong)
              apply (subst upto_enum_red')
@@ -5683,7 +5819,7 @@ lemma corres_retype_region_createNewCaps:
                  apply simp
                 apply (clarsimp simp: range_cover_def)
                 apply (arith+)[4]
-            -- "TCB, EP, NTFN"
+            \<comment> \<open>TCB, EP, NTFN\<close>
             apply (simp_all add: retype_region2_ext_retype_region
                                  bind_cong[OF curDomain_mapM_x_futz refl, unfolded bind_assoc]
                             split del: if_split)[10] (* not PML4Object *)
@@ -5733,7 +5869,7 @@ lemma corres_retype_region_createNewCaps:
            apply simp
           apply (clarsimp simp: list_all2_same list_all2_map1 list_all2_map2 objBits_simps
                                 APIType_map2_def)
-         -- "CapTable"
+         \<comment> \<open>CapTable\<close>
          apply (subst retype_region2_extra_ext_trivial)
           apply (simp add: APIType_map2_def)
          apply (subst bind_assoc_reverse[of "createObjects y n (KOCTE makeObject) us"])
@@ -5751,7 +5887,7 @@ lemma corres_retype_region_createNewCaps:
          apply (clarsimp simp: list_all2_same list_all2_map1 list_all2_map2 objBits_simps
                                allRights_def APIType_map2_def
                          split del: if_split)
-        -- SmallPageObject
+        \<comment> \<open>SmallPageObject\<close>
         apply (subst retype_region2_extra_ext_trivial)
          apply (simp add: APIType_map2_def)
         apply (simp add: corres_liftM2_simp[unfolded liftM_def] split del: if_split)
@@ -5767,7 +5903,7 @@ lemma corres_retype_region_createNewCaps:
           apply fastforce+
         apply (simp add: APIType_map2_def arch_default_cap_def vm_read_write_def vmrights_map_def
                          list_all2_map1 list_all2_map2 list_all2_same)
-       -- LargePageObject
+       \<comment> \<open>LargePageObject\<close>
        apply (subst retype_region2_extra_ext_trivial)
         apply (simp add: APIType_map2_def)
        apply (simp add: corres_liftM2_simp[unfolded liftM_def] split del: if_split)
@@ -5783,7 +5919,7 @@ lemma corres_retype_region_createNewCaps:
          apply fastforce+
        apply (simp add: APIType_map2_def arch_default_cap_def vm_read_write_def vmrights_map_def
                         list_all2_map1 list_all2_map2 list_all2_same)
-      -- HugePageObject
+      \<comment> \<open>HugePageObject\<close>
       apply (subst retype_region2_extra_ext_trivial)
        apply (simp add: APIType_map2_def)
       apply (simp add: corres_liftM2_simp[unfolded liftM_def] split del: if_split)
@@ -5799,7 +5935,7 @@ lemma corres_retype_region_createNewCaps:
         apply fastforce+
       apply (simp add: APIType_map2_def arch_default_cap_def vm_read_write_def vmrights_map_def
                        list_all2_map1 list_all2_map2 list_all2_same)
-     -- "PageTable"
+     \<comment> \<open>PageTable\<close>
      apply (subst retype_region2_extra_ext_trivial)
       apply (simp add: APIType_map2_def)
      apply (simp_all add: corres_liftM2_simp[unfolded liftM_def])
@@ -5814,7 +5950,7 @@ lemma corres_retype_region_createNewCaps:
        apply (clarsimp simp: list_all2_map1 list_all2_map2 list_all2_same
                              APIType_map2_def arch_default_cap_def)
       apply fastforce+
-    -- "PageDirectory"
+    \<comment> \<open>PageDirectory\<close>
     apply (subst retype_region2_extra_ext_trivial)
      apply (simp add: APIType_map2_def)
     apply (simp_all add: corres_liftM2_simp[unfolded liftM_def])
@@ -5829,7 +5965,7 @@ lemma corres_retype_region_createNewCaps:
       apply (clarsimp simp: list_all2_map1 list_all2_map2 list_all2_same
                             APIType_map2_def arch_default_cap_def)
      apply fastforce+
-   -- "PDPT"
+   \<comment> \<open>PDPT\<close>
    apply (subst retype_region2_extra_ext_trivial)
     apply (simp add: APIType_map2_def)
    apply (simp_all add: corres_liftM2_simp[unfolded liftM_def])
@@ -5844,7 +5980,7 @@ lemma corres_retype_region_createNewCaps:
      apply (clarsimp simp: list_all2_map1 list_all2_map2 list_all2_same
                            APIType_map2_def arch_default_cap_def)
     apply fastforce+
-  -- "PML4"
+  \<comment> \<open>PML4\<close>
   apply (corressimp corres: corres_retype[where ty="Inr PML4Object" and 'a=pml4e and sz=sz,
                                           simplified, folded retype_region2_retype_region_PML4Obj]
                    corresK: corresK_mapM_x_list_all2[where I="\<lambda>xs s. valid_arch_state s \<and> pspace_aligned s
@@ -5852,7 +5988,7 @@ lemma corres_retype_region_createNewCaps:
                                                             (\<forall>x \<in> set xs. page_map_l4_at x s)"
                                              and I'="\<lambda>xs s. valid_arch_state' s \<and>
                                                              (\<forall>x \<in> set xs. page_map_l4_at' x s)"
-                                             and S="op ="]
+                                             and S="(=)"]
                         wp: copy_global_mappings_typ_at hoare_vcg_ball_lift retype_region_pml4_at
                             retype_region_valid_arch[where sz=sz] retype_region_aligned[where sz=sz]
                             createObjects_valid_arch[where sz=sz] createObjects_pml4_at[where sz=sz]

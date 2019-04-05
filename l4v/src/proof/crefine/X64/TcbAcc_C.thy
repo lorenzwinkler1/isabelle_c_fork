@@ -155,7 +155,7 @@ lemma register_from_H_0_sle[simp]:
   by fastforce
 
 lemma getRegister_ccorres [corres]:
-  "ccorres (op =) ret__unsigned_long_' \<top>
+  "ccorres (=) ret__unsigned_long_' \<top>
              ({s. thread_' s = tcb_ptr_to_ctcb_ptr thread} \<inter> {s. reg_' s = register_from_H reg}) []
              (asUser thread (getRegister reg)) (Call getRegister_'proc)"
   apply (unfold asUser_def)
@@ -169,13 +169,13 @@ lemma getRegister_ccorres [corres]:
        apply (drule (1) obj_at_cslift_tcb)
        apply (clarsimp simp: typ_heap_simps register_from_H_less register_from_H_sless)
        apply (clarsimp simp: getRegister_def typ_heap_simps)
-       apply (rule_tac x = "((atcbContextGet o tcbArch) ko reg, \<sigma>)" in bexI [rotated])
+       apply (rule_tac x = "((user_regs o atcbContextGet o tcbArch) ko reg, \<sigma>)" in bexI [rotated])
         apply (simp add: in_monad' asUser_def select_f_def split_def)
-        apply (subst arg_cong2 [where f = "op \<in>"])
+        apply (subst arg_cong2 [where f = "(\<in>)"])
           defer
           apply (rule refl)
          apply (erule threadSet_eq)
-        apply (clarsimp simp: ctcb_relation_def ccontext_relation_def carch_tcb_relation_def)
+        apply (clarsimp simp: ctcb_relation_def ccontext_relation_def cregs_relation_def carch_tcb_relation_def)
        apply (wp threadGet_obj_at2)+
    apply simp
   apply simp
@@ -188,7 +188,7 @@ lemma getRegister_ccorres [corres]:
   done
 
 lemma getRestartPC_ccorres [corres]:
-  "ccorres (op =) ret__unsigned_long_' \<top> \<lbrace>\<acute>thread = tcb_ptr_to_ctcb_ptr thread\<rbrace> []
+  "ccorres (=) ret__unsigned_long_' \<top> \<lbrace>\<acute>thread = tcb_ptr_to_ctcb_ptr thread\<rbrace> []
            (asUser thread getRestartPC) (Call getRestartPC_'proc)"
   unfolding getRestartPC_def
   apply (cinit')

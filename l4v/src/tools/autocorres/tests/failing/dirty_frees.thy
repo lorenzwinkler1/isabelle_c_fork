@@ -11,8 +11,9 @@
 (*
  * Tests for handling of names and free variables.
  *)
-theory dirty_frees imports "../../AutoCorres" begin
+theory dirty_frees imports "AutoCorres.AutoCorres" begin
 
+external_file "dirty_frees.c"
 install_C_file "dirty_frees.c"
 
 autocorres [scope = f1 f2, function_name_suffix = ""] "dirty_frees.c"

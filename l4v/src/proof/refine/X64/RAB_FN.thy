@@ -12,7 +12,7 @@ theory RAB_FN
 
 imports
   "CSpace1_R"
-  "../../../lib/MonadicRewrite"
+  "Lib.MonadicRewrite"
 
 begin
 
@@ -33,7 +33,7 @@ abbreviation (input)
 
 function
   resolveAddressBitsFn ::
-  "capability \<Rightarrow> cptr \<Rightarrow> nat \<Rightarrow> (word32 \<Rightarrow> capability option)
+  "capability \<Rightarrow> cptr \<Rightarrow> nat \<Rightarrow> (machine_word \<Rightarrow> capability option)
     \<Rightarrow> (lookup_failure + (machine_word * nat))"
 where
  "resolveAddressBitsFn a b c =
@@ -92,14 +92,12 @@ lemma resolveAddressBitsFn_eq:
   (is "monadic_rewrite F E (?P cap) (?f cap bits) (?g cap capptr bits)")
 proof (induct cap capptr bits rule: resolveAddressBits.induct)
   case (1 cap cref depth)
-  note resolveAddressBits.simps[simp del] resolveAddressBitsFn.simps[simp del]
-
   show ?case
     apply (subst resolveAddressBits.simps, subst resolveAddressBitsFn.simps)
     apply (simp only: Let_def haskell_assertE_def K_bind_def)
     apply (rule monadic_rewrite_name_pre)
     apply (rule monadic_rewrite_imp)
-     apply (rule_tac P="op = s" in monadic_rewrite_trans)
+     apply (rule_tac P="(=) s" in monadic_rewrite_trans)
       (* step 1, apply the induction hypothesis on the lhs *)
       apply (rule monadic_rewrite_named_if monadic_rewrite_named_bindE
                   monadic_rewrite_refl[THEN monadic_rewrite_imp, where f="returnOk y" for y]
@@ -142,7 +140,7 @@ proof (induct cap capptr bits rule: resolveAddressBits.induct)
   apply (clarsimp simp: isCap_simps)
   apply (frule(1) cte_wp_at_valid_objs_valid_cap')
   apply (clarsimp simp: cte_level_bits_def valid_cap_simps'
-                        real_cte_at' isCap_simps)
+                        real_cte_at' isCap_simps cteSizeBits_def objBits_simps)
   apply (clarsimp simp: cte_wp_at_ctes_of only_cnode_caps_def ball_Un
                         cnode_caps_gsCNodes_def ran_map_option o_def)
   apply (drule bspec, rule IntI, erule ranI, simp add: isCap_simps)

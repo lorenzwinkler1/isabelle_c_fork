@@ -10,14 +10,15 @@
 chapter {* Event Receive *}
 (*<*)
 theory EventTo imports
-  "../../tools/c-parser/CTranslation"
-  "../../tools/autocorres/AutoCorres"
+  "CParser.CTranslation"
+  "AutoCorres.AutoCorres"
 begin
 
 (* THIS THEORY IS GENERATED. DO NOT EDIT. *)
 
 declare [[allow_underscore_idents=true]]
 
+external_file "EventTo.c"
 install_C_file "EventTo.c"
 
 autocorres [ts_rules = nondet, no_heap_abs = seL4_SetMR] "EventTo.c"

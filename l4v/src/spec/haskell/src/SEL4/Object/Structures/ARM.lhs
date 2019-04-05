@@ -22,6 +22,7 @@ This module makes use of the GHC extension allowing declaration of types with no
 
 \begin{impdetails}
 
+> import Prelude hiding (Word)
 > import SEL4.Machine.RegisterSet
 > import SEL4.Machine.Hardware.ARM
 > import Data.Array
@@ -166,13 +167,7 @@ ASIDs are mapped to address space roots by a global two-level table. The actual 
 #ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
 \subsection {VCPU}
 
-The SCTLR and ACTLR are contained in a structure of their own in the C code,
-but this structure is never manipulated as a whole.
-
-FIXME ARMHYP move to platform
-
 > type VIRQ = Word
-
 
 > data GICVCPUInterface = VGICInterface {
 >                        vgicHCR :: Word,
@@ -184,7 +179,6 @@ FIXME ARMHYP move to platform
 
 > data VCPU = VCPUObj {
 >                 vcpuTCBPtr :: Maybe (PPtr TCB)
->                 ,vcpuACTLR :: Word
 >                 ,vcpuVGIC :: GICVCPUInterface
 >                 ,vcpuRegs :: Array VCPUReg Word
 >                 }
@@ -199,14 +193,14 @@ makeObject specialised to VCPUs.
 >     let vgicLR = funPartialArray (const (0 :: Word)) (0, gicVCPUMaxNumLR-1) in
 >     VCPUObj {
 >           vcpuTCBPtr = Nothing
->         , vcpuACTLR = actlrDefault
 >         , vcpuVGIC = VGICInterface {
 >                           vgicHCR = vgicHCREN
 >                         , vgicVMCR = 0
 >                         , vgicAPR = 0
 >                         , vgicLR = vgicLR
 >                         }
->         , vcpuRegs = funArray (const 0) // [(VCPURegSCTLR, sctlrDefault)]
+>         , vcpuRegs = funArray (const 0) // [(VCPURegSCTLR, sctlrDefault)
+>                                            ,(VCPURegACTLR, actlrDefault)]
 >         }
 
 #endif

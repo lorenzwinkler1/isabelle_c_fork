@@ -46,6 +46,7 @@
 \usepackage{graphicx}
 \usepackage[draft]{fixme}
 \usepackage{cite}
+\usepackage{xspace}
 
 % this should be the last package used
 \usepackage{color}
@@ -56,10 +57,14 @@
 \urlstyle{rm}
 \isabellestyle{tt}
 
+\newcommand{\version}{\input{VERSION}\xspace}
+\newcommand{\arch}{\input{ARCH}\xspace}
+\newcommand{\gitrev}{\input{gitrev}\xspace}
+
 \hypersetup
 {
-    pdfauthor={NICTA SSRG Research Group},
-    pdftitle={Abstract Formal Specification of the seL4/ARMv6 API}
+    pdfauthor={Trustworthy Systems, Data61},
+    pdftitle={Abstract Formal Specification of the seL4/\arch API}
 }
 
 \renewcommand{\isamarkupchapter}[1]{\chapter{#1}}
@@ -86,27 +91,32 @@
 \newcommand{\meth}[1]{\texttt{#1()}}
 \newcommand{\obj}[1]{\textsf{\small #1}}
 
-\newcommand{\version}{\input{VERSION}}
-
 \begin{document}
 
-\title{Abstract Formal Specification of the seL4/ARMv6 API}
+\title{Abstract Formal Specification of the seL4/\arch API}
 
 \date{Version \version}
 
 \author{%
 June Andronick \and
+Joel Beeren \and
+Matthew Brecknell \and
 Timothy Bourke \and
 Philip Derrin \and
 Kevin Elphinstone \and
+Xin Gao \and
 David Greenaway \and
+Alejandro Gomez-Londono \and
 Gerwin Klein \and
 Rafal Kolanski \and
+Ramana Kumar \and
 Daniel Matichuk \and
 Thomas Sewell \and
+Michael Sproul \and
+Miki Tanaka \and
+Sophie Taylor \and
 Simon Winwood
 }
-
 
 \maketitle
 
@@ -116,8 +126,15 @@ Simon Winwood
 
 \copyright~2014 National ICT Australia Limited.\\
 \copyright~2014 Open Kernel Labs, Inc.\\
+\copyright~2018 Data61, CSIRO.\\
 
 \textsc{All rights reserved}.
+
+\bigskip
+
+Architecture: \arch\\
+Document build date: \today\\
+Produced from git change set: \gitrev
 
 \clearpage
 
@@ -125,7 +142,7 @@ Simon Winwood
 This document is the text version of the abstract, formal
 Isabelle/HOL specification of the seL4 microkernel. It is
 intended to give a precise, operational definition of the
-seL4 microkernel on the ARMv6 architecture.
+seL4 microkernel on the \arch architecture.
 The document contains a short overview, followed by
 text generated from the formal Isabelle/HOL definitions.
 

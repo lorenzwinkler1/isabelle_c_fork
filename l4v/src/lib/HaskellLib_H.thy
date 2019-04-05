@@ -16,7 +16,7 @@
 theory HaskellLib_H
 imports
   Lib
-  "$L4V_ARCH/WordSetup"
+  "More_Numeral_Type"
   "Monad_WP/NonDetMonadVCG"
 begin
 
@@ -148,7 +148,7 @@ type_synonym ordering = bool
 
 definition
   compare :: "('a :: ord) \<Rightarrow> 'a \<Rightarrow> ordering" where
-  "compare \<equiv> op <"
+  "compare \<equiv> (<)"
 
 primrec
   insertBy :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a list"
@@ -177,14 +177,14 @@ definition
  "catMaybes \<equiv> (map the) \<circ> (filter isJust)"
 
 definition
- "runErrorT \<equiv> id"
+ "runExceptT \<equiv> id"
 
 declare Just_def[simp] Nothing_def[simp] fromJust_def[simp]
       isJust_def[simp] tail_def[simp] head_def[simp]
       error_def[simp] reverse_def[simp] isNothing_def[simp]
       maybeApply_def[simp] maybe_def[simp]
       foldR_def[simp] elem_def[simp] notElem_def[simp]
-      catMaybes_def[simp] runErrorT_def[simp]
+      catMaybes_def[simp] runExceptT_def[simp]
 
 definition
  "headM L \<equiv> (case L of (h # t) \<Rightarrow> return h | _ \<Rightarrow> fail)"
@@ -336,6 +336,9 @@ lemma fromIntegral_simp3[simp]: "fromIntegral = ucast"
   apply (simp add: unat_def)
   done
 
+lemma fromIntegral_simp_nat[simp]: "(fromIntegral :: nat \<Rightarrow> nat) = id"
+  by (simp add: fromIntegral_def fromInteger_nat toInteger_nat)
+
 definition
   infix_apply :: "'a \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> 'b \<Rightarrow> 'c" ("_ `~_~` _" [81, 100, 80] 80) where
   infix_apply_def[simp]:
@@ -356,10 +359,10 @@ lemma show_simp_away[simp]: "S @ show t = S"
   by (simp add: show_def)
 
 definition
- "andList \<equiv> foldl (op \<and>) True"
+ "andList \<equiv> foldl (\<and>) True"
 
 definition
- "orList \<equiv> foldl (op \<or>) False"
+ "orList \<equiv> foldl (\<or>) False"
 
 primrec
   mapAccumL :: "('a \<Rightarrow> 'b \<Rightarrow> 'a \<times> 'c) \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> 'a \<times> ('c list)"
@@ -461,7 +464,7 @@ definition
 definition
   "maximum ls \<equiv> Max (set ls)"
 
-primrec
+primrec (nonexhaustive)
   hdCons :: "'a \<Rightarrow> 'a list list \<Rightarrow> 'a list list"
 where
  "hdCons x (ys # zs) = (x # ys) # zs"
@@ -501,7 +504,7 @@ definition
 
 definition
   sum :: "'a list \<Rightarrow> 'a::{plus,zero}" where
- "sum \<equiv> foldl (op +) 0"
+ "sum \<equiv> foldl (+) 0"
 
 definition
  "replicateM n m \<equiv> sequence (replicate n m)"
@@ -545,5 +548,10 @@ definition
 
 abbreviation
   "null == List.null"
+
+syntax (input)
+  "_listcompr" :: "'a \<Rightarrow> lc_qual \<Rightarrow> lc_quals \<Rightarrow> 'a list"  ("[_ | __")
+
+lemma "[(x,1) . x \<leftarrow> [0..10]] = [(x,1) | x \<leftarrow> [0..10]]" by (rule refl)
 
 end

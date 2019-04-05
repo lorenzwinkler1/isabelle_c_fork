@@ -16,6 +16,10 @@ context begin interpretation Arch .
 
 requalify_facts
   valid_arch_arch_tcb_context_set
+  as_user_inv
+  user_getreg_inv
+
+declare user_getreg_inv[wp]
 
 end
 
@@ -95,9 +99,9 @@ lemma ball_tcb_cap_casesI:
                                              \<or> (halted st \<and> (c = cap.NullCap))));
      P (tcb_caller, tcb_caller_update, (\<lambda>_ st. case st of
                                        Structures_A.BlockedOnReceive e \<Rightarrow>
-                                         (op = cap.NullCap)
-                                     | _ \<Rightarrow> is_reply_cap or (op = cap.NullCap)));
-     P (tcb_ipcframe, tcb_ipcframe_update, (\<lambda>_ _. is_nondevice_page_cap or (op = cap.NullCap))) \<rbrakk>
+                                         ((=) cap.NullCap)
+                                     | _ \<Rightarrow> is_reply_cap or ((=) cap.NullCap)));
+     P (tcb_ipcframe, tcb_ipcframe_update, (\<lambda>_ _. is_nondevice_page_cap or ((=) cap.NullCap))) \<rbrakk>
     \<Longrightarrow> \<forall>x \<in> ran tcb_cap_cases. P x"
   by (simp add: tcb_cap_cases_def)
 
@@ -333,6 +337,7 @@ lemma thread_set_refs_trivial:
 lemma thread_set_valid_idle_trivial:
   assumes "\<And>tcb. tcb_state (f tcb) = tcb_state tcb"
   assumes "\<And>tcb. tcb_bound_notification (f tcb) = tcb_bound_notification tcb"
+  assumes "\<And>tcb. tcb_iarch (f tcb) = tcb_iarch tcb"
   shows      "\<lbrace>valid_idle\<rbrace> thread_set f t \<lbrace>\<lambda>_. valid_idle\<rbrace>"
   apply (simp add: thread_set_def set_object_def valid_idle_def)
   apply wp
@@ -405,7 +410,7 @@ lemmas thread_set_arch_caps_trivial
   = valid_arch_caps_lift_weak[OF thread_set_arch thread_set.aobj_at
                                  thread_set_caps_of_state_trivial, simplified] *)
 lemmas thread_set_arch_caps_trivial
-  = valid_arch_caps_lift_weak[OF thread_set_arch thread_set.vsobj_at
+  = valid_arch_caps_lift_weak[OF thread_set.arch_state thread_set.vsobj_at
                                  thread_set_caps_of_state_trivial, simplified]
 
 lemma thread_set_only_idle:
@@ -457,6 +462,13 @@ lemma thread_set_cap_refs_respects_device_region:
   apply (erule sym)
   done
 
+lemma thread_set_ioports:
+  assumes y: "\<And>tcb. \<forall>(getF, v) \<in> ran tcb_cap_cases.
+                  getF (f tcb) = getF tcb"
+  shows
+  "\<lbrace>valid_ioports\<rbrace> thread_set f t \<lbrace>\<lambda>rv. valid_ioports\<rbrace>"
+  by (wpsimp wp: valid_ioports_lift thread_set_caps_of_state_trivial y)
+
 (* NOTE: The function "thread_set f p" updates a TCB at p using function f.
    It should not be used to change capabilities, though. *)
 lemma thread_set_valid_ioc_trivial:
@@ -482,8 +494,9 @@ context TcbAcc_AI_valid_ipc_buffer_cap_0 begin
 lemma thread_set_invs_trivial:
   assumes x: "\<And>tcb. \<forall>(getF, v) \<in> ran tcb_cap_cases.
                   getF (f tcb) = getF tcb"
-  assumes z:  "\<And>tcb. tcb_state     (f tcb) = tcb_state tcb"
-  assumes z': "\<And>tcb. tcb_bound_notification (f tcb) = tcb_bound_notification tcb"
+  assumes z:   "\<And>tcb. tcb_state    (f tcb) = tcb_state tcb"
+  assumes z':  "\<And>tcb. tcb_bound_notification (f tcb) = tcb_bound_notification tcb"
+  assumes z'': "\<And>tcb. tcb_iarch (f tcb) = tcb_iarch tcb"
   assumes w: "\<And>tcb. tcb_ipc_buffer (f tcb) = tcb_ipc_buffer tcb
                         \<or> (tcb_ipc_buffer (f tcb) = 0)"
   assumes y: "\<And>tcb. tcb_fault_handler (f tcb) \<noteq> tcb_fault_handler tcb
@@ -495,7 +508,7 @@ lemma thread_set_invs_trivial:
   shows      "\<lbrace>invs::'state_ext state \<Rightarrow> bool\<rbrace> thread_set f t \<lbrace>\<lambda>rv. invs\<rbrace>"
   apply (simp add: invs_def valid_state_def valid_pspace_def)
   apply (rule hoare_weaken_pre)
-   apply (wp thread_set_valid_objs_triv
+   apply (wp thread_set_valid_objs_triv thread_set_ioports
              thread_set_refs_trivial
              thread_set_hyp_refs_trivial
              thread_set_iflive_trivial
@@ -514,7 +527,7 @@ lemma thread_set_invs_trivial:
              thread_set_cap_refs_in_kernel_window
              thread_set_cap_refs_respects_device_region
              thread_set_aligned
-             | rule x z z' w y a arch valid_tcb_arch_ref_lift [THEN fun_cong]
+             | rule x z z' z'' w y a arch valid_tcb_arch_ref_lift [THEN fun_cong]
              | erule bspec_split [OF x] | simp add: z')+
   apply (simp add: z)
   done
@@ -528,27 +541,6 @@ lemma thread_set_cte_wp_at_trivial:
   shows "\<lbrace>\<lambda>s. Q (cte_wp_at P p s)\<rbrace> thread_set f t \<lbrace>\<lambda>rv s. Q (cte_wp_at P p s)\<rbrace>"
   by (auto simp: cte_wp_at_caps_of_state
           intro: thread_set_caps_of_state_trivial [OF x])
-
-lemma (in TcbAcc_AI_arch_tcb_context_set_eq) as_user_inv:
-  assumes x: "\<And>P. \<lbrace>P\<rbrace> f \<lbrace>\<lambda>x. P\<rbrace>"
-  shows      "\<lbrace>P\<rbrace> as_user t f \<lbrace>\<lambda>x. P\<rbrace>"
-  proof -
-  have P: "\<And>a b input. (a, b) \<in> fst (f input) \<Longrightarrow> b = input"
-    by (rule use_valid [OF _ x], assumption, rule refl)
-  have Q: "\<And>s ps. ps (kheap s) = kheap s \<Longrightarrow> kheap_update ps s = s"
-    by simp
-  show ?thesis
-  apply (simp add: as_user_def gets_the_def
-                assert_opt_def set_object_def split_def)
-  apply wp
-  apply (clarsimp dest!: P)
-  apply (subst Q, simp_all)
-  apply (rule ext)
-  apply (simp add: get_tcb_def)
-  apply (case_tac "kheap s t", simp_all)
-  apply (case_tac a, simp_all)
-  done
-qed
 
 
 lemma det_query_twice:
@@ -568,13 +560,6 @@ lemma det_query_twice:
   apply (rule sym)
   apply (rule state_unchanged [OF x])
   apply simp
-  done
-
-
-lemma (in TcbAcc_AI_arch_tcb_context_set_eq) user_getreg_inv[wp]:
-  "\<lbrace>P\<rbrace> as_user t (get_register r) \<lbrace>\<lambda>x. P\<rbrace>"
-  apply (rule as_user_inv)
-  apply (simp add: get_register_def)
   done
 
 lemma as_user_wp_thread_set_helper:
@@ -634,7 +619,7 @@ lemma as_user_objs [wp]:
   "\<lbrace>valid_objs\<rbrace> as_user a f \<lbrace>\<lambda>rv. valid_objs\<rbrace>"
   apply (wp as_user_wp_thread_set_helper
             thread_set_valid_objs_triv)
-  apply (wpsimp simp: tcb_cap_cases_def valid_arch_arch_tcb_context_set)+
+  apply (wpsimp simp: ran_tcb_cap_cases valid_arch_arch_tcb_context_set)+
   done
 
 end
@@ -737,18 +722,15 @@ lemma as_user_ct: "\<lbrace>\<lambda>s. P (cur_thread s)\<rbrace> as_user t m \<
   apply simp
   done
 
-
 lemma as_user_cur [wp]:
   "\<lbrace>cur_tcb\<rbrace> as_user t f \<lbrace>\<lambda>_. cur_tcb\<rbrace>"
   by (wp as_user_wp_thread_set_helper) simp
-
 
 lemma as_user_cte_wp_at [wp]:
   "\<lbrace>\<lambda>s. P (cte_wp_at P' c s)\<rbrace> as_user p' f \<lbrace>\<lambda>rv s. P (cte_wp_at P' c s)\<rbrace>"
   by (wp as_user_wp_thread_set_helper
          thread_set_cte_wp_at_trivial
          ball_tcb_cap_casesI | simp)+
-
 
 lemma as_user_ex_nonz_cap_to[wp]:
   "\<lbrace>ex_nonz_cap_to p\<rbrace> as_user t m \<lbrace>\<lambda>rv. ex_nonz_cap_to p\<rbrace>"
@@ -771,8 +753,7 @@ lemma ct_in_state_thread_state_lift:
 
 lemma as_user_ct_in_state:
   "\<lbrace>ct_in_state x\<rbrace> as_user t f \<lbrace>\<lambda>_. ct_in_state x\<rbrace>"
-  by (rule ct_in_state_thread_state_lift) (wp as_user_ct)+
-
+  by (rule ct_in_state_thread_state_lift) (wpsimp wp: as_user_ct)+
 
 lemma set_object_ntfn_at:
   "\<lbrace> ntfn_at p and tcb_at r \<rbrace> set_object r obj \<lbrace> \<lambda>rv. ntfn_at p \<rbrace>"
@@ -801,7 +782,7 @@ lemma idle_thread_idle[wp]:
 lemma set_thread_state_valid_objs[wp]:
  "\<lbrace>valid_objs and valid_tcb_state st and
    (\<lambda>s. (\<forall>a. st = Structures_A.BlockedOnReceive a \<longrightarrow>
-              cte_wp_at (op = cap.NullCap) (thread, tcb_cnode_index 3) s) \<and>
+              cte_wp_at ((=) cap.NullCap) (thread, tcb_cnode_index 3) s) \<and>
         (st_tcb_at (\<lambda>st. \<not> halted st) thread s \<or> halted st \<or>
               cte_wp_at (\<lambda>c. is_master_reply_cap c \<and> obj_ref_of c = thread)
                         (thread, tcb_cnode_index 2) s))\<rbrace>
@@ -1552,11 +1533,15 @@ lemma set_bound_notification_valid_ioc[wp]:
                         if_split_asm)
   done
 
+crunches set_thread_state, set_bound_notification
+  for valid_ioports[wp]: valid_ioports
+  (wp: valid_ioports_lift)
+
 lemma sts_invs_minor:
   "\<lbrace>st_tcb_at (\<lambda>st'. tcb_st_refs_of st' = tcb_st_refs_of st) t
      and (\<lambda>s. \<not> halted st \<longrightarrow> ex_nonz_cap_to t s)
      and (\<lambda>s. \<forall>a. st = Structures_A.BlockedOnReceive a \<longrightarrow>
-                    cte_wp_at (op = cap.NullCap) (t, tcb_cnode_index 3) s)
+                    cte_wp_at ((=) cap.NullCap) (t, tcb_cnode_index 3) s)
      and (\<lambda>s. t \<noteq> idle_thread s)
      and (\<lambda>s. st_tcb_at (\<lambda>st. \<not> halted st) t s \<or> halted st \<or>
                     cte_wp_at (\<lambda>c. is_master_reply_cap c \<and> obj_ref_of c = t)
@@ -1591,7 +1576,7 @@ lemma sts_invs_minor2:
      and invs and ex_nonz_cap_to t and (\<lambda>s. t \<noteq> idle_thread s)
      and K (\<not> awaiting_reply st \<and> \<not>idle st)
      and (\<lambda>s. \<forall>a. st = Structures_A.BlockedOnReceive a \<longrightarrow>
-                    cte_wp_at (op = cap.NullCap) (t, tcb_cnode_index 3) s)
+                    cte_wp_at ((=) cap.NullCap) (t, tcb_cnode_index 3) s)
      and (\<lambda>s. st_tcb_at (\<lambda>st. \<not> halted st) t s \<or> halted st \<or>
                     cte_wp_at (\<lambda>c. is_master_reply_cap c \<and> obj_ref_of c = t)
                               (t, tcb_cnode_index 2) s)\<rbrace>
@@ -1847,14 +1832,14 @@ lemma set_mrs_invs[wp]:
       set_mrs receiver recv_buf mrs
     \<lbrace>\<lambda>rv. invs \<rbrace>"
   by (wpsimp wp: mapM_wp' storeWord_invs thread_set_invs_trivial hoare_vcg_imp_lift
-           simp: set_mrs_redux zipWithM_x_mapM store_word_offs_def tcb_cap_cases_def
+           simp: set_mrs_redux zipWithM_x_mapM store_word_offs_def ran_tcb_cap_cases
       split_del: if_split)
 
 end
 
 
 lemma set_mrs_thread_set_dmo:
-  assumes ts: "\<And>c. \<lbrace>P\<rbrace> thread_set (\<lambda>tcb. tcb\<lparr>tcb_arch :=arch_tcb_context_set (c tcb) (tcb_arch tcb)\<rparr>) r \<lbrace>\<lambda>rv. Q\<rbrace>"
+  assumes ts: "\<And>c. \<lbrace>P\<rbrace> thread_set (\<lambda>tcb. tcb\<lparr>tcb_arch := arch_tcb_set_registers (c tcb) (tcb_arch tcb)\<rparr>) r \<lbrace>\<lambda>rv. Q\<rbrace>"
   assumes dmo: "\<And>x y. \<lbrace>Q\<rbrace> do_machine_op (storeWord x y) \<lbrace>\<lambda>rv. Q\<rbrace>"
   shows "\<lbrace>P\<rbrace> set_mrs r t mrs \<lbrace>\<lambda>rv. Q\<rbrace>"
   apply (simp add: set_mrs_redux)
@@ -1863,21 +1848,16 @@ lemma set_mrs_thread_set_dmo:
    apply (wp ts)
   apply (simp add: zipWithM_x_mapM store_word_offs_def split_def
               split del: if_split)
-  apply (wp mapM_wp dmo)
-     apply simp
-    apply blast
-   apply (rule ts)
-  apply assumption
+  apply (wpsimp wp: ts mapM_wp' dmo)
   done
 
-lemma set_mrs_st_tcb [wp]:
+lemma set_mrs_pred_tcb_at [wp]:
   "\<lbrace>pred_tcb_at proj P t\<rbrace> set_mrs r t' mrs \<lbrace>\<lambda>rv. pred_tcb_at proj P t\<rbrace>"
   apply (rule set_mrs_thread_set_dmo)
    apply (rule thread_set_no_change_tcb_pred)
    apply (simp add: tcb_to_itcb_def)
   apply wp
   done
-
 
 lemma get_tcb_ko_atD:
   "get_tcb t s = Some tcb \<Longrightarrow> ko_at (TCB tcb) t s"

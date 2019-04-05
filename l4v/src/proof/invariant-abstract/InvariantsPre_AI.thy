@@ -75,7 +75,7 @@ lemma obj_at_pspaceI:
   "\<lbrakk> obj_at P ref s; kheap s = kheap s' \<rbrakk> \<Longrightarrow> obj_at P ref s'"
   by (simp add: obj_at_def)
 
-abbreviation "ko_at k \<equiv> obj_at (op = k)"
+abbreviation "ko_at k \<equiv> obj_at ((=) k)"
 abbreviation "ako_at ako == ko_at (ArchObj ako)"
 
 lemma obj_atE:
@@ -259,5 +259,11 @@ lemma delta_sym_refs:
 
 abbreviation (input)
   "bound a \<equiv> a \<noteq> None"
+
+lemma inj_ObjRef[simp]: "inj ObjRef" by (auto intro!: injI)
+lemma inj_IRQRef[simp]: "inj IRQRef" by (auto intro!: injI)
+lemma inj_ArchRef[simp]: "inj ArchRef" by (auto intro!: injI)
+
+lemmas arch_cap_set_map_simps[simp] = arch_cap_set_map_def[split_simps cap.split]
 
 end

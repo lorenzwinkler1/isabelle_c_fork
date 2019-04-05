@@ -11,7 +11,7 @@
 theory SR_lemmas_C
 imports
   StateRelation_C
-  "../../refine/$L4V_ARCH/Invariants_H"
+  "Refine.Invariants_H"
 begin
 
 context begin interpretation Arch . (*FIXME: arch_split*)
@@ -101,7 +101,7 @@ lemma cap_get_tag_isCap0:
   apply (erule ccap_relationE)
   apply (simp add: cap_to_H_def cap_lift_def Let_def isArchCap_tag_def2 isArchCap_def)
   apply (clarsimp simp: isCap_simps cap_tag_defs word_le_nat_alt pageSize_def Let_def
-                 split: if_split_asm) -- "takes a while"
+                 split: if_split_asm) \<comment> \<open>takes a while\<close>
   done
 
 
@@ -491,7 +491,7 @@ lemma ctes_of_ksI [intro?]:
   and     pd: "pspace_distinct' s"
   shows   "ctes_of s x = Some cte"
 proof (rule ctes_of_eq_cte_wp_at')
-  from ks show "cte_wp_at' (op = cte) x s"
+  from ks show "cte_wp_at' ((=) cte) x s"
   proof (rule cte_wp_at_cteI' [OF _ _ _ refl])
     from ks pa have "is_aligned x (objBitsKO (KOCTE cte))" ..
     thus "is_aligned x cte_level_bits"
@@ -727,7 +727,7 @@ lemma lifth_update:
   by simp
 
 lemma getCTE_exs_valid:
-  "cte_at' dest s \<Longrightarrow> \<lbrace>op = s\<rbrace> getCTE dest \<exists>\<lbrace>\<lambda>r. op = s\<rbrace>"
+  "cte_at' dest s \<Longrightarrow> \<lbrace>(=) s\<rbrace> getCTE dest \<exists>\<lbrace>\<lambda>r. (=) s\<rbrace>"
   unfolding exs_valid_def getCTE_def cte_wp_at'_def
   by clarsimp
 
@@ -887,16 +887,6 @@ lemma cspace_cte_relation_upd_mdbI:
   apply simp
 done
 
-(* FIXME: move, generic *)
-lemma aligned_neg_mask [simp]:
-  "is_aligned x n \<Longrightarrow> x && ~~ mask n = x"
-  apply (erule is_aligned_get_word_bits)
-   apply (rule iffD2 [OF mask_in_range])
-    apply assumption
-   apply simp
-  apply (simp add: power_overflow NOT_mask)
-  done
-
 lemma mdb_node_to_H_mdbPrev_update[simp]:
   "mdb_node_to_H (mdbPrev_CL_update (\<lambda>_. x) m)
   = mdbPrev_update (\<lambda>_. x) (mdb_node_to_H m)"
@@ -944,7 +934,7 @@ lemma ctes_of_aligned_bits [simp]:
   and   bits: "bits \<le> cte_level_bits"
   shows  "is_aligned p bits"
 proof -
-  from cof have "cte_wp_at' (op = cte) p s"
+  from cof have "cte_wp_at' ((=) cte) p s"
     by (simp add: cte_wp_at_ctes_of)
   thus ?thesis
     apply -
@@ -1240,7 +1230,7 @@ lemma ko_at_valid_ntfn':
 
 (* MOVE *)
 lemma ntfn_blocked_in_queueD:
-  "\<lbrakk> st_tcb_at' (op = (Structures_H.thread_state.BlockedOnNotification ntfn)) thread \<sigma>; ko_at' ntfn' ntfn \<sigma>; invs' \<sigma> \<rbrakk>
+  "\<lbrakk> st_tcb_at' ((=) (Structures_H.thread_state.BlockedOnNotification ntfn)) thread \<sigma>; ko_at' ntfn' ntfn \<sigma>; invs' \<sigma> \<rbrakk>
    \<Longrightarrow> thread \<in> set (ntfnQueue (ntfnObj ntfn')) \<and> isWaitingNtfn (ntfnObj ntfn')"
   apply (drule sym_refs_st_tcb_atD')
    apply clarsimp
@@ -1343,7 +1333,7 @@ lemma exs_getObject:
                 (loadObject_default p q n ko :: ('a :: pspace_storable) kernel)"
   assumes P: "\<And>(v::'a::pspace_storable). (1 :: word32) < 2 ^ (objBits v)"
   and objat: "obj_at' (P :: ('a::pspace_storable \<Rightarrow> bool)) p s"
-  shows      "\<lbrace>op = s\<rbrace> getObject p \<exists>\<lbrace>\<lambda>r :: ('a :: pspace_storable). op = s\<rbrace>"
+  shows      "\<lbrace>(=) s\<rbrace> getObject p \<exists>\<lbrace>\<lambda>r :: ('a :: pspace_storable). (=) s\<rbrace>"
   using objat unfolding exs_valid_def obj_at'_def
   apply clarsimp
   apply (rule_tac x = "(the (projectKO_opt ko), s)" in bexI)
@@ -1499,7 +1489,7 @@ lemma cmap_relation_cong:
    apply (rule Some_the [where f = cm'])
    apply (erule subsetD)
    apply (erule imageI)
-  -- "clag"
+  \<comment> \<open>clag\<close>
    apply simp
    apply (erule conjE)
    apply (drule equalityD1)
@@ -1883,14 +1873,6 @@ lemma ko_at_projectKO_opt:
   "ko_at' ko p s \<Longrightarrow> (projectKO_opt \<circ>\<^sub>m ksPSpace s) p = Some ko"
   by (clarsimp elim!: obj_atE' simp: projectKOs)
 
-lemma int_and_leR:
-  "0 \<le> b \<Longrightarrow> a AND b \<le> (b :: int)"
-  by (clarsimp simp: int_and_le bin_sign_def split: if_split_asm)
-
-lemma int_and_leL:
-  "0 \<le> a \<Longrightarrow> a AND b \<le> (a :: int)"
-  by (metis int_and_leR int_and_comm)
-
 lemma user_word_at_cross_over:
   "\<lbrakk> user_word_at x p s; (s, s') \<in> rf_sr; p' = Ptr p \<rbrakk>
    \<Longrightarrow> c_guard p' \<and> hrs_htd (t_hrs_' (globals s')) \<Turnstile>\<^sub>t p'
@@ -1916,7 +1898,7 @@ lemma user_word_at_cross_over:
    apply (rule order_trans[rotated])
     apply (rule_tac x="p && mask pageBits" and y=4 in intvl_sub_offset)
     apply (cut_tac y=p and a="mask pageBits && (~~ mask 2)" in word_and_le1)
-    apply (subst(asm) word_bw_assocs[symmetric], subst(asm) aligned_neg_mask,
+    apply (subst(asm) word_bw_assocs[symmetric], subst(asm) is_aligned_neg_mask_eq,
            erule is_aligned_andI1)
     apply (simp add: word_le_nat_alt mask_def pageBits_def)
    apply simp
@@ -2016,9 +1998,6 @@ lemma device_word_at_cross_over:
   done
 *)
 
-(* FIXME: move to GenericLib *)
-lemmas unat32_eq_of_nat = unat_eq_of_nat[where 'a=32, folded word_bits_def]
-
 lemma memory_cross_over:
   "\<lbrakk>(\<sigma>, s) \<in> rf_sr; pspace_aligned' \<sigma>; pspace_distinct' \<sigma>;
     pointerInUserData ptr \<sigma>\<rbrakk>
@@ -2059,7 +2038,7 @@ lemma cap_get_tag_isCap_ArchObject0:
   apply -
   apply (erule ccap_relationE)
   apply (simp add: cap_to_H_def cap_lift_def Let_def isArchCap_def)
-  apply (clarsimp simp: isCap_simps cap_tag_defs word_le_nat_alt pageSize_def Let_def split: if_split_asm) -- "takes a while"
+  apply (clarsimp simp: isCap_simps cap_tag_defs word_le_nat_alt pageSize_def Let_def split: if_split_asm) \<comment> \<open>takes a while\<close>
   done
 
 lemma cap_get_tag_isCap_ArchObject:

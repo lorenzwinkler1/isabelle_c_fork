@@ -10,7 +10,7 @@
 
 theory KHeap_R
 imports
-  "../../invariant-abstract/$L4V_ARCH/ArchDetSchedSchedule_AI"
+  "AInvs.ArchDetSchedSchedule_AI"
   Machine_R
 begin
 
@@ -476,7 +476,7 @@ lemma getObject_obj_at':
   assumes x: "\<And>q n ko. loadObject p q n ko =
                 (loadObject_default p q n ko :: ('a :: pspace_storable) kernel)"
   assumes P: "\<And>(v::'a::pspace_storable). (1 :: word32) < 2 ^ (objBits v)"
-  shows      "\<lbrace> \<top> \<rbrace> getObject p \<lbrace>\<lambda>r::'a::pspace_storable. obj_at' (op = r) p\<rbrace>"
+  shows      "\<lbrace> \<top> \<rbrace> getObject p \<lbrace>\<lambda>r::'a::pspace_storable. obj_at' ((=) r) p\<rbrace>"
   by (clarsimp simp: valid_def getObject_def in_monad
                      loadObject_default_def obj_at'_def projectKOs
                      split_def in_magnitude_check lookupAround2_char1
@@ -743,7 +743,7 @@ lemma ctes_of_from_cte_wp_at:
   apply (case_tac "ctes_of s x", simp_all)
    apply (drule_tac P1=Not and P'1="\<top>" and p1=x in use_valid [OF _ x],
            simp_all add: cte_wp_at_ctes_of)
-  apply (drule_tac P1=id and P'1="op = aa" and p1=x in use_valid [OF _ x],
+  apply (drule_tac P1=id and P'1="(=) aa" and p1=x in use_valid [OF _ x],
           simp_all add: cte_wp_at_ctes_of)
   done
 
@@ -774,6 +774,9 @@ lemma map_to_ctes_upd_tcb:
                   \<and> getF tcb \<noteq> getF tcb'
            then (case tcb_cte_cases (x - p) of Some (getF, setF) \<Rightarrow> Some (getF tcb))
            else map_to_ctes s x)"
+  supply
+    is_aligned_neg_mask_eq[simp del]
+    is_aligned_neg_mask_weaken[simp del]
   apply (subgoal_tac "p && ~~ (mask tcbBlockSizeBits) = p")
    apply (rule ext)
    apply (simp    add: map_to_ctes_def Let_def dom_fun_upd2
@@ -834,7 +837,7 @@ lemma map_to_ctes_upd_other:
   done
 
 lemma ctes_of_eq_cte_wp_at':
-  "cte_wp_at' (op = cte) x s \<Longrightarrow> ctes_of s x = Some cte"
+  "cte_wp_at' ((=) cte) x s \<Longrightarrow> ctes_of s x = Some cte"
   by (simp add: cte_wp_at_ctes_of)
 
 lemma tcb_cte_cases_change:
@@ -861,7 +864,7 @@ lemma ctes_of_setObject_cte:
    apply (rule ext, clarsimp)
    apply (intro conjI impI)
     apply (clarsimp simp: tcb_cte_cases_def split: if_split_asm)
-   apply (drule(1) cte_wp_at_tcbI'[where P="op = cte"])
+   apply (drule(1) cte_wp_at_tcbI'[where P="(=) cte"])
       apply (simp add: ps_clear_def3 field_simps)
      apply assumption+
    apply (simp add: cte_wp_at_ctes_of)
@@ -1851,7 +1854,7 @@ lemma setEndpoint_idle'[wp]:
   done
 
 crunch it[wp]: setEndpoint "\<lambda>s. P (ksIdleThread s)"
-  (simp: updateObject_default_inv ignore: getObject)
+  (simp: updateObject_default_inv)
 
 lemma setObject_ksPSpace_only:
   "\<lbrakk> \<And>p q n ko. \<lbrace>P\<rbrace> updateObject val p q n ko \<lbrace>\<lambda>rv. P \<rbrace>;
@@ -1882,16 +1885,12 @@ lemma valid_irq_handlers_lift':
 lemmas valid_irq_handlers_lift'' = valid_irq_handlers_lift' [unfolded cteCaps_of_def]
 
 crunch ksInterruptState[wp]: setEndpoint "\<lambda>s. P (ksInterruptState s)"
-  (ignore: setObject wp: setObject_ksInterrupt updateObject_default_inv)
+  (wp: setObject_ksInterrupt updateObject_default_inv)
 
 lemmas setEndpoint_irq_handlers[wp]
     = valid_irq_handlers_lift'' [OF set_ep_ctes_of setEndpoint_ksInterruptState]
 
 declare set_ep_arch' [wp]
-
-lemma set_ep_irq_node' [wp]:
-  "\<lbrace>\<lambda>s. P (irq_node' s)\<rbrace> setEndpoint ptr val \<lbrace>\<lambda>rv s. P (irq_node' s)\<rbrace>"
-  by (simp add: setEndpoint_def | wp setObject_ksInterrupt updateObject_default_inv)+
 
 lemma set_ep_maxObj [wp]:
   "\<lbrace>\<lambda>s. P (gsMaxObjectSize s)\<rbrace> setEndpoint ptr val \<lbrace>\<lambda>rv s. P (gsMaxObjectSize s)\<rbrace>"
@@ -2150,7 +2149,7 @@ lemma setNotification_ct_idle_or_in_cur_domain'[wp]:
   done
 
 crunch gsUntypedZeroRanges[wp]: setNotification "\<lambda>s. P (gsUntypedZeroRanges s)"
-  (wp: setObject_ksPSpace_only updateObject_default_inv ignore: setObject)
+  (wp: setObject_ksPSpace_only updateObject_default_inv)
 
 lemma set_ntfn_minor_invs':
   "\<lbrace>invs' and obj_at' (\<lambda>ntfn. ntfn_q_refs_of' (ntfnObj ntfn) = ntfn_q_refs_of' (ntfnObj val)
@@ -2282,14 +2281,6 @@ lemma setEndpoint_ksMachine:
   "\<lbrace>\<lambda>s. P (ksMachineState s)\<rbrace> setEndpoint ptr val \<lbrace>\<lambda>rv s. P (ksMachineState s)\<rbrace>"
   by (simp add: setEndpoint_def | wp setObject_ksMachine updateObject_default_inv)+
 
-lemma setEndpoint_ksArch:
-  "\<lbrace>\<lambda>s. P (ksArchState s)\<rbrace>
-     setEndpoint ep_ptr val
-   \<lbrace>\<lambda>_ s. P (ksArchState s)\<rbrace>"
-  apply (simp add: setEndpoint_def setObject_def split_def)
-  apply (wp updateObject_default_inv | simp)+
-  done
-
 lemmas setEndpoint_valid_irq_states'  =
   valid_irq_states_lift' [OF setEndpoint_ksInterruptState setEndpoint_ksMachine]
 
@@ -2307,11 +2298,8 @@ lemma setEndpoint_ct':
   apply (wp updateObject_default_inv | simp)+
   done
 
-crunch ksArchState[wp]: setEndpoint "\<lambda>s. P (ksArchState s)"
-  (ignore: setObject wp: updateObject_default_inv)
-
 lemmas setEndpoint_valid_globals[wp]
-    = valid_global_refs_lift' [OF set_ep_ctes_of setEndpoint_ksArchState
+    = valid_global_refs_lift' [OF set_ep_ctes_of set_ep_arch'
                                   setEndpoint_it setEndpoint_ksInterruptState]
 end
 end

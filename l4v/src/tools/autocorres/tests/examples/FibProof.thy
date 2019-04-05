@@ -20,8 +20,10 @@ To do:
 
 theory FibProof
 imports
-  "../../AutoCorres"
+  "AutoCorres.AutoCorres"
 begin
+
+external_file "fib.c"
 
 (*
  * The venerable Fibonacci function.
@@ -197,7 +199,7 @@ lemma fib_simpl_spec: "\<forall>n. \<Gamma>,\<Theta>\<turnstile>\<^sub>t\<lbrace
   apply (hoare_rule HoareTotal.ProcRec1[where r = "measure (\<lambda>(s, d). unat \<^bsup>s\<^esup>n)"])
   apply (unfold creturn_def | vcg_step)+
   apply (subst fibo32.simps, simp)
-  apply (subst fibo32.simps, simp add: scast_id)
+  apply (subst fibo32.simps, simp)
   apply (subst fibo32.simps[where n = n])
   apply unat_arith
   done
@@ -410,7 +412,7 @@ lemma fib'_term: "no_ofail (\<lambda>_. rec_measure' > unat n) (fib' rec_measure
   apply (induct n arbitrary: rec_measure' rule: less_induct)
   apply (subgoal_tac "\<And>y P rec_measure'. ovalidNF (\<lambda>_. y < x \<and> unat y < rec_measure' \<and> P) (fib' rec_measure' y) (\<lambda>_ _. P)")
   apply (rule fib'_term_rec_helper, assumption)
-  apply (metis ovalidNF_assume_pre)
+  apply (metis (full_types) ovalidNF_assume_pre)
   done
 
 (* The overall correctness proof. *)
@@ -457,6 +459,7 @@ lemma fib'_call:
   done
 
 lemma "\<lbrace> P \<rbrace> call_fib' \<lbrace> \<lambda>_. P \<rbrace>!"
+  including nf_no_pre
   apply (unfold call_fib'_def)
   apply wp
    apply (blast intro: fib'_call)

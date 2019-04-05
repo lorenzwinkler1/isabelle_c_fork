@@ -29,25 +29,25 @@ wpc_setup "\<lambda>m. no_irq m" wpc_helper_no_irq
 ML {*
 structure CrunchNoIrqInstance : CrunchInstance =
 struct
+  val name = "no_irq";
   type extra = unit;
   val eq_extra = op =;
-  val name = "no_irq";
-  val has_preconds = false;
-  fun mk_term _ body _ =
-    (Syntax.parse_term @{context} "no_irq") $ body;
-  fun get_precond _ = error "crunch no_irq should not be calling get_precond";
-  fun put_precond _ _ = error "crunch no_irq should not be calling put_precond";
-  fun dest_term (Const (@{const_name no_irq}, _) $ body)
-    = SOME (Term.dummy, body, ())
-    | dest_term _ = NONE;
-  val pre_thms = [];
-  val wpc_tactic = wp_cases_tactic_weak;
   fun parse_extra ctxt extra
         = case extra of
             "" => (Syntax.parse_term ctxt "%_. True", ())
           | _ => error "no_irq does not need a precondition";
+  val has_preconds = false;
+  fun mk_term _ body _ =
+    (Syntax.parse_term @{context} "no_irq") $ body;
+  fun dest_term (Const (@{const_name no_irq}, _) $ body)
+    = SOME (Term.dummy, body, ())
+    | dest_term _ = NONE;
+  fun put_precond _ _ = error "crunch no_irq should not be calling put_precond";
+  val pre_thms = [];
+  val wpc_tactic = wp_cases_tactic_weak;
   val magic = Syntax.parse_term @{context}
-    "\<lambda>mapp_lambda_ignore. no_irq mapp_lambda_ignore"
+    "\<lambda>mapp_lambda_ignore. no_irq mapp_lambda_ignore";
+  val get_monad_state_type = get_nondet_monad_state_type;
 end;
 
 structure CrunchNoIrq : CRUNCH = Crunch(CrunchNoIrqInstance);
@@ -58,7 +58,7 @@ setup {*
 *}
 
 crunch_ignore (no_irq) (add:
-  bind return "when" get gets fail
+  NonDetMonad.bind return "when" get gets fail
   assert put modify unless select
   alternative assert_opt gets_the
   returnOk throwError lift bindE
@@ -317,9 +317,6 @@ lemma no_irq_modify:
 lemma no_irq_invalidateTLBEntry: "no_irq (invalidateTLBEntry a)"
   by (clarsimp simp: invalidateTLBEntry_def)
 
-lemma no_irq_resetCR3: "no_irq resetCR3"
-  by (clarsimp simp: resetCR3_def)
-
 lemma no_irq_storeWord: "no_irq (storeWord w p)"
   apply (simp add: storeWord_def)
   apply (wp no_irq_modify)
@@ -352,6 +349,22 @@ lemma no_irq_out16: "no_irq (out16 irq b)"
 
 lemma no_irq_out32: "no_irq (out32 irq b)"
   by (wp | clarsimp simp: out32_def)+
+
+lemma no_irq_invalidateLocalPageStructureCacheASID:
+  "no_irq (invalidateLocalPageStructureCacheASID vspace asid)"
+  by (wpsimp simp: invalidateLocalPageStructureCacheASID_def)
+
+lemmas invalidateLocalPageStructureCacheASID_irq_masks =
+  no_irq[OF no_irq_invalidateLocalPageStructureCacheASID]
+
+lemma no_irq_nativeThreadUsingFPU: "no_irq (nativeThreadUsingFPU thread)"
+  by (wp | clarsimp simp: nativeThreadUsingFPU_def)+
+
+lemma no_irq_switchFpuOwner: "no_irq (switchFpuOwner thread cpu)"
+  by (wp | clarsimp simp: switchFpuOwner_def)+
+
+lemmas nativeThreadUsingFPU_irq_masks = no_irq[OF no_irq_nativeThreadUsingFPU]
+lemmas switchFpuOwner_irq_masks = no_irq[OF no_irq_switchFpuOwner]
 
 lemma getActiveIRQ_le_maxIRQ':
   "\<lbrace>\<lambda>s. \<forall>irq > maxIRQ. irq_masks s irq\<rbrace>
@@ -422,10 +435,6 @@ lemma hwASIDInvalidate_ef[simp,wp]: "empty_fail (hwASIDInvalidate b a)"
 (* FIXME x64: move *)
 lemma updateIRQState_ef[simp,wp]: "empty_fail (updateIRQState b c)"
   by (simp add: updateIRQState_def)
-
-(* FIXME x64: move *)
-lemma resetCR3_ef[simp,wp]: "empty_fail (resetCR3)"
-  by (simp add: resetCR3_def)
 
 (* FIXME x64: move *)
 lemma writeCR3_ef[simp,wp]: "empty_fail (writeCR3 a b)"

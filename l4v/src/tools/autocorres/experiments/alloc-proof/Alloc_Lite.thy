@@ -10,8 +10,10 @@
 
 theory Alloc_Lite
 imports
-  "../../AutoCorres"
+  "AutoCorres.AutoCorres"
 begin
+
+external_file  "alloc_lite.c"
 
 (* Parse the input file. *)
 install_C_file  "alloc_lite.c"

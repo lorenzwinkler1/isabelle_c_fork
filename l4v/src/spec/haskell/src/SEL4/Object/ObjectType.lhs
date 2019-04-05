@@ -25,6 +25,7 @@ We use the C preprocessor to select a target architecture.
 > {-# BOOT-IMPORTS: SEL4.Machine SEL4.API.Types SEL4.Model SEL4.Object.Structures #-}
 > {-# BOOT-EXPORTS: createObject #-}
 
+> import Prelude hiding (Word)
 > import SEL4.API.Types
 > import SEL4.API.Failures
 > import SEL4.API.Invocation
@@ -76,11 +77,39 @@ Reply capabilities cannot be copied; to ensure that the "Reply" system call is f
 Architecture-specific capability types are handled in the relevant module.
 
 > deriveCap slot (ArchObjectCap cap) =
->     liftM ArchObjectCap $ Arch.deriveCap slot cap
+>     Arch.deriveCap slot cap
 
 Other capabilities do not require modification.
 
 > deriveCap _ cap = return cap
+
+The conditions required for a capability to be marked as "revocable"
+
+> isCapRevocable :: Capability -> Capability -> Bool
+> isCapRevocable newCap srcCap = case newCap of
+
+Some arch capabilities can be marked revocable.
+
+>     ArchObjectCap {} -> Arch.isCapRevocable newCap srcCap
+
+If the new capability is an endpoint capability, then it can be an MDB parent if and only if its badge is being changed by this operation.
+
+>     EndpointCap {} -> capEPBadge newCap /= capEPBadge srcCap
+>     NotificationCap {} -> capNtfnBadge newCap /= capNtfnBadge srcCap
+
+If the new capability is the first IRQ handler for a given IRQ, then it can be an MDB parent.
+
+>     IRQHandlerCap {} -> isIRQControlCap srcCap
+
+Untyped capabilities can always be MDB parents.
+
+>     UntypedCap {} -> True
+
+Any other capability created by this function is a leaf of the derivation tree, and cannot be used to revoke other capabilities.
+
+>     _ -> False
+
+
 
 \subsection{Finalising Capabilities}
 \label{sec:object.objecttype.finalise}
@@ -91,26 +120,26 @@ The "finaliseCap" operation takes any finalisation actions that need to be taken
 
 During the unbounded capability clearing operation, the capability to the slots is replaced by a "Zombie" capability which records which slots remain to be cleared but cannot be invoked, traversed or copied. This case is handled here by returning the "Zombie" which will be inserted. The "Zombie" finalisation process is handled elsewhere (see "finaliseSlot", \autoref{sec:object.cnode.ops.delete}).
 
-> finaliseCap :: Capability -> Bool -> Bool -> Kernel (Capability, Maybe IRQ)
+> finaliseCap :: Capability -> Bool -> Bool -> Kernel (Capability, Capability)
 
 When the last capability to an endpoint is deleted, any IPC operations currently using it are aborted.
 
 > finaliseCap (EndpointCap { capEPPtr = ptr }) final _ = do
 >     when final $ cancelAllIPC ptr
->     return (NullCap, Nothing)
+>     return (NullCap, NullCap)
 
 > finaliseCap (NotificationCap { capNtfnPtr = ptr }) final _ = do
 >     when final $ do
 >         unbindMaybeNotification ptr
 >         cancelAllSignals ptr
->     return (NullCap, Nothing)
+>     return (NullCap, NullCap)
 
-> finaliseCap (ReplyCap {}) _ _ = return (NullCap, Nothing)
+> finaliseCap (ReplyCap {}) _ _ = return (NullCap, NullCap)
 
 No action need be taken for Null or Domain capabilities.
 
-> finaliseCap NullCap _ _ = return (NullCap, Nothing)
-> finaliseCap DomainCap _ _ = return (NullCap, Nothing)
+> finaliseCap NullCap _ _ = return (NullCap, NullCap)
+> finaliseCap DomainCap _ _ = return (NullCap, NullCap)
 
 Capabilities other than the above should never be passed with the second boolean flag set.
 
@@ -119,7 +148,7 @@ Capabilities other than the above should never be passed with the second boolean
 A "CNodeCap" is replaced with the appropriate "Zombie". No other action is needed.
 
 > finaliseCap (CNodeCap { capCNodePtr = ptr, capCNodeBits = bits }) True _ =
->     return (Zombie ptr (ZombieCNode bits) (bit bits), Nothing)
+>     return (Zombie ptr (ZombieCNode bits) (bit bits), NullCap)
 
 Threads are treated as special capability nodes; they also become zombies when their final capabilities are deleted, but they must first be suspended to prevent them being scheduled during deletion.
 
@@ -128,23 +157,23 @@ Threads are treated as special capability nodes; they also become zombies when t
 >     unbindNotification tcb
 >     suspend tcb
 >     Arch.prepareThreadDelete tcb
->     return (Zombie cte_ptr ZombieTCB 5, Nothing)
+>     return (Zombie cte_ptr ZombieTCB 5, NullCap)
 
 Zombies have already been finalised.
 
 > finaliseCap z@(Zombie {}) True _ =
->     return (z, Nothing)
+>     return (z, NullCap)
 
 Deletion of architecture-specific capabilities are handled in the architecture module.
 
 > finaliseCap (ArchObjectCap { capCap = cap }) final _ =
->     liftM (\cap -> (cap, Nothing)) $ Arch.finaliseCap cap final
+>     Arch.finaliseCap cap final
 
 When a final IRQ handler cap is finalised, the interrupt controller is notified. It will mask the IRQ, delete any internal references to the notification endpoint, and allow future "IRQControl" calls to create caps for this IRQ.
 
-> finaliseCap (IRQHandlerCap { capIRQ = irq }) True _ = do
+> finaliseCap cap@(IRQHandlerCap { capIRQ = irq }) True _ = do
 >     deletingIRQHandler irq
->     return (NullCap, Just irq)
+>     return (NullCap, cap)
 
 Zombie capabilities are always final.
 
@@ -152,8 +181,19 @@ Zombie capabilities are always final.
 
 For any other capability, no special action is required.
 
-> finaliseCap _ _ _ = return (NullCap, Nothing)
+> finaliseCap _ _ _ = return (NullCap, NullCap)
 
+Some caps require deletion operations to occur after the slot has been emptied.
+
+The deletion of the final IRQHandlerCap to any IRQ should be followed by
+certain operations handled by deletedIRQHandler, including the clearing of
+the bitmask bit that will allow the reissue of an IRQHandlerCap to this IRQ.
+
+> postCapDeletion :: Capability -> Kernel ()
+> postCapDeletion info = case info of
+>     IRQHandlerCap irq -> deletedIRQHandler irq
+>     ArchObjectCap c -> Arch.postCapDeletion c
+>     _ -> return ()
 
 
 

@@ -9,9 +9,10 @@
  *)
 
 theory retprefix
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "retprefix.c"
 install_C_file "retprefix.c"
 
 context retprefix

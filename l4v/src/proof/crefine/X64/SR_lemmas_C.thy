@@ -11,10 +11,20 @@
 theory SR_lemmas_C
 imports
   StateRelation_C
-  "../../refine/$L4V_ARCH/Invariants_H"
+  "Refine.Invariants_H"
 begin
 
+(* FIXME: move to Word_Lib *)
+lemma sign_extend_0[simp]:
+  "sign_extend a 0 = 0"
+  by (simp add: sign_extend_def)
+
 context begin interpretation Arch . (*FIXME: arch_split*)
+
+(* FIXME: move to ainvs? *)
+lemma sign_extend_canonical_address:
+  "(x = sign_extend 47 x) = canonical_address x"
+  by (fastforce simp: sign_extended_iff_sign_extend canonical_address_sign_extended)
 
 section "ctes"
 
@@ -88,13 +98,15 @@ lemma cap_get_tag_isCap0:
   \<and> (cap_get_tag cap' = scast cap_cnode_cap) = isCNodeCap cap
   \<and> isArchCap_tag (cap_get_tag cap') = isArchCap \<top> cap
   \<and> (cap_get_tag cap' = scast cap_frame_cap) = (isArchPageCap cap)
-  \<and> (cap_get_tag cap' = scast cap_domain_cap) = isDomainCap cap"
+  \<and> (cap_get_tag cap' = scast cap_domain_cap) = isDomainCap cap
+  \<and> (cap_get_tag cap' = scast cap_io_port_cap) = isArchIOPortCap cap
+  \<and> (cap_get_tag cap' = scast cap_io_port_control_cap) = isIOPortControlCap' cap"
   using cr
   apply -
   apply (erule ccap_relationE)
   apply (simp add: cap_to_H_def cap_lift_def Let_def isArchCap_tag_def2 isArchCap_def)
   by (clarsimp simp: isCap_simps cap_tag_defs word_le_nat_alt pageSize_def Let_def
-              split: if_split_asm) -- "takes a while"
+              split: if_split_asm) \<comment> \<open>takes a while\<close>
 
 
 
@@ -113,6 +125,8 @@ lemma cap_get_tag_isCap:
   and "isArchCap_tag (cap_get_tag cap') = isArchCap \<top> cap"
   and "(cap_get_tag cap' = scast cap_frame_cap) = (isArchPageCap cap)"
   and "(cap_get_tag cap' = scast cap_domain_cap) = isDomainCap cap"
+  and "(cap_get_tag cap' = scast cap_io_port_cap) = (isArchIOPortCap cap)"
+  and "(cap_get_tag cap' = scast cap_io_port_control_cap) = (isIOPortControlCap' cap)"
   using cap_get_tag_isCap0 [OF cr] by auto
 
 lemma cap_get_tag_NullCap:
@@ -484,7 +498,7 @@ lemma ctes_of_ksI [intro?]:
   and     pd: "pspace_distinct' s"
   shows   "ctes_of s x = Some cte"
 proof (rule ctes_of_eq_cte_wp_at')
-  from ks show "cte_wp_at' (op = cte) x s"
+  from ks show "cte_wp_at' ((=) cte) x s"
   proof (rule cte_wp_at_cteI' [OF _ _ _ refl])
     from ks pa have "is_aligned x (objBitsKO (KOCTE cte))" ..
     thus "is_aligned x cte_level_bits"
@@ -746,7 +760,7 @@ lemma lifth_update:
   by simp
 
 lemma getCTE_exs_valid:
-  "cte_at' dest s \<Longrightarrow> \<lbrace>op = s\<rbrace> getCTE dest \<exists>\<lbrace>\<lambda>r. op = s\<rbrace>"
+  "cte_at' dest s \<Longrightarrow> \<lbrace>(=) s\<rbrace> getCTE dest \<exists>\<lbrace>\<lambda>r. (=) s\<rbrace>"
   unfolding exs_valid_def getCTE_def cte_wp_at'_def
   by clarsimp
 
@@ -906,16 +920,6 @@ lemma cspace_cte_relation_upd_mdbI:
   apply simp
 done
 
-(* FIXME: move, generic *)
-lemma aligned_neg_mask [simp]:
-  "is_aligned x n \<Longrightarrow> x && ~~ mask n = x"
-  apply (erule is_aligned_get_word_bits)
-   apply (rule iffD2 [OF mask_in_range])
-    apply assumption
-   apply simp
-  apply (simp add: power_overflow NOT_mask)
-  done
-
 lemma mdb_node_to_H_mdbPrev_update[simp]:
   "mdb_node_to_H (mdbPrev_CL_update (\<lambda>_. x) m)
   = mdbPrev_update (\<lambda>_. x) (mdb_node_to_H m)"
@@ -957,13 +961,13 @@ lemma cte_bits_le_3 [simp]: "3 \<le> cte_level_bits"
 lemma cte_bits_le_tcb_bits: "cte_level_bits \<le> tcbBlockSizeBits"
   by (simp add: cte_level_bits_def objBits_defs)
 
-lemma ctes_of_aligned_bits [simp]:
+lemma ctes_of_aligned_bits:
   assumes pa: "pspace_aligned' s"
   and    cof: "ctes_of s p = Some cte"
   and   bits: "bits \<le> cte_level_bits"
   shows  "is_aligned p bits"
 proof -
-  from cof have "cte_wp_at' (op = cte) p s"
+  from cof have "cte_wp_at' ((=) cte) p s"
     by (simp add: cte_wp_at_ctes_of)
   thus ?thesis
     apply -
@@ -980,21 +984,12 @@ qed
 lemma mdbNext_not_zero_eq:
   "cmdbnode_relation n n' \<Longrightarrow> \<forall>s s'. (s, s') \<in> rf_sr (*ja \<and> (is_aligned (mdbNext n) 3)*)
   \<longrightarrow> (mdbNext n \<noteq> 0) = (s' \<in> {_. mdbNext_CL (mdb_node_lift n') \<noteq> 0})"
-  apply clarsimp
-  apply (erule cmdbnode_relationE)
-  apply (fastforce simp: mdbNext_to_H)
-  done
+  by (fastforce elim: cmdbnode_relationE)
 
 lemma mdbPrev_not_zero_eq:
   "cmdbnode_relation n n' \<Longrightarrow> \<forall>s s'. (s, s') \<in> rf_sr (*ja\<and> (is_aligned (mdbPrev n) 3)*)
   \<longrightarrow> (mdbPrev n \<noteq> 0) = (s' \<in> {_. mdbPrev_CL (mdb_node_lift n') \<noteq> 0})"
-  apply clarsimp
-  apply (erule cmdbnode_relationE)
-  apply (unfold mdb_node_to_H_def)
-  apply (fastforce)
-  done
-
-declare is_aligned_0 [simp]
+  by (fastforce elim: cmdbnode_relationE)
 
 abbreviation
   "nullCapPointers cte \<equiv> cteCap cte = NullCap \<and> mdbNext (cteMDBNode cte) = nullPointer \<and> mdbPrev (cteMDBNode cte) = nullPointer"
@@ -1022,11 +1017,6 @@ end
 
 context kernel
 begin
-
-definition
-  rf_sr :: "(KernelStateData_H.kernel_state \<times> cstate) set"
-  where
-  "rf_sr \<equiv> {(s, s'). cstate_relation s (globals s')}"
 
 lemma cmap_relation_tcb [intro]:
   "(s, s') \<in> rf_sr \<Longrightarrow> cpspace_tcb_relation (ksPSpace s) (t_hrs_' (globals s'))"
@@ -1146,12 +1136,14 @@ lemma cstate_relation_only_t_hrs:
   intStateIRQNode_' s = intStateIRQNode_' t;
   intStateIRQTable_' s = intStateIRQTable_' t;
   x86KSASIDTable_' s = x86KSASIDTable_' t;
-  x64KSCurrentCR3_' s = x64KSCurrentCR3_' t;
+  x64KSCurrentUserCR3_' s = x64KSCurrentUserCR3_' t;
   phantom_machine_state_' s = phantom_machine_state_' t;
   ghost'state_' s = ghost'state_' t;
   ksDomScheduleIdx_' s = ksDomScheduleIdx_' t;
   ksCurDomain_' s = ksCurDomain_' t;
-  ksDomainTime_' s = ksDomainTime_' t
+  ksDomainTime_' s = ksDomainTime_' t;
+  num_ioapics_' s = num_ioapics_' t;
+  x86KSIRQState_' s = x86KSIRQState_' t
   \<rbrakk>
   \<Longrightarrow> cstate_relation a s = cstate_relation a t"
   unfolding cstate_relation_def
@@ -1170,12 +1162,14 @@ lemma rf_sr_upd:
     "intStateIRQNode_'(globals x) = intStateIRQNode_' (globals y)"
     "intStateIRQTable_'(globals x) = intStateIRQTable_' (globals y)"
     "x86KSASIDTable_' (globals x) = x86KSASIDTable_' (globals y)"
-    "x64KSCurrentCR3_' (globals x) = x64KSCurrentCR3_' (globals y)"
+    "x64KSCurrentUserCR3_' (globals x) = x64KSCurrentUserCR3_' (globals y)"
     "phantom_machine_state_' (globals x) = phantom_machine_state_' (globals y)"
     "ghost'state_' (globals x) = ghost'state_' (globals y)"
     "ksDomScheduleIdx_' (globals x) = ksDomScheduleIdx_' (globals y)"
     "ksCurDomain_' (globals x) = ksCurDomain_' (globals y)"
     "ksDomainTime_' (globals x) = ksDomainTime_' (globals y)"
+    "num_ioapics_' (globals x) = num_ioapics_' (globals y)"
+    "x86KSIRQState_' (globals x) = x86KSIRQState_' (globals y)"
   shows "((a, x) \<in> rf_sr) = ((a, y) \<in> rf_sr)"
   unfolding rf_sr_def using assms
   by simp (rule cstate_relation_only_t_hrs, auto)
@@ -1195,8 +1189,10 @@ lemma rf_sr_upd_safe[simp]:
   and     dt: "ksDomainTime_' (globals (g y)) = ksDomainTime_' (globals y)"
   and arch:
     "x86KSASIDTable_' (globals (g y)) = x86KSASIDTable_' (globals y)"
-    "x64KSCurrentCR3_' (globals (g y)) = x64KSCurrentCR3_' (globals y)"
+    "x64KSCurrentUserCR3_' (globals (g y)) = x64KSCurrentUserCR3_' (globals y)"
     "phantom_machine_state_' (globals (g y)) = phantom_machine_state_' (globals y)"
+    "num_ioapics_' (globals (g y)) = num_ioapics_' (globals y)"
+    "x86KSIRQState_' (globals (g y)) = x86KSIRQState_' (globals y)"
   and    gs: "ghost'state_' (globals (g y)) = ghost'state_' (globals y)"
   and     wu:  "(ksWorkUnitsCompleted_' (globals (g y))) = (ksWorkUnitsCompleted_' (globals y))"
   shows "((a, (g y)) \<in> rf_sr) = ((a, y) \<in> rf_sr)"
@@ -1268,7 +1264,7 @@ lemma ko_at_valid_ntfn':
 
 (* MOVE *)
 lemma ntfn_blocked_in_queueD:
-  "\<lbrakk> st_tcb_at' (op = (Structures_H.thread_state.BlockedOnNotification ntfn)) thread \<sigma>; ko_at' ntfn' ntfn \<sigma>; invs' \<sigma> \<rbrakk>
+  "\<lbrakk> st_tcb_at' ((=) (Structures_H.thread_state.BlockedOnNotification ntfn)) thread \<sigma>; ko_at' ntfn' ntfn \<sigma>; invs' \<sigma> \<rbrakk>
    \<Longrightarrow> thread \<in> set (ntfnQueue (ntfnObj ntfn')) \<and> isWaitingNtfn (ntfnObj ntfn')"
   apply (drule sym_refs_st_tcb_atD')
    apply clarsimp
@@ -1370,7 +1366,7 @@ lemma exs_getObject:
                 (loadObject_default p q n ko :: ('a :: pspace_storable) kernel)"
   assumes P: "\<And>(v::'a::pspace_storable). (1 :: machine_word) < 2 ^ (objBits v)"
   and objat: "obj_at' (P :: ('a::pspace_storable \<Rightarrow> bool)) p s"
-  shows      "\<lbrace>op = s\<rbrace> getObject p \<exists>\<lbrace>\<lambda>r :: ('a :: pspace_storable). op = s\<rbrace>"
+  shows      "\<lbrace>(=) s\<rbrace> getObject p \<exists>\<lbrace>\<lambda>r :: ('a :: pspace_storable). (=) s\<rbrace>"
   using objat unfolding exs_valid_def obj_at'_def
   apply clarsimp
   apply (rule_tac x = "(the (projectKO_opt ko), s)" in bexI)
@@ -1526,7 +1522,7 @@ lemma cmap_relation_cong:
    apply (rule Some_the [where f = cm'])
    apply (erule subsetD)
    apply (erule imageI)
-  -- "clag"
+  \<comment> \<open>clag\<close>
    apply simp
    apply (erule conjE)
    apply (drule equalityD1)
@@ -1929,14 +1925,6 @@ lemma ko_at_projectKO_opt:
   "ko_at' ko p s \<Longrightarrow> (projectKO_opt \<circ>\<^sub>m ksPSpace s) p = Some ko"
   by (clarsimp elim!: obj_atE' simp: projectKOs)
 
-lemma int_and_leR:
-  "0 \<le> b \<Longrightarrow> a AND b \<le> (b :: int)"
-  by (clarsimp simp: int_and_le bin_sign_def split: if_split_asm)
-
-lemma int_and_leL:
-  "0 \<le> a \<Longrightarrow> a AND b \<le> (a :: int)"
-  by (metis int_and_leR int_and_comm)
-
 lemma word_shift_by_3:
   "x * 8 = (x::'a::len word) << 3"
   by (simp add: shiftl_t2n)
@@ -1973,7 +1961,7 @@ lemma user_word_at_cross_over:
    apply (rule order_trans[rotated])
     apply (rule_tac x="p && mask pageBits" and y=8 in intvl_sub_offset)
     apply (cut_tac y=p and a="mask pageBits && (~~ mask 3)" in word_and_le1)
-    apply (subst(asm) word_bw_assocs[symmetric], subst(asm) aligned_neg_mask,
+    apply (subst(asm) word_bw_assocs[symmetric], subst(asm) is_aligned_neg_mask_eq,
            erule is_aligned_andI1)
     apply (simp add: word_le_nat_alt mask_def pageBits_def)
    apply simp
@@ -2120,12 +2108,13 @@ lemma cap_get_tag_isCap_ArchObject0:
   \<and> (cap_get_tag cap' = scast cap_pdpt_cap) = isPDPointerTableCap cap
   \<and> (cap_get_tag cap' = scast cap_pml4_cap) = isPML4Cap cap
   \<and> (cap_get_tag cap' = scast cap_io_port_cap) = isIOPortCap cap
-  \<and> (cap_get_tag cap' = scast cap_frame_cap) = (isPageCap cap)"
+  \<and> (cap_get_tag cap' = scast cap_frame_cap) = (isPageCap cap)
+  \<and> (cap_get_tag cap' = scast cap_io_port_control_cap) = (isIOPortControlCap cap)"
   using cr
   apply -
   apply (erule ccap_relationE)
   apply (simp add: cap_to_H_def cap_lift_def Let_def isArchCap_def)
-  by (clarsimp simp: isCap_simps cap_tag_defs word_le_nat_alt pageSize_def Let_def split: if_split_asm) -- "takes a while"
+  by (clarsimp simp: isCap_simps cap_tag_defs word_le_nat_alt pageSize_def Let_def split: if_split_asm) \<comment> \<open>takes a while\<close>
 
 lemma cap_get_tag_isCap_ArchObject:
   assumes cr: "ccap_relation (capability.ArchObjectCap cap) cap'"
@@ -2137,6 +2126,7 @@ lemma cap_get_tag_isCap_ArchObject:
   and "(cap_get_tag cap' = scast cap_pml4_cap) = isPML4Cap cap"
   and "(cap_get_tag cap' = scast cap_frame_cap) = (isPageCap cap)"
   and "(cap_get_tag cap' = scast cap_io_port_cap) = isIOPortCap cap"
+  and "(cap_get_tag cap' = scast cap_io_port_control_cap) = isIOPortControlCap cap"
   using cap_get_tag_isCap_ArchObject0 [OF cr] by auto
 
 lemma cap_get_tag_isCap_unfolded_H_cap:
@@ -2160,6 +2150,7 @@ lemma cap_get_tag_isCap_unfolded_H_cap:
   and "ccap_relation (capability.ArchObjectCap (arch_capability.PML4Cap v36 v37)) cap' \<Longrightarrow> (cap_get_tag cap' = scast cap_pml4_cap)"
   and "ccap_relation (capability.ArchObjectCap (arch_capability.PageCap v101 v44 v45 v46 v47 v48)) cap'  \<Longrightarrow> (cap_get_tag cap' = scast cap_frame_cap)"
   and "ccap_relation (capability.ArchObjectCap (arch_capability.IOPortCap v60 v61)) cap' \<Longrightarrow> (cap_get_tag cap' = scast cap_io_port_cap)"
+  and "ccap_relation (capability.ArchObjectCap arch_capability.IOPortControlCap) cap' \<Longrightarrow> (cap_get_tag cap' = scast cap_io_port_control_cap)"
   apply (simp add: cap_get_tag_isCap cap_get_tag_isCap_ArchObject isCap_simps)
   apply (frule cap_get_tag_isCap(2), simp)
   apply (simp add: cap_get_tag_isCap cap_get_tag_isCap_ArchObject isCap_simps pageSize_def)+
@@ -2177,8 +2168,8 @@ lemma cap_get_tag_isCap_ArchObject2_worker:
 
 lemma cap_get_tag_isCap_ArchObject2:
   assumes cr: "ccap_relation cap cap'"
-  shows "(cap_get_tag cap' = scast cap_page_directory_cap)
-           = (isArchObjectCap cap \<and> isPageDirectoryCap (capCap cap))"
+  shows "(cap_get_tag cap' = scast cap_asid_control_cap)
+           = (isArchObjectCap cap \<and> isASIDControlCap (capCap cap))"
   and   "(cap_get_tag cap' = scast cap_asid_pool_cap)
            = (isArchObjectCap cap \<and> isASIDPoolCap (capCap cap))"
   and   "(cap_get_tag cap' = scast cap_page_table_cap)
@@ -2193,14 +2184,80 @@ lemma cap_get_tag_isCap_ArchObject2:
            = (isArchObjectCap cap \<and> isPageCap (capCap cap))"
   and   "(cap_get_tag cap' = scast cap_io_port_cap)
            = (isArchObjectCap cap \<and> isIOPortCap (capCap cap))"
+  and   "(cap_get_tag cap' = scast cap_io_port_control_cap)
+           = (isArchObjectCap cap \<and> isIOPortControlCap (capCap cap))"
   by (rule cap_get_tag_isCap_ArchObject2_worker [OF _ cr],
       simp add: cap_get_tag_isCap_ArchObject,
       simp add: isArchCap_tag_def2 cap_tag_defs)+
 
-lemma rf_sr_x64KSGlobalPML4:
-  "(s, s') \<in> rf_sr
-   \<Longrightarrow> x64KSGlobalPML4 (ksArchState s)
-         = symbol_table ''x64KSGlobalPML4''"
+schematic_goal cap_io_port_cap_lift_def':
+  "cap_get_tag cap = SCAST(32 signed \<rightarrow> 64) cap_io_port_cap
+    \<Longrightarrow> cap_io_port_cap_lift cap =
+          \<lparr> capIOPortFirstPort_CL = ?first,
+            capIOPortLastPort_CL = ?last \<rparr>"
+  by (simp add: cap_io_port_cap_lift_def cap_lift_def cap_tag_defs)
+
+schematic_goal cap_frame_cap_lift_def':
+  "cap_get_tag cap = SCAST(32 signed \<rightarrow> 64) cap_frame_cap
+    \<Longrightarrow> cap_frame_cap_lift cap =
+          \<lparr> capFMappedASID_CL = ?mapped_asid,
+            capFBasePtr_CL = ?base_ptr,
+            capFSize_CL = ?frame_size,
+            capFMapType_CL = ?map_type,
+            capFMappedAddress_CL = ?mapped_address,
+            capFVMRights_CL = ?vm_rights,
+            capFIsDevice_CL = ?is_device \<rparr>"
+  by (simp add: cap_frame_cap_lift_def cap_lift_def cap_tag_defs)
+
+lemmas ccap_rel_cap_get_tag_cases_generic =
+  cap_get_tag_isCap_unfolded_H_cap(1-11)
+    [OF back_subst[of "\<lambda>cap. ccap_relation cap cap'" for cap']]
+
+lemmas ccap_rel_cap_get_tag_cases_arch =
+  cap_get_tag_isCap_unfolded_H_cap(12-20)
+    [OF back_subst[of "\<lambda>cap. ccap_relation (ArchObjectCap cap) cap'" for cap'],
+     OF back_subst[of "\<lambda>cap. ccap_relation cap cap'" for cap']]
+
+lemmas ccap_rel_cap_get_tag_cases_arch' =
+  ccap_rel_cap_get_tag_cases_arch[OF _ refl]
+
+lemmas cap_lift_defs =
+       cap_untyped_cap_lift_def
+       cap_endpoint_cap_lift_def
+       cap_notification_cap_lift_def
+       cap_reply_cap_lift_def
+       cap_cnode_cap_lift_def
+       cap_thread_cap_lift_def
+       cap_irq_handler_cap_lift_def
+       cap_zombie_cap_lift_def
+       cap_frame_cap_lift_def
+       cap_page_table_cap_lift_def
+       cap_page_directory_cap_lift_def
+       cap_pdpt_cap_lift_def
+       cap_pml4_cap_lift_def
+       cap_asid_pool_cap_lift_def
+       cap_io_port_cap_lift_def
+
+lemma cap_lift_Some_CapD:
+  "\<And>c'. cap_lift c = Some (Cap_untyped_cap c') \<Longrightarrow> cap_get_tag c = SCAST(32 signed \<rightarrow> 64) cap_untyped_cap"
+  "\<And>c'. cap_lift c = Some (Cap_endpoint_cap c') \<Longrightarrow> cap_get_tag c = SCAST(32 signed \<rightarrow> 64) cap_endpoint_cap"
+  "\<And>c'. cap_lift c = Some (Cap_notification_cap c') \<Longrightarrow> cap_get_tag c = SCAST(32 signed \<rightarrow> 64) cap_notification_cap"
+  "\<And>c'. cap_lift c = Some (Cap_reply_cap c') \<Longrightarrow> cap_get_tag c = SCAST(32 signed \<rightarrow> 64) cap_reply_cap"
+  "\<And>c'. cap_lift c = Some (Cap_cnode_cap c') \<Longrightarrow> cap_get_tag c = SCAST(32 signed \<rightarrow> 64) cap_cnode_cap"
+  "\<And>c'. cap_lift c = Some (Cap_thread_cap c') \<Longrightarrow> cap_get_tag c = SCAST(32 signed \<rightarrow> 64) cap_thread_cap"
+  "\<And>c'. cap_lift c = Some (Cap_irq_handler_cap c') \<Longrightarrow> cap_get_tag c = SCAST(32 signed \<rightarrow> 64) cap_irq_handler_cap"
+  "\<And>c'. cap_lift c = Some (Cap_zombie_cap c') \<Longrightarrow> cap_get_tag c = SCAST(32 signed \<rightarrow> 64) cap_zombie_cap"
+  "\<And>c'. cap_lift c = Some (Cap_frame_cap c') \<Longrightarrow> cap_get_tag c = SCAST(32 signed \<rightarrow> 64) cap_frame_cap"
+  "\<And>c'. cap_lift c = Some (Cap_page_table_cap c') \<Longrightarrow> cap_get_tag c = SCAST(32 signed \<rightarrow> 64) cap_page_table_cap"
+  "\<And>c'. cap_lift c = Some (Cap_page_directory_cap c') \<Longrightarrow> cap_get_tag c = SCAST(32 signed \<rightarrow> 64) cap_page_directory_cap"
+  "\<And>c'. cap_lift c = Some (Cap_pdpt_cap c') \<Longrightarrow> cap_get_tag c = SCAST(32 signed \<rightarrow> 64) cap_pdpt_cap"
+  "\<And>c'. cap_lift c = Some (Cap_pml4_cap c') \<Longrightarrow> cap_get_tag c = SCAST(32 signed \<rightarrow> 64) cap_pml4_cap"
+  "\<And>c'. cap_lift c = Some (Cap_asid_pool_cap c') \<Longrightarrow> cap_get_tag c = SCAST(32 signed \<rightarrow> 64) cap_asid_pool_cap"
+  "\<And>c'. cap_lift c = Some (Cap_io_port_cap c') \<Longrightarrow> cap_get_tag c = SCAST(32 signed \<rightarrow> 64) cap_io_port_cap"
+  by (auto simp: cap_lifts cap_lift_defs)
+
+lemma rf_sr_x64KSSKIMPML4:
+  "(s, s') \<in> rf_sr \<Longrightarrow> x64KSSKIMPML4 (ksArchState s) = symbol_table ''x64KSSKIMPML4''"
   by (clarsimp simp: rf_sr_def cstate_relation_def Let_def carch_state_relation_def carch_globals_def)
 
 lemma ghost_assertion_size_logic':
@@ -2432,6 +2489,132 @@ lemma rf_sr_sched_action_relation:
    \<Longrightarrow> cscheduler_action_relation (ksSchedulerAction s) (ksSchedulerAction_' (globals s'))"
   by (clarsimp simp: rf_sr_def cstate_relation_def Let_def)
 
-end
+lemma canonical_address_tcb_ptr:
+  "\<lbrakk>canonical_address t; is_aligned t tcbBlockSizeBits\<rbrakk> \<Longrightarrow>
+     canonical_address (ptr_val (tcb_ptr_to_ctcb_ptr t))"
+  apply (clarsimp simp: tcb_ptr_to_ctcb_ptr_def)
+  apply (erule canonical_address_add)
+    apply (clarsimp simp: objBits_simps' ctcb_offset_defs)+
+  done
+
+lemma canonical_address_ctcb_ptr:
+  assumes "canonical_address (ctcb_ptr_to_tcb_ptr t)" "is_aligned (ctcb_ptr_to_tcb_ptr t) tcbBlockSizeBits"
+  shows "canonical_address (ptr_val t)"
+proof -
+  from assms(2)[unfolded ctcb_ptr_to_tcb_ptr_def]
+  have "canonical_address ((ptr_val t - ctcb_offset) + ctcb_offset)"
+    apply (rule canonical_address_add; simp add: objBits_simps' ctcb_offset_defs)
+    using assms(1)
+    by (simp add: ctcb_ptr_to_tcb_ptr_def ctcb_offset_defs)
+  thus ?thesis by simp
+qed
+
+lemma tcb_and_not_mask_canonical:
+  "\<lbrakk>pspace_canonical' s; tcb_at' t s; n < tcbBlockSizeBits\<rbrakk> \<Longrightarrow>
+    tcb_Ptr (sign_extend 47 (ptr_val (tcb_ptr_to_ctcb_ptr t) && ~~ mask n)) =
+        tcb_ptr_to_ctcb_ptr t"
+  apply (frule (1) obj_at'_is_canonical)
+  apply (drule canonical_address_tcb_ptr)
+   apply (clarsimp simp: obj_at'_def projectKOs objBits_simps' split: if_splits)
+  apply (clarsimp simp: canonical_address_sign_extended sign_extended_iff_sign_extend)
+  apply (subgoal_tac "ptr_val (tcb_ptr_to_ctcb_ptr t) && ~~ mask n = ptr_val (tcb_ptr_to_ctcb_ptr t)")
+   prefer 2
+   apply (simp add: tcb_ptr_to_ctcb_ptr_def ctcb_offset_defs)
+   apply (rule is_aligned_neg_mask_eq)
+   apply (clarsimp simp: obj_at'_def projectKOs objBits_simps')
+   apply (rule is_aligned_add)
+    apply (erule is_aligned_weaken, simp)
+   apply (rule is_aligned_weaken[where x="tcbBlockSizeBits - 1"])
+    apply (simp add: is_aligned_def objBits_simps')
+   apply (simp add: objBits_simps')
+  apply simp
+  done
+
+lemmas tcb_ptr_sign_extend_canonical =
+      tcb_and_not_mask_canonical[where n=0, simplified mask_def objBits_simps', simplified]
+
+lemma fpu_null_state_typ_heap_preservation:
+  assumes "fpu_null_state_relation s"
+  assumes "(clift t :: user_fpu_state_C typ_heap) = clift s"
+  shows "fpu_null_state_relation t"
+  using assms by (simp add: fpu_null_state_relation_def)
+
+(* FIXME: move up to TypHeap? *)
+lemma lift_t_Some_iff:
+  "lift_t g hrs p = Some v \<longleftrightarrow> hrs_htd hrs, g \<Turnstile>\<^sub>t p \<and> h_val (hrs_mem hrs) p = v"
+  unfolding hrs_htd_def hrs_mem_def by (cases hrs) (auto simp: lift_t_if)
+
+context
+  fixes p :: "'a::mem_type ptr"
+  fixes q :: "'b::c_type ptr"
+  fixes d g\<^sub>p g\<^sub>q
+  assumes val_p: "d,g\<^sub>p \<Turnstile>\<^sub>t p"
+  assumes val_q: "d,g\<^sub>q \<Turnstile>\<^sub>t q"
+  assumes disj: "typ_uinfo_t TYPE('a) \<bottom>\<^sub>t typ_uinfo_t TYPE('b)"
+begin
+
+lemma h_val_heap_same_typ_disj:
+  "h_val (heap_update p v h) q = h_val h q"
+  using disj by (auto intro: h_val_heap_same[OF val_p val_q]
+                       simp: tag_disj_def sub_typ_proper_def field_of_t_def typ_tag_lt_def
+                             field_of_def typ_tag_le_def)
+
+lemma h_val_heap_same_hrs_mem_update_typ_disj:
+  "h_val (hrs_mem (hrs_mem_update (heap_update p v) s)) q = h_val (hrs_mem s) q"
+  by (simp add: hrs_mem_update h_val_heap_same_typ_disj)
+
 end
 
+lemma global_ioport_bitmap_relation_def2:
+  "global_ioport_bitmap_relation (clift hrs) htable \<equiv>
+      \<exists>ctable. hrs_htd hrs \<Turnstile>\<^sub>t (ioport_table_Ptr (symbol_table ''x86KSAllocatedIOPorts''))
+        \<and> h_val (hrs_mem hrs) (ioport_table_Ptr (symbol_table ''x86KSAllocatedIOPorts'')) = ctable
+        \<and> cioport_bitmap_to_H ctable = htable
+        \<and> ptr_span (ioport_table_Ptr (symbol_table ''x86KSAllocatedIOPorts'')) \<subseteq> kernel_data_refs"
+  by (clarsimp simp: global_ioport_bitmap_relation_def lift_t_Some_iff)
+
+lemma fpu_null_state_relation_def2:
+  "fpu_null_state_relation hrs \<equiv>
+    hrs_htd hrs \<Turnstile>\<^sub>t fpu_state_Ptr (symbol_table ''x86KSnullFpuState'')
+     \<and> h_val (hrs_mem hrs) (fpu_state_Ptr (symbol_table ''x86KSnullFpuState''))
+         = user_fpu_state_C (ARRAY i. FPUNullState (finite_index i))
+     \<and> ptr_span (fpu_state_Ptr (symbol_table ''x86KSnullFpuState'')) \<subseteq> kernel_data_refs"
+  by (clarsimp simp: fpu_null_state_relation_def lift_t_Some_iff)
+
+lemma global_ioport_bitmap_heap_update_tag_disj':
+  fixes p :: "'a::mem_type ptr"
+  assumes valid: "hrs_htd h, g \<Turnstile>\<^sub>t p"
+  assumes disj: "typ_uinfo_t TYPE(ioport_table_C) \<bottom>\<^sub>t typ_uinfo_t TYPE('a)"
+  shows "global_ioport_bitmap_relation (clift (hrs_mem_update (heap_update p v) h)) = global_ioport_bitmap_relation (clift h)"
+  unfolding global_ioport_bitmap_relation_def
+  using lift_t_heap_update_same[OF valid disj]
+  by (clarsimp simp: global_ioport_bitmap_relation_def hrs_mem_update_def hrs_htd_def
+              split: prod.splits)
+
+lemma fpu_null_state_heap_update_tag_disj':
+  fixes p :: "'a::mem_type ptr"
+  assumes valid: "hrs_htd h, g \<Turnstile>\<^sub>t p"
+  assumes disj: "typ_uinfo_t TYPE(user_fpu_state_C) \<bottom>\<^sub>t typ_uinfo_t TYPE('a)"
+  shows "fpu_null_state_relation (hrs_mem_update (heap_update p v) h) = fpu_null_state_relation h"
+  unfolding fpu_null_state_relation_def
+  using lift_t_heap_update_same[OF valid disj]
+  by (clarsimp simp: fpu_null_state_relation_def hrs_mem_update_def hrs_htd_def
+              split: prod.splits)
+
+lemmas h_t_valid_nested_fields =
+  h_t_valid_field[OF h_t_valid_field[OF h_t_valid_field]]
+  h_t_valid_field[OF h_t_valid_field]
+  h_t_valid_field
+
+lemmas h_t_valid_fields_clift =
+  h_t_valid_nested_fields[OF h_t_valid_clift]
+  h_t_valid_clift
+
+lemmas global_ioport_bitmap_heap_update_tag_disj_simps =
+  h_t_valid_fields_clift[THEN global_ioport_bitmap_heap_update_tag_disj'[OF _ tag_disj_via_td_name]]
+
+lemmas fpu_null_state_heap_update_tag_disj_simps =
+  h_t_valid_fields_clift[THEN fpu_null_state_heap_update_tag_disj'[OF _ tag_disj_via_td_name]]
+
+end
+end

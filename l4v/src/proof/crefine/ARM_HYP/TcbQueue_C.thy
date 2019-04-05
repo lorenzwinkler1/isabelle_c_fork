@@ -831,11 +831,6 @@ proof -
   thus ?thesis by simp
 qed
 
-(* FIXME: name clash with Aligned.is_aligned_neg_mask. *)
-(* FIXME: superceded by GenericLib.is_aligned_neg_mask_eq.  Remove! *)
-lemma is_aligned_neg_mask:
-  "\<lbrakk> is_aligned p n; m \<le> n \<rbrakk> \<Longrightarrow> p && ~~ mask m = p"
-  by (simp add: is_aligned_nth)
 
 lemma ctcb_size_bits_ge_4: "4 \<le> ctcb_size_bits"
   by (simp add: ctcb_size_bits_def)
@@ -862,7 +857,7 @@ next
   with valid_ep(1) have "tcb_at' (ctcb_ptr_to_tcb_ptr (getNext tcb)) s" ..
   hence "is_aligned (ctcb_ptr_to_tcb_ptr (getNext tcb)) tcbBlockSizeBits" by (rule tcb_aligned')
   hence "is_aligned (ptr_val (getNext tcb)) ctcb_size_bits" by (rule ctcb_ptr_to_tcb_ptr_aligned)
-  thus ?thesis using bits by (simp add: is_aligned_neg_mask)
+  thus ?thesis using bits by simp
 qed
 
 lemma tcb_queue_relation_prev_mask:
@@ -887,7 +882,7 @@ next
   with valid_ep(1) have "tcb_at' (ctcb_ptr_to_tcb_ptr (getPrev tcb)) s" ..
   hence "is_aligned (ctcb_ptr_to_tcb_ptr (getPrev tcb)) tcbBlockSizeBits" by (rule tcb_aligned')
   hence "is_aligned (ptr_val (getPrev tcb)) ctcb_size_bits" by (rule ctcb_ptr_to_tcb_ptr_aligned)
-  thus ?thesis using bits by (simp add: is_aligned_neg_mask)
+  thus ?thesis using bits by simp
 qed
 
 lemma tcb_queue_relation'_next_mask:
@@ -926,7 +921,7 @@ lemma cready_queues_relation_null_queue_ptrs:
    apply (clarsimp simp: tcb_null_ep_ptrs_def)
    apply (case_tac z, case_tac a)
    apply simp
-  -- "clag"
+  \<comment> \<open>clag\<close>
   apply (rule ext)
   apply (case_tac "mp' x")
    apply (frule compD [OF same])

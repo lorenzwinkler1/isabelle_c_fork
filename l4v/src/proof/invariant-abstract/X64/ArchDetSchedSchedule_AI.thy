@@ -18,15 +18,15 @@ named_theorems DetSchedSchedule_AI_assms
 
 crunch valid_etcbs [wp, DetSchedSchedule_AI_assms]:
   arch_switch_to_idle_thread, arch_switch_to_thread, arch_get_sanitise_register_info, arch_post_modify_registers valid_etcbs
-  (simp: whenE_def ignore: )
+  (simp: crunch_simps ignore: )
 
 crunch valid_queues [wp, DetSchedSchedule_AI_assms]:
   switch_to_idle_thread, switch_to_thread, arch_get_sanitise_register_info, arch_post_modify_registers valid_queues
-  (simp: whenE_def ignore: set_tcb_queue tcb_sched_action )
+  (simp: crunch_simps ignore: set_tcb_queue tcb_sched_action )
 
 crunch weak_valid_sched_action [wp, DetSchedSchedule_AI_assms]:
   switch_to_idle_thread, switch_to_thread, arch_get_sanitise_register_info, arch_post_modify_registers "weak_valid_sched_action"
-  (simp: whenE_def ignore: )
+  (simp: crunch_simps ignore: )
 
 crunch ct_not_in_q[wp]: set_vm_root "ct_not_in_q"
   (wp: crunch_wps simp: crunch_simps)
@@ -73,19 +73,19 @@ lemma switch_to_idle_thread_ct_in_cur_domain [wp, DetSchedSchedule_AI_assms]:
 
 crunch ct_not_in_q [wp, DetSchedSchedule_AI_assms]:
   arch_switch_to_thread, arch_get_sanitise_register_info ct_not_in_q
-  (simp: whenE_def ignore: )
+  (simp: crunch_simps ignore: )
 
 crunch is_activatable [wp, DetSchedSchedule_AI_assms]:
   arch_switch_to_thread, arch_get_sanitise_register_info "is_activatable t"
-  (simp: whenE_def ignore: )
+  (simp: crunch_simps ignore: )
 
 crunch valid_sched_action [wp, DetSchedSchedule_AI_assms]:
   arch_switch_to_thread, arch_get_sanitise_register_info, arch_post_modify_registers valid_sched_action
-  (simp: whenE_def ignore: )
+  (simp: crunch_simps ignore: )
 
 crunch valid_sched [wp, DetSchedSchedule_AI_assms]:
   arch_switch_to_thread, arch_get_sanitise_register_info, arch_post_modify_registers valid_sched
-  (simp: whenE_def ignore: )
+  (simp: crunch_simps ignore: )
 
 crunch exst[wp]: set_vm_root "\<lambda>s. P (exst s)"
   (wp: crunch_wps hoare_whenE_wp simp: crunch_simps)
@@ -283,7 +283,8 @@ lemma store_asid_pool_entry_valid_sched[wp]:
 
 crunch valid_sched[wp]:
   perform_page_invocation, perform_page_table_invocation, perform_asid_pool_invocation,
-  perform_page_directory_invocation, perform_io_port_invocation, perform_pdpt_invocation
+  perform_page_directory_invocation, perform_io_port_invocation, perform_pdpt_invocation,
+  perform_ioport_control_invocation
   valid_sched
   (wp: mapM_x_wp' mapM_wp')
 
@@ -334,12 +335,24 @@ crunch not_cur_thread [wp, DetSchedSchedule_AI_assms]: make_arch_fault_msg, arch
 crunch valid_sched    [wp, DetSchedSchedule_AI_assms]: make_arch_fault_msg valid_sched
 crunch ready_queues   [wp, DetSchedSchedule_AI_assms]: make_arch_fault_msg, arch_get_sanitise_register_info, arch_post_modify_registers "\<lambda>s. P (ready_queues s)"
 crunch valid_etcbs    [wp, DetSchedSchedule_AI_assms]: make_arch_fault_msg valid_etcbs
-
 crunch scheduler_action [wp, DetSchedSchedule_AI_assms]: make_arch_fault_msg, arch_get_sanitise_register_info, arch_post_modify_registers "\<lambda>s. P (scheduler_action s)"
 
 lemma arch_post_modify_registers_not_idle_thread[DetSchedSchedule_AI_assms]:
   "\<lbrace>\<lambda>s::det_ext state. t \<noteq> idle_thread s\<rbrace> arch_post_modify_registers c t \<lbrace>\<lambda>_ s. t \<noteq> idle_thread s\<rbrace>"
   by (wpsimp simp: arch_post_modify_registers_def)
+
+crunches arch_post_cap_deletion
+  for valid_sched[wp, DetSchedSchedule_AI_assms]: valid_sched
+  and valid_etcbs[wp, DetSchedSchedule_AI_assms]: valid_etcbs
+  and ct_not_in_q[wp, DetSchedSchedule_AI_assms]: ct_not_in_q
+  and simple_sched_action[wp, DetSchedSchedule_AI_assms]: simple_sched_action
+  and not_cur_thread[wp, DetSchedSchedule_AI_assms]: "not_cur_thread t"
+  and is_etcb_at[wp, DetSchedSchedule_AI_assms]: "is_etcb_at t"
+  and not_queued[wp, DetSchedSchedule_AI_assms]: "not_queued t"
+  and sched_act_not[wp, DetSchedSchedule_AI_assms]: "scheduler_act_not t"
+  and weak_valid_sched_action[wp, DetSchedSchedule_AI_assms]: weak_valid_sched_action
+
+declare make_arch_fault_msg_invs[DetSchedSchedule_AI_assms]
 
 end
 

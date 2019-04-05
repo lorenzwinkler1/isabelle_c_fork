@@ -29,6 +29,7 @@ requalify_facts
   valid_arch_caps_lift_weak
   valid_global_objs_lift_weak
   valid_asid_map_lift
+  valid_ioports_lift
   valid_kernel_mappings_lift
   equal_kernel_mappings_lift
   valid_global_vspace_mappings_lift
@@ -67,6 +68,7 @@ requalify_facts
   valid_arch_tcb_same_type
   valid_arch_tcb_typ_at
   valid_tcb_arch_ref_lift
+
 end
 
 lemmas cap_is_device_obj_is_device[simp] = cap_is_device_obj_is_device
@@ -573,7 +575,7 @@ lemma valid_mdb_lift:
   assumes r: "\<And>P. \<lbrace>\<lambda>s. P (is_original_cap s)\<rbrace> f \<lbrace>\<lambda>r s. P (is_original_cap s)\<rbrace>"
   shows "\<lbrace>valid_mdb\<rbrace> f \<lbrace>\<lambda>r. valid_mdb\<rbrace>"
   apply (clarsimp simp add: valid_def valid_mdb_def mdb_cte_at_def)
-  apply (frule_tac P1="op = (cdt s)" in use_valid [OF _  m], rule refl)
+  apply (frule_tac P1="(=) (cdt s)" in use_valid [OF _  m], rule refl)
   apply (rule conjI)
    apply clarsimp
    apply (erule allE)+
@@ -585,7 +587,7 @@ lemma valid_mdb_lift:
    apply (erule use_valid [OF _ c [THEN hoare_cte_wp_caps_of_state_lift]])
    apply simp
   apply (rule use_valid [OF _ c], assumption+)
-  apply (erule use_valid [OF _ r])
+  apply (rule use_valid [OF _ r], assumption)
   apply simp
   done
 
@@ -714,49 +716,6 @@ lemma get_object_ret:
   by (wp, clarsimp elim!: obj_atE)+
 
 
-lemma mask_in_range:
-  "is_aligned ptr bits \<Longrightarrow>
-    (ptr' && (~~ mask bits) = ptr) = (ptr' \<in> {ptr .. ptr + 2 ^ bits - 1})"
-  apply (erule is_aligned_get_word_bits)
-   defer
-   apply (simp add: power_overflow mask_def)
-  apply (rule iffI)
-   apply (drule sym)
-   apply (simp add: word_and_le2)
-   apply (subst field_simps[symmetric], subst mask_2pm1[symmetric])
-   apply (subst word_plus_and_or_coroll)
-    apply (rule word_eqI, clarsimp simp: word_ops_nth_size)
-   apply (subgoal_tac "ptr' && ~~ mask bits || mask bits = ptr' || mask bits")
-    apply (simp add: le_word_or2)
-   apply (rule word_eqI, clarsimp simp: word_ops_nth_size word_size)
-   apply fastforce
-  apply (subgoal_tac "\<exists>x. ptr' = ptr || x \<and> x && mask bits = x")
-   apply (rule word_eqI)
-   apply (clarsimp simp: word_ops_nth_size word_size is_aligned_mask)
-   apply (drule_tac x=n in word_eqD)+
-   apply (simp add: word_ops_nth_size word_size
-                    is_aligned_mask)
-   apply safe[1]
-  apply (subgoal_tac "\<exists>x. ptr' = ptr + x")
-   apply clarsimp
-   apply (drule(1) word_le_minus_mono_left[where x=ptr])
-   apply simp
-   apply (subst conj_commute)
-   apply (rule exI, rule context_conjI[OF _ word_plus_and_or_coroll])
-    apply (subst mask_eq_iff_w2p)
-     apply (simp add: word_bits_conv word_size)
-    apply (rule minus_one_helper5)
-     apply simp
-    apply simp
-   apply (simp add: is_aligned_mask)
-   apply (rule word_eqI)
-   apply (drule_tac x=n in word_eqD)+
-   apply (clarsimp simp: word_ops_nth_size word_size)
-  apply (rule exI[where x="ptr' - ptr"])
-  apply simp
-  done
-
-
 lemma captable_case_helper:
   "\<lbrakk> \<forall>sz cs. ob \<noteq> CNode sz cs \<rbrakk> \<Longrightarrow> (case ob of CNode sz cs \<Rightarrow> P sz cs | _ \<Rightarrow> Q) = Q"
   by (case_tac ob, simp_all add: not_ex[symmetric])
@@ -836,10 +795,10 @@ lemma dmo_invs1:
    apply wp
 
    apply (clarsimp simp: invs_def cur_tcb_def valid_state_def
-                          valid_machine_state_def
-                    intro!: valid_irq_states_machine_state_updateI
-                    elim:  valid_irq_statesE)
-   apply (frule_tac P1 = "op = (device_state (machine_state s))" in use_valid[OF _ valid_mf])
+                         valid_machine_state_def
+                   intro!: valid_irq_states_machine_state_updateI
+                   elim: valid_irq_statesE)
+   apply (frule_tac P1 = "(=) (device_state (machine_state s))" in use_valid[OF _ valid_mf])
     apply simp
    apply clarsimp
    apply (intro conjI)
@@ -847,7 +806,7 @@ lemma dmo_invs1:
                            valid_machine_state_def
                     intro: valid_irq_states_machine_state_updateI
                      elim: valid_irq_statesE)
-   apply (fastforce)
+   apply fastforce
    done
 
 lemma dmo_invs:
@@ -1153,7 +1112,7 @@ lemma
   store_word_offs_caps_of_state[wp]:
    "\<lbrace>\<lambda>s. P (caps_of_state s)\<rbrace> store_word_offs a b c \<lbrace>\<lambda>_ s. P (caps_of_state s)\<rbrace>"
   unfolding store_word_offs_def do_machine_op_def[abs_def]
-  by (wp modify_wp | fastforce)+
+  by wpsimp
 
 lemma
   set_mrs_caps_of_state[wp]:
@@ -1181,11 +1140,13 @@ interpretation
   by (fastforce simp: obj_at_def[abs_def] a_type_def
                split: Structures_A.kernel_object.splits)+
 
+lemmas set_cap_arch[wp] = set_cap.arch_state
+
 interpretation
   store_word_offs: non_aobj_non_cap_op "store_word_offs a b c"
   apply unfold_locales
   unfolding store_word_offs_def do_machine_op_def[abs_def]
-  by (wp modify_wp | fastforce)+
+  by wpsimp+
 
 lemma store_word_offs_obj_at_P[wp]:
   "\<lbrace>\<lambda>s. P (obj_at P' p s)\<rbrace> store_word_offs a b c \<lbrace>\<lambda>r s. P (obj_at P' p s)\<rbrace>"
@@ -1319,11 +1280,8 @@ lemma valid_irq_states_triv:
    apply assumption
   by blast
 
-crunch valid_irq_states[wp]: set_object "valid_irq_states"
-  (wp: valid_irq_states_triv)
-
 crunch valid_irq_states[wp]: set_simple_ko "valid_irq_states"
-  (wp: crunch_wps simp: crunch_simps)
+  (wp: crunch_wps simp: crunch_simps rule: valid_irq_states_triv)
 
 crunch valid_irq_states[wp]: set_cap "valid_irq_states"
   (wp: crunch_wps simp: crunch_simps)
@@ -1344,7 +1302,7 @@ lemma set_ntfn_minor_invs:
    \<lbrace>\<lambda>rv. invs\<rbrace>"
   apply (simp add: invs_def valid_state_def valid_pspace_def)
   apply (wp set_simple_ko_valid_objs valid_irq_node_typ
-                    valid_irq_handlers_lift)
+                    valid_irq_handlers_lift valid_ioports_lift)
   apply (clarsimp simp: ntfn_at_def2
                   elim!: rsubst[where P=sym_refs]
                  intro!: ext
@@ -1533,5 +1491,7 @@ lemma thread_get_wp':
 
 
 crunch valid_ioc[wp]: do_machine_op valid_ioc
+
+crunch inv[wp]: get_irq_slot "P"
 
 end

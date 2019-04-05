@@ -17,6 +17,7 @@ context begin interpretation Arch .
 requalify_types
   vs_chain
   vs_ref
+  iarch_tcb
 
 requalify_consts
   not_kernel_window
@@ -38,11 +39,13 @@ requalify_consts
   valid_asid_map
   valid_vspace_obj
   valid_arch_tcb
+  valid_arch_idle
 
   valid_arch_state
   valid_vspace_objs
   valid_arch_caps
   valid_global_objs
+  valid_ioports
   valid_kernel_mappings
   equal_kernel_mappings
   valid_global_vspace_mappings
@@ -61,6 +64,9 @@ requalify_consts
   device_mem
   device_region
   tcb_arch_ref
+
+  valid_arch_mdb
+  arch_tcb_to_iarch_tcb
 
 requalify_facts
   valid_arch_sizes
@@ -99,11 +105,18 @@ requalify_facts
   valid_arch_tcb_pspaceI
   valid_arch_tcb_lift
   cte_level_bits_def
+  obj_ref_not_arch_gen_ref
+  arch_gen_ref_not_obj_ref
+  arch_gen_obj_refs_inD
+  same_aobject_same_arch_gen_refs
+  valid_arch_mdb_eqI
 
 lemmas [simp] =
   tcb_bits_def
   endpoint_bits_def
   ntfn_bits_def
+  iarch_tcb_context_set
+  iarch_tcb_set_registers
 
 end
 
@@ -117,7 +130,7 @@ lemmas [simp] =  acap_rights_update_id state_hyp_refs_update
 term "vs_lookup :: 'z::state_ext state \<Rightarrow> vs_chain set"
 term "(a \<rhd> b) :: ('z:: state_ext state) \<Rightarrow> bool"
 
--- ---------------------------------------------------------------------------
+\<comment> \<open>---------------------------------------------------------------------------\<close>
 section "Invariant Definitions for Abstract Spec"
 
 definition
@@ -146,20 +159,21 @@ abbreviation
 
 
 (*
- * sseefried: 'itcb' is projection of the "mostly preserved" fields of 'tcb'. Many functions
- * in the spec will leave these fields of a TCB unchanged. The 'crunch' tool is easily able
- * to ascertain this from the types of the fields.
- *
- * The 'itcb' record is closely associated with the 'pred_tcb_at' definition.
- * 'pred_tcb_at' is used to assert an arbitrary predicate over the fields in 'itcb' for a TCB
- * Before the introduction of this data structure 'st_tcb_at' was defined directly. It is
- * now an abbreviation of a partial application of the 'pred_tcb_at' function, specifically
- * a partial application to the projection function 'itcb_state'.
- *
- * The advantage of this approach is that we an assert 'pred_tcb_at proj P t' is preserved
- * across calls to many functions. We get "for free" that 'st_tcb_at P t' is also preserved.
- * In the future we may introduce other abbreviations that assert preservation over other
- * fields in the TCB record.
+  'itcb' is a projection of the "mostly preserved" fields of 'tcb'. Many
+  functions in the spec will leave these fields of a TCB unchanged. The 'crunch'
+  tool is easily able to ascertain this from the types of the fields.
+
+  The 'itcb' record is closely associated with the 'pred_tcb_at' definition.
+  'pred_tcb_at' is used to assert an arbitrary predicate over the fields in
+  'itcb' for a TCB. Before the introduction of this data structure 'st_tcb_at'
+  was defined directly. It is now an abbreviation of a partial application of
+  the 'pred_tcb_at' function, specifically a partial application to the
+  projection function 'itcb_state'.
+
+  The advantage of this approach is that we an assert 'pred_tcb_at proj P t' is
+  preserved across calls to many functions. We get "for free" that 'st_tcb_at P
+  t' is also preserved. In the future we may introduce other abbreviations that
+  assert preservation over other fields in the TCB record.
  *)
 record itcb =
   itcb_state         :: thread_state
@@ -168,49 +182,51 @@ record itcb =
   itcb_fault         :: "fault option"
   itcb_bound_notification     :: "obj_ref option"
   itcb_mcpriority    :: priority
+  itcb_arch          :: iarch_tcb
 
+abbreviation
+  "tcb_iarch tcb \<equiv> arch_tcb_to_iarch_tcb (tcb_arch tcb)"
 
-definition "tcb_to_itcb tcb \<equiv> \<lparr> itcb_state              = tcb_state tcb,
-                                itcb_fault_handler      = tcb_fault_handler tcb,
-                                itcb_ipc_buffer         = tcb_ipc_buffer tcb,
-                                itcb_fault              = tcb_fault tcb,
-                                itcb_bound_notification = tcb_bound_notification tcb,
-                                itcb_mcpriority         = tcb_mcpriority tcb\<rparr>"
+definition
+  tcb_to_itcb :: "tcb \<Rightarrow> itcb"
+where
+  "tcb_to_itcb tcb \<equiv>
+     \<lparr> itcb_state              = tcb_state tcb,
+       itcb_fault_handler      = tcb_fault_handler tcb,
+       itcb_ipc_buffer         = tcb_ipc_buffer tcb,
+       itcb_fault              = tcb_fault tcb,
+       itcb_bound_notification = tcb_bound_notification tcb,
+       itcb_mcpriority         = tcb_mcpriority tcb,
+       itcb_arch               = tcb_iarch tcb \<rparr>"
 
-(* sseefried: The simplification rules below are used to help produce
- * lemmas that talk about fields of the 'tcb' data structure rather than
- * the 'itcb' data structure when the lemma refers to a predicate of the
- * form 'pred_tcb_at proj P t'.
- *
- * e.g. You might have a lemma that has an assumption
- *   \<And>tcb. itcb_state (tcb_to_itcb (f tcb)) = itcb_state (tcb_to_itcb tcb)
- *
- * This simplifies to:
- *   \<And>tcb. tcb_state (f tcb) = tcb_state tcb
- *)
+(*
+  The simplification rules below are used to help produce lemmas that talk about
+  fields of the 'tcb' data structure rather than the 'itcb' data structure when
+  the lemma refers to a predicate of the form 'pred_tcb_at proj P t'.
 
-(* Need one of these simp rules for each field in 'itcb' *)
-lemma [simp]: "itcb_state (tcb_to_itcb tcb) = tcb_state tcb"
-  by (auto simp: tcb_to_itcb_def)
+  e.g. You might have a lemma that has an assumption
+    \<And>tcb. itcb_state (tcb_to_itcb (f tcb)) = itcb_state (tcb_to_itcb tcb)
 
-(* Need one of these simp rules for each field in 'itcb' *)
-lemma [simp]: "itcb_fault_handler (tcb_to_itcb tcb) = tcb_fault_handler tcb"
-  by (auto simp: tcb_to_itcb_def)
-
-(* Need one of these simp rules for each field in 'itcb' *)
-lemma [simp]: "itcb_ipc_buffer (tcb_to_itcb tcb) = tcb_ipc_buffer tcb"
-  by (auto simp: tcb_to_itcb_def)
+  This simplifies to:
+    \<And>tcb. tcb_state (f tcb) = tcb_state tcb
+*)
 
 (* Need one of these simp rules for each field in 'itcb' *)
-lemma [simp]: "itcb_fault (tcb_to_itcb tcb) = tcb_fault tcb"
+lemma tcb_to_itcb_simps[simp]:
+  "itcb_state (tcb_to_itcb tcb) = tcb_state tcb"
+  "itcb_fault_handler (tcb_to_itcb tcb) = tcb_fault_handler tcb"
+  "itcb_ipc_buffer (tcb_to_itcb tcb) = tcb_ipc_buffer tcb"
+  "itcb_fault (tcb_to_itcb tcb) = tcb_fault tcb"
+  "itcb_bound_notification (tcb_to_itcb tcb) = tcb_bound_notification tcb"
+  "itcb_mcpriority (tcb_to_itcb tcb) = tcb_mcpriority tcb"
+  "itcb_arch (tcb_to_itcb tcb) = tcb_iarch tcb"
   by (auto simp: tcb_to_itcb_def)
 
-(* Need one of these simp rules for each field in 'itcb' *)
-lemma [simp]: "itcb_bound_notification (tcb_to_itcb tcb) = tcb_bound_notification tcb"
-  by (auto simp: tcb_to_itcb_def)
-
-lemma [simp]: "itcb_mcpriority (tcb_to_itcb tcb) = tcb_mcpriority tcb"
- by (auto simp: tcb_to_itcb_def)
+(* This is used to assert whether an itcb projection is affected by a tcb
+   field update, such as tcb_arch_update. *)
+abbreviation
+  "proj_not_field proj field_upd \<equiv>
+     \<forall>f tcb. proj (tcb_to_itcb ((field_upd f) tcb)) = proj (tcb_to_itcb tcb)"
 
 definition
   pred_tcb_at :: "(itcb \<Rightarrow> 'a) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> machine_word \<Rightarrow> 'z::state_ext state \<Rightarrow> bool"
@@ -225,9 +241,7 @@ abbreviation "mcpriority_tcb_at \<equiv> pred_tcb_at itcb_mcpriority"
 lemma st_tcb_at_def: "st_tcb_at test \<equiv> obj_at (\<lambda>ko. \<exists>tcb. ko = TCB tcb \<and> test (tcb_state tcb))"
   by (simp add: pred_tcb_at_def)
 
-
 text {* cte with property at *}
-
 
 definition
   cte_wp_at :: "(cap \<Rightarrow> bool) \<Rightarrow> cslot_ptr \<Rightarrow> 'z::state_ext state \<Rightarrow> bool"
@@ -442,10 +456,10 @@ where
     tcb_cnode_index 3 \<mapsto> (tcb_caller, tcb_caller_update,
                           (\<lambda>_ st. case st of
                                     BlockedOnReceive e \<Rightarrow>
-                                      (op = NullCap)
-                                  | _ \<Rightarrow> is_reply_cap or (op = NullCap))),
+                                      ((=) NullCap)
+                                  | _ \<Rightarrow> is_reply_cap or ((=) NullCap))),
     tcb_cnode_index 4 \<mapsto> (tcb_ipcframe, tcb_ipcframe_update,
-                          (\<lambda>_ _. is_nondevice_page_cap or (op = NullCap)))]"
+                          (\<lambda>_ _. is_nondevice_page_cap or ((=) NullCap)))]"
 
 definition
   valid_fault :: "ExceptionTypes_A.fault \<Rightarrow> bool"
@@ -824,7 +838,7 @@ definition
    \<forall>p. is_original_cap s p \<longrightarrow> cte_wp_at (\<lambda>x. x \<noteq> NullCap)  p s"
 
 definition
-  "has_reply_cap t s \<equiv> \<exists>p. cte_wp_at (op = (ReplyCap t False)) p s"
+  "has_reply_cap t s \<equiv> \<exists>p. cte_wp_at ((=) (ReplyCap t False)) p s"
 
 definition
   "mdb_cte_at ct_at m \<equiv> \<forall>p c. m c = Some p \<longrightarrow> ct_at p \<and> ct_at c"
@@ -856,25 +870,29 @@ definition
   "reply_mdb m cs \<equiv> reply_caps_mdb m cs \<and> reply_masters_mdb m cs"
 
 definition
-  "valid_mdb \<equiv> \<lambda>s. mdb_cte_at (swp (cte_wp_at (op \<noteq> NullCap)) s) (cdt s) \<and>
+  "valid_mdb \<equiv> \<lambda>s. mdb_cte_at (swp (cte_wp_at ((\<noteq>) NullCap)) s) (cdt s) \<and>
                    untyped_mdb (cdt s) (caps_of_state s) \<and> descendants_inc (cdt s) (caps_of_state s) \<and>
                    no_mloop (cdt s) \<and> untyped_inc (cdt s) (caps_of_state s) \<and>
                    ut_revocable (is_original_cap s) (caps_of_state s) \<and>
                    irq_revocable (is_original_cap s) (caps_of_state s) \<and>
                    reply_master_revocable (is_original_cap s) (caps_of_state s) \<and>
-                   reply_mdb (cdt s) (caps_of_state s)"
+                   reply_mdb (cdt s) (caps_of_state s) \<and>
+                   valid_arch_mdb (is_original_cap s) (caps_of_state s)"
 
-abbreviation "idle_tcb_at \<equiv> pred_tcb_at (\<lambda>t. (itcb_state t, itcb_bound_notification t))"
+abbreviation
+  "idle_tcb_at \<equiv> pred_tcb_at (\<lambda>t. (itcb_state t, itcb_bound_notification t, itcb_arch t))"
 
 definition
-  "valid_idle \<equiv> \<lambda>s. idle_tcb_at (\<lambda>p. (idle (fst p)) \<and> (snd p = None)) (idle_thread s) s
-                   \<and> idle_thread s = idle_thread_ptr"
+  "valid_idle \<equiv>
+     \<lambda>s. idle_tcb_at (\<lambda>(st, ntfn, arch). idle st \<and> ntfn = None \<and> valid_arch_idle arch)
+                     (idle_thread s) s
+         \<and> idle_thread s = idle_thread_ptr"
 
 definition
   "only_idle \<equiv> \<lambda>s. \<forall>t. st_tcb_at idle t s \<longrightarrow> t = idle_thread s"
 
 definition
-  "valid_reply_masters \<equiv> \<lambda>s. \<forall>p t. cte_wp_at (op = (ReplyCap t True)) p s \<longrightarrow>
+  "valid_reply_masters \<equiv> \<lambda>s. \<forall>p t. cte_wp_at ((=) (ReplyCap t True)) p s \<longrightarrow>
                                      p = (t, tcb_cnode_index 2)"
 
 definition
@@ -958,6 +976,7 @@ where
                   and valid_irq_node
                   and valid_irq_handlers
                   and valid_irq_states
+                  and valid_ioports
                   and valid_machine_state
                   and valid_vspace_objs
                   and valid_arch_caps
@@ -988,23 +1007,17 @@ definition
   untyped_children_in_mdb :: "'z::state_ext state \<Rightarrow> bool"
 where
  "untyped_children_in_mdb s \<equiv>
-    \<forall>ptr ptr' cap. (cte_wp_at (op = cap) ptr s \<and> is_untyped_cap cap
+    \<forall>ptr ptr' cap. (cte_wp_at ((=) cap) ptr s \<and> is_untyped_cap cap
                      \<and> cte_wp_at (\<lambda>cap'. obj_refs cap' \<inter> untyped_range cap \<noteq> {}) ptr' s)
                      \<longrightarrow> ptr' \<in> descendants_of ptr (cdt s)"
 
 definition
   "caps_contained s \<equiv> \<forall>c p c' p'.
-  cte_wp_at (op = c) p s \<longrightarrow>
-  cte_wp_at (op = c') p' s \<longrightarrow>
+  cte_wp_at ((=) c) p s \<longrightarrow>
+  cte_wp_at ((=) c') p' s \<longrightarrow>
   obj_ref_of c' \<in> untyped_range c \<longrightarrow>
   (is_cnode_cap c' \<or> is_thread_cap c') \<longrightarrow>
   obj_ref_of c' + obj_size c' - 1 \<in> untyped_range c"
-
-definition
-  obj_irq_refs :: "cap \<Rightarrow> (machine_word + irq) set"
-where
- "obj_irq_refs cap \<equiv> (Inl ` obj_refs cap) \<union> (Inr ` cap_irqs cap)"
-
 
 definition
   "obj_bits_type T \<equiv> case T of
@@ -1044,14 +1057,14 @@ abbreviation(input)
        and valid_arch_state and valid_machine_state and valid_irq_states
        and valid_irq_node and valid_irq_handlers and valid_vspace_objs
        and valid_arch_caps and valid_global_objs and valid_kernel_mappings
-       and equal_kernel_mappings and valid_asid_map
+       and equal_kernel_mappings and valid_asid_map and valid_ioports
        and valid_global_vspace_mappings
        and pspace_in_kernel_window and cap_refs_in_kernel_window
        and pspace_respects_device_region and cap_refs_respects_device_region
        and cur_tcb"
 
 
--- ---------------------------------------------------------------------------
+\<comment> \<open>---------------------------------------------------------------------------\<close>
 section "Lemmas"
 
 lemma valid_bound_ntfn_None[simp]:
@@ -1096,7 +1109,7 @@ lemma is_cap_table:
 
 lemmas is_obj_defs = is_ep is_ntfn is_tcb is_cap_table
 
--- "sanity check"
+\<comment> \<open>sanity check\<close>
 lemma obj_at_get_object:
   "obj_at P ref s \<Longrightarrow> fst (get_object ref s) \<noteq> {}"
   by (auto simp: obj_at_def get_object_def gets_def get_def
@@ -1194,11 +1207,11 @@ lemma tcb_cap_cases_simps[simp]:
   "tcb_cap_cases (tcb_cnode_index 3) =
    Some (tcb_caller, tcb_caller_update,
          (\<lambda>_ st. case st of
-                   BlockedOnReceive e \<Rightarrow> (op = NullCap)
-                 | _ \<Rightarrow> is_reply_cap or (op = NullCap)))"
+                   BlockedOnReceive e \<Rightarrow> ((=) NullCap)
+                 | _ \<Rightarrow> is_reply_cap or ((=) NullCap)))"
   "tcb_cap_cases (tcb_cnode_index 4) =
    Some (tcb_ipcframe, tcb_ipcframe_update,
-         (\<lambda>_ _. is_nondevice_page_cap or (op = cap.NullCap)))"
+         (\<lambda>_ _. is_nondevice_page_cap or ((=) cap.NullCap)))"
   by (simp add: tcb_cap_cases_def)+
 
 lemma ran_tcb_cap_cases:
@@ -1210,9 +1223,9 @@ lemma ran_tcb_cap_cases:
                                      \<or> (halted st \<and> (c = NullCap)))),
      (tcb_caller, tcb_caller_update, (\<lambda>_ st. case st of
                                        Structures_A.BlockedOnReceive e \<Rightarrow>
-                                         (op = NullCap)
-                                     | _ \<Rightarrow> is_reply_cap or (op = NullCap))),
-     (tcb_ipcframe, tcb_ipcframe_update, (\<lambda>_ _. is_nondevice_page_cap or (op = NullCap)))}"
+                                         ((=) NullCap)
+                                     | _ \<Rightarrow> is_reply_cap or ((=) NullCap))),
+     (tcb_ipcframe, tcb_ipcframe_update, (\<lambda>_ _. is_nondevice_page_cap or ((=) NullCap)))}"
   by (simp add: tcb_cap_cases_def insert_commute)
 
 lemma tcb_cnode_map_tcb_cap_cases:
@@ -1455,8 +1468,8 @@ lemma if_live_then_nonz_capD2:
   done
 
 lemma caps_of_state_cte_wp_at:
- "caps_of_state s = (\<lambda>p. if (\<exists>cap. cte_wp_at (op = cap) p s)
-                         then Some (THE cap. cte_wp_at (op = cap) p s)
+ "caps_of_state s = (\<lambda>p. if (\<exists>cap. cte_wp_at ((=) cap) p s)
+                         then Some (THE cap. cte_wp_at ((=) cap) p s)
                          else None)"
   by (rule ext) (clarsimp simp: cte_wp_at_def caps_of_state_def)
 
@@ -1525,7 +1538,7 @@ lemma reply_master_caps_of_stateD:
            del: split_paired_All)
 
 lemma has_reply_cap_cte_wpD:
-  "\<And>t sl. cte_wp_at (op = (ReplyCap t False)) sl s \<Longrightarrow> has_reply_cap t s"
+  "\<And>t sl. cte_wp_at ((=) (ReplyCap t False)) sl s \<Longrightarrow> has_reply_cap t s"
   by (fastforce simp: has_reply_cap_def)
 
 lemma reply_cap_doesnt_exist_strg:
@@ -1591,7 +1604,7 @@ lemma idle_no_ex_cap:
   by blast
 
 lemma caps_of_state_cteD:
-  "caps_of_state s p = Some cap \<Longrightarrow> cte_wp_at (op = cap) p s"
+  "caps_of_state s p = Some cap \<Longrightarrow> cte_wp_at ((=) cap) p s"
   by (simp add: cte_wp_at_caps_of_state)
 
 lemma untyped_mdb_alt:
@@ -1601,9 +1614,9 @@ lemma untyped_mdb_alt:
   done
 
 lemma untyped_children_in_mdbE:
-  assumes x: "untyped_children_in_mdb s" "cte_wp_at (op = cap) ptr s"
+  assumes x: "untyped_children_in_mdb s" "cte_wp_at ((=) cap) ptr s"
              "is_untyped_cap cap" "cte_wp_at P ptr' s"
-  assumes y: "\<And>cap'. \<lbrakk> cte_wp_at (op = cap') ptr' s; P cap' \<rbrakk> \<Longrightarrow>
+  assumes y: "\<And>cap'. \<lbrakk> cte_wp_at ((=) cap') ptr' s; P cap' \<rbrakk> \<Longrightarrow>
                  obj_refs cap' \<inter> untyped_range cap \<noteq> {}"
   assumes z: "ptr' \<in> descendants_of ptr (cdt s) \<Longrightarrow> Q"
   shows Q using x
@@ -1721,18 +1734,18 @@ lemma valid_idle_pspaceI:
   unfolding valid_idle_def pred_tcb_at_def
   by (fastforce elim!: obj_at_pspaceI cte_wp_at_pspaceI)
 
-lemma obj_irq_refs_Int:
-  "(obj_irq_refs cap \<inter> obj_irq_refs cap' = {})
+lemma gen_obj_refs_Int:
+  "(gen_obj_refs cap \<inter> gen_obj_refs cap' = {})
      = (obj_refs cap \<inter> obj_refs cap' = {}
-            \<and> cap_irqs cap \<inter> cap_irqs cap' = {})"
-  by (simp add: obj_irq_refs_def Int_Un_distrib Int_Un_distrib2
-                image_Int[symmetric] Int_image_empty)
+            \<and> cap_irqs cap \<inter> cap_irqs cap' = {}
+            \<and> arch_gen_refs cap \<inter> arch_gen_refs cap' = {})"
+  by (simp add: gen_obj_refs_def Int_Un_distrib Int_Un_distrib2
+                image_Int[symmetric] Int_image_empty image_Int[symmetric])
 
 lemma is_final_cap'_def2:
   "is_final_cap' cap =
-    (\<lambda>s. \<exists>cref. \<forall>cref'. cte_wp_at (\<lambda>c. obj_irq_refs cap \<inter> obj_irq_refs c \<noteq> {}) cref' s
+    (\<lambda>s. \<exists>cref. \<forall>cref'. cte_wp_at (\<lambda>c. gen_obj_refs cap \<inter> gen_obj_refs c \<noteq> {}) cref' s
                   = (cref' = cref))"
-  unfolding obj_irq_refs_Int
   apply (rule ext)
   apply (auto simp: is_final_cap'_def cte_wp_at_def
                     set_eq_iff)
@@ -1785,7 +1798,7 @@ lemma valid_mdb_eqI:
   apply (simp add: valid_mdb_def)
    apply (rule conjI)
    apply (force simp add: valid_mdb_def swp_def mdb_cte_at_def)
-  apply (clarsimp simp add: cte_wp_caps_of_lift [OF c])
+  apply (clarsimp simp add: cte_wp_caps_of_lift [OF c] valid_arch_mdb_eqI)
   done
 
 lemma set_object_at_obj:
@@ -2093,7 +2106,7 @@ lemma pred_tcb_at_tcb_at:
 lemmas st_tcb_at_tcb_at = pred_tcb_at_tcb_at[where proj=itcb_state, simplified]
 
 lemma st_tcb_at_opeqI:
-  "\<lbrakk> st_tcb_at (op= st) t s ; test st \<rbrakk> \<Longrightarrow> st_tcb_at test t s"
+  "\<lbrakk> st_tcb_at ((=) st) t s ; test st \<rbrakk> \<Longrightarrow> st_tcb_at test t s"
   by (fastforce simp add: pred_tcb_def2)
 
 lemma cte_wp_at_weakenE:
@@ -2147,6 +2160,10 @@ lemma ko_at_obj_congD:
   unfolding obj_at_def
   by simp
 
+lemma not_obj_at_strengthen:
+  "obj_at (Not \<circ> P) p s \<Longrightarrow> \<not> obj_at P p s"
+  by (clarsimp simp: obj_at_def)
+
 text {* using typ_at triples to prove other triples *}
 
 lemma cte_at_typ:
@@ -2154,7 +2171,7 @@ lemma cte_at_typ:
                 \<or> (typ_at ATCB (fst p) s \<and> snd p \<in> dom tcb_cap_cases))"
   apply (rule ext)
   apply (simp add: cte_at_cases obj_at_def)
-  apply (rule arg_cong2[where f="op \<or>"])
+  apply (rule arg_cong2[where f="(\<or>)"])
    apply (safe, simp_all add: a_type_def DomainI)
     apply (clarsimp simp add: a_type_def well_formed_cnode_n_def length_set_helper)
     apply (drule_tac m="fun" in domI)
@@ -2492,11 +2509,12 @@ lemma valid_mdb_def2:
                     ut_revocable (is_original_cap s) (caps_of_state s) \<and>
                     irq_revocable (is_original_cap s) (caps_of_state s) \<and>
                     reply_master_revocable (is_original_cap s) (caps_of_state s) \<and>
-                    reply_mdb (cdt s) (caps_of_state s))"
+                    reply_mdb (cdt s) (caps_of_state s) \<and>
+                    valid_arch_mdb (is_original_cap s) (caps_of_state s))"
   by (auto simp add: valid_mdb_def swp_cte_at_caps_of)
 
 lemma cte_wp_valid_cap:
-  "\<lbrakk> cte_wp_at (op = c) p s; valid_objs s \<rbrakk> \<Longrightarrow> s \<turnstile> c"
+  "\<lbrakk> cte_wp_at ((=) c) p s; valid_objs s \<rbrakk> \<Longrightarrow> s \<turnstile> c"
   apply (simp add: cte_wp_at_cases)
   apply (erule disjE)
    apply clarsimp
@@ -2510,7 +2528,7 @@ lemma cte_wp_valid_cap:
   done
 
 lemma cte_wp_tcb_cap_valid:
-  "\<lbrakk> cte_wp_at (op = c) p s; valid_objs s \<rbrakk> \<Longrightarrow> tcb_cap_valid c p s"
+  "\<lbrakk> cte_wp_at ((=) c) p s; valid_objs s \<rbrakk> \<Longrightarrow> tcb_cap_valid c p s"
   apply (clarsimp simp: tcb_cap_valid_def obj_at_def
                         pred_tcb_at_def cte_wp_at_cases)
   apply (erule disjE, (clarsimp simp: is_tcb)+)
@@ -2622,6 +2640,10 @@ lemma pspace_in_kernel_window_update [iff]:
 lemma cap_refs_in_kernel_window_update [iff]:
   "cap_refs_in_kernel_window (f s) = cap_refs_in_kernel_window s"
   by (simp add: cap_refs_in_kernel_window_def arch pspace)
+
+lemma valid_ioports_update[iff]:
+  "valid_ioports (f s) = valid_ioports s"
+  by (simp add: valid_ioports_def arch)
 
 end
 
@@ -2744,11 +2766,11 @@ lemma untyped_range_non_empty:
 
 lemma valid_mdb_cur [iff]:
   "valid_mdb (cur_thread_update f s) = valid_mdb s"
-  by (simp add: valid_mdb_def swp_def)
+  by (auto elim!: valid_mdb_eqI)
 
 lemma valid_mdb_more_update [iff]:
   "valid_mdb (trans_state f s) = valid_mdb s"
-  by (simp add: valid_mdb_def swp_def)
+  by (auto elim!: valid_mdb_eqI)
 
 lemma valid_mdb_machine [iff]:
   "valid_mdb (machine_state_update f s) = valid_mdb s"
@@ -2892,8 +2914,7 @@ lemma valid_idle_lift:
   shows "\<lbrace>valid_idle\<rbrace> f \<lbrace>\<lambda>_. valid_idle\<rbrace>"
   apply (simp add: valid_idle_def)
   apply (rule hoare_lift_Pf [where f="idle_thread"])
-   apply (rule hoare_vcg_conj_lift)
-    apply (rule assms)+
+   apply (rule hoare_vcg_conj_lift | rule assms)+
   done
 
 
@@ -2955,12 +2976,12 @@ lemma untyped_incD:
   done
 
 lemma cte_wp_at_norm:
-  "cte_wp_at P p s \<Longrightarrow> \<exists>c. cte_wp_at (op = c) p s \<and> P c"
+  "cte_wp_at P p s \<Longrightarrow> \<exists>c. cte_wp_at ((=) c) p s \<and> P c"
   by (auto simp add: cte_wp_at_cases)
 
 lemma valid_mdb_arch_state [simp]:
   "valid_mdb (arch_state_update f s) = valid_mdb s"
-  by (simp add: valid_mdb_def swp_def)
+  by (auto elim!: valid_mdb_eqI)
 
 lemma valid_idle_arch_state [simp]:
   "valid_idle (arch_state_update f s) = valid_idle s"
@@ -2996,7 +3017,7 @@ lemma unique_reply_capsD:
 lemmas caps_of_state_valid =  caps_of_state_valid_cap
 
 lemma valid_reply_mastersD:
-  "\<lbrakk> cte_wp_at (op = (ReplyCap t True)) p s; valid_reply_masters s \<rbrakk>
+  "\<lbrakk> cte_wp_at ((=) (ReplyCap t True)) p s; valid_reply_masters s \<rbrakk>
    \<Longrightarrow> p = (t, tcb_cnode_index 2)"
   by (simp add: valid_reply_masters_def del: split_paired_All)
 
@@ -3027,7 +3048,7 @@ lemma dmo_aligned:
   done
 
 lemma cte_wp_at_eqD2:
-  "\<lbrakk>cte_wp_at (op = c) p s; cte_wp_at P p s \<rbrakk> \<Longrightarrow> P c"
+  "\<lbrakk>cte_wp_at ((=) c) p s; cte_wp_at P p s \<rbrakk> \<Longrightarrow> P c"
   by (auto elim!: cte_wp_atE split: if_split_asm)
 
 lemma not_pred_tcb:
@@ -3168,7 +3189,7 @@ lemma invs_mdb [elim!]:
   by (simp add: invs_def valid_state_def)
 
 lemma invs_mdb_cte [elim!]:
-  "invs s \<Longrightarrow> mdb_cte_at (swp (cte_wp_at (op \<noteq> NullCap)) s) (cdt s)"
+  "invs s \<Longrightarrow> mdb_cte_at (swp (cte_wp_at ((\<noteq>) NullCap)) s) (cdt s)"
   by (simp add: invs_def valid_state_def valid_mdb_def)
 
 lemma invs_valid_pspace [elim!]:
@@ -3277,9 +3298,12 @@ lemma all_invs_but_sym_refs_check:
                 o_def pred_conj_def conj_comms)
 
 
-
 lemma invs_valid_asid_map[elim!]:
   "invs s \<Longrightarrow> valid_asid_map s"
+  by (simp add: invs_def valid_state_def)
+
+lemma invs_valid_ioports[elim!]:
+  "invs s \<Longrightarrow> valid_ioports s"
   by (simp add: invs_def valid_state_def)
 
 lemma invs_equal_kernel_mappings[elim!]:
@@ -3301,7 +3325,7 @@ lemma cte_wp_at_cap_aligned:
   done
 
 lemma cte_wp_at_cap_aligned':
-  "\<lbrakk>cte_wp_at (op = cap) p s; invs s\<rbrakk> \<Longrightarrow> cap_aligned cap"
+  "\<lbrakk>cte_wp_at ((=) cap) p s; invs s\<rbrakk> \<Longrightarrow> cap_aligned cap"
   apply (drule (1) cte_wp_at_valid_objs_valid_cap [OF _ invs_valid_objs])
   apply (fastforce simp: valid_cap_def)
   done
@@ -3401,5 +3425,9 @@ proof -
     by (fastforce dest: ko elim: vs_lookup_pages1_stateI2)
   thus ?thesis by (rule rtrancl_mono)
 qed
+
+lemma max_ipc_length_unfold:
+  "max_ipc_length = 128"
+  by (simp add: max_ipc_length_def cap_transfer_data_size_def msg_max_length_def msg_max_extra_caps_def)
 
 end

@@ -13,8 +13,10 @@
  * functions and globals.
  *)
 theory AC_Rename imports
-  "../../AutoCorres"
+  "AutoCorres.AutoCorres"
 begin
+
+external_file "rename.c"
 
 declare [[allow_underscore_idents]]
 install_C_file "rename.c"

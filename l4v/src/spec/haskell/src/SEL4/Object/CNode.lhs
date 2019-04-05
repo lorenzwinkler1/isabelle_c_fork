@@ -29,6 +29,7 @@ creating the "Capability" objects used at higher levels of the kernel.
 > {-# BOOT-IMPORTS: SEL4.Machine SEL4.API.Types SEL4.API.Failures SEL4.Model SEL4.Object.Structures SEL4.API.Invocation #-}
 > {-# BOOT-EXPORTS: ensureNoChildren getSlotCap locateSlotTCB locateSlotCNode locateSlotCap locateSlotBasic ensureEmptySlot insertInitCap cteInsert cteDelete cteDeleteOne decodeCNodeInvocation invokeCNode getCTE updateCap isFinalCapability createNewObjects updateFreeIndex #-}
 
+> import Prelude hiding (Word)
 > import SEL4.API.Types
 > import SEL4.API.Failures
 > import SEL4.API.Invocation
@@ -253,26 +254,7 @@ First, fetch the capability table entry for the source.
 
 If the newly created capability is allowed to become a parent of other capabilities in the MDB, it must be marked \emph{revocable}.
 
->         let newCapIsRevocable = case newCap of
-
-If the new capability is an endpoint capability, then it can be an MDB parent if and only if its badge is being changed by this operation.
-
->                 EndpointCap {} ->
->                     capEPBadge newCap /= capEPBadge srcCap
->                 NotificationCap {} ->
->                     capNtfnBadge newCap /= capNtfnBadge srcCap
-
-If the new capability is the first IRQ handler for a given IRQ, then it can be an MDB parent.
-
->                 IRQHandlerCap {} -> isIRQControlCap srcCap
-
-Untyped capabilities can always be MDB parents.
-
->                 UntypedCap {} -> True
-
-Any other capability created by this function is a leaf of the derivation tree, and cannot be used to revoke other capabilities.
-
->                 _ -> False
+>         let newCapIsRevocable = isCapRevocable newCap srcCap
 
 Create the new capability table entry. Its "MDBNode" is inserted in the mapping database immediately after the existing capability.
 
@@ -384,19 +366,22 @@ The run time of "cteDelete" is unbounded under certain circumstances, so the ope
 
 > cteDelete :: PPtr CTE -> Bool -> KernelP ()
 > cteDelete slot exposed = do
->     (success, irq) <- finaliseSlot slot exposed
->     when (exposed || success) $ withoutPreemption $ emptySlot slot irq
+>     (success, info) <- finaliseSlot slot exposed
+>     when (exposed || success) $ withoutPreemption $ emptySlot slot info
 
 This helper routine empties a slot. The routine may be called on the same
 slot twice as a result of recursion between "cteDelete" and "reduceZombie",
 thus a check is made as to whether the slot is already empty.
 
-The deletion of the final IRQHandlerCap to any IRQ should be followed by
-certain operations handled by deletedIRQHandler, including the clearing of
-the bitmask bit that will allow the reissue of an IRQHandlerCap to this IRQ.
+Some capabilities require some additional cleanup after the slot has been cleared.
+For example, deleting the final IRQHandlerCap for an IRQ requires clearing the bitmask
+to allow reissue of a new IRQHandlerCap for that IRQ.
 
-> emptySlot :: PPtr CTE -> Maybe IRQ -> Kernel ()
-> emptySlot slot irq = do
+The emptySlot helper takes a Capability argument which represents the required cleanup,
+and calls postCapDeletion to actually perform the cleanup.
+
+> emptySlot :: PPtr CTE -> Capability -> Kernel ()
+> emptySlot slot info = do
 >     clearUntypedFreeIndex slot
 >     newCTE <- getCTE slot
 >     let mdbNode = cteMDBNode newCTE
@@ -414,9 +399,7 @@ the bitmask bit that will allow the reissue of an IRQHandlerCap to this IRQ.
 >             updateCap slot NullCap
 >             updateMDB slot (const nullMDBNode)
 
->             case irq of
->                 Just irq  -> deletedIRQHandler irq
->                 Nothing   -> return ()
+>             postCapDeletion info
 
 If the deleted capability is marked as being the leftmost endpoint capability in the tree with a given badge, the next capability to the right in the tree will inherit that property. This is significant only if the next capability is a sibling of the deleted one; otherwise the bit either has no effect or is already set.
 
@@ -426,14 +409,14 @@ The boolean in the return value indicates whether the slot was successfully fina
 
 The optional IRQ in the return value indicates any IRQ lines whose final IRQ handling capability will be freed by the deletion of the capability in the slot. The 'deletedIRQHandler' function should be called once the slot is empty.
 
-> finaliseSlot :: PPtr CTE -> Bool -> KernelP (Bool, Maybe IRQ)
+> finaliseSlot :: PPtr CTE -> Bool -> KernelP (Bool, Capability)
 > finaliseSlot slot exposed = do
 
 Load the contents of the slot.
 
 >     cte <- withoutPreemption $ getCTE slot
 
->     if isNullCap $ cteCap cte then return (True, Nothing) else do
+>     if isNullCap $ cteCap cte then return (True, NullCap) else do
 
 Determine whether this is a final capability.
 
@@ -441,7 +424,7 @@ Determine whether this is a final capability.
 
 Perform any type-specific finalisation actions associated with the capability.
 
->         (remainder, irq) <- withoutPreemption $
+>         (remainder, info) <- withoutPreemption $
 >                                 finaliseCap (cteCap cte) final False
 
 At this point, the capability can safely be replaced with the returned
@@ -451,11 +434,11 @@ potential resume point in the event of preemption, and then attempt to reduce
 further. Once a reduction step is taken we will allow preemption, and then
 continue finalising in this slot.
 
->         if capRemovable remainder slot then return (True, irq) else
+>         if capRemovable remainder slot then return (True, info) else
 >             if not exposed && capCyclicZombie remainder slot
 >             then do
 >                 withoutPreemption $ updateCap slot remainder
->                 return (False, Nothing)
+>                 return (False, NullCap)
 >             else do
 >                 withoutPreemption $ updateCap slot remainder
 >                 reduceZombie remainder slot exposed
@@ -528,10 +511,10 @@ In some cases we call for the deletion of a capability which we know can be dele
 >     cte <- getCTE slot
 >     unless (isNullCap $ cteCap cte) $ do
 >         final <- isFinalCapability cte
->         (remainder, irq) <- finaliseCap (cteCap cte) final True
->         assert (capRemovable remainder slot && irq == Nothing) $
+>         (remainder, info) <- finaliseCap (cteCap cte) final True
+>         assert (capRemovable remainder slot && isNullCap info) $
 >             "cteDeleteOne: cap should be removable"
->         emptySlot slot Nothing
+>         emptySlot slot NullCap
 
 \subsection{Object Creation}
 

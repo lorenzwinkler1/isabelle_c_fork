@@ -9,9 +9,10 @@
  *)
 
 theory BinarySearch
-imports "../../AutoCorres" "../../DataStructures"
+imports "AutoCorres.AutoCorres" "../../DataStructures"
 begin
 
+external_file "binary_search.c"
 install_C_file "binary_search.c"
 
 autocorres [ts_rules = nondet, unsigned_word_abs=binary_search] "binary_search.c"
@@ -126,8 +127,8 @@ lemma array_Ex:
   done
 
 lemma sorted_index_lt:
-    "\<lbrakk> sorted xs; unat (xs ! m) < v; n \<le> m; m < length xs \<rbrakk> \<Longrightarrow>  unat (xs ! n) < v"
-  by (metis (hide_lams, no_types) le_less_trans sorted_equals_nth_mono word_le_nat_alt)
+  "\<lbrakk> sorted xs; unat (xs ! m) < v; n \<le> m; m < length xs \<rbrakk> \<Longrightarrow>  unat (xs ! n) < v"
+  by (meson le_less_trans sorted_nth_mono unat_arith_simps(1))
 
 lemma sorted_index_gt:
     "\<lbrakk> sorted xs; v < unat (xs ! m); m \<le> n; n < length xs \<rbrakk> \<Longrightarrow>  v < unat (xs ! n)"

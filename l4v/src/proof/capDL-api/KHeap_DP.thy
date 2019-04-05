@@ -249,7 +249,7 @@ lemma swap_parents_wp:
   "\<lbrace><R>\<rbrace>
    swap_parents src dest
   \<lbrace>\<lambda>_.  <R>\<rbrace>"
-  by (clarsimp simp: swap_parents_def lift_def sep_state_projection_def)
+  by (wpsimp simp: swap_parents_def lift_def sep_state_projection_def)
 
 lemma insert_cap_orphan_wp:
    "\<lbrace><dest \<mapsto>c - \<and>* R>\<rbrace>
@@ -275,7 +275,7 @@ lemma swap_cap_wp:
     swap_cap cap' src cap dest
    \<lbrace>\<lambda>_.<dest \<mapsto>c cap' \<and>* src \<mapsto>c cap \<and>* R>\<rbrace>"
   apply (clarsimp simp add: swap_cap_def)
-  apply (wp sep_wand: swap_parents_wp set_cap_wp)
+  apply (wp add: swap_parents_wp sep_wand: set_cap_wp)
   apply (sep_solve)
   done
 
@@ -317,7 +317,7 @@ lemma remove_parent_wp:
   "\<lbrace><P>\<rbrace>
    remove_parent obj
    \<lbrace>\<lambda>_.  <P>\<rbrace>"
-   by (clarsimp simp: remove_parent_def lift_def sep_state_projection_def)
+   by (wpsimp simp: remove_parent_def lift_def sep_state_projection_def)
 
 lemma get_cap_wp:
   "\<lbrace>P\<rbrace>
@@ -605,7 +605,7 @@ lemma derive_cap_wpE:
 
 lemma derive_cap_wp2: "\<lbrace>P\<rbrace> derive_cap slot cap \<lbrace>\<lambda>rv s. if rv = NullCap then True else P s\<rbrace>, -"
   apply (rule hoare_post_imp_R)
-   apply (wp derive_cap_wp)
+   apply (wp_once derive_cap_wpE)
   apply (clarsimp)
   done
 
@@ -732,9 +732,7 @@ lemma decode_cnode_move_rvu:
   apply (unfold validE_def[symmetric])
   apply (clarsimp simp: decode_cnode_invocation_def split_def split: sum.splits)
   apply wp
-        apply (rule_tac P = "src_capa \<noteq> NullCap" in hoare_gen_asmEx)
-        apply (simp add:whenE_def)
-       apply (wp derive_cap_non_exclusive)+
+     apply (simp add: if_apply_def2)
      apply (rule lookup_slot_for_cnode_op_rvu' [where r=sz and cap=src_cap and
        R="\<box> (sz', (unat dest_depth)): target dest_index \<mapsto>u NullCap \<and>* R"])
     apply simp
@@ -760,13 +758,9 @@ crunch preserve [wp]:  decode_cnode_invocation "P"
 lemma decode_invocation_wp:
   "\<lbrace>P\<rbrace> decode_invocation (CNodeCap x y z sz) ref caps (CNodeIntent intent) \<lbrace>\<lambda>_. P\<rbrace>, -"
   apply (clarsimp simp: decode_invocation_def)
-  including no_pre
   apply (wp)
-   apply (clarsimp simp: comp_def)
-   apply (wp)
-  apply (clarsimp simp: throw_opt_def)
-  apply (clarsimp split:option.splits)
-  apply (safe|clarsimp|wp)+
+    apply (clarsimp simp: comp_def)
+    apply (wpsimp simp: throw_opt_def)+
 done
 
 lemma lookup_slot_wp:
@@ -838,7 +832,7 @@ lemma lookup_slot_rvu:
   apply (rule hoare_vcg_seqE)+
     apply (rule returnOk_wp)
    apply (rule resolve_cap_u_nf [where r=r])
-  apply (wp)
+  apply (rule hoare_pre, wp)
   apply (clarsimp simp: mapu_dest_opt_cap)
   apply (sep_frule (direct) opt_cap_sep_imp )
   apply (sep_frule (direct) user_pointer_at_cnode_cap)
@@ -854,7 +848,7 @@ lemma lookup_cap_rvu :
      lookup_cap thread cap_ptr
    \<lbrace>Q\<rbrace>, \<lbrace>\<lambda>_ _. False\<rbrace>"
   apply (clarsimp simp: lookup_cap_def)
-  including no_pre
+  using hoare_vcg_prop[wp del]
   apply (wp lookup_slot_rvu [where cnode_cap=cnode_cap] get_cap_rv)
   apply (clarsimp)
   apply safe
@@ -887,7 +881,7 @@ lemma lookup_cap_and_slot_rvu:
   apply (rule hoare_vcg_seqE)+
     apply (rule returnOk_wp)
    apply (wp get_cap_rv)
-  apply (wp lookup_slot_rvu)
+  apply (rule hoare_pre, wp lookup_slot_rvu)
   apply (safe)
     apply (clarsimp simp: user_pointer_at_def Let_unfold sep.mult_assoc)
     apply sep_solve
@@ -1005,11 +999,10 @@ lemma decode_cnode_mint_rvu:
   apply (unfold validE_def[symmetric])
   apply (clarsimp simp: neq_Nil_conv decode_cnode_invocation_def split_def
                  split: sum.splits)
-  apply wp
-         apply (simp add:whenE_def split del:if_splits)
-         apply (wp derive_cap_invE)+
+  apply (wp derive_cap_invE)
        apply (wp update_cap_data)+
      apply (rule validE_validE_R)
+     apply (simp add: if_apply_def2)
      apply (rule lookup_slot_for_cnode_op_rvu' [where r=src_sz and cap=src_cap and
        R="\<box> (dest_sz, (unat dest_depth)): target dest_index \<mapsto>u NullCap \<and>* R"])
     apply simp
@@ -1070,9 +1063,8 @@ lemma decode_cnode_mutate_rvu:
   apply (clarsimp simp: decode_cnode_invocation_def split_def neq_Nil_conv
     split:sum.splits)
   apply wp
-        apply (rule_tac P = "cap \<noteq> NullCap" in hoare_gen_asmEx)
-        apply (simp add:whenE_def)
         apply (wp update_cap_data)+
+     apply (simp add: if_apply_def2)
      apply (rule lookup_slot_for_cnode_op_rvu' [where r=src_sz and cap=src_cap and
        R="\<box> (dest_sz, (unat dest_depth)): target dest_index \<mapsto>u NullCap \<and>* R"])
     apply simp
@@ -1114,9 +1106,7 @@ lemma get_thread_sep_wp:
 lemma get_thread_inv:
 "\<lbrace> Q \<rbrace>
   get_thread thread \<lbrace>\<lambda>t s. Q s\<rbrace>"
-  apply (simp add:get_thread_def | wp | wpc)+
-  apply auto
-  done
+  by (simp add:get_thread_def | wp | wpc)+
 
 lemma get_thread_sep_wp_precise:
   "\<lbrace>\<lambda>s. tcb_at' (\<lambda>tcb. Q tcb s) thread s \<rbrace>
@@ -1145,8 +1135,6 @@ lemma has_restart_cap_sep_wp:
   apply (clarsimp dest!: opt_cap_sep_imp
                    simp: opt_object_def opt_cap_def slots_of_def)
   apply (clarsimp simp: object_slots_def)
-  apply (rule conjI, fastforce)+
-  apply clarsimp
   apply (erule rsubst)
   apply (clarsimp simp: reset_cap_asid_def split: cdl_cap.splits)
   done
@@ -1169,13 +1157,13 @@ lemma switch_to_thread_wp:
   "\<lbrace>\<lambda>s. P (cdl_objects s)\<rbrace>
    switch_to_thread t
    \<lbrace>\<lambda>r s. P (cdl_objects s)\<rbrace>"
-  by (clarsimp simp: switch_to_thread_def)
+  by (wpsimp simp: switch_to_thread_def)
 
 lemma switch_to_thread_current_thread_wp:
   "\<lbrace>\<lambda>s. P t\<rbrace>
    switch_to_thread t
    \<lbrace>\<lambda>r s. P (cdl_current_thread s)\<rbrace>"
-  by (clarsimp simp: switch_to_thread_def)
+  by (wpsimp simp: switch_to_thread_def)
 
 lemma schedule_no_choice_wp:
   "\<lbrace>\<lambda>s.  cdl_current_thread s = Some current_thread \<and> cdl_current_domain s = current_domain \<and> P s \<rbrace>

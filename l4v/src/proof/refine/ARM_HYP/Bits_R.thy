@@ -48,8 +48,7 @@ end
 
 crunch_ignore (add:
   storeWordVM loadWord setRegister getRegister getRestartPC
-  debugPrint set_register get_register
-  setNextPC maskInterrupt clearMemory throw_on_false)
+  debugPrint setNextPC maskInterrupt clearMemory throw_on_false)
 
 crunch_ignore (add: unifyFailure ignoreFailure)
 
@@ -217,14 +216,14 @@ lemma tcb_in_valid_state':
   apply (fastforce simp add: valid_obj'_def valid_tcb'_def)
   done
 
-lemma gct_corres [corres]: "corres op = \<top> \<top> (gets cur_thread) getCurThread"
+lemma gct_corres [corres]: "corres (=) \<top> \<top> (gets cur_thread) getCurThread"
   by (simp add: getCurThread_def curthread_relation)
 
 lemma gct_wp [wp]: "\<lbrace>\<lambda>s. P (ksCurThread s) s\<rbrace> getCurThread \<lbrace>P\<rbrace>"
   by (unfold getCurThread_def, wp)
 
 lemma git_corres:
-  "corres op = \<top> \<top> (gets idle_thread) getIdleThread"
+  "corres (=) \<top> \<top> (gets idle_thread) getIdleThread"
   by (simp add: getIdleThread_def state_relation_def)
 
 lemma git_wp [wp]: "\<lbrace>\<lambda>s. P (ksIdleThread s) s\<rbrace> getIdleThread \<lbrace>P\<rbrace>"

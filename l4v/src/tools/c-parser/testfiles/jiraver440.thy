@@ -9,21 +9,22 @@
  *)
 
 theory jiraver440
-  imports "../CTranslation"
+  imports "CParser.CTranslation"
 begin
 
-  install_C_file "jiraver440.c"
+external_file "jiraver440.c"
+install_C_file "jiraver440.c"
 
-  context jiraver440
-  begin
+context jiraver440
+begin
 
-  thm f_body_def
-  thm g_body_def
+thm f_body_def
+thm g_body_def
 
-  lemma "f_body = g_body"
-  by (simp add: f_body_def g_body_def)
+lemma "f_body = g_body"
+by (simp add: f_body_def g_body_def)
 
 
-  end
+end
 
 end

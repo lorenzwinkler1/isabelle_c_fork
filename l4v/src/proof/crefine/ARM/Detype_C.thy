@@ -576,7 +576,7 @@ lemma ctes_of_is_aligned:
   assumes ks: "ctes_of s p = Some cte"
   shows "is_aligned p (objBits cte)"
 proof -
-  have "cte_wp_at' (op = cte) p s" using ks by (clarsimp simp: cte_wp_at_ctes_of)
+  have "cte_wp_at' ((=) cte) p s" using ks by (clarsimp simp: cte_wp_at_ctes_of)
   thus ?thesis
     apply (simp add: cte_wp_at_cases' objBits_simps' cte_level_bits_def)
     apply (erule disjE)
@@ -695,7 +695,7 @@ proof -
     apply simp
     done
 
-  from ks have "cte_wp_at' (op = cte) (ptr_val x) s" by (clarsimp simp: cte_wp_at_ctes_of)
+  from ks have "cte_wp_at' ((=) cte) (ptr_val x) s" by (clarsimp simp: cte_wp_at_ctes_of)
   thus ?thesis
   proof (cases rule: cte_wp_at_casesE')
     case (cte cte')
@@ -1320,18 +1320,6 @@ lemma ccorres_stateAssert_after:
   apply fastforce
   done
 
-lemma aligned_range_offset_mem_helper:
-  "\<lbrakk> is_aligned (x :: 'a :: len word) m; y < 2 ^ m; is_aligned p n;
-              n \<ge> m; n < len_of TYPE('a) \<rbrakk>
-       \<Longrightarrow> (x + y \<in> {p .. p + 2 ^ n - 1}) = (x \<in> {p .. p + 2 ^ n - 1})"
-  apply (simp only: mask_in_range[symmetric]
-                    is_aligned_add_or)
-  apply (simp add: word_ao_dist, simp add: mask_out_sub_mask)
-  apply (subst less_mask_eq, erule order_less_le_trans)
-   apply (simp add: two_power_increasing)
-  apply simp
-  done
-
 lemma heap_to_user_data_update_region:
   assumes foo: "\<And>x y v. \<lbrakk> map_to_user_data psp x = Some y;
                            v < 2 ^ pageBits \<rbrakk> \<Longrightarrow> (x + v \<in> S) = (x \<in> S)"
@@ -1487,42 +1475,6 @@ lemma untyped_cap_rf_sr_ptr_bits_domain:
                         valid_cap'_def capAligned_def)
   apply (simp only: upto_intvl_eq)
   apply blast
-  done
-
-lemma aligned_ranges_subset_or_disjoint_coroll:
-  "\<lbrakk> is_aligned (p :: 'a :: len word) n; is_aligned (p' :: 'a :: len word) n';
-        p && ~~ mask n' \<noteq> p'; p' && ~~ mask n \<noteq> p \<rbrakk>
-     \<Longrightarrow> {p .. p + 2 ^ n - 1} \<inter> {p' .. p' + 2 ^ n' - 1} = {}"
-  using aligned_ranges_subset_or_disjoint
-  apply (simp only: mask_in_range)
-  apply (subgoal_tac "p \<in> {p .. p + 2 ^ n - 1} \<and> p' \<in> {p' .. p' + 2 ^ n' - 1}")
-   apply blast
-  apply simp
-  done
-
-lemma neg_mask_twice:
-  "x && ~~ mask n && ~~ mask m = x && ~~ mask (max n m)"
-  by (metis word_bw_assocs neg_mask_combine)
-
-lemma multiple_mask_trivia: "n \<ge> m
-    \<Longrightarrow> (x && ~~ mask n) + (x && mask n && ~~ mask m) = x && ~~ mask m"
-  apply (rule trans[rotated], rule_tac w="mask n" in word_plus_and_or_coroll2)
-  apply (simp add: word_bw_assocs word_bw_comms word_bw_lcs neg_mask_twice
-                   max_absorb2)
-  done
-
-lemma distinct_aligned_addresses_accumulate:
-  "is_aligned p n \<Longrightarrow> is_aligned ptr bits
-    \<Longrightarrow> n \<ge> m \<Longrightarrow> n < size p \<Longrightarrow> m \<le> bits
-    \<Longrightarrow> (\<forall>y<2 ^ (n - m). p + (y << m) \<notin> {ptr..ptr + 2 ^ bits - 1})
-    \<Longrightarrow> {p .. p + 2 ^ n - 1} \<inter> {ptr..ptr + 2 ^ bits - 1} = {}"
-  apply safe
-  apply (simp only: mask_in_range[symmetric])
-  apply (drule_tac x="(x && mask n) >> m" in spec)
-  apply (simp add: shiftr_shiftl1 word_bw_assocs)
-  apply (drule mp, rule shiftr_less_t2n)
-   apply (subst add_diff_inverse, simp, rule and_mask_less', simp add: word_size)
-  apply (clarsimp simp: multiple_mask_trivia word_bw_assocs neg_mask_twice max_absorb2)
   done
 
 lemma offs_in_intvl_iff:
@@ -1766,7 +1718,7 @@ proof -
             , assumption +,
             simp_all add: objBits_simps' archObjSize_def pageBits_def projectKOs
                           pteBits_def pdeBits_def
-                          heap_to_user_data_restrict heap_to_device_data_restrict)[1])+ -- "waiting ..."
+                          heap_to_user_data_restrict heap_to_device_data_restrict)[1])+ \<comment> \<open>waiting ...\<close>
     apply (simp add: map_to_ctes_delete' cmap_relation_restrict_both_proj
                      cmap_relation_restrict_both cmap_array_helper hrs_htd_update
                      ptBits_def pdBits_def pageBits_def cmap_array)
@@ -1816,7 +1768,7 @@ proof -
     apply fastforce
     apply ((subst lift_t_typ_region_bytes, rule cm_disj_tcb, assumption+,
       simp_all add: objBits_simps archObjSize_def pageBits_def projectKOs)[1])+
-      -- "waiting ..."
+      \<comment> \<open>waiting ...\<close>
     apply (simp add: tcb_queue_relation_live_restrict
                      [OF D.valid_untyped tat tlive rl])
     done
@@ -1915,7 +1867,7 @@ proof -
     apply (case_tac "pageBits \<le> bits")
      apply (simp add: objBitsKO_def projectKOs  split: kernel_object.splits)
      apply clarsimp
-     apply (rule aligned_range_offset_mem_helper
+     apply (rule aligned_range_offset_mem
        [where 'a=32, folded word_bits_def, simplified, OF _ _ al _ wb])
        apply assumption+
     apply (rule iffI[rotated], simp)
@@ -1968,7 +1920,7 @@ proof -
     apply (case_tac "pageBits \<le> bits")
      apply (simp add: objBitsKO_def projectKOs  split: kernel_object.splits)
      apply clarsimp
-     apply (rule aligned_range_offset_mem_helper
+     apply (rule aligned_range_offset_mem
        [where 'a=32, folded word_bits_def, simplified, OF _ _ al _ wb])
        apply assumption+
     apply (rule iffI[rotated], simp)
@@ -2036,7 +1988,7 @@ proof -
       apply blast
       done
 
-    from sr have "cvariable_array_map_relation (gsCNodes s|\<^bsub>(- {ptr..+2 ^ bits})\<^esub>) (op ^ 2) cte_Ptr
+    from sr have "cvariable_array_map_relation (gsCNodes s|\<^bsub>(- {ptr..+2 ^ bits})\<^esub>) ((^) 2) cte_Ptr
        (typ_region_bytes ptr bits (hrs_htd (t_hrs_' (globals s'))))"
       "cvariable_array_map_relation (map_to_tcbs (ksPSpace s|\<^bsub>(- {ptr..+2 ^ bits})\<^esub>)) (\<lambda>x. 5) cte_Ptr
        (typ_region_bytes ptr bits (hrs_htd (t_hrs_' (globals s'))))"

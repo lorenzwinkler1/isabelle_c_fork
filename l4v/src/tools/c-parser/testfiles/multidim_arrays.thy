@@ -9,9 +9,10 @@
  *)
 
 theory multidim_arrays
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "multidim_arrays.c"
 install_C_file "multidim_arrays.c"
 
 context multidim_arrays

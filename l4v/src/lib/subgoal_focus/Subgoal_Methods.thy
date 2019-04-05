@@ -33,7 +33,7 @@ fun max_common_prefix eq (ls :: lss) =
         val ls' = tag_list 0 ls;
         fun all_prefix (i,a) =
           forall (fn ls' => if length ls' > i then eq (a, nth ls' i) else false) lss
-        val (ls'',_) = take_prefix all_prefix ls'
+        val ls'' = take_prefix all_prefix ls'
       in map snd ls'' end
   | max_common_prefix _ [] = [];
 
@@ -72,7 +72,7 @@ fun fold_subgoals ctxt prefix raw_st =
 
       val subgoals = Thm.prems_of st;
       val paramss = map strip_params subgoals;
-      val common_params = max_common_prefix (eq_snd op =) paramss;
+      val common_params = max_common_prefix (eq_snd (op =)) paramss;
 
       fun strip_shift subgoal =
         let

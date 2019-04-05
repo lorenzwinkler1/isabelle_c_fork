@@ -12,18 +12,10 @@ theory EmptyFail_H
 imports Refine
 begin
 
-lemma wpc_helper_empty_fail:
-  "empty_fail f \<Longrightarrow> wpc_helper (P, P') (Q, Q') (empty_fail f)"
-  by (clarsimp simp: wpc_helper_def)
-
-wpc_setup "\<lambda>m. empty_fail m" wpc_helper_empty_fail
-
 crunch_ignore (empty_fail)
   (add: handleE' getCTE getObject updateObject
         CSpaceDecls_H.resolveAddressBits
-        doMachineOp
-        suspend restart
-        schedule)
+        doMachineOp suspend restart schedule)
 
 context begin interpretation Arch . (*FIXME: arch_split*)
 
@@ -117,9 +109,9 @@ lemma constOnFailure_empty_fail[intro!, wp, simp]:
 
 lemma ArchRetypeDecls_H_deriveCap_empty_fail[intro!, wp, simp]:
   "isPageTableCap y \<or> isPageDirectoryCap y \<or> isPageCap y
-   \<or> isASIDControlCap y \<or> isASIDPoolCap y
+   \<or> isASIDControlCap y \<or> isASIDPoolCap y \<or> isVCPUCap y
    \<Longrightarrow> empty_fail (Arch.deriveCap x y)"
-  apply (simp add: ARM_H.deriveCap_def)
+  apply (simp add: ARM_HYP_H.deriveCap_def)
   by auto
 
 crunch (empty_fail) empty_fail[intro!, wp, simp]: ensureNoChildren
@@ -129,7 +121,7 @@ lemma deriveCap_empty_fail[intro!, wp, simp]:
   apply (simp add: Retype_H.deriveCap_def)
   apply (clarsimp simp: empty_fail_bindE)
   apply (case_tac "capCap y")
-      apply (simp_all add: isPageTableCap_def isPageDirectoryCap_def
+      apply (simp_all add: isPageTableCap_def isPageDirectoryCap_def isVCPUCap_def
                            isPageCap_def isASIDPoolCap_def isASIDControlCap_def)
   done
 
@@ -167,6 +159,10 @@ lemma empty_fail_getObject_pte [intro!, wp, simp]:
   "empty_fail (getObject p :: pte kernel)"
   by (simp add: empty_fail_getObject)
 
+lemma empty_fail_getObject_vcpu [intro!, wp, simp]:
+  "empty_fail (getObject p :: vcpu kernel)"
+  by (simp add: empty_fail_getObject)
+
 crunch (empty_fail) empty_fail[intro!, wp, simp]: decodeARMMMUInvocation
 (simp: Let_def ARMMMU_improve_cases)
 
@@ -186,8 +182,15 @@ lemma ThreadDecls_H_restart_empty_fail[intro!, wp, simp]:
   "empty_fail (ThreadDecls_H.restart target)"
   by (simp add:restart_def)
 
+lemma vcpuUpdate_empty_fail[intro!, wp, simp]:
+  "empty_fail (vcpuUpdate p f)"
+  by (simp add: vcpuUpdate_def)
+
+crunch (empty_fail) empty_fail[intro!, wp, simp]: vcpuEnable, vcpuRestore
+  (simp: uncurry_def)
+
 crunch (empty_fail) empty_fail[intro!, wp, simp]: finaliseCap, preemptionPoint, capSwapForDelete
-(wp: empty_fail_catch simp:  Let_def ignore: cacheRangeOp)
+  (wp: empty_fail_catch simp: Let_def ignore: get_gic_vcpu_ctrl_lr_impl)
 
 lemmas finalise_spec_empty_fail_induct = finaliseSlot'.induct[where P=
     "\<lambda>sl exp s. spec_empty_fail (finaliseSlot' sl exp) s"]
@@ -277,12 +280,9 @@ next
   show ?case by (simp add: m)
 qed
 
-crunch (empty_fail) empty_fail[intro!, wp, simp]: chooseThread
-(wp: empty_fail_catch simp: const_def Let_def)
-
-crunch (empty_fail) empty_fail[intro!, wp, simp]: getDomainTime
-crunch (empty_fail) empty_fail[intro!, wp, simp]: nextDomain
-crunch (empty_fail) empty_fail[intro!, wp, simp]: scheduleSwitchThreadFastfail, isHighestPrio
+crunch (empty_fail) empty_fail[intro!, wp, simp]:
+  chooseThread, getDomainTime, nextDomain, isHighestPrio
+  (wp: empty_fail_catch)
 
 lemma ThreadDecls_H_schedule_empty_fail[intro!, wp, simp]:
   "empty_fail schedule"
@@ -290,14 +290,14 @@ lemma ThreadDecls_H_schedule_empty_fail[intro!, wp, simp]:
   apply (clarsimp simp: scheduleChooseNewThread_def split: if_split | wp | wpc)+
   done
 
-lemma empty_fail_resetTimer[wp]: "empty_fail resetTimer"
-  by (simp add: resetTimer_def)
+crunch (empty_fail) empty_fail: decodeVCPUInjectIRQ, decodeVCPUWriteReg, decodeVCPUReadReg, doFlush
+  (simp: Let_def)
 
 crunch (empty_fail) empty_fail: callKernel
-(wp: empty_fail_catch simp: const_def Let_def ignore: cacheRangeOp)
+  (wp: empty_fail_catch)
 
 lemma call_kernel_serial:
-  " \<lbrakk> (einvs and (\<lambda>s. event \<noteq> Interrupt \<longrightarrow> ct_running s) and (ct_running or ct_idle) and
+  "\<lbrakk> (einvs and (\<lambda>s. event \<noteq> Interrupt \<longrightarrow> ct_running s) and (ct_running or ct_idle) and
               (\<lambda>s. scheduler_action s = resume_cur_thread)) s;
        \<exists>s'. (s, s') \<in> state_relation \<and>
             (invs' and (\<lambda>s. event \<noteq> Interrupt \<longrightarrow> ct_running' s) and (ct_running' or ct_idle') and

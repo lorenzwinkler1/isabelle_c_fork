@@ -9,9 +9,10 @@
  *)
 
 theory jiraver432
-  imports "../CTranslation"
+  imports "CParser.CTranslation"
 begin
 
+external_file "jiraver432.c"
 install_C_file "jiraver432.c"
 
 thm AnonStruct1'_size

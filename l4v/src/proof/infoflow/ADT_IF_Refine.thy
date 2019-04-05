@@ -9,8 +9,7 @@
  *)
 
 theory ADT_IF_Refine
-imports
-    "ADT_IF" "../refine/$L4V_ARCH/Refine" "../refine/$L4V_ARCH/EmptyFail_H"
+imports "InfoFlow.ADT_IF" "Refine.EmptyFail_H"
 begin
 
 context begin interpretation Arch . (*FIXME: arch_split*)
@@ -96,7 +95,7 @@ lemma kernel_entry_if_valid_domain_time:
    apply (rule hoare_pre)
     apply (wp handle_interrupt_valid_domain_time
            | clarsimp | wpc)+
-   -- "strengthen post of do_machine_op; we know interrupt occurred"
+   \<comment> \<open>strengthen post of do_machine_op; we know interrupt occurred\<close>
    apply (rule_tac Q="\<lambda>_ s. 0 < domain_time s" in hoare_post_imp, fastforce)
    apply (wp+, simp)
    done
@@ -248,7 +247,7 @@ lemma corres_gets_same:
   (do r \<leftarrow> gets f; n r od)
   (do r \<leftarrow> gets g; m r od)"
   apply (rule corres_guard_imp)
-  apply (rule corres_split[where r' = "op ="])
+  apply (rule corres_split[where r' = "(=)"])
    apply simp
    apply (rule corres)
    apply clarsimp
@@ -264,13 +263,13 @@ lemma corres_assert_imp_r:
   by (force simp: corres_underlying_def assert_def return_def bind_def fail_def)
 
 lemma corres_return_same_trivial:
-  "corres_underlying sr b c op= \<top> \<top> (return a) (return a)"
+  "corres_underlying sr b c (=) \<top> \<top> (return a) (return a)"
   by simp
 
 crunch (no_fail) no_fail[wp]: device_memory_update
 
 lemma do_user_op_if_corres:
-   "corres op = (einvs and ct_running and (\<lambda>_. \<forall>t pl pr pxn tcu. f t pl pr pxn tcu \<noteq> {}))
+   "corres (=) (einvs and ct_running and (\<lambda>_. \<forall>t pl pr pxn tcu. f t pl pr pxn tcu \<noteq> {}))
    (invs' and (\<lambda>s. ksSchedulerAction s = ResumeCurrentThread) and
     ct_running')
    (do_user_op_if f tc) (doUserOp_if f tc)"
@@ -312,15 +311,15 @@ lemma do_user_op_if_corres:
   apply (rule corres_assert_imp_r)
    apply fastforce
   apply (rule corres_guard_imp)
-       apply (rule corres_split[OF _ corres_machine_op,where r'="op="])
+       apply (rule corres_split[OF _ corres_machine_op,where r'="(=)"])
          apply clarsimp
-         apply (rule corres_split[where r'="op="])
+         apply (rule corres_split[where r'="(=)"])
             apply clarsimp
-            apply (rule corres_split[OF _ corres_machine_op,where r'="op="])
+            apply (rule corres_split[OF _ corres_machine_op,where r'="(=)"])
                apply clarsimp
-               apply (rule corres_split[OF _ corres_machine_op,where r'="op="])
+               apply (rule corres_split[OF _ corres_machine_op,where r'="(=)"])
                   apply clarsimp
-                  apply (rule corres_split[OF _ corres_machine_op, where r'="op="])
+                  apply (rule corres_split[OF _ corres_machine_op, where r'="(=)"])
                      apply (rule corres_return_same_trivial)
                     apply (wp hoare_TrueI[where P = \<top>] | simp | rule corres_underlying_trivial)+
             apply (clarsimp simp: user_memory_update_def)
@@ -378,7 +377,8 @@ lemma doUserOp_if_invs'[wp]:
   apply (simp add: doUserOp_if_def split_def ex_abs_def)
   apply (wp device_update_invs' dmo_setExMonitor_wp' dmo_invs' | simp)+
          apply (clarsimp simp add: no_irq_modify user_memory_update_def)
-        apply (wp doMachineOp_ct_running' doMachineOp_sch_act select_wp)+
+         apply wpsimp
+        apply (wp doMachineOp_ct_running' select_wp)+
   apply (clarsimp simp: user_memory_update_def simpler_modify_def
                         restrict_map_def
                   split: option.splits)
@@ -433,11 +433,11 @@ lemma corres_ex_abs_lift':
   apply fastforce
   done
 
-lemma gct_corres': "corres_underlying state_relation nf nf' op = \<top> \<top> (gets cur_thread) getCurThread"
+lemma gct_corres': "corres_underlying state_relation nf nf' (=) \<top> \<top> (gets cur_thread) getCurThread"
   by (simp add: getCurThread_def curthread_relation)
 
 lemma user_mem_corres':
-  "corres_underlying state_relation nf nf' (op =) invs invs' (gets (\<lambda>x. g (user_mem x))) (gets (\<lambda>x. g (user_mem' x)))"
+  "corres_underlying state_relation nf nf' (=) invs invs' (gets (\<lambda>x. g (user_mem x))) (gets (\<lambda>x. g (user_mem' x)))"
   by (clarsimp simp add: gets_def get_def return_def bind_def
                          invs_def invs'_def
                          corres_underlying_def user_mem_relation)
@@ -456,7 +456,7 @@ lemma corres_assert':
   by (clarsimp simp: corres_underlying_def assert_def return_def fail_def)
 
 lemma do_user_op_if_corres':
-   "corres_underlying state_relation nf False op = (einvs and ct_running)
+   "corres_underlying state_relation nf False (=) (einvs and ct_running)
    (invs' and (\<lambda>s. ksSchedulerAction s = ResumeCurrentThread) and
     ct_running')
    (do_user_op_if f tc) (doUserOp_if f tc)"
@@ -496,17 +496,17 @@ lemma do_user_op_if_corres':
   apply (rule corres_assert_imp_r)
    apply fastforce
   apply (rule corres_guard_imp)
-       apply (rule corres_split[OF _ corres_machine_op',where r'="op="])
+       apply (rule corres_split[OF _ corres_machine_op',where r'="(=)"])
          apply simp
          apply (rule corres_split[where r'="dc"])
             apply simp
-            apply (rule corres_split[where r'="op="])
+            apply (rule corres_split[where r'="(=)"])
                apply clarsimp
-               apply (rule corres_split[OF _ corres_machine_op',where r'="op="])
+               apply (rule corres_split[OF _ corres_machine_op',where r'="(=)"])
                   apply simp
-                  apply (rule corres_split[OF _ corres_machine_op', where r'="op="])
+                  apply (rule corres_split[OF _ corres_machine_op', where r'="(=)"])
                      apply simp
-                     apply (rule corres_split[OF _ corres_machine_op', where r'="op="])
+                     apply (rule corres_split[OF _ corres_machine_op', where r'="(=)"])
                      apply (rule corres_return_same_trivial)
                     apply (wp hoare_TrueI[where P = \<top>] | simp | rule corres_underlying_trivial)+
            apply (clarsimp simp: select_def corres_underlying_def)
@@ -559,7 +559,7 @@ lemma getActiveIRQ_nf: "no_fail (\<lambda>_. True) (getActiveIRQ in_kernel)"
      apply (wp del: no_irq | simp)+
   done
 
-lemma dmo_getActiveIRQ_corres: "corres op = \<top> \<top> (do_machine_op (getActiveIRQ in_kernel))
+lemma dmo_getActiveIRQ_corres: "corres (=) \<top> \<top> (do_machine_op (getActiveIRQ in_kernel))
      (doMachineOp (getActiveIRQ in_kernel'))"
   apply (rule SubMonad_R.corres_machine_op)
      apply (rule corres_Id)
@@ -569,11 +569,11 @@ lemma dmo_getActiveIRQ_corres: "corres op = \<top> \<top> (do_machine_op (getAct
    done
 
 lemma check_active_irq_if_corres:
-  "corres (op =) \<top> \<top> (check_active_irq_if tc) (checkActiveIRQ_if tc)"
+  "corres (=) \<top> \<top> (check_active_irq_if tc) (checkActiveIRQ_if tc)"
   apply (simp add: checkActiveIRQ_if_def check_active_irq_if_def)
-  apply (rule corres_underlying_split[where r'="op ="])
+  apply (rule corres_underlying_split[where r'="(=)"])
   apply (rule dmo_getActiveIRQ_corres)
-  apply (wp del: dmo_silc_dom add: do_machine_op_domain_list)+
+  apply wp+
   apply clarsimp
   done
 
@@ -637,12 +637,12 @@ definition
 crunch (empty_fail) empty_fail: handlePreemption_if
 
 lemma handle_preemption_if_corres:
- "corres op = (einvs)
+ "corres (=) (einvs)
    (invs')
    (handle_preemption_if tc) (handlePreemption_if tc)"
   apply (simp add: handlePreemption_if_def handle_preemption_if_def)
   apply (rule corres_guard_imp)
-    apply (rule corres_split[where r'="op ="])
+    apply (rule corres_split[where r'="(=)"])
        apply (rule corres_split[where r'="dc"])
           apply simp
          apply (rule corres_when)
@@ -710,7 +710,7 @@ crunch (empty_fail) empty_fail: schedule'_if
 
 
 lemma schedule_if_corres:
- "corres op = (invs and valid_sched and valid_list)
+ "corres (=) (invs and valid_sched and valid_list)
    (invs')
    (schedule_if tc) (schedule'_if tc)"
   apply (simp add: schedule_if_def schedule'_if_def)
@@ -797,12 +797,12 @@ definition
 crunch (empty_fail) empty_fail: kernelExit_if
 
 lemma kernel_exit_if_corres:
- "corres op = (invs)
+ "corres (=) (invs)
    (invs')
    (kernel_exit_if tc) (kernelExit_if tc)"
   apply (simp add: kernel_exit_if_def kernelExit_if_def)
   apply (rule corres_guard_imp)
-    apply (rule corres_split[where r'="op ="])
+    apply (rule corres_split[where r'="(=)"])
        apply simp
        apply (rule threadget_corres)
        apply (clarsimp simp: tcb_relation_def arch_tcb_relation_def
@@ -1197,7 +1197,7 @@ lemma kernelEntry_if_valid_domain_time:
   apply (clarsimp simp: handleEvent_def)
   apply (rule hoare_pre)
    apply (wp handleInterrupt_valid_domain_time | wpc | clarsimp)+
-       apply (rule hoare_false_imp) -- "debugPrint"
+       apply (rule hoare_false_imp) \<comment> \<open>debugPrint\<close>
        apply (wp handleInterrupt_valid_domain_time hoare_vcg_all_lift hoare_drop_imps | simp)+
   done
 
@@ -1232,26 +1232,16 @@ lemma haskell_invs:
   "global_automaton_invs checkActiveIRQ_H_if (doUserOp_H_if uop)
                          kernelCall_H_if handlePreemption_H_if
                          schedule'_H_if kernelExit_H_if full_invs_if' (ADT_H_if uop) UNIV"
-  including no_pre
   supply conj_cong[cong]
   apply (unfold_locales)
                apply (simp add: ADT_H_if_def)
-               apply blast
               apply (simp_all add: checkActiveIRQ_H_if_def doUserOp_H_if_def
                                     kernelCall_H_if_def handlePreemption_H_if_def
                                     schedule'_H_if_def kernelExit_H_if_def split del: if_split)[12]
-              apply (rule preserves_lifts | wp | simp add: full_invs_if'_def)+
-            apply (wp_once hoare_disjI1)
-             apply (rule preserves_lifts | wp | simp add: full_invs_if'_def)+
-           apply (wp_once hoare_disjI2)
-            apply (rule preserves_lifts | wp | simp add: full_invs_if'_def)+
-              apply (rule hoare_pre)
-               apply (rule hoare_vcg_conj_lift)
-                apply (rule hoare_drop_imps)
-                apply wp
-               apply (wp_once hoare_disjI1)
-                apply wp+
-              apply (clarsimp simp: active_from_running')+
+              apply (rule preserves_lifts | wp | simp add: full_invs_if'_def
+                  | wp_once hoare_vcg_disj_lift)+
+          apply (wp | wp_once hoare_vcg_disj_lift hoare_drop_imps)+
+         apply simp
         apply (rule preserves_lifts)
         apply (simp add: full_invs_if'_def)
         apply (wp kernelEntry_if_ksDomainTime_inv ; simp)
@@ -1485,7 +1475,7 @@ end
 
 lemma
   step_corres_lift:
-   "(\<And>tc. corres_underlying srel False nf (op =)
+   "(\<And>tc. corres_underlying srel False nf (=)
              (\<lambda>s. ((tc,s),mode) \<in> P) (\<lambda>s'. ((tc,s'),mode) \<in> P') (f tc) (f' tc)) \<Longrightarrow>
     (\<And>tc. nf \<Longrightarrow> empty_fail (f' tc)) \<Longrightarrow>
     step_corres nf (lift_snd_rel srel) mode P
@@ -1500,7 +1490,7 @@ lemma
   done
 
 lemma step_corres_lift':
-  "(\<And>tc. corres_underlying srel False nf (op =)
+  "(\<And>tc. corres_underlying srel False nf (=)
             (\<lambda>s. ((tc,s),mode) \<in> P) (\<lambda>s'. ((tc,s'),mode) \<in> P') (f u tc) (f' u tc)) \<Longrightarrow>
    (\<And>tc. nf \<Longrightarrow> empty_fail (f' u tc)) \<Longrightarrow>
    step_corres nf (lift_snd_rel srel) mode
@@ -1533,7 +1523,7 @@ lemma step_corres_lift'':
   done
 
 lemma step_corres_lift''':
-  "(\<And>tc. corres_underlying srel False nf op = (\<lambda>s. ((tc,s),mode) \<in> P)
+  "(\<And>tc. corres_underlying srel False nf (=) (\<lambda>s. ((tc,s),mode) \<in> P)
             (\<lambda>s'. ((tc,s'),mode) \<in> P') (f tc) (f' tc)) \<Longrightarrow>
    (\<And>tc. nf \<Longrightarrow> empty_fail (f' tc)) \<Longrightarrow>
   step_corres nf (lift_snd_rel srel) mode
@@ -1548,7 +1538,7 @@ lemma step_corres_lift''':
   done
 
 lemma step_corres_lift'''':
-  "(\<And>tc. corres_underlying srel False nf op = (\<lambda>s. ((tc,s),mode) \<in> P)
+  "(\<And>tc. corres_underlying srel False nf (=) (\<lambda>s. ((tc,s),mode) \<in> P)
             (\<lambda>s'. ((tc,s'),mode) \<in> P') (f tc) (f' tc)) \<Longrightarrow>
    (\<And>tc. nf \<Longrightarrow> empty_fail (f' tc)) \<Longrightarrow>
    (\<And>tc s s'. (s,s') \<in> srel \<Longrightarrow> S' s' \<Longrightarrow> S s \<Longrightarrow> y s = y' s') \<Longrightarrow>

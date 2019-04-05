@@ -65,19 +65,14 @@ where
 |
 "ensure_safe_mapping (VMPDPTE InvalidPDPTE, _) = returnOk ()"
 |
-"ensure_safe_mapping (VMPTE (SmallPagePTE _ _ _), pt_slot) =
-    doE
-        pte \<leftarrow> liftE $ get_pte pt_slot;
-        (case pte of
-              InvalidPTE \<Rightarrow> returnOk ()
-            | _ \<Rightarrow> throwError DeleteFirst)
-    odE"
+"ensure_safe_mapping (VMPTE (SmallPagePTE _ _ _), pt_slot) = returnOk ()"
 |
 "ensure_safe_mapping (VMPDE (LargePagePDE _ _ _), pd_slot) =
     doE
         pde \<leftarrow> liftE $ get_pde pd_slot;
         (case pde of
               InvalidPDE \<Rightarrow> returnOk ()
+            | LargePagePDE _ _ _ \<Rightarrow> returnOk ()
             | _ \<Rightarrow> throwError DeleteFirst)
     odE"
 |
@@ -86,6 +81,7 @@ where
         pdpt \<leftarrow> liftE $ get_pdpte pdpt_slot;
         (case pdpt of
               InvalidPDPTE \<Rightarrow> returnOk ()
+            | HugePagePDPTE _ _ _ \<Rightarrow> returnOk ()
             | _ \<Rightarrow> throwError DeleteFirst)
     odE"
 |
@@ -119,7 +115,7 @@ find_vspace_for_asid :: "asid \<Rightarrow> (obj_ref,'z::state_ext) lf_monad" wh
     pool \<leftarrow> (case pool_ptr of
                Some ptr \<Rightarrow> liftE $ get_asid_pool ptr
              | None \<Rightarrow> throwError InvalidRoot);
-    pml4 \<leftarrow> returnOk (pool (ucast asid));
+    pml4 \<leftarrow> returnOk (pool (asid_low_bits_of asid));
     (case pml4 of
           Some ptr \<Rightarrow> returnOk ptr
         | None \<Rightarrow> throwError InvalidRoot)
@@ -157,21 +153,14 @@ where
 definition
   set_current_cr3 :: "cr3 \<Rightarrow> (unit,'z::state_ext) s_monad"
 where
-  "set_current_cr3 c \<equiv> do
-     modify (\<lambda>s. s \<lparr>arch_state := (arch_state s) \<lparr>x64_current_cr3 := c\<rparr>\<rparr>);
-     do_machine_op $ writeCR3 (cr3_base_address c) (cr3_pcid c)
-   od"
+  "set_current_cr3 c \<equiv>
+     modify (\<lambda>s. s \<lparr>arch_state := (arch_state s) \<lparr>x64_current_cr3 := c\<rparr>\<rparr>)"
 
 definition
-  invalidate_local_page_structure_cache_asid :: "obj_ref \<Rightarrow> asid \<Rightarrow> (unit, 'z::state_ext) s_monad"
+  invalidate_page_structure_cache_asid :: "obj_ref \<Rightarrow> asid \<Rightarrow> (unit, 'z::state_ext) s_monad"
 where
-  "invalidate_local_page_structure_cache_asid vspace asid \<equiv> do
-     cur_cr3 \<leftarrow> get_current_cr3;
-     set_current_cr3 (cr3 vspace asid);
-     set_current_cr3 cur_cr3
-   od"
-
-abbreviation "invalidate_page_structure_cache_asid \<equiv> invalidate_local_page_structure_cache_asid"
+  "invalidate_page_structure_cache_asid vspace asid \<equiv>
+     do_machine_op $ invalidateLocalPageStructureCacheASID vspace (ucast asid)"
 
 definition
   getCurrentVSpaceRoot :: "(obj_ref, 'z::state_ext) s_monad"
@@ -182,9 +171,17 @@ where
    od"
 
 definition
+  "cr3_addr_mask \<equiv> mask pml4_shift_bits << asid_bits"
+
+definition
+  make_cr3 :: "obj_ref \<Rightarrow> asid \<Rightarrow> cr3"
+where
+  "make_cr3 vspace asid \<equiv> cr3 (vspace && cr3_addr_mask) asid"
+
+definition
   set_current_vspace_root :: "obj_ref \<Rightarrow> asid \<Rightarrow> (unit, 'z::state_ext) s_monad"
 where
-  "set_current_vspace_root vspace asid \<equiv> set_current_cr3 $ cr3 vspace asid"
+  "set_current_vspace_root vspace asid \<equiv> set_current_cr3 $ make_cr3 vspace asid"
 
 text {* Switch into the address space of a given thread or the global address
 space if none is correctly configured. *}
@@ -198,8 +195,8 @@ definition
            pml4' \<leftarrow> find_vspace_for_asid asid;
            whenE (pml4 \<noteq> pml4') $ throwError InvalidRoot;
            cur_cr3 \<leftarrow> liftE $ get_current_cr3;
-           whenE (cur_cr3 \<noteq> cr3 (addrFromPPtr pml4) asid) $
-              liftE $ set_current_cr3 $ cr3 (addrFromPPtr pml4) asid
+           whenE (cur_cr3 \<noteq> make_cr3 (addrFromPPtr pml4) asid) $
+              liftE $ set_current_cr3 $ make_cr3 (addrFromPPtr pml4) asid
        odE
      | _ \<Rightarrow> throwError InvalidRoot) <catch>
     (\<lambda>_. do
@@ -211,19 +208,19 @@ od"
 text {* Remove virtual to physical mappings in either direction involving this
 virtual ASID. *}
 definition
-invalidate_asid_entry :: "asid \<Rightarrow> obj_ref \<Rightarrow> (unit,'z::state_ext) s_monad" where
-"invalidate_asid_entry asid vspace \<equiv>
-  do_machine_op $ hwASIDInvalidate vspace asid"
+hw_asid_invalidate :: "asid \<Rightarrow> obj_ref \<Rightarrow> (unit,'z::state_ext) s_monad" where
+"hw_asid_invalidate asid vspace \<equiv>
+  do_machine_op $ invalidateASID vspace (ucast asid)"
 
 definition
 delete_asid_pool :: "asid \<Rightarrow> obj_ref \<Rightarrow> (unit,'z::state_ext) s_monad" where
 "delete_asid_pool base ptr \<equiv> do
-  assert (base && mask asid_low_bits = 0);
+  assert (asid_low_bits_of base = 0);
   asid_table \<leftarrow> gets (x64_asid_table \<circ> arch_state);
   when (asid_table (asid_high_bits_of base) = Some ptr) $ do
     pool \<leftarrow> get_asid_pool ptr;
     mapM (\<lambda>offset. (when (pool (ucast offset) \<noteq> None) $
-                          invalidate_asid_entry (base + offset) (the (pool (ucast offset)))))
+                          hw_asid_invalidate (base + offset) (the (pool (ucast offset)))))
                     [0 .e. (1 << asid_low_bits) - 1];
     asid_table' \<leftarrow> return (asid_table (asid_high_bits_of base:= None));
     modify (\<lambda>s. s \<lparr> arch_state := (arch_state s) \<lparr> x64_asid_table := asid_table' \<rparr>\<rparr>);
@@ -242,9 +239,9 @@ delete_asid :: "asid \<Rightarrow> obj_ref \<Rightarrow> (unit,'z::state_ext) s_
     None \<Rightarrow> return ()
   | Some pool_ptr \<Rightarrow>  do
      pool \<leftarrow> get_asid_pool pool_ptr;
-     when (pool (ucast asid) = Some pml4) $ do
-                invalidate_asid_entry asid pml4;
-                pool' \<leftarrow> return (pool (ucast asid := None));
+     when (pool (asid_low_bits_of asid) = Some pml4) $ do
+                hw_asid_invalidate asid pml4;
+                pool' \<leftarrow> return (pool (asid_low_bits_of asid := None));
                 set_asid_pool pool_ptr pool';
                 tcb \<leftarrow> gets cur_thread;
                 set_vm_root tcb
@@ -254,7 +251,7 @@ od"
 
 definition
   flush_all :: "obj_ref \<Rightarrow> asid \<Rightarrow> (unit,'z::state_ext) s_monad" where
-  "flush_all vspace asid \<equiv> do_machine_op $ invalidateASID vspace asid "
+  "flush_all vspace asid \<equiv> do_machine_op $ invalidateASID vspace (ucast asid)"
 
 abbreviation
   flush_pdpt :: "obj_ref \<Rightarrow> asid \<Rightarrow> (unit,'z::state_ext) s_monad" where
@@ -274,7 +271,7 @@ flush_table :: "obj_ref \<Rightarrow> vspace_ref \<Rightarrow> obj_ref \<Rightar
              pte \<leftarrow> return $ pt index;
              case pte of
                InvalidPTE \<Rightarrow> return ()
-             | _ \<Rightarrow> do_machine_op $ invalidateTranslationSingleASID (vptr + (ucast index << pageBits)) asid
+             | _ \<Rightarrow> do_machine_op $ invalidateTranslationSingleASID (vptr + (ucast index << pageBits)) (ucast asid)
            od)
 od"
 
@@ -341,11 +338,6 @@ check_mapping_pptr :: "machine_word \<Rightarrow> vm_page_entry \<Rightarrow> bo
  | VMPDPTE (HugePagePDPTE base _ _) \<Rightarrow> base = addrFromPPtr pptr
  | _ \<Rightarrow> False"
 
-(* FIXME: move to generic *)
-text {* Raise an exception if a property does not hold. *}
-definition
-throw_on_false :: "'e \<Rightarrow> (bool,'z::state_ext) s_monad \<Rightarrow> ('e + unit,'z::state_ext) s_monad" where
-"throw_on_false ex f \<equiv> doE v \<leftarrow> liftE f; unlessE v $ throwError ex odE"
 
 text {* Unmap a mapped page if the given mapping details are still current. *}
 definition
@@ -371,7 +363,7 @@ unmap_page :: "vmpage_size \<Rightarrow> asid \<Rightarrow> vspace_ref \<Rightar
             unlessE (check_mapping_pptr pptr (VMPDPTE pdpte)) $ throwError InvalidRoot;
             liftE $ store_pdpte pdpt_slot InvalidPDPTE
           odE;
-    liftE $ do_machine_op $ invalidateTranslationSingleASID vptr asid
+    liftE $ do_machine_op $ invalidateTranslationSingleASID vptr (ucast asid)
 odE <catch> (K $ return ())"
 
 
@@ -380,67 +372,68 @@ have a virtual ASID and location assigned. This is because they
 cannot have multiple current virtual ASIDs and cannot be shared
 between address spaces or virtual locations. *}
 definition
-  arch_derive_cap :: "arch_cap \<Rightarrow> (arch_cap,'z::state_ext) se_monad"
+  arch_derive_cap :: "arch_cap \<Rightarrow> (cap,'z::state_ext) se_monad"
 where
   "arch_derive_cap c \<equiv> case c of
-     PageTableCap _ (Some x) \<Rightarrow> returnOk c
+     PageTableCap _ (Some x) \<Rightarrow> returnOk (ArchObjectCap c)
    | PageTableCap _ None \<Rightarrow> throwError IllegalOperation
-   | PageDirectoryCap _ (Some x) \<Rightarrow> returnOk c
+   | PageDirectoryCap _ (Some x) \<Rightarrow> returnOk (ArchObjectCap c)
    | PageDirectoryCap _ None \<Rightarrow> throwError IllegalOperation
-   | PDPointerTableCap _ (Some x) \<Rightarrow> returnOk c
+   | PDPointerTableCap _ (Some x) \<Rightarrow> returnOk (ArchObjectCap c)
    | PDPointerTableCap _ None \<Rightarrow> throwError IllegalOperation
-   | PML4Cap _ (Some x) \<Rightarrow> returnOk c
+   | PML4Cap _ (Some x) \<Rightarrow> returnOk (ArchObjectCap c)
    | PML4Cap _ None \<Rightarrow> throwError IllegalOperation
-   | PageCap dev r R mt pgs x \<Rightarrow> returnOk (PageCap dev r R VMNoMap pgs None)
-   | ASIDControlCap \<Rightarrow> returnOk c
-   | ASIDPoolCap _ _ \<Rightarrow> returnOk c
+   | PageCap dev r R mt pgs x \<Rightarrow> returnOk $ ArchObjectCap (PageCap dev r R VMNoMap pgs None)
+   | ASIDControlCap \<Rightarrow> returnOk (ArchObjectCap c)
+   | ASIDPoolCap _ _ \<Rightarrow> returnOk (ArchObjectCap c)
 (* FIXME x64-vtd: *)
 (*
    | IOSpaceCap _ _ \<Rightarrow> returnOk c
    | IOPageTableCap _ _ _ \<Rightarrow> returnOk c
 *)
-   | IOPortCap _ _ \<Rightarrow> returnOk c"
+   | IOPortCap _ _ \<Rightarrow> returnOk (ArchObjectCap c)
+   | IOPortControlCap \<Rightarrow> returnOk NullCap"
 
-(* FIXME: update when IOSpace comes through, first/last ports may be wrong order *)
 text {* No user-modifiable data is stored in x64-specific capabilities. *}
 definition
-  arch_update_cap_data :: "data \<Rightarrow> arch_cap \<Rightarrow> cap"
+  arch_update_cap_data :: "bool \<Rightarrow> data \<Rightarrow> arch_cap \<Rightarrow> cap"
 where
-  "arch_update_cap_data data c \<equiv> ArchObjectCap c"
+  "arch_update_cap_data preserve data c \<equiv> ArchObjectCap c"
 
 
 text {* Actions that must be taken on finalisation of x64-specific
 capabilities. *}
 definition
-  arch_finalise_cap :: "arch_cap \<Rightarrow> bool \<Rightarrow> (cap,'z::state_ext) s_monad"
+  arch_finalise_cap :: "arch_cap \<Rightarrow> bool \<Rightarrow> (cap \<times> cap,'z::state_ext) s_monad"
 where
   "arch_finalise_cap c x \<equiv> case (c, x) of
     (ASIDPoolCap ptr b, True) \<Rightarrow>  do
     delete_asid_pool b ptr;
-    return NullCap
+    return (NullCap, NullCap)
     od
   | (PML4Cap ptr (Some a), True) \<Rightarrow> do
     delete_asid a ptr;
-    return NullCap
+    return (NullCap, NullCap)
   od
   | (PDPointerTableCap ptr (Some (a,v)), True) \<Rightarrow> do
     unmap_pdpt a v ptr;
-    return NullCap
+    return (NullCap, NullCap)
   od
   | (PageDirectoryCap ptr (Some (a,v)), True) \<Rightarrow> do
     unmap_pd a v ptr;
-    return NullCap
+    return (NullCap, NullCap)
   od
   | (PageTableCap ptr (Some (a, v)), True) \<Rightarrow> do
     unmap_page_table a v ptr;
-    return NullCap
+    return (NullCap, NullCap)
   od
   | (PageCap _ ptr _ _ s (Some (a, v)), _) \<Rightarrow> do
      unmap_page s a v ptr;
-     return NullCap
+     return (NullCap, NullCap)
   od
-  (* FIXME: IOSpaceCap and IOPageTableCap *)
-  | _ \<Rightarrow> return NullCap"
+  | (IOPortCap f l, True) \<Rightarrow> return (NullCap, (ArchObjectCap (IOPortCap f l)))
+  (* FIXME x64-vtd: IOSpaceCap and IOPageTableCap for arch_finalise_cap *)
+  | _ \<Rightarrow> return (NullCap, NullCap)"
 
 
 
@@ -449,44 +442,6 @@ to be valid on the x64 architecture. *}
 definition
   is_valid_vtable_root :: "cap \<Rightarrow> bool" where
   "is_valid_vtable_root c \<equiv> \<exists>r a. c = ArchObjectCap (PML4Cap r (Some a))"
-
-text {* A thread's IPC buffer capability must be to a page that is capable of
-containing the IPC buffer without the end of the buffer spilling into another
-page. *}
-definition
-  cap_transfer_data_size :: nat where
-  "cap_transfer_data_size \<equiv> 3"
-
-definition
-  msg_max_length :: nat where
- "msg_max_length \<equiv> 120"
-
-definition
-  msg_max_extra_caps :: nat where
- "msg_max_extra_caps \<equiv> 3"
-
-definition
-  msg_align_bits :: nat
-  where
-  "msg_align_bits \<equiv> word_size_bits + (LEAST n. (cap_transfer_data_size + msg_max_length + msg_max_extra_caps + 2) \<le> 2 ^ n)"
-
-lemma msg_align_bits:
-  "msg_align_bits = 10"
-proof -
-  have "(LEAST n. (cap_transfer_data_size + msg_max_length + msg_max_extra_caps + 2) \<le> 2 ^ n) = 7"
-  proof (rule Least_equality)
-    show "(cap_transfer_data_size + msg_max_length + msg_max_extra_caps + 2)  \<le> 2 ^ 7"
-      by (simp add: cap_transfer_data_size_def msg_max_length_def msg_max_extra_caps_def)
-  next
-    fix y
-    assume "(cap_transfer_data_size + msg_max_length + msg_max_extra_caps + 2) \<le> 2 ^ y"
-    hence "(2 :: nat) ^ 7 \<le> 2 ^ y"
-      by (simp add: cap_transfer_data_size_def msg_max_length_def msg_max_extra_caps_def)
-    thus "7 \<le> y"
-      by (rule power_le_imp_le_exp [rotated], simp)
-  qed
-  thus ?thesis unfolding msg_align_bits_def by (simp add: word_size_bits_def)
-qed
 
 definition
 check_valid_ipc_buffer :: "vspace_ref \<Rightarrow> cap \<Rightarrow> (unit,'z::state_ext) se_monad" where
@@ -497,29 +452,21 @@ check_valid_ipc_buffer :: "vspace_ref \<Rightarrow> cap \<Rightarrow> (unit,'z::
   odE
 | _ \<Rightarrow> throwError IllegalOperation"
 
-(* FIXME: move vm_rights to generic *)
-text {* On the abstract level, capability and VM rights share the same type.
-  Nevertheless, a simple set intersection might lead to an invalid value like
-  @{term "{AllowWrite}"}.  Hence, @{const validate_vm_rights}. *}
-definition
-  mask_vm_rights :: "vm_rights \<Rightarrow> cap_rights \<Rightarrow> vm_rights" where
-  "mask_vm_rights V R \<equiv> validate_vm_rights (V \<inter> R)"
-
 text {* Decode a user argument word describing the kind of VM attributes a
 mapping is to have. *}
 definition
 attribs_from_word :: "machine_word \<Rightarrow> frame_attrs" where
 "attribs_from_word w \<equiv>
   let V = (if w !!0 then {PTAttr WriteThrough} else {});
-      V' = (if w!!1 then insert PAT V else V)
-  in if w!!2 then insert (PTAttr CacheDisabled) V' else V'"
+      V' = (if w!!1 then insert (PTAttr CacheDisabled) V else V)
+  in if w!!2 then insert PAT V' else V'"
 
 
 text {* Update the mapping data saved in a page or page table capability. *}
 definition
-  update_map_data :: "arch_cap \<Rightarrow> (asid \<times> vspace_ref) option \<Rightarrow> arch_cap" where
-  "update_map_data cap m \<equiv> case cap of
-     PageCap dev p R mt sz _ \<Rightarrow> PageCap dev p R mt sz m
+  update_map_data :: "arch_cap \<Rightarrow> (asid \<times> vspace_ref) option \<Rightarrow> vmmap_type option \<Rightarrow> arch_cap" where
+  "update_map_data cap m mt \<equiv> case cap of
+     PageCap dev p R _ sz _ \<Rightarrow> PageCap dev p R (the mt) sz m
    | PageTableCap p _ \<Rightarrow> PageTableCap p m
    | PageDirectoryCap p _ \<Rightarrow> PageDirectoryCap p m
    | PDPointerTableCap p _ \<Rightarrow> PDPointerTableCap p m"
@@ -534,9 +481,20 @@ definition
         Some (ArchObj (DataPage False sz))"
 
 definition
+  fpu_thread_delete :: "obj_ref \<Rightarrow> (unit, 'z::state_ext) s_monad"
+where
+  "fpu_thread_delete thread_ptr \<equiv> do
+    using_fpu \<leftarrow> do_machine_op (nativeThreadUsingFPU thread_ptr);
+    when using_fpu $ do_machine_op (switchFpuOwner 0 0)
+  od"
+
+definition
   prepare_thread_delete :: "obj_ref \<Rightarrow> (unit,'z::state_ext) s_monad"
 where
-  "prepare_thread_delete p \<equiv> return ()"
+  "prepare_thread_delete thread_ptr \<equiv> fpu_thread_delete thread_ptr"
+
+text {* Make numeric value of @{const msg_align_bits} visible. *}
+lemmas msg_align_bits = msg_align_bits'[unfolded word_size_bits_def, simplified]
 
 end
 end

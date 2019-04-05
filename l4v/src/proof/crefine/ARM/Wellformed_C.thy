@@ -13,9 +13,9 @@
 
 theory Wellformed_C
 imports
-  "../../../lib/CTranslationNICTA"
+  "CLib.CTranslationNICTA"
   CLevityCatch
-  "../../../spec/cspec/Substitute"
+  "CSpec.Substitute"
 begin
 
 context begin interpretation Arch . (*FIXME: arch_split*)
@@ -99,11 +99,11 @@ definition
 definition
   ep_at_C' :: "word32 \<Rightarrow> heap_raw_state \<Rightarrow> bool"
 where
-  "ep_at_C' p h \<equiv> Ptr p \<in> dom (clift h :: endpoint_C typ_heap)" -- "endpoint_lift is total"
+  "ep_at_C' p h \<equiv> Ptr p \<in> dom (clift h :: endpoint_C typ_heap)" \<comment> \<open>endpoint_lift is total\<close>
 
 definition
   ntfn_at_C' :: "word32 \<Rightarrow> heap_raw_state \<Rightarrow> bool"
-  where -- "notification_lift is total"
+  where \<comment> \<open>notification_lift is total\<close>
   "ntfn_at_C' p h \<equiv> Ptr p \<in> dom (clift h :: notification_C typ_heap)"
 
 definition
@@ -115,18 +115,6 @@ definition
   cte_at_C' :: "word32 \<Rightarrow> heap_raw_state \<Rightarrow> bool"
   where
   "cte_at_C' p h \<equiv> Ptr p \<in> dom (clift h :: cte_C typ_heap)"
-
-definition
-  ctcb_size_bits :: nat
-  where
-  "ctcb_size_bits \<equiv> 8"
-
-definition
-  ctcb_offset :: word32
-  where
-  "ctcb_offset \<equiv> 2 ^ ctcb_size_bits"
-
-lemmas ctcb_offset_defs = ctcb_offset_def ctcb_size_bits_def
 
 definition
   ctcb_ptr_to_tcb_ptr :: "tcb_C ptr \<Rightarrow> word32"
@@ -221,8 +209,8 @@ abbreviation
   ARMSuperSection :: "vmpage_size" where
  "ARMSuperSection == ARM.ARMSuperSection"
 
--- "ARMSmallFrame is treated in a separate cap in C,
-    so needs special treatment in ccap_relation"
+\<comment> \<open>ARMSmallFrame is treated in a separate cap in C,
+    so needs special treatment in ccap_relation\<close>
 definition
 framesize_to_H:: "word32 \<Rightarrow> vmpage_size" where
 "framesize_to_H c \<equiv>
@@ -230,7 +218,7 @@ framesize_to_H:: "word32 \<Rightarrow> vmpage_size" where
   else if c = scast Kernel_C.ARMSection then ARMSection
   else ARMSuperSection"
 
--- "Use this for results of generic_frame_cap_get_capFSize"
+\<comment> \<open>Use this for results of generic_frame_cap_get_capFSize\<close>
 definition
 gen_framesize_to_H:: "word32 \<Rightarrow> vmpage_size" where
 "gen_framesize_to_H c \<equiv>

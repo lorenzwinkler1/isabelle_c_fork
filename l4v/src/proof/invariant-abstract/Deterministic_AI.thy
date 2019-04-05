@@ -16,15 +16,14 @@ context begin interpretation Arch .
 requalify_facts
   update_work_units_empty_fail
   reset_work_units_empty_fail
-  get_cap_kheap
   set_domain_empty_fail
   thread_set_domain_empty_fail
+  arch_post_cap_deletion_valid_list
 end
 
 lemmas [wp] =
   update_work_units_empty_fail
   reset_work_units_empty_fail
-  get_cap_kheap
   set_domain_empty_fail
   thread_set_domain_empty_fail
 
@@ -1500,7 +1499,7 @@ lemma exst_cdt_update[iff]:
   by simp
 
 definition valid_mdb_weak where
-"valid_mdb_weak s \<equiv> mdb_cte_at (swp (cte_wp_at (op \<noteq> NullCap)) s) (cdt s) \<and> no_mloop (cdt s)"
+"valid_mdb_weak s \<equiv> mdb_cte_at (swp (cte_wp_at ((\<noteq>) NullCap)) s) (cdt s) \<and> no_mloop (cdt s)"
 
 lemma self_parent_eq: "m src = Some src \<Longrightarrow> m(dest \<mapsto> src) = m (dest := m src)"
   by simp
@@ -1519,7 +1518,6 @@ crunch (empty_fail) empty_fail[wp]: cap_insert_ext
 interpretation cap_insert_ext_extended: is_extended "cap_insert_ext a b c d e"
   by (unfold_locales; wp)
 
-
 lemma cap_insert_valid_list [wp]:
   notes split_paired_All[simp del] split_paired_Ex[simp del]
   shows
@@ -1529,7 +1527,6 @@ lemma cap_insert_valid_list [wp]:
   apply (simp add: cap_insert_def)
   apply(simp add: set_untyped_cap_as_full_def update_cdt_def set_cdt_def update_cdt_list_def set_cdt_list_def bind_assoc cap_insert_ext_def)
   apply (rule hoare_pre)
-   apply (fold revokable_def)
    apply (wp | simp cong: option.case_cong if_cong del: fun_upd_apply split del: if_split)+
        apply(wp set_cap_caps_of_state3)[1]
       apply (case_tac "is_untyped_cap src_cap \<and>
@@ -1563,7 +1560,7 @@ lemma cap_insert_valid_list [wp]:
     prefer 2
     apply (rule mdb_insert_abs_sib_simple_no_parent.intro,assumption)
     apply (rule mdb_insert_abs_sib_simple_no_parent_axioms.intro,simp)
-   apply(case_tac"should_be_parent_of capa (is_original_cap s src) cap (revokable capa cap)")
+   apply(case_tac"should_be_parent_of capa (is_original_cap s src) cap (is_cap_revocable cap capa)")
     apply (case_tac "cdt s src")
      apply (simp del: fun_upd_apply)
      apply (rule mdb_insert_abs_simple_no_parent.valid_list_post,simp)
@@ -1590,7 +1587,7 @@ lemma cap_insert_valid_list [wp]:
    prefer 2
    apply (rule mdb_insert_abs_sib_simple_parent.intro,assumption)
    apply (rule mdb_insert_abs_sib_simple_parent_axioms.intro,simp)
-  apply(case_tac"should_be_parent_of capa (is_original_cap s src) cap (revokable capa cap)")
+  apply(case_tac"should_be_parent_of capa (is_original_cap s src) cap (is_cap_revocable cap capa)")
    apply (case_tac "cdt s src")
     apply (simp del: fun_upd_apply)
     apply (rule mdb_insert_abs_simple_parent.valid_list_post,simp)
@@ -3121,7 +3118,7 @@ lemma (in mdb_empty_abs') next_slot:
   apply(fastforce split: if_split_asm)
   done
 
-crunch valid_list[wp]: deleted_irq_handler,set_cap valid_list
+crunch valid_list[wp]: post_cap_deletion,set_cap valid_list
 
 crunch all_but_exst[wp]: empty_slot_ext "all_but_exst P"
 

@@ -9,9 +9,10 @@
  *)
 
 theory parse_switch
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "parse_switch.c"
 install_C_file "parse_switch.c"
 
 context parse_switch_global_addresses
@@ -30,7 +31,7 @@ ML {*
 *}
 
 ML {*
-  member op= (map #1 cs) "CProof.strictc_errortype.C_Guard" orelse
+  member (=) (map #1 cs) "CProof.strictc_errortype.C_Guard" orelse
   OS.Process.exit OS.Process.failure
 *}
 

@@ -83,7 +83,8 @@ done
 
 lemma msg_registers_lt_msg_max_length [simp]:
   "length msg_registers < msg_max_length"
-  by (simp add: msgRegisters_unfold msg_max_length_def)
+  by (simp add: msg_registers_def msgRegisters_def upto_enum_def
+                fromEnum_def enum_register msg_max_length_def)
 
 lemma get_tcb_mrs_update_state :
   "get_tcb_mrs ms (tcb_state_update f tcb) = get_tcb_mrs ms tcb"
@@ -119,7 +120,7 @@ lemma transform_full_intent_cong:
   by (simp add: transform_full_intent_def get_tcb_message_info_def get_tcb_mrs_def Suc_le_eq get_ipc_buffer_words_def)
 
 lemma caps_of_state_eq_lift:
-    "\<forall>cap. cte_wp_at (op=cap) p s = cte_wp_at (op=cap) p s' \<Longrightarrow>  caps_of_state s p = caps_of_state s' p"
+  "\<forall>cap. cte_wp_at ((=) cap) p s = cte_wp_at ((=) cap) p s' \<Longrightarrow>  caps_of_state s p = caps_of_state s' p"
   apply (simp add:cte_wp_at_def caps_of_state_def)
   done
 
@@ -134,9 +135,9 @@ lemma caps_of_state_irrelavent_simp:
 fun
    caps_of_object :: "kernel_object \<Rightarrow> (bool list \<rightharpoonup> cap)"
 where
-  "caps_of_object (Structures_A.CNode sz c) = (if well_formed_cnode_n sz c then c else empty)"
+    "caps_of_object (Structures_A.CNode sz c) = (if well_formed_cnode_n sz c then c else Map.empty)"
   | "caps_of_object (Structures_A.TCB t) = (\<lambda>n. option_map (\<lambda>(f, _). f t) (tcb_cap_cases n))"
-  | "caps_of_object _                    = empty"
+  | "caps_of_object _                    = Map.empty"
 
 lemma caps_of_state_def2:
   "caps_of_state s = (\<lambda>ptr. case (option_map caps_of_object (kheap s (fst ptr))) of
@@ -277,12 +278,9 @@ proof -
     done
   show ?thesis
     apply (simp add: map_lift_over_def Q del: inj_on_insert)
-    apply (safe intro!: ext)
-     apply (simp_all add: Q[THEN inv_into_f_f] domI
-                cong del: imp_cong)
-    apply (auto simp add: Q[THEN inv_into_f_f] domI
-                          inj_on_eq_iff[OF inj_f] ranI
-                simp del: inj_on_insert)
+    apply (safe; rule ext; simp add: Q[THEN inv_into_f_f] domI cong del: imp_cong)
+     apply (auto simp add: Q[THEN inv_into_f_f] domI inj_on_eq_iff[OF inj_f] ranI
+                 simp del: inj_on_insert)
     done
 qed
 

@@ -24,6 +24,7 @@ We use the C preprocessor to select a target architecture. Also, this file makes
 
 \begin{impdetails}
 
+> import Prelude hiding (Word)
 > import SEL4.Machine.RegisterSet
 > import Control.Monad(liftM)
 
@@ -213,9 +214,4 @@ The constant "nullPointer" is a physical pointer guaranteed to be invalid.
 
 > nullPointer :: PPtr a
 > nullPointer = PPtr 0
-
-
-> physBase :: PAddr
-> physBase = Arch.physBase
-
 

@@ -9,13 +9,14 @@
  *)
 
 theory fnptr
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
 ML {*
   IsarInstall.install_C_file ((((NONE,NONE),NONE),"fnptr.c"),NONE) @{theory}
 *}
 
+external_file "fnptr.c"
 install_C_file "fnptr.c"
 
 context fnptr_global_addresses

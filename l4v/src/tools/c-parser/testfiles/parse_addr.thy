@@ -9,9 +9,10 @@
  *)
 
 theory parse_addr
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "parse_addr.c"
 install_C_file "parse_addr.c"
 
 context parse_addr_global_addresses

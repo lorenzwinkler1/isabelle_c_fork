@@ -10,8 +10,10 @@
 
 (*<*)
 theory Chapter3_HoareHeap
-imports "../../AutoCorres"
+imports "AutoCorres.AutoCorres"
 begin
+
+external_file "swap.c"
 (*>*)
 
 subsection {* \texttt{swap} *}
@@ -21,7 +23,7 @@ text {*
   Here, we use AutoCorres to verify a C program that reads and writes to the heap.
   Our C function, \texttt{swap}, swaps two words in memory:
 
-\lstinputlisting[language=C, firstline=5]{../../swap.c}
+\lstinputlisting[language=C, firstline=15]{../../swap.c}
 
   Again, we translate the program using the C parser and AutoCorres.
 *}
@@ -71,9 +73,9 @@ text {*
 
   We saw a monadic program in the previous section, but here
   the monad is actually being used to carry the program heap.
-
-  \emph{(Something about heap syntax here.)}
 *}
+
+(* FIXME: something about heap syntax here. *)
 
 text {*
   Now we prove that \texttt{swap} is correct. We use @{term x}

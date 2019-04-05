@@ -25,7 +25,7 @@ definition
 
 lemma collapse_foldl_replicate:
   "replicate (length xs) v = xs \<Longrightarrow>
-   foldl (op @) [] (map (\<lambda>_. xs) ys)
+   foldl (@) [] (map (\<lambda>_. xs) ys)
         = replicateHider (length xs * length ys) v"
   apply (induct ys rule: rev_induct)
    apply (simp add: replicateHider_def)
@@ -328,7 +328,7 @@ lemma clearMemory_PageCap_ccorres:
        apply assumption
       apply (subst heap_to_user_data_update_region)
        apply (drule map_to_user_data_aligned, clarsimp)
-       apply (rule aligned_range_offset_mem_helper[where m=pageBits], simp_all)[1]
+       apply (rule aligned_range_offset_mem[where m=pageBits], simp_all)[1]
        apply (rule pbfs_atleast_pageBits)
       apply (erule cmap_relation_If_upd)
         apply (clarsimp simp: cuser_user_data_relation_def fcp_beta
@@ -343,7 +343,7 @@ lemma clearMemory_PageCap_ccorres:
          apply (simp add: subtract_mask(2)[symmetric])
          apply (cut_tac w="xa - ptr" and n=pageBits in and_not_mask[symmetric])
          apply (simp add: shiftl_t2n field_simps pageBits_def)
-         apply (subst aligned_neg_mask, simp_all)[1]
+         apply (subst is_aligned_neg_mask_eq, simp_all)[1]
          apply (erule aligned_sub_aligned, simp_all add: word_bits_def)[1]
          apply (erule is_aligned_weaken)
          apply (rule pbfs_atleast_pageBits[unfolded pageBits_def])
@@ -356,7 +356,7 @@ lemma clearMemory_PageCap_ccorres:
         apply (simp add: word_bits_def word_size)
        apply (rule IntI)
         apply (clarsimp simp del: atLeastAtMost_iff)
-        apply (subst aligned_range_offset_mem_helper, assumption, simp_all)[1]
+        apply (subst aligned_range_offset_mem, assumption, simp_all)[1]
         apply (rule order_le_less_trans[rotated], erule shiftl_less_t2n [OF of_nat_power],
                simp_all add: word_bits_def)[1]
          apply (insert pageBitsForSize_32 [of sz])[1]
@@ -770,12 +770,6 @@ lemma ccap_relation_get_capZombiePtr_CL:
   apply simp
   done
 
-lemma double_neg_mask:
-  "(~~ mask n) && (~~ mask m) = (~~ mask (max n m))"
-  apply (rule word_eqI)
-  apply (simp add: word_size word_ops_nth_size)
-  apply fastforce
-  done
 
 lemma modify_gets_helper:
   "do y \<leftarrow> modify (ksPSpace_update (\<lambda>_. ps)); ps' \<leftarrow> gets ksPSpace; f ps' od
@@ -1048,7 +1042,8 @@ lemma cancelBadgedSends_ccorres:
               apply (erule(1) cpspace_relation_ep_update_ep2)
                apply (simp add: cendpoint_relation_def Let_def)
                apply (subgoal_tac "tcb_at' (last (a # list)) \<sigma> \<and> tcb_at' a \<sigma>")
-                apply (clarsimp simp: is_aligned_neg_mask [OF is_aligned_tcb_ptr_to_ctcb_ptr[where P=\<top>]])
+                apply (clarsimp simp: is_aligned_neg_mask_weaken[
+                                        OF is_aligned_tcb_ptr_to_ctcb_ptr[where P=\<top>]])
                 subgoal by (simp add: tcb_queue_relation'_def EPState_Send_def mask_def)
                subgoal by (auto split: if_split)
               subgoal by simp
@@ -1070,6 +1065,7 @@ lemma cancelBadgedSends_ccorres:
            apply (rule ccorres_move_c_guard_tcb)
            apply csymbr
            apply (rule ccorres_abstract_cleanup)
+           apply csymbr
            apply (rule ccorres_move_c_guard_tcb)
            apply (rule_tac P=\<top>
                       and P'="{s. ep_queue_relation' (cslift s) (x @ a # lista)
@@ -1086,7 +1082,7 @@ lemma cancelBadgedSends_ccorres:
               subgoal by (simp add: rf_sr_def)
              apply simp
             apply ceqv
-           apply (rule_tac P="b=blockingIPCBadge rva" in ccorres_gen_asm2)
+           apply (rule_tac P="ret__unsigned=blockingIPCBadge rva" in ccorres_gen_asm2)
            apply (rule ccorres_if_bind, rule ccorres_if_lhs)
             apply (simp add: bind_assoc dc_def[symmetric])
             apply (rule ccorres_rhs_assoc)+
@@ -1305,7 +1301,7 @@ lemma updateFreeIndex_ccorres:
    apply (rule ccorres_split_noop_lhs, rule_tac cap'=cap' in updateTrackedFreeIndex_noop_ccorres)
     apply (rule ccorres_pre_getCTE)+
     apply (rename_tac cte cte2)
-    apply (rule_tac P = "\<lambda>s. ?cte_wp_at' s \<and> cte2 = cte \<and> cte_wp_at' (op = cte) srcSlot s"
+    apply (rule_tac P = "\<lambda>s. ?cte_wp_at' s \<and> cte2 = cte \<and> cte_wp_at' ((=) cte) srcSlot s"
               and P'="{s. \<exists>cte cte'. cslift s (cte_Ptr srcSlot) = Some cte'
                \<and> cteCap cte = cap' \<and> ccte_relation cte cte'} \<inter> ?P'" in ccorres_from_vcg)
     apply (rule allI, rule HoarePartial.conseq_exploit_pre, clarify)

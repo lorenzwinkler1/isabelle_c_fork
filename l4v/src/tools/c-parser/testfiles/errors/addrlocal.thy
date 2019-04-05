@@ -9,9 +9,10 @@
  *)
 
 theory addrlocal
-imports "../../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "addrlocal.c";
 install_C_file "addrlocal.c";
 
 end

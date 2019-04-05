@@ -41,7 +41,7 @@ crunch_ignore (add:
 
 crunch_ignore (add:
   storeWordVM loadWord setRegister getRegister getRestartPC
-  debugPrint set_register get_register
+  debugPrint
   setNextPC maskInterrupt clearMemory throw_on_false)
 
 crunch_ignore (add: unifyFailure ignoreFailure)
@@ -91,6 +91,8 @@ lemma isCap_simps:
   "isASIDPoolCap w = (\<exists>v0 v1. w = ASIDPoolCap v0 v1)"
   "isArchPageCap cap = (\<exists>d ref rghts sz data typ. cap = ArchObjectCap (PageCap ref rghts typ sz d data))"
   "isArchIOPortCap cap = (\<exists>f l. cap = ArchObjectCap (IOPortCap f l))"
+  "isIOPortControlCap w = (w = IOPortControlCap)"
+  "isIOPortControlCap' cap = (cap = ArchObjectCap IOPortControlCap)"
   by (auto simp: isCap_defs split: capability.splits arch_capability.splits)
 
 lemma untyped_not_null [simp]:
@@ -220,14 +222,14 @@ lemma tcb_in_valid_state':
   apply (fastforce simp add: valid_obj'_def valid_tcb'_def)
   done
 
-lemma gct_corres: "corres op = \<top> \<top> (gets cur_thread) getCurThread"
+lemma gct_corres: "corres (=) \<top> \<top> (gets cur_thread) getCurThread"
   by (simp add: getCurThread_def curthread_relation)
 
 lemma gct_wp [wp]: "\<lbrace>\<lambda>s. P (ksCurThread s) s\<rbrace> getCurThread \<lbrace>P\<rbrace>"
   by (unfold getCurThread_def, wp)
 
 lemma git_corres:
-  "corres op = \<top> \<top> (gets idle_thread) getIdleThread"
+  "corres (=) \<top> \<top> (gets idle_thread) getIdleThread"
   by (simp add: getIdleThread_def state_relation_def)
 
 lemma git_wp [wp]: "\<lbrace>\<lambda>s. P (ksIdleThread s) s\<rbrace> getIdleThread \<lbrace>P\<rbrace>"

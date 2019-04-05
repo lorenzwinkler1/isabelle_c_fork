@@ -57,17 +57,17 @@ definition
   "c \<in>cap C \<equiv> \<exists>c' \<in> C. target c = target c' \<and> rights (extra_rights c) \<subseteq> rights (extra_rights c')"
 
 abbreviation not_cap_in_caps where
-  "not_cap_in_caps x A \<equiv> ~ (x \<in>cap A)" -- "non-membership"
+  "not_cap_in_caps x A \<equiv> ~ (x \<in>cap A)" \<comment> \<open>non-membership\<close>
 
 notation (input) cap_in_caps (infix ":cap" 50)
 notation (latex output)  cap_in_caps (infix "\<in>\<^sub>c\<^sub>a\<^sub>p" 50)
 
 notation
-  not_cap_in_caps  ("op \<notin>cap") and
+  not_cap_in_caps  ("(\<notin>cap)") and
   not_cap_in_caps  ("(_/ \<notin>cap _)" [51, 51] 50)
 
 notation (latex output)
-  not_cap_in_caps  ("op \<notin>\<^sub>c\<^sub>a\<^sub>p") and
+  not_cap_in_caps  ("(\<notin>\<^sub>c\<^sub>a\<^sub>p)") and
   not_cap_in_caps  (infix "\<notin>\<^sub>c\<^sub>a\<^sub>p" 50)
 
 (* A set of caps "caps" have less (or equal) access to an entity as "cap" does. *)
@@ -274,10 +274,10 @@ lemma tgs_connected_comm_eq:
   by (metis tgs_connected_comm)
 
 lemmas tgs_connected_trans =
-       rtrancl_trans [where r="directly_tgs_connected s", simplified tgs_connected_def[symmetric]]
+       rtrancl_trans [where r="directly_tgs_connected s"  for s, simplified tgs_connected_def[symmetric]]
 
 lemmas directly_tgs_connected_rtrancl_into_rtrancl =
-       rtrancl_into_rtrancl [where r="directly_tgs_connected s", simplified tgs_connected_def[symmetric]]
+       rtrancl_into_rtrancl [where r="directly_tgs_connected s" for s, simplified tgs_connected_def[symmetric]]
 
 lemma take_caps_directly_tgs_connected:
   "\<lbrakk>c \<in> caps_of s e; Take \<in> rights c\<rbrakk> \<Longrightarrow> s \<turnstile> e \<leftrightarrow> target c"

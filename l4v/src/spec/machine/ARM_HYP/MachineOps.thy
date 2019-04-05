@@ -65,6 +65,14 @@ where
     gets getKernelDevices_val
   od"
 
+consts'
+  setIRQTrigger_impl :: "irq \<Rightarrow> bool \<Rightarrow> unit machine_rest_monad"
+
+definition
+  setIRQTrigger :: "irq \<Rightarrow> bool \<Rightarrow> unit machine_monad"
+where
+  "setIRQTrigger irq trigger \<equiv> machine_op_lift (setIRQTrigger_impl irq trigger)"
+
 definition
   loadWord :: "machine_word \<Rightarrow> machine_word machine_monad"
   where "loadWord p \<equiv> do m \<leftarrow> gets underlying_memory;
@@ -278,6 +286,9 @@ definition
   initIRQController :: "unit machine_monad"
 where "initIRQController \<equiv> machine_op_lift initIRQController_impl"
 
+definition
+  IRQ :: "irq \<Rightarrow> irq"
+where "IRQ \<equiv> id"
 
 consts'
   writeContextID_impl :: "unit machine_rest_monad"
@@ -323,7 +334,7 @@ where
   "ackInterrupt irq \<equiv> machine_op_lift (ackInterrupt_impl irq)"
 
 
--- "Interrupt controller operations"
+\<comment> \<open>Interrupt controller operations\<close>
 
 text {*
   Interrupts that cannot occur while the kernel is running (e.g. at preemption points),
@@ -477,7 +488,7 @@ abbreviation (input) "initMemory == clearMemory"
 
 text {*
   Free memory that had been initialized as user memory.
-  While freeing memory is a no-op in the implementation,
+  While freeing memory is a no-(in) the implementation,
   we zero out the underlying memory in the specifications to avoid garbage.
   If we know that there is no garbage,
   we can compute from the implementation state
@@ -539,18 +550,6 @@ definition
   setSCTLR :: "machine_word \<Rightarrow> unit machine_monad"
 where
   "setSCTLR w \<equiv> machine_op_lift (setSCTLR_impl w)"
-
-definition
-  getACTLR :: "machine_word machine_monad"
-where
-  "getACTLR \<equiv> gets ACTLR_val"
-
-consts'
-  setACTLR_impl :: "machine_word \<Rightarrow> unit machine_rest_monad"
-definition
-  setACTLR :: "machine_word \<Rightarrow> unit machine_monad"
-where
-  "setACTLR w \<equiv> machine_op_lift (setACTLR_impl w)"
 
 definition
   vgic_irq_active :: "machine_word"
@@ -660,215 +659,18 @@ where
 subsection "Hypervisor Banked Registers"
 
 consts'
-  lr_svc_val :: "machine_state \<Rightarrow> machine_word"
+  vcpuHardwareRegVal :: "vcpureg \<Rightarrow> machine_state \<Rightarrow> machine_word"
 definition
-  get_lr_svc :: "machine_word machine_monad"
+  readVCPUHardwareReg :: "vcpureg \<Rightarrow> machine_word machine_monad"
 where
-  "get_lr_svc \<equiv> gets lr_svc_val"
+  "readVCPUHardwareReg reg \<equiv> gets (vcpuHardwareRegVal reg)"
 
 consts'
-  set_lr_svc_impl :: "machine_word \<Rightarrow> unit machine_rest_monad"
+  writeVCPUHardwareReg_impl :: "vcpureg \<Rightarrow> machine_word \<Rightarrow> unit machine_rest_monad"
 definition
-  set_lr_svc :: "machine_word \<Rightarrow> unit machine_monad"
+  writeVCPUHardwareReg :: "vcpureg \<Rightarrow> machine_word \<Rightarrow> unit machine_monad"
 where
-  "set_lr_svc w \<equiv> machine_op_lift (set_lr_svc_impl w)"
-
-consts'
-  sp_svc_val :: "machine_state \<Rightarrow> machine_word"
-definition
-  get_sp_svc :: "machine_word machine_monad"
-where
-  "get_sp_svc \<equiv> gets sp_svc_val"
-
-consts'
-  set_sp_svc_impl :: "machine_word \<Rightarrow> unit machine_rest_monad"
-definition
-  set_sp_svc :: "machine_word \<Rightarrow> unit machine_monad"
-where
-  "set_sp_svc w \<equiv> machine_op_lift (set_sp_svc_impl w)"
-
-consts'
-  lr_abt_val :: "machine_state \<Rightarrow> machine_word"
-definition
-  get_lr_abt :: "machine_word machine_monad"
-where
-  "get_lr_abt \<equiv> gets lr_abt_val"
-
-consts'
-  set_lr_abt_impl :: "machine_word \<Rightarrow> unit machine_rest_monad"
-definition
-  set_lr_abt :: "machine_word \<Rightarrow> unit machine_monad"
-where
-  "set_lr_abt w \<equiv> machine_op_lift (set_lr_abt_impl w)"
-
-consts'
-  sp_abt_val :: "machine_state \<Rightarrow> machine_word"
-definition
-  get_sp_abt :: "machine_word machine_monad"
-where
-  "get_sp_abt \<equiv> gets sp_abt_val"
-
-consts'
-  set_sp_abt_impl :: "machine_word \<Rightarrow> unit machine_rest_monad"
-definition
-  set_sp_abt :: "machine_word \<Rightarrow> unit machine_monad"
-where
-  "set_sp_abt w \<equiv> machine_op_lift (set_sp_abt_impl w)"
-
-consts'
-  lr_und_val :: "machine_state \<Rightarrow> machine_word"
-definition
-  get_lr_und :: "machine_word machine_monad"
-where
-  "get_lr_und \<equiv> gets lr_und_val"
-
-consts'
-  set_lr_und_impl :: "machine_word \<Rightarrow> unit machine_rest_monad"
-definition
-  set_lr_und :: "machine_word \<Rightarrow> unit machine_monad"
-where
-  "set_lr_und w \<equiv> machine_op_lift (set_lr_und_impl w)"
-
-consts'
-  sp_und_val :: "machine_state \<Rightarrow> machine_word"
-definition
-  get_sp_und :: "machine_word machine_monad"
-where
-  "get_sp_und \<equiv> gets sp_und_val"
-
-consts'
-  set_sp_und_impl :: "machine_word \<Rightarrow> unit machine_rest_monad"
-definition
-  set_sp_und :: "machine_word \<Rightarrow> unit machine_monad"
-where
-  "set_sp_und w \<equiv> machine_op_lift (set_sp_und_impl w)"
-
-consts'
-  lr_irq_val :: "machine_state \<Rightarrow> machine_word"
-definition
-  get_lr_irq :: "machine_word machine_monad"
-where
-  "get_lr_irq \<equiv> gets lr_irq_val"
-
-consts'
-  set_lr_irq_impl :: "machine_word \<Rightarrow> unit machine_rest_monad"
-definition
-  set_lr_irq :: "machine_word \<Rightarrow> unit machine_monad"
-where
-  "set_lr_irq w \<equiv> machine_op_lift (set_lr_irq_impl w)"
-
-consts'
-  sp_irq_val :: "machine_state \<Rightarrow> machine_word"
-definition
-  get_sp_irq :: "machine_word machine_monad"
-where
-  "get_sp_irq \<equiv> gets sp_irq_val"
-
-consts'
-  set_sp_irq_impl :: "machine_word \<Rightarrow> unit machine_rest_monad"
-definition
-  set_sp_irq :: "machine_word \<Rightarrow> unit machine_monad"
-where
-  "set_sp_irq w \<equiv> machine_op_lift (set_sp_irq_impl w)"
-
-consts'
-  lr_fiq_val :: "machine_state \<Rightarrow> machine_word"
-definition
-  get_lr_fiq :: "machine_word machine_monad"
-where
-  "get_lr_fiq \<equiv> gets lr_fiq_val"
-
-consts'
-  set_lr_fiq_impl :: "machine_word \<Rightarrow> unit machine_rest_monad"
-definition
-  set_lr_fiq :: "machine_word \<Rightarrow> unit machine_monad"
-where
-  "set_lr_fiq w \<equiv> machine_op_lift (set_lr_fiq_impl w)"
-
-consts'
-  sp_fiq_val :: "machine_state \<Rightarrow> machine_word"
-definition
-  get_sp_fiq :: "machine_word machine_monad"
-where
-  "get_sp_fiq \<equiv> gets sp_fiq_val"
-
-consts'
-  set_sp_fiq_impl :: "machine_word \<Rightarrow> unit machine_rest_monad"
-definition
-  set_sp_fiq :: "machine_word \<Rightarrow> unit machine_monad"
-where
-  "set_sp_fiq w \<equiv> machine_op_lift (set_sp_fiq_impl w)"
-
-consts'
-  r8_fiq_val :: "machine_state \<Rightarrow> machine_word"
-definition
-  get_r8_fiq :: "machine_word machine_monad"
-where
-  "get_r8_fiq \<equiv> gets r8_fiq_val"
-
-consts'
-  set_r8_fiq_impl :: "machine_word \<Rightarrow> unit machine_rest_monad"
-definition
-  set_r8_fiq :: "machine_word \<Rightarrow> unit machine_monad"
-where
-  "set_r8_fiq w \<equiv> machine_op_lift (set_r8_fiq_impl w)"
-
-consts'
-  r9_fiq_val :: "machine_state \<Rightarrow> machine_word"
-definition
-  get_r9_fiq :: "machine_word machine_monad"
-where
-  "get_r9_fiq \<equiv> gets r9_fiq_val"
-
-consts'
-  set_r9_fiq_impl :: "machine_word \<Rightarrow> unit machine_rest_monad"
-definition
-  set_r9_fiq :: "machine_word \<Rightarrow> unit machine_monad"
-where
-  "set_r9_fiq w \<equiv> machine_op_lift (set_r9_fiq_impl w)"
-
-consts'
-  r10_fiq_val :: "machine_state \<Rightarrow> machine_word"
-definition
-  get_r10_fiq :: "machine_word machine_monad"
-where
-  "get_r10_fiq \<equiv> gets r10_fiq_val"
-
-consts'
-  set_r10_fiq_impl :: "machine_word \<Rightarrow> unit machine_rest_monad"
-definition
-  set_r10_fiq :: "machine_word \<Rightarrow> unit machine_monad"
-where
-  "set_r10_fiq w \<equiv> machine_op_lift (set_r10_fiq_impl w)"
-
-consts'
-  r11_fiq_val :: "machine_state \<Rightarrow> machine_word"
-definition
-  get_r11_fiq :: "machine_word machine_monad"
-where
-  "get_r11_fiq \<equiv> gets r11_fiq_val"
-
-consts'
-  set_r11_fiq_impl :: "machine_word \<Rightarrow> unit machine_rest_monad"
-definition
-  set_r11_fiq :: "machine_word \<Rightarrow> unit machine_monad"
-where
-  "set_r11_fiq w \<equiv> machine_op_lift (set_r11_fiq_impl w)"
-
-consts'
-  r12_fiq_val :: "machine_state \<Rightarrow> machine_word"
-definition
-  get_r12_fiq :: "machine_word machine_monad"
-where
-  "get_r12_fiq \<equiv> gets r12_fiq_val"
-
-consts'
-  set_r12_fiq_impl :: "machine_word \<Rightarrow> unit machine_rest_monad"
-definition
-  set_r12_fiq :: "machine_word \<Rightarrow> unit machine_monad"
-where
-  "set_r12_fiq w \<equiv> machine_op_lift (set_r12_fiq_impl w)"
-
+  "writeVCPUHardwareReg reg val \<equiv> machine_op_lift (writeVCPUHardwareReg_impl reg val)"
 
 section "User Monad"
 
@@ -895,7 +697,7 @@ definition
 end
 
 translations
-  (type) "'a ARM_HYP.user_monad" <= (type) "(ARM_HYP.register \<Rightarrow> ARM_HYP.machine_word, 'a) nondet_monad"
+  (type) "'a ARM_HYP.user_monad" <= (type) "(ARM_HYP.register \<Rightarrow> machine_word, 'a) nondet_monad"
 
 
 end

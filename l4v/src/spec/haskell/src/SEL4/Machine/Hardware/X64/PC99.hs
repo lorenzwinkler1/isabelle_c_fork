@@ -12,10 +12,11 @@
 
 module SEL4.Machine.Hardware.X64.PC99 where
 
+import Prelude hiding (Word)
 import SEL4.Machine.RegisterSet
 import Foreign.Ptr
 import Data.Bits
-import Data.Word(Word8, Word16)
+import Data.Word(Word8, Word16, Word64)
 import Data.Ix
 
 data CallbackData
@@ -30,20 +31,23 @@ instance Bounded IRQ where
 newtype PAddr = PAddr { fromPAddr :: Word }
     deriving (Integral, Real, Show, Eq, Num, Bits, FiniteBits, Ord, Enum, Bounded)
 
+pptrUserTop :: VPtr
+pptrUserTop = VPtr 0x00007fffffffffff
 
--- FIXME: The following kernelBase and physBase are not correct
-kernelBase :: VPtr
-kernelBase = VPtr 0xe0000000
+pptrBase :: Word
+pptrBase = 0xffffff8000000000
 
-physBase = 0x10000000
-physMappingOffset = 0xe0000000 - physBase
-
+kpptrBase :: Word
+kpptrBase = 0xffffffff80000000
 
 ptrFromPAddr :: PAddr -> PPtr a
-ptrFromPAddr (PAddr addr) = PPtr $ addr + physMappingOffset
+ptrFromPAddr (PAddr addr) = PPtr $ addr + pptrBase
 
 addrFromPPtr :: PPtr a -> PAddr
-addrFromPPtr (PPtr ptr) = PAddr $ ptr - physMappingOffset
+addrFromPPtr (PPtr ptr) = PAddr $ ptr - pptrBase
+
+addrFromKPPtr :: PPtr a -> PAddr
+addrFromKPPtr (PPtr ptr) = PAddr $ ptr - kpptrBase
 
 pageColourBits :: Int
 pageColourBits = 0 -- qemu has no cache
@@ -132,16 +136,20 @@ foreign import ccall unsafe "qemu_store_word_phys"
 -- PC99 stubs
 
 writeCR3 = error "Unimplemented"
-resetCR3 = error "Unimplemented"
 
 invalidateTLB = error "Unimplemented"
 mfence = error "Unimplemented"
-addrFromKPPtr = error "Unimplemented" -- FIXME two kernel windows
-pptrBase = error "Unimplemented" -- FIXME two kernel windows
-hwASIDInvalidate = error "Unimplemented"
 invalidateASID = error "Unimplemented"
-invalidateTranslationSingleASID = error "unimplemented"
+invalidateTranslationSingleASID = error "Unimplemented"
 
+invalidateLocalPageStructureCacheASID :: PAddr -> Word64 -> IO ()
+invalidateLocalPageStructureCacheASID = error "Unimplemented"
+
+nativeThreadUsingFPU :: Word -> IO Bool
+nativeThreadUsingFPU = error "Unimplemented"
+
+switchFpuOwner :: Word -> Word -> IO ()
+switchFpuOwner = error "Unimplemented"
 
 getFaultAddress :: Ptr CallbackData -> IO VPtr
 getFaultAddress _ = error "Unimplemented" -- FIXME: should read CR2
@@ -151,6 +159,12 @@ firstValidIODomain = error "Unimplemented"
 
 numIODomainIDBits :: Int
 numIODomainIDBits = error "Unimplemented"
+
+minUserIRQ :: IRQ
+minUserIRQ = IRQ 0x10 -- irq_user_min in C
+
+maxUserIRQ :: IRQ
+maxUserIRQ = IRQ 0x7B -- irq_user_max in C
 
 irqIntOffset :: Word
 irqIntOffset = 0x20 -- IRQ_INT_OFFSET in C

@@ -19,6 +19,7 @@ This module defines the low-level x64 hardware interface.
 
 \begin{impdetails}
 
+> import Prelude hiding (Word)
 > import SEL4.Machine.RegisterSet
 
 > import Foreign.Ptr
@@ -254,9 +255,6 @@ caches must be done separately.
 > writeCR3 :: PAddr -> Word64 -> MachineMonad ()
 > writeCR3 vspace asid  = Platform.writeCR3 vspace asid
 
-> resetCR3 :: MachineMonad ()
-> resetCR3 = Platform.resetCR3
-
 \subsubsection{Memory Barriers}
 
 > mfence :: MachineMonad ()
@@ -278,6 +276,9 @@ caches must be done separately.
 
 > invalidateTranslationSingleASID :: VPtr -> Word64 -> MachineMonad ()
 > invalidateTranslationSingleASID vspace asid = Platform.invalidateTranslationSingleASID vspace asid
+
+> invalidateLocalPageStructureCacheASID :: PAddr -> Word64 -> MachineMonad ()
+> invalidateLocalPageStructureCacheASID paddr asid = liftIO $ Platform.invalidateLocalPageStructureCacheASID paddr asid
 
 \subsubsection{Page Table Structure}
 
@@ -523,7 +524,8 @@ Page entries -- any of PTEs, PDEs or PDPTEs.
 > data VMMapType
 >     = VMNoMap
 >     | VMVSpaceMap
->     | VMIOSpaceMap
+>--   FIXME x64-vtd:
+>--   | VMIOSpaceMap
 >     deriving (Show, Eq, Enum)
 
 > data VMRights
@@ -559,10 +561,13 @@ Page entries -- any of PTEs, PDEs or PDPTEs.
 >     x64WriteThrough, x64PAT, x64CacheDisabled :: Bool }
 
 > pptrBase :: VPtr
-> pptrBase = Platform.pptrBase
+> pptrBase = VPtr Platform.pptrBase
 
-> physBase :: PAddr
-> physBase = toPAddr Platform.physBase
+> kpptrBase :: VPtr
+> kpptrBase = VPtr Platform.kpptrBase
+
+> pptrUserTop :: VPtr
+> pptrUserTop = Platform.pptrUserTop
 
 > -- This firstValidIODomain and numIODomainBits calculated as part of the boot code.
 > -- Right now, for simplicity, we assume it is constant
@@ -571,10 +576,6 @@ Page entries -- any of PTEs, PDEs or PDPTEs.
 
 > numIODomainIDBits :: Int
 > numIODomainIDBits = Platform.numIODomainIDBits
-
-> hwASIDInvalidate :: Word -> Word64 -> MachineMonad ()
-> hwASIDInvalidate = invalidateASID
-
 
 > getFaultAddress :: MachineMonad VPtr
 > getFaultAddress = do
@@ -598,6 +599,12 @@ IO Port interface.
 
 IRQ parameters
 
+> minUserIRQ :: IRQ
+> minUserIRQ = Platform.minUserIRQ
+
+> maxUserIRQ :: IRQ
+> maxUserIRQ = Platform.maxUserIRQ
+
 > irqIntOffset :: Word
 > irqIntOffset = Platform.irqIntOffset
 
@@ -610,9 +617,6 @@ IRQ parameters
 > maxPCIFunc :: Word
 > maxPCIFunc = Platform.maxPCIFunc
 
-> numIOAPICs :: Word
-> numIOAPICs = error "Unimplemented . boot code"
-
 > ioapicIRQLines :: Word
 > ioapicIRQLines = Platform.ioapicIRQLines
 
@@ -623,26 +627,18 @@ IRQ parameters
 
 %FIXME: review how deeply we need to model this.
 
-> data X64IRQState =
->     IRQFree
->   | IRQReserved
->   | IRQMSI {
->     msiBus :: Word,
->     msiDev :: Word,
->     msiFunc :: Word,
->     msiHandle :: Word }
->   | IRQIOAPIC {
->     irqIOAPIC :: Word,
->     irqPin :: Word,
->     irqLevel :: Word,
->     irqPolarity :: Word,
->     irqMasked :: Bool }
-
-
-> updateIRQState :: IRQ -> X64IRQState -> MachineMonad ()
-> updateIRQState _ _ = error "Unimplemented"
-
 > initIRQController :: MachineMonad ()
 > initIRQController = error "Unimplemented"
 
+FPU operations
+
+> nativeThreadUsingFPU :: Word -> MachineMonad Bool
+> nativeThreadUsingFPU threadPtr = do
+>     cbptr <- ask
+>     liftIO $ Platform.nativeThreadUsingFPU threadPtr
+
+> switchFpuOwner :: Word -> Word -> MachineMonad ()
+> switchFpuOwner newOwner cpu = do
+>     cbptr <- ask
+>     liftIO $ Platform.switchFpuOwner newOwner cpu
 

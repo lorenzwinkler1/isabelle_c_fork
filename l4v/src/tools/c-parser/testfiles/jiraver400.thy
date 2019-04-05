@@ -9,10 +9,11 @@
  *)
 
 theory jiraver400
-  imports "../CTranslation"
+  imports "CParser.CTranslation"
 begin
 
-  install_C_file "jiraver400.c" [machinety=bool,roots=[h,indep1]]
+external_file "jiraver400.c"
+install_C_file "jiraver400.c" [machinety=bool,roots=[h,indep1]]
 
 context jiraver400
 begin

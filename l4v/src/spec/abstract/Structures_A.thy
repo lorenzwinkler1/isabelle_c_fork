@@ -18,7 +18,7 @@ chapter "Basic Data Structures"
 theory Structures_A
 imports
   "./$L4V_ARCH/Arch_Structs_A"
-  "../machine/MachineExports"
+  "ExecSpec.MachineExports"
 
 begin
 
@@ -46,6 +46,8 @@ requalify_consts
   default_arch_tcb
   arch_tcb_context_get
   arch_tcb_context_set
+  arch_tcb_set_registers
+  arch_tcb_get_registers
   cte_level_bits
   tcb_bits
   endpoint_bits
@@ -53,6 +55,7 @@ requalify_consts
   aa_type
   untyped_min_bits
   untyped_max_bits
+  msg_label_bits
 end
 
 text {*
@@ -106,18 +109,18 @@ authority but cannot be replaced until the deletion is finished.
 datatype cap
          = NullCap
          | UntypedCap bool obj_ref nat nat
-           -- {* device flag, pointer, size in bits (i.e. @{text "size = 2^bits"}) and freeIndex (i.e. @{text "freeRef = obj_ref + (freeIndex * 2^4)"}) *}
+           \<comment> \<open>device flag, pointer, size in bits (i.e. @{text "size = 2^bits"}) and freeIndex (i.e. @{text "freeRef = obj_ref + (freeIndex * 2^4)"})\<close>
          | EndpointCap obj_ref badge cap_rights
          | NotificationCap obj_ref badge cap_rights
          | ReplyCap obj_ref bool
          | CNodeCap obj_ref nat "bool list"
-           -- "CNode ptr, number of bits translated, guard"
+           \<comment> \<open>CNode ptr, number of bits translated, guard\<close>
          | ThreadCap obj_ref
          | DomainCap
          | IRQControlCap
          | IRQHandlerCap irq
          | Zombie obj_ref "nat option" nat
-           -- {* @{text "cnode ptr * nat + tcb or cspace ptr"} *}
+           \<comment> \<open>@{text "cnode ptr * nat + tcb or cspace ptr"}\<close>
          | ArchObjectCap (the_arch_cap: arch_cap)
 
 lemmas cap_cases =
@@ -262,28 +265,32 @@ transferred. The @{text mi_label} parameter is transferred directly from sender
 to receiver as part of the message.
 *}
 
-datatype message_info = MI length_type length_type data msg_label
+datatype message_info =
+  MI (mi_length: length_type)
+     (mi_extra_caps: length_type)
+     (mi_caps_unwrapped: data)
+     (mi_label: msg_label)
 
+text {* Message infos are encoded to or decoded from a data word. *}
 primrec
-  mi_label :: "message_info \<Rightarrow> msg_label"
+  message_info_to_data :: "message_info \<Rightarrow> data"
 where
-  "mi_label (MI len exc unw label) = label"
+  "message_info_to_data (MI len exc unw mlabel) =
+   (let
+        extra = exc << 7;
+        unwrapped = unw << 9;
+        label = mlabel << 12
+    in
+       label || extra || unwrapped || len)"
 
-primrec
-  mi_length :: "message_info \<Rightarrow> length_type"
+definition
+  data_to_message_info :: "data \<Rightarrow> message_info"
 where
-  "mi_length (MI len exc unw label) = len"
-
-primrec
-  mi_extra_caps :: "message_info \<Rightarrow> length_type"
-where
-  "mi_extra_caps (MI len exc unw label) = exc"
-
-primrec
-  mi_caps_unwrapped :: "message_info \<Rightarrow> data"
-where
- "mi_caps_unwrapped (MI len exc unw label) = unw"
-
+  "data_to_message_info w \<equiv>
+   MI (let v = w && mask 7 in if v > 120 then 120 else v)
+      ((w >> 7) && mask 2)
+      ((w >> 9) && mask 3)
+      ((w >> 12) && mask msg_label_bits)"
 
 section {* Kernel Objects *}
 
@@ -419,7 +426,7 @@ All kernel objects are CNodes, TCBs, Endpoints, Notifications or architecture
 specific.
 *}
 datatype kernel_object
-         = CNode nat cnode_contents -- "size in bits, and contents"
+         = CNode nat cnode_contents \<comment> \<open>size in bits, and contents\<close>
          | TCB tcb
          | Endpoint endpoint
          | Notification notification
@@ -432,6 +439,9 @@ lemmas kernel_object_cases_asm =
 kernel_object.induct[where kernel_object=x and P="\<lambda>x'. x = x' \<longrightarrow> P x' \<longrightarrow> R" for P R x,
   simplified, rule_format, rotated -1]
 
+definition aobj_of :: "kernel_object \<Rightarrow> arch_kernel_obj option"
+  where
+  "aobj_of ko \<equiv> case ko of ArchObj aobj \<Rightarrow> Some aobj | _ \<Rightarrow> None"
 
 text {* Checks whether a cnode's contents are well-formed. *}
 
@@ -462,14 +472,14 @@ where
 | "obj_size (ArchObjectCap a) = 1 << arch_obj_size a"
 
 
-text {* An alternative formulation that allows abstraction over type: *}
+text {* Object types: *}
 
 datatype a_type =
     ATCB
   | AEndpoint
   | ANTFN
   | ACapTable nat
-  | AGarbage nat -- "number of bytes of garbage"
+  | AGarbage nat \<comment> \<open>number of bytes of garbage\<close>
   | AArch aa_type
 
 definition
@@ -540,6 +550,7 @@ information.
 *}
 record 'a state = abstract_state + exst :: 'a
 
+section \<open>Helper functions\<close>
 
 text {* This wrapper lifts monadic operations on the underlying machine state to
 monadic operations on the kernel state. *}
@@ -620,7 +631,8 @@ primrec (nonexhaustive)
 where
   "cap_bits_untyped (UntypedCap dev r s f) = s"
 
-definition
+definition tcb_cnode_map :: "tcb \<Rightarrow> cnode_index \<Rightarrow> cap option"
+  where
   "tcb_cnode_map tcb \<equiv>
    [tcb_cnode_index 0 \<mapsto> tcb_ctable tcb,
     tcb_cnode_index 1 \<mapsto> tcb_vtable tcb,
@@ -628,14 +640,62 @@ definition
     tcb_cnode_index 3 \<mapsto> tcb_caller tcb,
     tcb_cnode_index 4 \<mapsto> tcb_ipcframe tcb]"
 
-definition
-  "cap_of kobj \<equiv>
-   case kobj of CNode _ cs \<Rightarrow> cs | TCB tcb \<Rightarrow> tcb_cnode_map tcb | _ \<Rightarrow> empty"
+definition cap_of :: "kernel_object \<Rightarrow> cnode_index \<Rightarrow> cap option"
+  where
+  "cap_of kobj \<equiv> case kobj of CNode _ cs \<Rightarrow> cs | TCB tcb \<Rightarrow> tcb_cnode_map tcb | _ \<Rightarrow> Map.empty"
 
 text {* The set of all caps contained in a kernel object. *}
 
 definition
   caps_of :: "kernel_object \<Rightarrow> cap set" where
   "caps_of kobj \<equiv> ran (cap_of kobj)"
+
+section "Cap transfers"
+
+record captransfer =
+  ct_receive_root :: cap_ref
+  ct_receive_index :: cap_ref
+  ct_receive_depth :: data
+
+text {* A thread's IPC buffer capability must be to a page that is capable of
+containing the IPC buffer without the end of the buffer spilling into another
+page. *}
+definition cap_transfer_data_size :: nat
+  where
+  "cap_transfer_data_size \<equiv> 3"
+
+definition msg_max_length :: nat
+  where
+  "msg_max_length \<equiv> 120"
+
+definition msg_max_extra_caps :: nat
+  where
+  "msg_max_extra_caps \<equiv> 3"
+
+definition max_ipc_length :: nat
+  where
+  "max_ipc_length \<equiv> cap_transfer_data_size + msg_max_length + msg_max_extra_caps + 2"
+
+definition msg_align_bits :: nat
+  where
+  "msg_align_bits \<equiv> word_size_bits + (LEAST n. max_ipc_length \<le> 2 ^ n)"
+
+lemma msg_align_bits':
+  "msg_align_bits = word_size_bits + 7"
+proof -
+  have "(LEAST n. (cap_transfer_data_size + msg_max_length + msg_max_extra_caps + 2) \<le> 2 ^ n) = 7"
+  proof (rule Least_equality)
+    show "(cap_transfer_data_size + msg_max_length + msg_max_extra_caps + 2)  \<le> 2 ^ 7"
+      by (simp add: cap_transfer_data_size_def msg_max_length_def msg_max_extra_caps_def)
+  next
+    fix y
+    assume "(cap_transfer_data_size + msg_max_length + msg_max_extra_caps + 2) \<le> 2 ^ y"
+    hence "(2 :: nat) ^ 7 \<le> 2 ^ y"
+      by (simp add: cap_transfer_data_size_def msg_max_length_def msg_max_extra_caps_def)
+    thus "7 \<le> y"
+      by (rule power_le_imp_le_exp [rotated], simp)
+  qed
+  thus ?thesis unfolding msg_align_bits_def max_ipc_length_def by simp
+qed
 
 end

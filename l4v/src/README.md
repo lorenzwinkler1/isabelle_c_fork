@@ -1,3 +1,8 @@
+[![DOI][0]](http://dx.doi.org/10.5281/zenodo.591732)
+
+  [0]: https://zenodo.org/badge/doi/10.5281/zenodo.591732.svg
+
+
 [The L4.verified Proofs][1]
 ===========================
 
@@ -8,13 +13,9 @@ Most proofs in this repository are conducted in the interactive proof
 assistant [Isabelle/HOL][2]. For an introduction to Isabelle, see its
 [official website][2] and [documentation][3].
 
-DOIs for citing recent releases of this repository:
-  * [![DOI][4]](http://dx.doi.org/10.5281/zenodo.11248)
-
   [1]: https://github.com/seL4/l4v                   "L4.verified Repository"
   [2]: http://isabelle.in.tum.de                     "Isabelle Website"
   [3]: http://isabelle.in.tum.de/documentation.html  "Isabelle Documentation"
-  [4]: https://zenodo.org/badge/doi/10.5281/zenodo.11248.png
 
 Repository Setup
 ----------------
@@ -43,9 +44,10 @@ The repository is organised as follows.
 
  * [`spec`](spec/): a number of different formal specifications of seL4
     * [`abstract`](spec/abstract/): the functional abstract specification of seL4
+    * [`sep-abstract`](spec/sep-abstract/): an abstract specification for a reduced
+      version of seL4 that is configured as a separation kernel
     * [`haskell`](spec/haskell/): Haskell model of the seL4 kernel, kept in sync
       with the C code
-    * [`design`](spec/design/): the Haskell-generated design-level specification of seL4
     * [`machine`](spec/machine/): the machine interface of these two specifications
     * [`cspec`](spec/cspec/): the entry point for automatically translating the seL4 C code
       into Isabelle
@@ -56,6 +58,13 @@ The repository is organised as follows.
       user-level systems on top of seL4.
     * [`take-grant`](spec/take-grant/): a formalisation of the classical take-grant security
     model, applied to seL4, but not connected to the code of seL4.
+
+    * There are additional specifications that are not tracked in this repository,
+      but are generated from other files:
+      * [`design`](spec/design/): the design-level specification of seL4,
+        generated from the Haskell model.
+      * [`c`](spec/cspec/c/): the C code of the seL4 kernel, preprocessed into a form that
+        can be read into Isabelle. This is generated from the [seL4 repository](../seL4).
 
  * [`proof`](proof/): the seL4 proofs
     * [`invariant-abstract`](proof/invariant-abstract/): invariants of the seL4 abstract specification
@@ -113,7 +122,7 @@ cores are useful.
 
 ### Software
 
-The proofs in this repository use `Isabelle2016-1`. A copy of Isabelle
+The proofs in this repository use `Isabelle2018`. A copy of Isabelle
 is included in the repository setup.
 
 The dependencies for installing Isabelle in this repository are
@@ -209,7 +218,7 @@ These commands perform the following steps:
  * build basic Isabelle images, including `HOL-Word` to ensure that
    the installation works. This may take a few minutes.
 
-Alternatively, it is possible to use the official Isabelle2016-1 release
+Alternatively, it is possible to use the official Isabelle2018 release
 bundle for your platform from the [Isabelle website][2]. In this case, the
 installation steps above can be skipped, and you would replace the directory
 `verification/isabelle/` with a symbolic link to the Isabelle home directory
@@ -229,7 +238,26 @@ can be run with the command
 
 from the directory `l4v/`.
 
-Proof sessions that do not depend on the C code can be built directly with
+Not all of the proof sessions can be built directly with the `isabelle build` command.
+The seL4 verification proofs depend on Isabelle specifications that are
+generated from the C source code and Haskell model.
+Therefore, it's recommended to always build using the supplied makefiles,
+which will ensure that these generated specs are up to date.
+
+To do this, enter one level under the `l4v/` directory and run `make <session-name>`.
+For example, to build the C refinement proof session, do
+
+    cd l4v/proof
+    make CRefine
+
+As another example, to build the session for the Haskell model, do
+
+    cd l4v/spec
+    make ExecSpec
+
+See the `HEAPS` variable in the corresponding `Makefile` for available targets.
+
+Proof sessions that do not depend on generated inputs can be built directly with
 
     ./isabelle/bin/isabelle build -d . -v -b <session name>
 
@@ -237,22 +265,13 @@ from the directory `l4v/`. For available sessions, see the corresponding
 `ROOT` files in this repository. There is roughly one session corresponding to
 each major directory in the repository.
 
-For proof sessions that depend on the C code, for instance `CSpec`, `CRefine`,
-or `CBaseRefine`, go for instance to the directory `l4v/proof` and run
-
-    make CRefine
-
-See the `HEAPS` variable in the corresponding `Makefile` for available
-targets. The `make` command should also work for sessions that do not depend
-on C code.
-
 For interactively exploring, say the invariant proof of the abstract
 specification with a pre-built logic image for the abstract specification,
 run
 
     ./isabelle/bin/isabelle jedit -d . -l ASpec
 
-and open one of the files in `spec/invariant-abstract`.
+in `l4v/` and open one of the files in `proof/invariant-abstract`.
 
 
 License

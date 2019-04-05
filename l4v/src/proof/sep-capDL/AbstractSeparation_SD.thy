@@ -11,8 +11,8 @@
 theory AbstractSeparation_SD
 imports
   AbstractSeparationHelpers_SD
-  "../../lib/sep_algebra/Map_Extra"
-  "../../spec/capDL/Types_D"
+  "Sep_Algebra.Map_Extra"
+  "DSpec.Types_D"
 begin
 
 datatype cdl_component_id = Fields | Slot nat
@@ -79,15 +79,15 @@ lemma sep_state_add_comm:
 
 instantiation "sep_state" :: zero
 begin
-  definition "0 \<equiv> SepState (\<lambda>p. None) empty"
+  definition "0 \<equiv> SepState (\<lambda>p. None) Map.empty"
   instance ..
 end
 
 instantiation "sep_state" :: stronger_sep_algebra
 begin
 
-definition "(op ##) \<equiv> sep_state_disj"
-definition "(op +) \<equiv> sep_state_add"
+definition "(##) \<equiv> sep_state_disj"
+definition "(+) \<equiv> sep_state_add"
 
 
 
@@ -124,9 +124,9 @@ instantiation "sep_state" :: cancellative_sep_algebra
 begin
 
 instance
-  apply standard
-  apply (simp add: sep_disj_sep_state_def sep_state_disj_def zero_sep_state_def
+  apply (standard; simp add: sep_disj_sep_state_def sep_state_disj_def zero_sep_state_def
                    plus_sep_state_def sep_state_add_def)
+  apply (metis map_add_subsumed1 map_le_refl sep_heap.simps sep_irq_node.simps sep_state.exhaust)
   by (metis map_add_left_eq sep_heap.simps sep_irq_node.simps sep_state.exhaust)
 end
 

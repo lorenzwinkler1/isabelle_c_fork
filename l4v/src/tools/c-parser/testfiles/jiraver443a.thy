@@ -9,10 +9,11 @@
  *)
 
 theory jiraver443a
-  imports "../CTranslation"
+  imports "CParser.CTranslation"
 begin
 
-  install_C_file "jiraver443a.c"
+external_file "jiraver443a.c"
+install_C_file "jiraver443a.c"
 
 context jiraver443a
 begin

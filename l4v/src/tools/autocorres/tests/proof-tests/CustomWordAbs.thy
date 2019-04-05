@@ -9,9 +9,10 @@
  *)
 
 theory CustomWordAbs
-imports "../../AutoCorres"
+imports "AutoCorres.AutoCorres"
 begin
 
+external_file "custom_word_abs.c"
 install_C_file "custom_word_abs.c"
 
 lemma [word_abs]:

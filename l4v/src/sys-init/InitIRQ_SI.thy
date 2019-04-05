@@ -10,7 +10,7 @@
 
 theory InitIRQ_SI
 imports
-  "../proof/capDL-api/IRQ_DP"
+  "DSpecProofs.IRQ_DP"
   ObjectInitialised_SI
   RootTask_SI
   SysInit_SI
@@ -54,7 +54,7 @@ lemma seL4_IRQHandler_SetEndpoint_irq_initialised_helper_sep:
   apply (frule (1) well_formed_size_irq_node)
   apply (frule (2) well_formed_irq_ntfn_cap)
   apply (rule hoare_chain)
-    apply (wp seL4_IRQHandler_SetEndpoint_wp [where
+    apply (rule seL4_IRQHandler_SetEndpoint_wp [where
               root_tcb = root_tcb
            and cnode_cap = si_cspace_cap
            and cnode_id = si_cnode_id
@@ -277,7 +277,7 @@ lemma init_irqs_sep:
                      si_caps_at t orig_caps spec dev {obj_id. real_object_at obj_id spec} \<and>* si_objects"
             and f = "init_irqs spec orig_caps irq_caps"], simp+)
    apply (subst sep.prod.subset_diff, assumption, simp)+
-   apply (sep_wp init_irqs_bound_irqs_sep [where t=t])
+   apply (rule hoare_pre, sep_wp init_irqs_bound_irqs_sep [where t=t])
    apply (simp add: si_irq_caps_at_def irqs_initialised_def irqs_empty_def sep_conj_assoc)
    apply(subgoal_tac "sep_map_set_conj (irq_empty spec t) (used_irqs spec - bound_irqs spec)
                     = sep_map_set_conj (irq_initialised spec t) (used_irqs spec - bound_irqs spec)", simp)

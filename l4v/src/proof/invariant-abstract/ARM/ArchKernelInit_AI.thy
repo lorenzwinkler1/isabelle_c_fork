@@ -55,14 +55,14 @@ lemma init_cdt [simp]:
   by (simp add: state_defs)
 
 lemma mdp_parent_empty [simp]:
-  "\<not>empty \<Turnstile> x \<rightarrow> y"
+  "\<not>Map.empty \<Turnstile> x \<rightarrow> y"
   apply clarsimp
   apply (drule tranclD)
   apply (clarsimp simp: cdt_parent_of_def)
   done
 
 lemma descendants_empty [simp]:
-  "descendants_of x empty = {}"
+  "descendants_of x Map.empty = {}"
   by (clarsimp simp: descendants_of_def)
 
 lemma [simp]: "\<not>is_reply_cap Structures_A.NullCap"
@@ -221,14 +221,14 @@ lemma pspace_distinct_init_A:
 lemma caps_of_state_init_A_st_Null:
   "caps_of_state (init_A_st::'z::state_ext state) x
      = (if cte_at x (init_A_st::'z::state_ext state) then Some cap.NullCap else None)"
-  apply (subgoal_tac "\<not> cte_wp_at (op \<noteq> cap.NullCap) x init_A_st")
+  apply (subgoal_tac "\<not> cte_wp_at ((\<noteq>) cap.NullCap) x init_A_st")
    apply (auto simp add: cte_wp_at_caps_of_state)[1]
   apply (clarsimp, erule cte_wp_atE)
    apply (auto simp add: state_defs tcb_cap_cases_def split: if_split_asm)
   done
 
 lemmas cte_wp_at_caps_of_state_eq
-    = cte_wp_at_caps_of_state[where P="op = cap" for cap]
+    = cte_wp_at_caps_of_state[where P="(=) cap" for cap]
 
 declare ptrFormPAddr_addFromPPtr[simp]
 
@@ -298,7 +298,7 @@ lemma invs_A:
    apply (case_tac obj, simp_all add: cap_of_def)
    apply (clarsimp simp: init_kheap_def split: if_split_asm)
   apply (rule conjI)
-   apply (clarsimp simp: valid_idle_def pred_tcb_at_def obj_at_def state_defs)
+   apply (clarsimp simp: valid_idle_def pred_tcb_at_def obj_at_def state_defs valid_arch_idle_def)
   apply (rule conjI)
    apply (clarsimp simp: only_idle_def pred_tcb_at_def obj_at_def state_defs)
   apply (rule conjI)

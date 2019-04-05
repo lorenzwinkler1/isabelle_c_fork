@@ -14,9 +14,10 @@
  * to select different functions for each run.
  *)
 theory Incremental imports
-  "../../AutoCorres"
+  "AutoCorres.AutoCorres"
 begin
 
+external_file "type_strengthen.c"
 install_C_file "type_strengthen.c"
 
 (* Translate only opt_j *)

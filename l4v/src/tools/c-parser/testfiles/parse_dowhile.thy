@@ -9,9 +9,10 @@
  *)
 
 theory parse_dowhile
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "parse_dowhile.c"
 install_C_file "parse_dowhile.c"
 
 print_locale parse_dowhile_global_addresses

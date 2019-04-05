@@ -23,7 +23,7 @@ crunch_ignore (empty_fail)
         clean_D_PoU_impl cleanInvalidate_D_PoC_impl cleanInvalidateL2Range_impl
         invalidateL2Range_impl cleanL2Range_impl flushBTAC_impl
         writeContextID_impl isb_impl dsb_impl dmb_impl setHardwareASID_impl
-        writeTTBR0_impl cacheRangeOp)
+        writeTTBR0_impl cacheRangeOp setIRQTrigger_impl)
 
 crunch (empty_fail) empty_fail[wp, EmptyFail_AI_assms]:
   loadWord, load_word_offs, storeWord, getRestartPC, get_mrs
@@ -43,7 +43,10 @@ crunch (empty_fail) empty_fail[wp, EmptyFail_AI_assms]: handle_fault
          bool.splits list.splits thread_state.splits split_def catch_def sum.splits
          Let_def wp: zipWithM_x_empty_fail)
 
-crunch (empty_fail) empty_fail[wp]: decode_tcb_configure, decode_bind_notification, decode_unbind_notification
+crunch (empty_fail) empty_fail[wp]:
+  decode_tcb_configure, decode_bind_notification, decode_unbind_notification,
+  decode_set_priority, decode_set_mcpriority, decode_set_sched_params,
+  decode_set_tls_base
   (simp: cap.splits arch_cap.splits split_def)
 
 lemma decode_tcb_invocation_empty_fail[wp]:
@@ -113,7 +116,7 @@ global_interpretation EmptyFail_AI_derive_cap?: EmptyFail_AI_derive_cap
 context Arch begin global_naming ARM
 
 crunch (empty_fail) empty_fail[wp, EmptyFail_AI_assms]: maskInterrupt, empty_slot,
-    setHardwareASID, setCurrentPD, finalise_cap, preemption_point,
+    setHardwareASID, set_current_pd, finalise_cap, preemption_point,
     cap_swap_for_delete, decode_invocation
   (simp: Let_def catch_def split_def OR_choiceE_def mk_ef_def option.splits endpoint.splits
          notification.splits thread_state.splits sum.splits cap.splits arch_cap.splits

@@ -8,8 +8,9 @@
  * @TAG(NICTA_BSD)
  *)
 
-theory global_array_update imports "../../AutoCorres" begin
+theory global_array_update imports "AutoCorres.AutoCorres" begin
 
+external_file "global_array_update.c"
 install_C_file "global_array_update.c"
 autocorres "global_array_update.c"
 

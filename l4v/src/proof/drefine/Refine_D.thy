@@ -22,13 +22,13 @@ text {*
   Toplevel @{text dcorres} theorem.
 *}
 
-lemma valid_etcbs_sched: "valid_sched s \<longrightarrow> valid_etcbs s" by fastforce
+lemma valid_etcbs_sched: "valid_sched s \<longrightarrow> valid_etcbs s" by (fastforce simp: valid_sched_def)
 
 lemma handle_event_invs_and_valid_sched:
   "\<lbrace>invs and valid_sched and (\<lambda>s. e \<noteq> Interrupt \<longrightarrow> ct_active s)
       and (\<lambda>s. scheduler_action s = resume_cur_thread)\<rbrace> Syscall_A.handle_event e
   \<lbrace>\<lambda>rv. invs and valid_sched\<rbrace>"
-  including no_pre by ((wp he_invs handle_event_valid_sched), simp)
+  by ((wp he_invs handle_event_valid_sched), clarsimp)
 
 lemma dcorres_call_kernel:
   "dcorres dc \<top>
@@ -61,9 +61,8 @@ lemma dcorres_call_kernel:
       apply (rule hoare_vcg_conj_lift)
        apply (rule he_invs)
       apply (rule handle_event_valid_sched)
-     apply (fastforce intro: active_from_running)+
-
-done
+     apply (fastforce intro: active_from_running simp: valid_sched_def)+
+  done
 
 end
 

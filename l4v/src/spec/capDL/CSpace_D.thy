@@ -175,69 +175,69 @@ text {* Actions that must be taken when a capability is deleted. Returns a
 Zombie capability if deletion requires a long-running operation and also a
 possible IRQ to be cleared. *}
 fun
-  finalise_cap :: "cdl_cap \<Rightarrow> bool \<Rightarrow> (cdl_cap \<times> cdl_irq option) k_monad"
+  finalise_cap :: "cdl_cap \<Rightarrow> bool \<Rightarrow> (cdl_cap \<times> cdl_cap) k_monad"
 where
-  "finalise_cap NullCap                  final = return (NullCap, None)"
-| "finalise_cap RestartCap               final = return (NullCap, None)"
-| "finalise_cap (UntypedCap dev r a)           final = return (NullCap, None)"
+  "finalise_cap NullCap                  final = return (NullCap, NullCap)"
+| "finalise_cap RestartCap               final = return (NullCap, NullCap)"
+| "finalise_cap (UntypedCap dev r a)           final = return (NullCap, NullCap)"
 | "finalise_cap (EndpointCap r b R)      final =
-      (liftM (K (NullCap, None)) $ when  final $ cancel_all_ipc r)"
+      (liftM (K (NullCap, NullCap)) $ when  final $ cancel_all_ipc r)"
 | "finalise_cap (NotificationCap r b R) final =
-      (liftM (K (NullCap, None)) $ when  final $
+      (liftM (K (NullCap, NullCap)) $ when  final $
        do
          unbind_maybe_notification r;
          cancel_all_ipc r
        od)"
-| "finalise_cap (ReplyCap r)             final = return (NullCap, None)"
-| "finalise_cap (MasterReplyCap r)       final = return (NullCap, None)"
+| "finalise_cap (ReplyCap r)             final = return (NullCap, NullCap)"
+| "finalise_cap (MasterReplyCap r)       final = return (NullCap, NullCap)"
 | "finalise_cap (CNodeCap r bits g sz)   final =
-      (return (if final then ZombieCap r else NullCap, None))"
+      (return (if final then ZombieCap r else NullCap, NullCap))"
 | "finalise_cap (TcbCap r)               final =
       (do
          when final $ (do unbind_notification r;
          cancel_ipc r;
          KHeap_D.set_cap (r, tcb_pending_op_slot) cdl_cap.NullCap;
          prepare_thread_delete r od);
-         return (if final then (ZombieCap r) else NullCap, None)
+         return (if final then (ZombieCap r) else NullCap, NullCap)
        od)"
-| "finalise_cap (PendingSyncSendCap r _ _ _ _) final = return (NullCap, None)"
-| "finalise_cap (PendingSyncRecvCap r _ ) final = return (NullCap, None)"
-| "finalise_cap (PendingNtfnRecvCap r)  final = return (NullCap, None)"
-| "finalise_cap IrqControlCap            final = return (NullCap, None)"
+| "finalise_cap (PendingSyncSendCap r _ _ _ _) final = return (NullCap, NullCap)"
+| "finalise_cap (PendingSyncRecvCap r _ ) final = return (NullCap, NullCap)"
+| "finalise_cap (PendingNtfnRecvCap r)  final = return (NullCap, NullCap)"
+| "finalise_cap IrqControlCap            final = return (NullCap, NullCap)"
 | "finalise_cap (IrqHandlerCap irq)      final = (
        if final then do
          deleting_irq_handler irq;
-         return (NullCap, Some irq)
+         return (NullCap, (IrqHandlerCap irq))
        od
-       else return (NullCap, None))"
+       else return (NullCap, NullCap))"
 | "finalise_cap (ZombieCap r)            final =
-      (do assert final; return (ZombieCap r, None) od)"
+      (do assert final; return (ZombieCap r, NullCap) od)"
 | "finalise_cap (AsidPoolCap ptr asid)        final = (
        if final then do
          delete_asid_pool asid ptr;
-         return (NullCap, None)
+         return (NullCap, NullCap)
        od
-       else return (NullCap, None))"
-| "finalise_cap AsidControlCap           final = return (NullCap,None)"
+       else return (NullCap, NullCap))"
+| "finalise_cap AsidControlCap           final = return (NullCap,NullCap)"
 | "finalise_cap (PageDirectoryCap ptr x (Some asid))   final = (
        if final \<and> x = Real then do
          delete_asid asid ptr;
-         return (NullCap, None)
+         return (NullCap, NullCap)
        od
-       else return (NullCap, None))"
+       else return (NullCap, NullCap))"
 | "finalise_cap (PageTableCap ptr x (Some asid))     final = (
        if (final \<and> x = Real) then do
          unmap_page_table asid ptr;
-         return (NullCap, None)
+         return (NullCap, NullCap)
        od
-       else return (NullCap, None))"
+       else return (NullCap, NullCap))"
 | "finalise_cap (FrameCap dev ptr _ s x (Some asid))       final = (
        if x = Real then do
          unmap_page asid ptr s;
-         return (NullCap, None)
+         return (NullCap, NullCap)
        od
-       else return (NullCap, None))"
-| "finalise_cap _ final = return (NullCap, None)"
+       else return (NullCap, NullCap))"
+| "finalise_cap _ final = return (NullCap, NullCap)"
 
 
 text {* The fast_finalise operation is used to delete a capability when it is
@@ -248,11 +248,10 @@ lemma fast_finalise_def2:
   "fast_finalise cap final = do
      assert (can_fast_finalise cap);
      result \<leftarrow> finalise_cap cap final;
-     assert (result = (NullCap, None))
+     assert (result = (NullCap, NullCap))
    od"
-  apply (cases cap, simp_all add: liftM_def assert_def can_fast_finalise_def)
-  apply (rename_tac option, case_tac option, simp+)+ (* FIXME *)
-  done
+  unfolding can_fast_finalise_def
+  by (rule finalise_cap.cases[of "(cap,final)"]; simp add: assert_def liftM_def)
 
 (*
  * Atomically swap the two given caps.
@@ -522,7 +521,7 @@ where
   "resolve_address_bits cnode_cap cap_ptr remaining_size = doE
     unlessE (is_cnode_cap cnode_cap) $ throw;
 
-    (* Fetch the next level CNode. *)
+    \<comment> \<open>Fetch the next level CNode.\<close>
     cnode \<leftarrow> liftE $ get_cnode $ cap_object cnode_cap;
     radix_size \<leftarrow> returnOk $ cdl_cnode_size_bits cnode;
     guard_size \<leftarrow> returnOk $ cap_guard_size cnode_cap;
@@ -530,14 +529,14 @@ where
     level_size \<leftarrow> returnOk (radix_size + guard_size);
     assertE (level_size \<noteq> 0);
 
-    (* Ensure the guard matches up. *)
+    \<comment> \<open>Ensure the guard matches up.\<close>
     guard \<leftarrow> returnOk $ (cap_ptr >> (remaining_size-guard_size)) && (mask guard_size);
     unlessE (guard_size \<le> remaining_size \<and> guard = cap_guard) $ throw;
 
-    (* Ensure we still enough unresolved bits left in our CPTR. *)
+    \<comment> \<open>Ensure we still enough unresolved bits left in our CPTR.\<close>
     whenE (level_size > remaining_size) $ throw;
 
-    (* Find the next slot. *)
+    \<comment> \<open>Find the next slot.\<close>
     offset \<leftarrow> returnOk $ (cap_ptr >> (remaining_size-level_size)) && (mask radix_size);
     slot \<leftarrow> returnOk (cap_object cnode_cap, unat offset);
     size_left \<leftarrow> returnOk (remaining_size - level_size);

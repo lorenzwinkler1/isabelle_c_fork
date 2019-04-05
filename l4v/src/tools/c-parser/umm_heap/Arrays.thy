@@ -13,14 +13,14 @@
 
 theory Arrays
 imports
-  "~~/src/HOL/Library/Numeral_Type"
+  "HOL-Library.Numeral_Type"
 begin
 
 definition
   has_size :: "'a set \<Rightarrow> nat \<Rightarrow> bool" where
    "has_size s n = (finite s \<and> card s = n)"
 
--- {* If @{typ 'a} is not finite, there is no @{term "n < CARD('a)"} *}
+\<comment> \<open>If @{typ 'a} is not finite, there is no @{term "n < CARD('a)"}\<close>
 definition
   finite_index :: "nat \<Rightarrow> 'a::finite" where
   "finite_index = (SOME f. \<forall>x. \<exists>!n. n < CARD('a) \<and> f n = x)"
@@ -58,7 +58,7 @@ next
     by (auto simp: card_Suc_eq)
   with `finite S` Suc.hyps [of B]
   obtain f where IH: "(\<forall>m<n. f m \<in> B) \<and> (\<forall>x. x \<in> B \<longrightarrow> (\<exists>!m. m < n \<and> f m = x))" by auto
-  def f' \<equiv> "\<lambda>m. if m = card B then b else f m"
+  define f' where "f' \<equiv> \<lambda>m. if m = card B then b else f m"
   from Suc.prems S IH
   have "(\<forall>m<Suc n. f' m \<in> S) \<and> (\<forall>x. x \<in> S \<longrightarrow> (\<exists>!m. m < Suc n \<and> f' m = x))"
     unfolding f'_def
@@ -272,7 +272,7 @@ lemma set_array_FCP [simp]:
   by (auto simp: set_array_list)
 
 lemma map_array_set_img:
-  "set_array \<circ> map_array f = op ` f \<circ> set_array"
+  "set_array \<circ> map_array f = (`) f \<circ> set_array"
   by (rule ext) (auto simp: map_array_def in_set_array_index_conv intro!: imageI)
 
 lemma fcp_cong [cong]:
@@ -297,7 +297,7 @@ next
     by (rule map_array_setI)
 next
   fix f :: "'a \<Rightarrow> 'b"
-  show "set_array \<circ> map_array f = op ` f \<circ> set_array"
+  show "set_array \<circ> map_array f = (`) f \<circ> set_array"
     by (rule map_array_set_img)
 next
   show "card_order (BNF_Cardinal_Arithmetic.csum natLeq (card_of UNIV))"

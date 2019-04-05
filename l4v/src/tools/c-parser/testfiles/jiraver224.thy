@@ -9,9 +9,10 @@
  *)
 
 theory jiraver224
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "jiraver224.c"
 install_C_file "jiraver224.c"
 
 context jiraver224

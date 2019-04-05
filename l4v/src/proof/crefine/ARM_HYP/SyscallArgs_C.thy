@@ -704,7 +704,7 @@ lemma getMRs_tcbContext:
   done
 
 lemma threadGet_tcbIpcBuffer_ccorres [corres]:
-  "ccorres (op =) w_bufferPtr_' (tcb_at' tptr) UNIV hs
+  "ccorres (=) w_bufferPtr_' (tcb_at' tptr) UNIV hs
            (threadGet tcbIPCBuffer tptr)
            (Guard C_Guard \<lbrace>hrs_htd \<acute>t_hrs \<Turnstile>\<^sub>t tcb_ptr_to_ctcb_ptr tptr\<rbrace>
                (\<acute>w_bufferPtr :==
@@ -800,7 +800,7 @@ lemma ccap_relation_page_is_device:
    done
 
 lemma lookupIPCBuffer_ccorres[corres]:
-  "ccorres (op = \<circ> option_to_ptr) ret__ptr_to_unsigned_long_'
+  "ccorres ((=) \<circ> option_to_ptr) ret__ptr_to_unsigned_long_'
            (tcb_at' t)
            (UNIV \<inter> {s. thread_' s = tcb_ptr_to_ctcb_ptr t}
                   \<inter> {s. isReceiver_' s = from_bool isReceiver}) []
@@ -868,6 +868,7 @@ lemma lookupIPCBuffer_ccorres[corres]:
               apply csymbr
               apply csymbr
               apply csymbr
+              apply csymbr
               apply (rule ccorres_Guard)
               apply simp
               apply (rule ccorres_assert)+
@@ -917,6 +918,7 @@ lemma lookupIPCBuffer_ccorres[corres]:
                                       Kernel_C.VMKernelOnly_def
                                 dest: word_less_cases)
                apply (rule ccorres_rhs_assoc)+
+               apply csymbr
                apply csymbr
                apply csymbr
                apply csymbr
@@ -1175,45 +1177,15 @@ lemma getMRs_length:
   done
 
 lemma index_msgRegisters_less':
-  "n < 4 \<Longrightarrow> index msgRegistersC n < 0x13"
+  "n < 4 \<Longrightarrow> index msgRegistersC n < 0x14"
   by (simp add: msgRegistersC_def fupdate_def Arrays.update_def
                 fcp_beta "StrictC'_register_defs")
 
 lemma index_msgRegisters_less:
-  "n < 4 \<Longrightarrow> index msgRegistersC n <s 0x13"
-  "n < 4 \<Longrightarrow> index msgRegistersC n < 0x13"
+  "n < 4 \<Longrightarrow> index msgRegistersC n <s 0x14"
+  "n < 4 \<Longrightarrow> index msgRegistersC n < 0x14"
   using index_msgRegisters_less'
   by (simp_all add: word_sless_msb_less)
-
-(* FIXME: move *)
-lemma ucast_nat_def':
-  "of_nat (unat x) = (ucast :: ('a :: len) word \<Rightarrow> ('b :: len) signed word) x"
-  by (simp add: ucast_def word_of_int_nat unat_def)
-
-(* FIXME: move *)
-lemma ucast_add:
-     "ucast (a + (b :: 'a :: len word)) = ucast a + (ucast b :: ('a signed word))"
-  apply (case_tac "len_of TYPE('a) = 1")
-   apply (clarsimp simp: ucast_def)
-   apply (metis (hide_lams, mono_tags) One_nat_def len_signed plus_word.abs_eq uint_word_arith_bintrs(1) word_ubin.Abs_norm)
-  apply (clarsimp simp: ucast_def)
-  apply (metis le_refl len_signed plus_word.abs_eq uint_word_arith_bintrs(1) wi_bintr)
-  done
-
-(* FIXME: move *)
-lemma ucast_minus:
-     "ucast (a - (b :: 'a :: len word)) = ucast a - (ucast b :: ('a signed word))"
-  apply (insert ucast_add [where a=a and b="-b"])
-  apply (metis (no_types, hide_lams) add_diff_eq diff_add_cancel ucast_add is_num_normalize)
-  done
-
-(* FIXME : move *)
-lemma scast_ucast_add_one [simp]:
-  "scast (ucast (x :: 'a::len word) + (1 :: 'a signed word)) = x + 1"
-  apply (subst ucast_1 [symmetric])
-  apply (subst ucast_add [symmetric])
-  apply clarsimp
-  done
 
 lemma valid_ipc_buffer_ptr_array:
   "valid_ipc_buffer_ptr' (ptr_val p) s \<Longrightarrow> (s, s') \<in> rf_sr
@@ -1234,12 +1206,12 @@ lemma valid_ipc_buffer_ptr_array:
     simp add: word_shift_by_2 shiftr_shiftl1
               is_aligned_andI1[OF is_aligned_weaken])
   apply (simp add: add.commute word_plus_and_or_coroll2)
-  apply (cut_tac x="(ptr_val p && mask pageBits ) >> 2"
-        and n="2 ^ (pageBits - 2) - 2 ^ (msg_align_bits - 2)" in unat_le_helper)
+  apply (cut_tac a="(ptr_val p && mask pageBits ) >> 2"
+        and b="2 ^ (pageBits - 2) - 2 ^ (msg_align_bits - 2)" in unat_le_helper)
    apply (simp add: pageBits_def msg_align_bits mask_def is_aligned_mask)
    apply word_bitwise
    apply simp
-  apply (simp add: msg_align_bits pageBits_def)
+  apply (simp add: msg_align_bits pageBits_def multiple_mask_trivia)
   done
 
 lemma array_assertion_valid_ipc_buffer_ptr_abs:

@@ -94,6 +94,7 @@ where
         arch_capability.PML4Cap word data)"
 | "acap_relation (arch_cap.IOPortCap f l) c = (c =
         arch_capability.IOPortCap f l)"
+| "acap_relation (arch_cap.IOPortControlCap) c = (c = arch_capability.IOPortControlCap)"
 
 primrec
   cap_relation :: "cap \<Rightarrow> capability \<Rightarrow> bool"
@@ -469,18 +470,34 @@ definition
 where
   "cr3_relation c c' \<equiv> cr3_base_address c = cr3BaseAddress c' \<and> cr3_pcid c = cr3pcid c'"
 
+fun
+  x64irqstate_to_abstract :: "x64irqstate \<Rightarrow> X64IRQState"
+where
+  "x64irqstate_to_abstract X64IRQFree = IRQFree"
+| "x64irqstate_to_abstract X64IRQReserved = IRQReserved"
+| "x64irqstate_to_abstract (X64IRQMSI bus dev func handle) = (IRQMSI bus dev func handle)"
+| "x64irqstate_to_abstract (X64IRQIOAPIC ioapic pin level polarity masked) =
+     (IRQIOAPIC ioapic pin level polarity masked)"
+
+definition
+  x64_irq_relation :: "(8 word \<Rightarrow> X64IRQState) \<Rightarrow> (8 word \<Rightarrow> x64irqstate) \<Rightarrow> bool"
+where
+  "x64_irq_relation irq_states irq_states' \<equiv> irq_states = x64irqstate_to_abstract o irq_states'"
+
 definition
   arch_state_relation :: "(arch_state \<times> X64_H.kernel_state) set"
 where
   "arch_state_relation \<equiv> {(s, s') .
          x64_asid_table s = x64KSASIDTable s' o ucast
-       \<and> x64_global_pml4 s = x64KSGlobalPML4 s'
-       \<and> x64_global_pdpts s = x64KSGlobalPDPTs s'
-       \<and> x64_global_pds s = x64KSGlobalPDs s'
-       \<and> x64_global_pts s = x64KSGlobalPTs s'
-       \<and> cr3_relation (x64_current_cr3 s) (x64KSCurrentCR3 s')
-       \<and> x64_kernel_vspace s = x64KSKernelVSpace s'}"
-
+       \<and> x64_global_pml4 s = x64KSSKIMPML4 s'
+       \<and> x64_global_pdpts s = x64KSSKIMPDPTs s'
+       \<and> x64_global_pds s = x64KSSKIMPDs s'
+       \<and> x64_global_pts s = x64KSSKIMPTs s'
+       \<and> cr3_relation (x64_current_cr3 s) (x64KSCurrentUserCR3 s')
+       \<and> x64_kernel_vspace s = x64KSKernelVSpace s'
+       \<and> x64_allocated_io_ports s = x64KSAllocatedIOPorts s'
+       \<and> x64_num_ioapics s = x64KSNumIOAPICs s'
+       \<and> x64_irq_relation (x64_irq_state s) (x64KSIRQState s')}"
 
 definition
   (* NOTE: this map discards the Ident right, needed on endpoints only *)
@@ -585,10 +602,6 @@ where
        | PageDirectoryObj \<Rightarrow> PageDirectoryObject
        | PDPTObj \<Rightarrow> PDPointerTableObject
        | PML4Obj \<Rightarrow> PML4Object)"
-
-lemma get_tcb_at: "tcb_at t s \<Longrightarrow> (\<exists>tcb. get_tcb t s = Some tcb)"
-  by (simp add: tcb_at_def)
-
 
 definition
   state_relation :: "(det_state \<times> kernel_state) set"
@@ -723,7 +736,8 @@ lemmas isCap_defs =
   isPageCap_def isPageTableCap_def isPageDirectoryCap_def
   isPDPointerTableCap_def isPML4Cap_def isIOPortCap_def
   isASIDControlCap_def isASIDPoolCap_def isArchPageCap_def
-  isDomainCap_def isArchIOPortCap_def
+  isDomainCap_def isArchIOPortCap_def isIOPortControlCap_def
+  isIOPortControlCap'_def
 
 lemma isCNodeCap_cap_map [simp]:
   "cap_relation c c' \<Longrightarrow> isCNodeCap c' = is_cnode_cap c"

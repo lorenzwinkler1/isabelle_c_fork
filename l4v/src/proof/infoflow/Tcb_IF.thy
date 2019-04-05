@@ -60,8 +60,8 @@ crunch globals_equiv[wp]: get_notification "globals_equiv st"
 lemma cancel_signal_globals_equiv:
   "\<lbrace>globals_equiv st and valid_ko_at_arm\<rbrace> cancel_signal a b \<lbrace>\<lambda>_. globals_equiv st\<rbrace>"
   unfolding cancel_signal_def
-  by (wpsimp wp: set_thread_state_globals_equiv get_simple_ko_valid_ko_at_arm
-                 set_notification_globals_equiv set_notification_valid_ko_at_arm hoare_drop_imps
+  by (wpsimp wp: set_thread_state_globals_equiv set_notification_globals_equiv
+                 set_notification_valid_ko_at_arm hoare_drop_imps
            simp: crunch_simps)
 
 crunch globals_equiv[wp]: cancel_ipc "globals_equiv st"
@@ -74,15 +74,7 @@ crunch globals_equiv[wp]: restart "globals_equiv st"
   (wp: cancel_ipc_valid_ko_at_arm hoare_vcg_if_lift2 dxo_wp_weak hoare_drop_imps
    ignore: reschedule_required possible_switch_to)
 
-lemma as_user_globals_equiv[wp]:
-  "\<lbrace> globals_equiv st and valid_ko_at_arm and (\<lambda>s. thread \<noteq> idle_thread s)\<rbrace>
-   as_user thread f
-   \<lbrace> \<lambda>_. globals_equiv st \<rbrace>"
-  unfolding as_user_def fun_app_def
-  apply (wp set_object_globals_equiv | simp add: split_def)+
-  apply (simp add: valid_ko_at_arm_def)
-  apply (clarsimp simp: get_tcb_def obj_at_def)
-  done
+declare as_user_globals_equiv[wp]
 
 lemma cap_ne_global_pd : "ex_nonz_cap_to word s \<Longrightarrow> valid_global_refs s \<Longrightarrow> word \<noteq> arm_global_pd (arch_state s)"
   unfolding ex_nonz_cap_to_def
@@ -159,7 +151,7 @@ lemma rec_del_preservation2':
   "s \<turnstile> \<lbrace>\<lambda>s. invs s \<and> P s \<and> Q s \<and> emptyable (slot_rdcall call) s \<and> valid_rec_del_call call s\<rbrace>
      rec_del call
    \<lbrace>\<lambda>rv s. P s \<and> Q s\<rbrace>,\<lbrace>\<lambda>rv s. P s \<and> Q s\<rbrace>"
-proof (induct arbitrary: st rule: rec_del.induct,
+proof (induct rule: rec_del.induct,
        simp_all only: rec_del_fails)
   case (1 slot exposed s)
   show ?case
@@ -195,7 +187,7 @@ next
                        | rule finalise_cap_not_reply_master
                        | simp add: in_monad)+
          apply (rule hoare_strengthen_post)
-        apply (rule_tac Q="\<lambda>fin s. invs s \<and> cte_wp_at (op = rv) slot s \<and> s \<turnstile> (fst fin)
+        apply (rule_tac Q="\<lambda>fin s. invs s \<and> cte_wp_at ((=) rv) slot s \<and> s \<turnstile> (fst fin)
                                           \<and> P s
                                           \<and> replaceable s slot (fst fin) rv
                                           \<and> emptyable slot s
@@ -214,7 +206,7 @@ next
          apply (erule disjE)
          apply clarsimp
       apply (clarsimp simp: is_cap_simps cap_auth_conferred_def clas_no_asid aag_cap_auth_def
-                            pas_refined_all_auth_is_owns cli_no_irqs)
+                            pas_refined_all_auth_is_owns cli_no_irqs gen_obj_refs_eq)
       apply (drule appropriate_Zombie[symmetric, THEN trans, symmetric])
       apply clarsimp
       apply (erule_tac s = "{r}" in subst)
@@ -330,7 +322,7 @@ lemma invoke_tcb_thread_preservation:
   assumes thread_set_P: "\<And>f ptr. \<lbrace>invs and P\<rbrace> thread_set (tcb_ipc_buffer_update f) ptr \<lbrace>\<lambda>_.P\<rbrace>"
   assumes thread_set_P': "\<And>f ptr. \<lbrace>invs and P\<rbrace> thread_set (tcb_fault_handler_update f) ptr \<lbrace>\<lambda>_.P\<rbrace>"
   assumes set_mcpriority_P: "\<And>mcp ptr. \<lbrace>invs and P\<rbrace> set_mcpriority ptr mcp \<lbrace>\<lambda>_.P\<rbrace>"
-  assumes set_register_P[wp]: "\<And>d. \<lbrace>P and invs and (\<lambda>s. t \<noteq> idle_thread s)\<rbrace> as_user t (set_register TPIDRURW d) \<lbrace>\<lambda>_. P\<rbrace>"
+  assumes set_register_P[wp]: "\<And>d. \<lbrace>P and invs and (\<lambda>s. t \<noteq> idle_thread s)\<rbrace> as_user t (setRegister TPIDRURW d) \<lbrace>\<lambda>_. P\<rbrace>"
   assumes P_trans[simp]: "\<And>f s. P (trans_state f s) = P s"
 shows "
    \<lbrace>P and invs and Tcb_AI.tcb_inv_wf (tcb_invocation.ThreadControl t sl ep mcp prio croot vroot buf)\<rbrace>
@@ -432,25 +424,28 @@ lemma invoke_tcb_globals_equiv:
   "\<lbrace> invs and globals_equiv st and Tcb_AI.tcb_inv_wf ti\<rbrace>
    invoke_tcb ti
    \<lbrace>\<lambda>_. globals_equiv st\<rbrace>"
-  including no_pre
-  apply(case_tac ti)
-       prefer 4
-       apply (simp del: invoke_tcb.simps Tcb_AI.tcb_inv_wf.simps )
-       apply (wp invoke_tcb_thread_preservation cap_delete_globals_equiv
-                 cap_insert_globals_equiv'' thread_set_globals_equiv
-                 set_mcpriority_globals_equiv
-              | clarsimp simp add: invs_valid_ko_at_arm split del: if_split)+
-       apply (simp_all del: Tcb_AI.tcb_inv_wf.simps split del: if_split)
-       apply (wp | clarsimp simp: invs_valid_ko_at_arm no_cap_to_idle_thread
-                 | intro conjI impI)+
-       apply (rename_tac word1 word2 bool1 bool2 bool3 bool4 arm_copy_register_sets)
-       apply (rule_tac Q="\<lambda>_. valid_ko_at_arm and globals_equiv st and (\<lambda>s. word1 \<noteq> idle_thread s)
-                              and (\<lambda>s. word2 \<noteq> idle_thread s)" in hoare_strengthen_post)
-        apply (wp mapM_x_wp' as_user_globals_equiv invoke_tcb_NotificationControl_globals_equiv
+  apply(case_tac ti;
+    (solves \<open>
+        (wp mapM_x_wp' as_user_globals_equiv invoke_tcb_NotificationControl_globals_equiv
                | simp add: invs_valid_ko_at_arm
                | intro conjI impI
                | clarsimp simp: no_cap_to_idle_thread)+
-       done
+    \<close>)?)
+   defer
+   apply (simp del: invoke_tcb.simps Tcb_AI.tcb_inv_wf.simps )
+   apply ((wp invoke_tcb_thread_preservation cap_delete_globals_equiv
+             cap_insert_globals_equiv'' thread_set_globals_equiv
+             set_mcpriority_globals_equiv
+          | clarsimp simp add: invs_valid_ko_at_arm split del: if_split)+)[1]
+  apply wpsimp
+      apply (rename_tac word1 word2 bool1 bool2 bool3 bool4 arm_copy_register_sets)
+      apply (rule_tac Q="\<lambda>_. valid_ko_at_arm and globals_equiv st and (\<lambda>s. word1 \<noteq> idle_thread s)
+                         and (\<lambda>s. word2 \<noteq> idle_thread s)" in hoare_strengthen_post)
+       apply (wp mapM_x_wp' as_user_globals_equiv invoke_tcb_NotificationControl_globals_equiv
+               | simp add: invs_valid_ko_at_arm
+               | intro conjI impI
+               | clarsimp simp: no_cap_to_idle_thread)+
+  done
 
 
 section "reads respects"
@@ -469,11 +464,11 @@ crunch states_equiv[wp]: switch_if_required_to "states_equiv_for P Q R X st"
 *)
 
 lemmas gets_cur_thread_respects_f =
-       gets_cur_thread_ev[THEN reads_respects_f[where aag=aag and st=st and Q=\<top>],simplified,wp]
-
-crunch pas_cur_domain[wp]: setup_reply_master "pas_cur_domain aag"
+       gets_cur_thread_ev[THEN reads_respects_f[where Q=\<top>],simplified,wp]
 
 lemma restart_reads_respects_f:
+  assumes domains_distinct[wp]: "pas_domains_distinct aag"
+  shows
   "reads_respects_f aag l (silc_inv aag st and pas_refined aag and pas_cur_domain aag and invs and (\<lambda>s. is_subject aag (cur_thread s)) and K (is_subject aag t)) (restart t)"
   apply (rule gen_asm_ev | elim conjE)+
   apply (simp add: restart_def when_def)
@@ -554,7 +549,10 @@ lemma ethread_set_priority_pas_refined[wp]:
    apply (force intro: domtcbs)+
    done
 
-lemma set_priority_reads_respects: "reads_respects aag l
+lemma set_priority_reads_respects:
+  assumes domains_distinct[wp]: "pas_domains_distinct aag"
+  shows
+  "reads_respects aag l
            (pas_refined aag and K (is_subject aag word))
            (set_priority word prio)"
   apply (simp add: set_priority_def thread_set_priority_def)
@@ -566,9 +564,11 @@ lemma set_priority_reads_respects: "reads_respects aag l
   done
 
 lemma set_mcpriority_reads_respects:
+  assumes domains_distinct: "pas_domains_distinct aag"
+  shows
   "reads_respects aag l \<top> (set_mcpriority x y)"
   unfolding set_mcpriority_def
-  by (rule thread_set_reads_respects)
+  by (rule thread_set_reads_respects[OF domains_distinct])
 
 lemma checked_cap_insert_only_timer_irq_inv:
   "\<lbrace>only_timer_irq_inv irq (st::det_ext state)\<rbrace>
@@ -622,50 +622,55 @@ lemma bind_notification_reads_respects:
   apply (clarsimp dest!: reads_ep)
   done
 
-lemmas thread_get_reads_respects_f = reads_respects_f[OF thread_get_reads_respects, where Q="\<top>", simplified, OF thread_get_silc_inv]
+lemmas thread_get_reads_respects_f = reads_respects_f[OF thread_get_reads_respects, where Q="\<top>", simplified, OF thread_get_inv]
 
-crunch silc_inv[wp]: reschedule_required, restart "silc_inv aag st"
-lemmas reschedule_required_reads_respects_f = reads_respects_f[OF reschedule_required_reads_respects, where Q="\<top>", simplified, OF reschedule_required_silc_inv]
+lemmas reschedule_required_reads_respects_f = reads_respects_f[OF reschedule_required_reads_respects, where Q="\<top>", simplified, OF _ reschedule_required_ext_extended.silc_inv]
 crunch pas_refined[wp]: restart "pas_refined aag"
 
 lemma invoke_tcb_reads_respects_f:
+  assumes domains_distinct[wp]: "pas_domains_distinct aag"
   notes validE_valid[wp del]
         static_imp_wp [wp]
   shows
   "reads_respects_f aag l (silc_inv aag st and only_timer_irq_inv irq st' and einvs and simple_sched_action and pas_refined aag and pas_cur_domain aag and Tcb_AI.tcb_inv_wf ti and (\<lambda>s. is_subject aag (cur_thread s)) and K (authorised_tcb_inv aag ti \<and> authorised_tcb_inv_extra aag ti)) (invoke_tcb ti)"
   including no_pre
   apply(case_tac ti)
-        apply(wpsimp wp: thread_get_reads_respects_f when_ev restart_reads_respects_f
-                         reschedule_required_reads_respects_f as_user_reads_respects_f
-                         static_imp_wp thread_get_wp' restart_silc_inv restart_pas_refined
-                         hoare_vcg_if_lift)+
-        apply(auto intro: requiv_cur_thread_eq
-                  intro!: det_zipWithM
-                    simp: det_setRegister det_getRestartPC det_setNextPC authorised_tcb_inv_def reads_equiv_f_def)[1]
-       apply(wp as_user_reads_respects_f suspend_silc_inv when_ev suspend_reads_respects_f[where st=st]
-                | simp | elim conjE, assumption)+
-       apply(auto simp: authorised_tcb_inv_def  det_getRegister reads_equiv_f_def
-                intro!: det_mapM[OF _ subset_refl])[1]
-      apply(wp when_ev mapM_x_ev'' reschedule_required_reads_respects_f[where st=st]
-               as_user_reads_respects_f[where st=st] hoare_vcg_ball_lift mapM_x_wp'
-               restart_reads_respects_f restart_silc_inv hoare_vcg_if_lift
-               suspend_reads_respects_f suspend_silc_inv hoare_drop_imp
-               restart_silc_inv restart_pas_refined
-           | simp split del: if_split add: det_setRegister det_setNextPC)+
-      apply(auto simp: authorised_tcb_inv_def
-                       idle_no_ex_cap[OF invs_valid_global_refs invs_valid_objs] det_getRestartPC
-                       det_getRegister)[1]
-     defer
-     apply((wp suspend_reads_respects_f[where st=st] restart_reads_respects_f[where st=st]
-             | simp add: authorised_tcb_inv_def )+)[2]
-    -- "NotificationControl"
-   apply (rename_tac option)
-   apply (case_tac option, simp_all)[1]
-    apply ((wp unbind_notification_is_subj_reads_respects unbind_notification_silc_inv
-          bind_notification_reads_respects
-        | clarsimp simp: authorised_tcb_inv_def
-        | rule_tac Q=\<top> and st=st in reads_respects_f)+)[2]
--- "ThreadControl"
+         apply(wpsimp wp: thread_get_reads_respects_f when_ev restart_reads_respects_f
+                          reschedule_required_reads_respects_f as_user_reads_respects_f
+                          static_imp_wp thread_get_wp' restart_silc_inv restart_pas_refined
+                          hoare_vcg_if_lift)+
+         apply(auto intro: requiv_cur_thread_eq
+                   intro!: det_zipWithM
+                     simp: det_setRegister det_getRestartPC det_setNextPC authorised_tcb_inv_def reads_equiv_f_def)[1]
+        apply(wp as_user_reads_respects_f suspend_silc_inv when_ev suspend_reads_respects_f[where st=st]
+                 | simp | elim conjE, assumption)+
+        apply(auto simp: authorised_tcb_inv_def  det_getRegister reads_equiv_f_def
+                 intro!: det_mapM[OF _ subset_refl])[1]
+       apply(wp when_ev mapM_x_ev'' reschedule_required_reads_respects_f[where st=st]
+                as_user_reads_respects_f[where st=st] hoare_vcg_ball_lift mapM_x_wp'
+                restart_reads_respects_f restart_silc_inv hoare_vcg_if_lift
+                suspend_reads_respects_f suspend_silc_inv hoare_drop_imp
+                restart_silc_inv restart_pas_refined
+            | simp split del: if_split add: det_setRegister det_setNextPC)+
+       apply(auto simp: authorised_tcb_inv_def
+                        idle_no_ex_cap[OF invs_valid_global_refs invs_valid_objs] det_getRestartPC
+                        det_getRegister)[1]
+      defer
+      apply((wp suspend_reads_respects_f[where st=st] restart_reads_respects_f[where st=st]
+              | simp add: authorised_tcb_inv_def )+)[2]
+    \<comment> \<open>NotificationControl\<close>
+    apply (rename_tac option)
+    apply (case_tac option, simp_all)[1]
+     apply ((wp unbind_notification_is_subj_reads_respects unbind_notification_silc_inv
+           bind_notification_reads_respects
+         | clarsimp simp: authorised_tcb_inv_def
+         | rule_tac Q=\<top> and st=st in reads_respects_f)+)[2]
+   \<comment> \<open>SetTLSBase\<close>
+   apply (rename_tac tcb tls_base)
+   apply(wpsimp wp: when_ev reschedule_required_reads_respects_f
+                    as_user_reads_respects_f hoare_drop_imps)+
+   apply(auto simp: det_setRegister authorised_tcb_inv_def)[1]
+  \<comment> \<open>ThreadControl\<close>
   apply (simp add: split_def cong: option.case_cong)
   apply (wpsimp wp: hoare_vcg_const_imp_lift_R simp: when_def | wpc)+
                       apply (rule conjI)
@@ -676,7 +681,7 @@ lemma invoke_tcb_reads_respects_f:
                              set_mcpriority_reads_respects[THEN reads_respects_f[where aag=aag and st=st and Q=\<top>]]
                              check_cap_inv[OF check_cap_inv[OF cap_insert_valid_list]]
                              check_cap_inv[OF check_cap_inv[OF cap_insert_valid_sched]]
-                             check_cap_inv[OF check_cap_inv[OF cap_insert_simple_sched_action]]
+                             check_cap_inv[OF check_cap_inv[OF cap_insert_schedact]]
                              get_thread_state_rev[THEN reads_respects_f[where aag=aag and st=st and Q=\<top>]]
                              hoare_vcg_all_lift_R hoare_vcg_all_lift
                              cap_delete_reads_respects[where st=st] itr_wps(19) cap_insert_pas_refined
@@ -694,13 +699,15 @@ lemma invoke_tcb_reads_respects_f:
                             |simp add: emptyable_def tcb_cap_cases_def tcb_cap_valid_def
                                        tcb_at_st_tcb_at when_def
                             |strengthen use_no_cap_to_obj_asid_strg)+)[9]
-     apply(wp reads_respects_f[OF cap_insert_reads_respects, where st=st]
+     apply (
+        ((simp add: conj_comms, strengthen imp_consequent[where Q="x = None" for x], simp cong: conj_cong)
+          | wp reads_respects_f[OF cap_insert_reads_respects, where st=st]
             reads_respects_f[OF thread_set_reads_respects, where st=st and Q="\<top>"]
             set_priority_reads_respects[THEN reads_respects_f[where aag=aag and st=st and Q=\<top>]]
             set_mcpriority_reads_respects[THEN reads_respects_f[where aag=aag and st=st and Q=\<top>]]
             check_cap_inv[OF check_cap_inv[OF cap_insert_valid_list]]
             check_cap_inv[OF check_cap_inv[OF cap_insert_valid_sched]]
-            check_cap_inv[OF check_cap_inv[OF cap_insert_simple_sched_action]]
+            check_cap_inv[OF check_cap_inv[OF cap_insert_schedact]]
             get_thread_state_rev[THEN reads_respects_f[where aag=aag and st=st and Q=\<top>]]
             hoare_vcg_all_lift_R hoare_vcg_all_lift
             cap_delete_reads_respects[where st=st] itr_wps(19) cap_insert_pas_refined
@@ -718,6 +725,7 @@ lemma invoke_tcb_reads_respects_f:
        |simp add: emptyable_def tcb_cap_cases_def tcb_cap_valid_def
                   tcb_at_st_tcb_at when_def
        |strengthen use_no_cap_to_obj_asid_strg)+
+)
     apply(simp add: option_update_thread_def tcb_cap_cases_def
          | wp static_imp_wp static_imp_conj_wp reads_respects_f[OF thread_set_reads_respects, where st=st and Q="\<top>"]
               thread_set_pas_refined | wpc)+
@@ -730,18 +738,18 @@ lemma invoke_tcb_reads_respects_f:
         | simp add: tcb_cap_cases_def | wpc)+
   apply (clarsimp simp: authorised_tcb_inv_def  authorised_tcb_inv_extra_def emptyable_def)
   by (clarsimp simp: is_cap_simps is_cnode_or_valid_arch_def is_valid_vtable_root_def
-                     set_register_det
+                     det_setRegister
                    | intro impI
                    | rule conjI)+
-  (*Extra slow*)
-
 
 lemma invoke_tcb_reads_respects_f_g:
+  assumes domains_distinct: "pas_domains_distinct aag"
+  shows
 "reads_respects_f_g aag l (silc_inv aag st and only_timer_irq_inv irq st' and pas_refined aag and pas_cur_domain aag and einvs and simple_sched_action and Tcb_AI.tcb_inv_wf ti and (\<lambda>s. is_subject aag (cur_thread s)) and K (authorised_tcb_inv aag ti \<and> authorised_tcb_inv_extra aag ti))
     (invoke_tcb ti)"
   apply (rule equiv_valid_guard_imp)
    apply (rule reads_respects_f_g)
-    apply(rule invoke_tcb_reads_respects_f)
+    apply(rule invoke_tcb_reads_respects_f[OF domains_distinct])
    apply(rule doesnt_touch_globalsI)
    apply(wp invoke_tcb_globals_equiv | clarsimp | assumption | force)+
   done
@@ -760,9 +768,11 @@ lemma decode_tcb_invocation_authorised_extra:
                               decode_tcb_configure_def
                               decode_set_priority_def
                               decode_set_mcpriority_def
+                              decode_set_sched_params_def
                               decode_set_ipc_buffer_def
                               decode_bind_notification_def
                               decode_unbind_notification_def
+                              decode_set_tls_base_def
                               split_def decode_set_space_def
                    split del: if_split)+
   done

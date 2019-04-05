@@ -15,7 +15,7 @@ imports
 begin
 
 lemma map_bits_to_bl:
-  "map (op !! x) [0..<size x] = reverse (to_bl x)"
+  "map ((!!) x) [0..<size x] = reverse (to_bl x)"
   by (simp add: map_bits_rev_to_bl)
 
 lemma not_orList_is_replicate:
@@ -186,7 +186,7 @@ lemma const_apply:
   by (simp add: const_def)
 
 lemma const_None_empty:
-  "const None = empty"
+  "const None = Map.empty"
   by (rule ext, simp add: const_apply)
 
 lemma headM_tailM_Cons:

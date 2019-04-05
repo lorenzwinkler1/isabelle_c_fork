@@ -10,10 +10,13 @@
 
 theory Kernel_C
 imports
-  "../../machine/$L4V_ARCH/MachineTypes"
-  "../../../lib/CTranslationNICTA"
-  "../../../tools/asmrefine/CommonOps"
+  "ExecSpec.MachineTypes"
+  "CLib.CTranslationNICTA"
+  "AsmRefine.CommonOps"
 begin
+
+external_file
+  "../c/build/$L4V_ARCH/kernel_all.c_pp"
 
 context begin interpretation Arch .
 
@@ -74,6 +77,20 @@ setup {* Context.theory_map (ASM_Ignore_Hooks.add_hook (fn _ => true)) *}
 context begin interpretation Arch . global_naming vmpage_size
 requalify_consts X64SmallPage X64LargePage X64HugePage
 end
+
+definition
+  ctcb_size_bits :: nat
+where
+  "ctcb_size_bits \<equiv> 10"
+
+definition
+  ctcb_offset :: "64 word"
+where
+  "ctcb_offset \<equiv> 2 ^ ctcb_size_bits"
+
+lemmas ctcb_offset_defs = ctcb_offset_def ctcb_size_bits_def
+
+cond_sorry_modifies_proofs SORRY_MODIFIES_PROOFS
 
 install_C_file "../c/build/$L4V_ARCH/kernel_all.c_pp"
   [machinety=machine_state, ghostty=cghost_state]

@@ -9,9 +9,9 @@
  *)
 
 theory Types_CAMKES_CDL imports
-  "../adl-spec/Types_CAMKES"
-  "../adl-spec/Library_CAMKES"
-  "../../spec/capDL/Syscall_D"
+  "CamkesAdlSpec.Types_CAMKES"
+  "CamkesAdlSpec.Library_CAMKES"
+  "DSpec.Syscall_D"
 begin
 
 (* placeholder for things to fill in *)

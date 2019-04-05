@@ -10,7 +10,7 @@
 
 theory KHeap_R
 imports
-  "../../invariant-abstract/$L4V_ARCH/ArchDetSchedSchedule_AI"
+  "AInvs.ArchDetSchedSchedule_AI"
   Machine_R
 begin
 
@@ -478,7 +478,7 @@ lemma getObject_obj_at':
   assumes x: "\<And>q n ko. loadObject p q n ko =
                 (loadObject_default p q n ko :: ('a :: pspace_storable) kernel)"
   assumes P: "\<And>(v::'a::pspace_storable). (1 :: machine_word) < 2 ^ (objBits v)"
-  shows      "\<lbrace> \<top> \<rbrace> getObject p \<lbrace>\<lambda>r::'a::pspace_storable. obj_at' (op = r) p\<rbrace>"
+  shows      "\<lbrace> \<top> \<rbrace> getObject p \<lbrace>\<lambda>r::'a::pspace_storable. obj_at' ((=) r) p\<rbrace>"
   by (clarsimp simp: valid_def getObject_def in_monad
                      loadObject_default_def obj_at'_def projectKOs
                      split_def in_magnitude_check lookupAround2_char1
@@ -608,6 +608,28 @@ lemma setObject_aligned[wp]:
   apply (fastforce dest: bspec[OF _ domI])
   done
 
+lemma setObject_canonical[wp]:
+  shows     "\<lbrace>pspace_canonical'\<rbrace> setObject p val \<lbrace>\<lambda>rv. pspace_canonical'\<rbrace>"
+  apply (clarsimp simp: setObject_def split_def valid_def in_monad
+                        projectKOs pspace_canonical'_def ps_clear_upd'
+                        objBits_def[symmetric] lookupAround2_char1
+                 split: if_split_asm
+                 dest!: updateObject_objBitsKO)
+   apply (fastforce dest: bspec[OF _ domI])
+  apply (fastforce dest: bspec[OF _ domI])
+  done
+
+lemma setObject_in_kernel_mappings[wp]:
+  shows     "\<lbrace>pspace_in_kernel_mappings'\<rbrace> setObject p val \<lbrace>\<lambda>rv. pspace_in_kernel_mappings'\<rbrace>"
+  apply (clarsimp simp: setObject_def split_def valid_def in_monad
+                        projectKOs pspace_in_kernel_mappings'_def ps_clear_upd'
+                        objBits_def[symmetric] lookupAround2_char1
+                 split: if_split_asm
+                 dest!: updateObject_objBitsKO)
+   apply (fastforce dest: bspec[OF _ domI])
+  apply (fastforce dest: bspec[OF _ domI])
+  done
+
 lemma set_ep_aligned' [wp]:
   "\<lbrace>pspace_aligned'\<rbrace> setEndpoint ep v  \<lbrace>\<lambda>rv. pspace_aligned'\<rbrace>"
   unfolding setEndpoint_def by wp
@@ -616,6 +638,9 @@ lemma set_ep_distinct' [wp]:
   "\<lbrace>pspace_distinct'\<rbrace> setEndpoint ep v  \<lbrace>\<lambda>rv. pspace_distinct'\<rbrace>"
   unfolding setEndpoint_def by wp
 
+crunch pspace_canonical'[wp]: setEndpoint, getEndpoint "pspace_canonical'"
+
+crunch pspace_in_kernel_mappings'[wp]: setEndpoint, getEndpoint "pspace_in_kernel_mappings'"
 
 lemma setEndpoint_cte_wp_at':
   "\<lbrace>cte_wp_at' P p\<rbrace> setEndpoint ptr v \<lbrace>\<lambda>rv. cte_wp_at' P p\<rbrace>"
@@ -725,6 +750,19 @@ lemma cte_wp_at_ctes_of:
                         word_bw_assocs)
   done
 
+lemma ctes_of_canonical:
+  assumes canonical: "pspace_canonical' s"
+  assumes ctes_of: "ctes_of s p = Some cte"
+  shows "canonical_address p"
+proof -
+  from ctes_of have "cte_wp_at' ((=) cte) p s"
+    by (simp add: cte_wp_at_ctes_of)
+  thus ?thesis using canonical
+    by (fastforce simp: pspace_canonical'_def tcb_cte_cases_def field_simps objBits_defs
+                 split: if_splits
+                  elim: cte_wp_atE' canonical_address_add)
+qed
+
 lemma tcb_cte_cases_small:
   "\<lbrakk> tcb_cte_cases v = Some (getF, setF) \<rbrakk>
       \<Longrightarrow> v < 2 ^ tcbBlockSizeBits"
@@ -743,7 +781,7 @@ lemma ctes_of_from_cte_wp_at:
   apply (case_tac "ctes_of s x", simp_all)
    apply (drule_tac P1=Not and P'1="\<top>" and p1=x in use_valid [OF _ x],
            simp_all add: cte_wp_at_ctes_of)
-  apply (drule_tac P1=id and P'1="op = aa" and p1=x in use_valid [OF _ x],
+  apply (drule_tac P1=id and P'1="(=) aa" and p1=x in use_valid [OF _ x],
           simp_all add: cte_wp_at_ctes_of)
   done
 
@@ -773,6 +811,9 @@ lemma map_to_ctes_upd_tcb:
                   \<and> getF tcb \<noteq> getF tcb'
            then (case tcb_cte_cases (x - p) of Some (getF, setF) \<Rightarrow> Some (getF tcb))
            else map_to_ctes s x)"
+  supply
+    is_aligned_neg_mask_eq[simp del]
+    is_aligned_neg_mask_weaken[simp del]
   apply (subgoal_tac "p && ~~ (mask tcbBlockSizeBits) = p")
    apply (rule ext)
    apply (simp    add: map_to_ctes_def Let_def dom_fun_upd2
@@ -833,7 +874,7 @@ lemma map_to_ctes_upd_other:
   done
 
 lemma ctes_of_eq_cte_wp_at':
-  "cte_wp_at' (op = cte) x s \<Longrightarrow> ctes_of s x = Some cte"
+  "cte_wp_at' ((=) cte) x s \<Longrightarrow> ctes_of s x = Some cte"
   by (simp add: cte_wp_at_ctes_of)
 
 lemma tcb_cte_cases_change:
@@ -860,7 +901,7 @@ lemma ctes_of_setObject_cte:
    apply (rule ext, clarsimp)
    apply (intro conjI impI)
     apply (clarsimp simp: tcb_cte_cases_def split: if_split_asm)
-   apply (drule(1) cte_wp_at_tcbI'[where P="op = cte"])
+   apply (drule(1) cte_wp_at_tcbI'[where P="(=) cte"])
       apply (simp add: ps_clear_def3 field_simps)
      apply assumption+
    apply (simp add: cte_wp_at_ctes_of)
@@ -1852,7 +1893,7 @@ lemma setEndpoint_idle'[wp]:
   done
 
 crunch it[wp]: setEndpoint "\<lambda>s. P (ksIdleThread s)"
-  (simp: updateObject_default_inv ignore: getObject)
+  (simp: updateObject_default_inv)
 
 lemma setObject_ksPSpace_only:
   "\<lbrakk> \<And>p q n ko. \<lbrace>P\<rbrace> updateObject val p q n ko \<lbrace>\<lambda>rv. P \<rbrace>;
@@ -1883,16 +1924,12 @@ lemma valid_irq_handlers_lift':
 lemmas valid_irq_handlers_lift'' = valid_irq_handlers_lift' [unfolded cteCaps_of_def]
 
 crunch ksInterruptState[wp]: setEndpoint "\<lambda>s. P (ksInterruptState s)"
-  (ignore: setObject wp: setObject_ksInterrupt updateObject_default_inv)
+  (wp: setObject_ksInterrupt updateObject_default_inv)
 
 lemmas setEndpoint_irq_handlers[wp]
     = valid_irq_handlers_lift'' [OF set_ep_ctes_of setEndpoint_ksInterruptState]
 
 declare set_ep_arch' [wp]
-
-lemma set_ep_irq_node' [wp]:
-  "\<lbrace>\<lambda>s. P (irq_node' s)\<rbrace> setEndpoint ptr val \<lbrace>\<lambda>rv s. P (irq_node' s)\<rbrace>"
-  by (simp add: setEndpoint_def | wp setObject_ksInterrupt updateObject_default_inv)+
 
 lemma set_ep_maxObj [wp]:
   "\<lbrace>\<lambda>s. P (gsMaxObjectSize s)\<rbrace> setEndpoint ptr val \<lbrace>\<lambda>rv s. P (gsMaxObjectSize s)\<rbrace>"
@@ -2055,6 +2092,19 @@ lemmas set_ntfn_irq_handlers'[wp] = valid_irq_handlers_lift'' [OF set_ntfn_ctes_
 
 lemmas set_ntfn_irq_states' [wp] = valid_irq_states_lift' [OF set_ntfn_ksInterrupt set_ntfn_ksMachine]
 
+lemma valid_ioports_lift':
+  assumes x: "\<And>P. \<lbrace>\<lambda>s. P (cteCaps_of s)\<rbrace> f \<lbrace>\<lambda>rv s. P (cteCaps_of s)\<rbrace>"
+  assumes y: "\<And>P. \<lbrace>\<lambda>s. P (ksArchState s)\<rbrace> f \<lbrace>\<lambda>rv s. P (ksArchState s)\<rbrace>"
+  shows      "\<lbrace>valid_ioports'\<rbrace> f \<lbrace>\<lambda>rv. valid_ioports'\<rbrace>"
+  apply (clarsimp simp: valid_ioports'_def)
+  apply (rule hoare_use_eq [where f="\<lambda>s. ksArchState s"], rule y)
+  apply (rule hoare_use_eq [where f="\<lambda>s. cteCaps_of s"], rule x)
+  apply wp
+  done
+
+lemmas valid_ioports_lift'' = valid_ioports_lift'[unfolded cteCaps_of_def]
+lemmas set_ntfn_ioports'[wp] = valid_ioports_lift''[OF set_ntfn_ctes_of set_ntfn_arch']
+
 lemma set_ntfn_vms'[wp]:
   "\<lbrace>valid_machine_state'\<rbrace> setNotification ptr val \<lbrace>\<lambda>rv. valid_machine_state'\<rbrace>"
   apply (simp add: setNotification_def valid_machine_state'_def pointerInDeviceData_def pointerInUserData_def)
@@ -2127,7 +2177,7 @@ lemma setNotification_ct_idle_or_in_cur_domain'[wp]:
   done
 
 crunch gsUntypedZeroRanges[wp]: setNotification "\<lambda>s. P (gsUntypedZeroRanges s)"
-  (wp: setObject_ksPSpace_only updateObject_default_inv ignore: setObject)
+  (wp: setObject_ksPSpace_only updateObject_default_inv)
 
 lemma set_ntfn_minor_invs':
   "\<lbrace>invs' and obj_at' (\<lambda>ntfn. ntfn_q_refs_of' (ntfnObj ntfn) = ntfn_q_refs_of' (ntfnObj val)
@@ -2258,16 +2308,9 @@ lemma setEndpoint_ksMachine:
   "\<lbrace>\<lambda>s. P (ksMachineState s)\<rbrace> setEndpoint ptr val \<lbrace>\<lambda>rv s. P (ksMachineState s)\<rbrace>"
   by (simp add: setEndpoint_def | wp setObject_ksMachine updateObject_default_inv)+
 
-lemma setEndpoint_ksArch:
-  "\<lbrace>\<lambda>s. P (ksArchState s)\<rbrace>
-     setEndpoint ep_ptr val
-   \<lbrace>\<lambda>_ s. P (ksArchState s)\<rbrace>"
-  apply (simp add: setEndpoint_def setObject_def split_def)
-  apply (wp updateObject_default_inv | simp)+
-  done
-
 lemmas setEndpoint_valid_irq_states'  =
   valid_irq_states_lift' [OF setEndpoint_ksInterruptState setEndpoint_ksMachine]
+lemmas setEndpoint_ioports'[wp] = valid_ioports_lift''[OF set_ep_ctes_of set_ep_arch']
 
 (* analagous to ex_cte_cap_to'_cteCap, elsewhere *)
 lemma ex_cte_cap_wp_to'_cteCap:
@@ -2283,11 +2326,13 @@ lemma setEndpoint_ct':
   apply (wp updateObject_default_inv | simp)+
   done
 
-crunch ksArchState[wp]: setEndpoint "\<lambda>s. P (ksArchState s)"
-  (ignore: setObject wp: updateObject_default_inv)
-
 lemmas setEndpoint_valid_globals[wp]
-    = valid_global_refs_lift' [OF set_ep_ctes_of setEndpoint_ksArchState
+    = valid_global_refs_lift' [OF set_ep_ctes_of set_ep_arch'
                                   setEndpoint_it setEndpoint_ksInterruptState]
+lemma obj_at'_is_canonical:
+  "\<lbrakk>pspace_canonical' s; obj_at' P t s\<rbrakk> \<Longrightarrow> canonical_address t"
+  apply (clarsimp simp: obj_at'_def pspace_canonical'_def projectKOs)
+  by (drule_tac x=t in bspec) clarsimp+
+
 end
 end

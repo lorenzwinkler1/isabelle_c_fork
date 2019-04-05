@@ -19,8 +19,8 @@ imports
   "./$L4V_ARCH/ArchVSpace_A"
   IpcCancel_A
   "./$L4V_ARCH/ArchCSpace_A"
-  "../../lib/Monad_WP/NonDetMonadLemmas"
-  "~~/src/HOL/Library/Prefix_Order"
+  "Lib.NonDetMonadLemmas"
+  "HOL-Library.Prefix_Order"
 begin
 
 context begin interpretation Arch .
@@ -33,13 +33,10 @@ requalify_consts
   arch_same_region_as
   same_aobject_as
   prepare_thread_delete
-  msg_max_length
-  cap_transfer_data_size
-  msg_max_extra_caps
-  msg_align_bits
   update_cnode_cap_data
   cnode_padding_bits
   cnode_guard_size_bits
+  arch_is_cap_revocable
 
 end
 
@@ -113,7 +110,7 @@ definition
 derive_cap :: "cslot_ptr \<Rightarrow> cap \<Rightarrow> (cap,'z::state_ext) se_monad" where
 "derive_cap slot cap \<equiv>
  case cap of
-    ArchObjectCap c \<Rightarrow> liftME ArchObjectCap $ arch_derive_cap c
+    ArchObjectCap c \<Rightarrow> arch_derive_cap c
     | UntypedCap dev ptr sz f \<Rightarrow> doE ensure_no_children slot; returnOk cap odE
     | Zombie ptr n sz \<Rightarrow> returnOk NullCap
     | ReplyCap ptr m \<Rightarrow> returnOk NullCap
@@ -146,7 +143,7 @@ definition
         then NullCap
         else CNodeCap oref bits guard'
   else if is_arch_cap cap then
-    arch_update_cap_data w (the_arch_cap cap)
+    arch_update_cap_data preserve w (the_arch_cap cap)
   else
     cap"
 
@@ -163,14 +160,14 @@ where
   (case cap of
      CNodeCap oref radix_bits guard  \<Rightarrow>
      if radix_bits + size guard = 0 then
-       fail (* nothing is translated: table broken *)
+       fail \<comment> \<open>nothing is translated: table broken\<close>
      else doE
        whenE (\<not> guard \<le> cref)
-             (* guard does not match *)
+             \<comment> \<open>guard does not match\<close>
              (throwError $ GuardMismatch (size cref) guard);
 
        whenE (size cref < radix_bits + size guard)
-             (* not enough bits to resolve: table malformed *)
+             \<comment> \<open>not enough bits to resolve: table malformed\<close>
              (throwError $ DepthMismatch (size cref) (radix_bits+size guard));
 
        offset \<leftarrow> returnOk $ take radix_bits (drop (size guard) cref);
@@ -274,17 +271,6 @@ section {* Transferring capabilities *}
 text {* These functions are used in interpreting from user arguments the manner
 in which a capability transfer should take place. *}
 
-record captransfer =
-  ct_receive_root :: cap_ref
-  ct_receive_index :: cap_ref
-  ct_receive_depth :: data
-
-
-definition
-  captransfer_size :: "nat" -- "in words"
-where
-  "captransfer_size \<equiv> 3"
-
 definition
   captransfer_from_words :: "machine_word \<Rightarrow> (captransfer,'z::state_ext) s_monad"
 where
@@ -296,7 +282,6 @@ where
               ct_receive_index = data_to_cptr w1,
               ct_receive_depth = w2 \<rparr>
    od"
-
 
 definition
   load_cap_transfer :: "obj_ref \<Rightarrow> (captransfer,'z::state_ext) s_monad" where
@@ -367,13 +352,13 @@ where
     slot1_p \<leftarrow> gets (\<lambda>s. cdt s slot1);
     slot2_p \<leftarrow> gets (\<lambda>s. cdt s slot2);
     cdt \<leftarrow> gets cdt;
-    (* update children: *)
+    \<comment> \<open>update children:\<close>
     cdt' \<leftarrow> return (\<lambda>n. if cdt n = Some slot1
                         then Some slot2
                         else if cdt n = Some slot2
                         then Some slot1
                         else cdt n);
-    (* update parents: *)
+    \<comment> \<open>update parents:\<close>
     set_cdt (cdt' (slot1 := cdt' slot2, slot2 := cdt' slot1));
     do_extended_op (cap_swap_ext slot1 slot2 slot1_p slot2_p);
     is_original \<leftarrow> gets is_original_cap;
@@ -435,43 +420,49 @@ where
     cap_delete_one slot
   od"
 
-text {* Actions that must be taken when a capability is deleted. Returns a
-Zombie capability if deletion requires a long-running operation and also a
-possible IRQ to be cleared. *}
+text {* Actions that must be taken when a capability is deleted. Returns two
+capabilities: The first is a capability to be re-inserted into the slot in place
+of the deleted capability; in particular, this will be a Zombie if the deletion
+requires a long-running operation. The second represents some further
+post-deletion action to be performed after the slot is cleared. For example,
+an IRQHandlerCap indicates an IRQ to be cleared. Arch capabilities may also be
+associated with arch-specific post-deletion actions. For most cases, however,
+NullCap is used to indicate that no post-deletion action is required. *}
+
 fun
-  finalise_cap :: "cap \<Rightarrow> bool \<Rightarrow> (cap \<times> irq option,'z::state_ext) s_monad"
+  finalise_cap :: "cap \<Rightarrow> bool \<Rightarrow> (cap \<times> cap,'z::state_ext) s_monad"
 where
-  "finalise_cap NullCap                  final = return (NullCap, None)"
-| "finalise_cap (UntypedCap dev r bits f)    final = return (NullCap, None)"
-| "finalise_cap (ReplyCap r m)           final = return (NullCap, None)"
+  "finalise_cap NullCap                  final = return (NullCap, NullCap)"
+| "finalise_cap (UntypedCap dev r bits f)    final = return (NullCap, NullCap)"
+| "finalise_cap (ReplyCap r m)           final = return (NullCap, NullCap)"
 | "finalise_cap (EndpointCap r b R)      final =
-      (liftM (K (NullCap, None)) $ when final $ cancel_all_ipc r)"
+      (liftM (K (NullCap, NullCap)) $ when final $ cancel_all_ipc r)"
 | "finalise_cap (NotificationCap r b R) final =
-      (liftM (K (NullCap, None)) $ when final $ do
+      (liftM (K (NullCap, NullCap)) $ when final $ do
           unbind_maybe_notification r;
           cancel_all_signals r
         od)"
 | "finalise_cap (CNodeCap r bits g)  final =
-      return (if final then Zombie r (Some bits) (2 ^ bits) else NullCap, None)"
+      return (if final then Zombie r (Some bits) (2 ^ bits) else NullCap, NullCap)"
 | "finalise_cap (ThreadCap r)            final =
       do
          when final $ unbind_notification r;
          when final $ suspend r;
          when final $ prepare_thread_delete r;
-         return (if final then (Zombie r None 5) else NullCap, None)
+         return (if final then (Zombie r None 5) else NullCap, NullCap)
       od"
-| "finalise_cap DomainCap                final = return (NullCap, None)"
+| "finalise_cap DomainCap                final = return (NullCap, NullCap)"
 | "finalise_cap (Zombie r b n)           final =
-      do assert final; return (Zombie r b n, None) od"
-| "finalise_cap IRQControlCap            final = return (NullCap, None)"
+      do assert final; return (Zombie r b n, NullCap) od"
+| "finalise_cap IRQControlCap            final = return (NullCap, NullCap)"
 | "finalise_cap (IRQHandlerCap irq)      final = (
        if final then do
          deleting_irq_handler irq;
-         return (NullCap, Some irq)
+         return (NullCap, (IRQHandlerCap irq))
        od
-       else return (NullCap, None))"
+       else return (NullCap, NullCap))"
 | "finalise_cap (ArchObjectCap a)        final =
-      (liftM (\<lambda>x. (x, None)) $ arch_finalise_cap a final)"
+      (arch_finalise_cap a final)"
 
 definition
   can_fast_finalise :: "cap \<Rightarrow> bool" where
@@ -492,14 +483,15 @@ lemma fast_finalise_def2:
   "fast_finalise cap final = do
      assert (can_fast_finalise cap);
      result \<leftarrow> finalise_cap cap final;
-     assert (result = (NullCap, None))
+     assert (result = (NullCap, NullCap))
    od"
-  by (cases cap, simp_all add: liftM_def K_def assert_def can_fast_finalise_def)
+  supply K_def[simp]
+  by (cases cap, simp_all add: liftM_def assert_def can_fast_finalise_def)
 
 text {* The finalisation process on a Zombie or Null capability is finished for
 all Null capabilities and for Zombies that cover no slots or only the slot they
 are currently stored in. *}
-fun
+primrec (nonexhaustive)
   cap_removeable :: "cap \<Rightarrow> cslot_ptr \<Rightarrow> bool"
 where
   "cap_removeable NullCap slot = True"
@@ -516,12 +508,12 @@ definition
 
 text {* The complete recursive delete operation. *}
 function (sequential)
-  rec_del :: "rec_del_call \<Rightarrow> (bool * irq option,'z::state_ext) p_monad"
+  rec_del :: "rec_del_call \<Rightarrow> (bool * cap,'z::state_ext) p_monad"
 where
   "rec_del (CTEDeleteCall slot exposed) s =
  (doE
-    (success, irq_freed) \<leftarrow> rec_del (FinaliseSlotCall slot exposed);
-    without_preemption $ when (exposed \<or> success) $ empty_slot slot irq_freed;
+    (success, cleanup_info) \<leftarrow> rec_del (FinaliseSlotCall slot exposed);
+    without_preemption $ when (exposed \<or> success) $ empty_slot slot cleanup_info;
     returnOk undefined
   odE) s"
 |
@@ -529,16 +521,16 @@ where
  (doE
     cap \<leftarrow> without_preemption $ get_cap slot;
     if (cap = NullCap)
-    then returnOk (True, None)
+    then returnOk (True, NullCap)
     else (doE
       is_final \<leftarrow> without_preemption $ is_final_cap cap;
-      (remainder, irqopt) \<leftarrow> without_preemption $ finalise_cap cap is_final;
+      (remainder, cleanup_info) \<leftarrow> without_preemption $ finalise_cap cap is_final;
       if (cap_removeable remainder slot)
-      then returnOk (True, irqopt)
+      then returnOk (True, cleanup_info)
       else if (cap_cyclic_zombie remainder slot \<and> \<not> exposed)
       then doE
         without_preemption $ set_cap remainder slot;
-        returnOk (False, None)
+        returnOk (False, NullCap)
       odE
       else doE
         without_preemption $ set_cap remainder slot;
@@ -580,7 +572,7 @@ where
   apply (rename_tac cap cslot_ptr bool)
   apply (case_tac cap, safe)
              apply auto[10]
-   -- Zombie
+   \<comment> \<open>Zombie\<close>
    apply (rename_tac obj_ref option nat)
    apply (case_tac bool)
     apply (case_tac nat, auto)[1]
@@ -595,7 +587,7 @@ definition
 
 text {* Prepare the capability in a slot for deletion but do not delete it. *}
 definition
-  finalise_slot :: "cslot_ptr \<Rightarrow> bool \<Rightarrow> (bool * irq option,'z::state_ext) p_monad"
+  finalise_slot :: "cslot_ptr \<Rightarrow> bool \<Rightarrow> (bool * cap,'z::state_ext) p_monad"
 where
   "finalise_slot p e \<equiv> rec_del (FinaliseSlotCall p e)"
 
@@ -753,6 +745,21 @@ definition
     | NotificationCap ref badge R \<Rightarrow> badge \<noteq> 0 \<longrightarrow> cap_ep_badge c' = badge \<and> \<not>original'
     | _ \<Rightarrow> True)"
 
+text {* This helper function determines if the new capability
+should be counted as the original capability to the object. This test
+is usually false, apart from the exceptions listed (newly badged
+endpoint capabilities, irq handlers, untyped caps, and possibly some
+arch caps). *}
+definition
+  is_cap_revocable :: "cap \<Rightarrow> cap \<Rightarrow> bool"
+where
+  "is_cap_revocable new_cap src_cap \<equiv> case new_cap of
+      ArchObjectCap acap \<Rightarrow> arch_is_cap_revocable new_cap src_cap
+    | EndpointCap _ _ _ \<Rightarrow> cap_ep_badge new_cap \<noteq> cap_ep_badge src_cap
+    | NotificationCap _ _ _ \<Rightarrow> cap_ep_badge new_cap \<noteq> cap_ep_badge src_cap
+    | IRQHandlerCap _ \<Rightarrow> src_cap = IRQControlCap
+    | UntypedCap _ _ _ _ \<Rightarrow> True
+    | _ \<Rightarrow> False"
 
 text {* Insert a new capability as either a sibling or child of an
 existing capability. The function @{const should_be_parent_of}
@@ -770,13 +777,7 @@ definition
   "cap_insert new_cap src_slot dest_slot \<equiv> do
     src_cap \<leftarrow> get_cap src_slot;
 
-    dest_original \<leftarrow> return (if is_ep_cap new_cap then
-                                cap_ep_badge new_cap \<noteq> cap_ep_badge src_cap
-                             else if is_ntfn_cap new_cap then
-                                cap_ep_badge new_cap \<noteq> cap_ep_badge src_cap
-                             else if \<exists>irq. new_cap = IRQHandlerCap irq then
-                                src_cap = IRQControlCap
-                             else is_untyped_cap new_cap);
+    dest_original \<leftarrow> return $ is_cap_revocable new_cap src_cap;
 
     old_cap \<leftarrow> get_cap dest_slot;
     assert (old_cap = NullCap);

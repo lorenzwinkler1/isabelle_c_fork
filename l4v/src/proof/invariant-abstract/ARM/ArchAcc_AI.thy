@@ -14,7 +14,7 @@ Lemmas on arch get/set object etc
 
 theory ArchAcc_AI
 imports "../SubMonad_AI"
- "../../../lib/Crunch"
+ "Lib.Crunch_Instances_NonDet"
 begin
 
 context Arch begin global_naming ARM
@@ -160,8 +160,6 @@ lemma lookup_pt_slot_inv_any:
 
 crunch cte_wp_at[wp]: set_irq_state "\<lambda>s. P (cte_wp_at P' p s)"
 
-crunch inv[wp]: get_irq_slot "P"
-
 lemma set_pt_cte_wp_at:
   "\<lbrace>\<lambda>s. P (cte_wp_at P' p s)\<rbrace>
      set_pt ptr val
@@ -258,7 +256,7 @@ lemmas undefined_validE_R = hoare_FalseE_R[where f=undefined]
 lemma arch_derive_cap_valid_cap:
   "\<lbrace>valid_cap (cap.ArchObjectCap arch_cap)\<rbrace>
   arch_derive_cap arch_cap
-  \<lbrace>valid_cap \<circ> cap.ArchObjectCap\<rbrace>, -"
+  \<lbrace>valid_cap\<rbrace>, -"
   apply(simp add: arch_derive_cap_def)
   apply(cases arch_cap, simp_all add: arch_derive_cap_def o_def)
       apply(rule hoare_pre, wpc?, wp+;
@@ -386,7 +384,6 @@ lemma pde_at_aligned_vptr:
     apply (rule shiftl_less_t2n)
      apply (rule shiftr_less_t2n')
       apply (simp add: pd_bits_def pageBits_def)
-      apply word_eqI_solve
      by (simp add: pd_bits_def pageBits_def)+
   apply simp
   done
@@ -1424,7 +1421,7 @@ lemma valid_global_refsD2:
 
 
 lemma valid_global_refsD:
-  "\<lbrakk> valid_global_refs s; cte_wp_at (op = cap) ptr s;
+  "\<lbrakk> valid_global_refs s; cte_wp_at ((=) cap) ptr s;
          r \<in> global_refs s \<rbrakk>
         \<Longrightarrow> r \<notin> cap_range cap"
   apply (clarsimp simp: cte_wp_at_caps_of_state)
@@ -2134,9 +2131,9 @@ lemmas set_asid_pool_cte_wp_at1[wp]
 
 
 lemma mdb_cte_at_set_asid_pool[wp]:
-  "\<lbrace>\<lambda>s. mdb_cte_at (swp (cte_wp_at (op \<noteq> cap.NullCap)) s) (cdt s)\<rbrace>
+  "\<lbrace>\<lambda>s. mdb_cte_at (swp (cte_wp_at ((\<noteq>) cap.NullCap)) s) (cdt s)\<rbrace>
    set_asid_pool y pool
-   \<lbrace>\<lambda>r s. mdb_cte_at (swp (cte_wp_at (op \<noteq> cap.NullCap)) s) (cdt s)\<rbrace>"
+   \<lbrace>\<lambda>r s. mdb_cte_at (swp (cte_wp_at ((\<noteq>) cap.NullCap)) s) (cdt s)\<rbrace>"
   apply (clarsimp simp:mdb_cte_at_def)
   apply (simp only: imp_conv_disj)
   apply (wp hoare_vcg_disj_lift hoare_vcg_all_lift)
@@ -2212,7 +2209,7 @@ lemma lookup_pt_slot_looks_up [wp]:
       apply (subst is_aligned_add_or, (simp add: pt_bits_def pageBits_def)+)
       apply (subst word_ao_dist)
       apply (subst mask_out_sub_mask [where x="(vptr >> 12) && 0xFF << 2"])
-      apply (subst less_mask_eq, simp+)
+      apply (subst less_mask_eq, simp)
       apply (subst is_aligned_neg_mask_eq, simp)
       apply (clarsimp simp: valid_arch_state_def valid_global_pts_def)
      apply (rule shiftl_less_t2n, simp)
@@ -2387,15 +2384,6 @@ lemma pd_aligned:
   done
 
 
-lemma shiftr_less_t2n3:
-  "\<lbrakk>(2 :: 'a word) ^ (n + m) = 0; m < len_of TYPE('a)\<rbrakk>
-   \<Longrightarrow> (x :: 'a :: len word) >> n < 2 ^ m"
-  apply (rule shiftr_less_t2n')
-   apply (simp add: mask_def power_overflow)
-  apply simp
-  done
-
-
 lemma shiftr_shiftl_mask_pd_bits:
   "(((vptr :: word32) >> 20) << 2) && mask pd_bits = (vptr >> 20) << 2"
   apply (rule iffD2 [OF mask_eq_iff_w2p])
@@ -2432,12 +2420,6 @@ lemma shiftr_20_less:
   "((ucast (x >> 20) :: 12 word) \<le> ucast (y >> 20)) = ((x >> 20 :: word32) \<le> y >> 20)"
   by (simp add: word_less_nat_alt word_le_nat_alt shiftr_20_unat_ucast)+
 
-
-lemma shiftr_eqD:
-  "\<lbrakk> x >> n = y >> n; is_aligned x n; is_aligned y n \<rbrakk> \<Longrightarrow> x = y"
-  apply (drule arg_cong[where f="\<lambda>v. v << n"])
-  apply (simp add: and_not_mask[symmetric] is_aligned_neg_mask_eq)
-  done
 
 lemma kernel_base_ge_observation:
   "(kernel_base \<le> x) = (x && ~~ mask 29 = kernel_base)"
@@ -2949,8 +2931,6 @@ lemma unique_table_caps_pdE:
   apply simp
   done
 
-lemmas unique_table_caps_pdE' = unique_table_caps_pdE[where cs="arch_caps_of x" for x, simplified]
-
 lemma set_pd_table_caps [wp]:
   "\<lbrace>valid_table_caps and (\<lambda>s.
     (obj_at (empty_table (set (second_level_tables (arch_state s)))) p s \<longrightarrow>
@@ -3331,7 +3311,7 @@ lemma pspace_respects_device_region_dmo:
   shows "\<lbrace>pspace_respects_device_region\<rbrace>do_machine_op f\<lbrace>\<lambda>r. pspace_respects_device_region\<rbrace>"
   apply (clarsimp simp: do_machine_op_def gets_def select_f_def simpler_modify_def bind_def valid_def
     get_def return_def)
-  apply (drule_tac P1 = "op = (device_state (machine_state s))" in use_valid[OF _ valid_f])
+  apply (drule_tac P1 = "(=) (device_state (machine_state s))" in use_valid[OF _ valid_f])
   apply auto
   done
 
@@ -3340,7 +3320,7 @@ lemma cap_refs_respects_device_region_dmo:
   shows "\<lbrace>cap_refs_respects_device_region\<rbrace>do_machine_op f\<lbrace>\<lambda>r. cap_refs_respects_device_region\<rbrace>"
   apply (clarsimp simp: do_machine_op_def gets_def select_f_def simpler_modify_def bind_def valid_def
     get_def return_def)
-  apply (drule_tac P1 = "op = (device_state (machine_state s))" in use_valid[OF _ valid_f])
+  apply (drule_tac P1 = "(=) (device_state (machine_state s))" in use_valid[OF _ valid_f])
   apply auto
   done
 
@@ -3356,10 +3336,40 @@ crunch device_state_inv[wp]: invalidateLocalTLB_VAASID "\<lambda>ms. P (device_s
 crunch device_state_inv[wp]: setHardwareASID "\<lambda>ms. P (device_state ms)"
 crunch device_state_inv[wp]: isb "\<lambda>ms. P (device_state ms)"
 crunch device_state_inv[wp]: dsb "\<lambda>ms. P (device_state ms)"
-crunch device_state_inv[wp]: setCurrentPD "\<lambda>ms. P (device_state ms)"
+crunch device_state_inv[wp]: set_current_pd "\<lambda>ms. P (device_state ms)"
+  (simp: writeTTBR0_def)
 crunch device_state_inv[wp]: storeWord "\<lambda>ms. P (device_state ms)"
 crunch device_state_inv[wp]: cleanByVA_PoU "\<lambda>ms. P (device_state ms)"
 crunch device_state_inv[wp]: cleanL2Range "\<lambda>ms. P (device_state ms)"
+
+lemma as_user_inv:
+  assumes x: "\<And>P. \<lbrace>P\<rbrace> f \<lbrace>\<lambda>x. P\<rbrace>"
+  shows      "\<lbrace>P\<rbrace> as_user t f \<lbrace>\<lambda>x. P\<rbrace>"
+proof -
+  have P: "\<And>a b input. (a, b) \<in> fst (f input) \<Longrightarrow> b = input"
+    by (rule use_valid [OF _ x], assumption, rule refl)
+  have Q: "\<And>s ps. ps (kheap s) = kheap s \<Longrightarrow> kheap_update ps s = s"
+    by simp
+  show ?thesis
+    apply (simp add: as_user_def gets_the_def assert_opt_def set_object_def split_def)
+    apply wp
+    apply (clarsimp dest!: P)
+    apply (subst Q)
+     prefer 2
+     apply assumption
+    apply (rule ext)
+    apply (simp add: get_tcb_def)
+    apply (case_tac "kheap s t"; simp)
+    apply (case_tac a; simp)
+    apply (clarsimp simp: arch_tcb_context_set_def arch_tcb_context_get_def)
+    done
+qed
+
+lemma user_getreg_inv[wp]:
+  "\<lbrace>P\<rbrace> as_user t (getRegister r) \<lbrace>\<lambda>x. P\<rbrace>"
+  apply (rule as_user_inv)
+  apply (simp add: getRegister_def)
+  done
 
 end
 

@@ -65,7 +65,7 @@ lemma pull_out_P:
   by blast
 
 lemma upto_enum_step_subtract:
-  "x \<le> z \<Longrightarrow> [x, y .e. z] = (map ((op +) x) [0, y - x .e. z - x])"
+  "x \<le> z \<Longrightarrow> [x, y .e. z] = (map ((+) x) [0, y - x .e. z - x])"
   by (auto simp add: upto_enum_step_def)
 
 (* FIXME: move *)
@@ -99,7 +99,7 @@ lemma inj_on_domD: "\<lbrakk>inj_on f (dom f); f x = Some z; f y = Some z\<rbrak
   by (erule inj_onD) clarsimp+
 
 lemma hoare_name_pre_state2:
-  "(\<And>s. \<lbrace>P and (op = s)\<rbrace> f \<lbrace>Q\<rbrace>) \<Longrightarrow> \<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>"
+  "(\<And>s. \<lbrace>P and ((=) s)\<rbrace> f \<lbrace>Q\<rbrace>) \<Longrightarrow> \<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>"
   by (auto simp: valid_def intro: hoare_name_pre_state)
 
 lemma pd_casting_shifting:
@@ -207,7 +207,8 @@ lemma arch_update_cap_valid_mdb:
    apply (clarsimp simp: reply_caps_mdb_def is_cap_simps cap_master_cap_def
                simp del: split_paired_Ex split_paired_All)
    apply (fastforce elim!: exEI)
-  by (clarsimp simp: is_cap_simps cap_master_cap_def reply_masters_mdb_def)
+  apply (rule conjI, clarsimp simp: is_cap_simps cap_master_cap_def reply_masters_mdb_def)
+  by (erule (2) valid_arch_mdb_same_master_cap[simplified fun_upd_def])
 
 lemma set_cap_arch_obj:
   "\<lbrace>ko_at (ArchObj ao) p and cte_at p'\<rbrace> set_cap cap p' \<lbrace>\<lambda>_. ko_at (ArchObj ao) p\<rbrace>"

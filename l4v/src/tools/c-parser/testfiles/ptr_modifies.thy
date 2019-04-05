@@ -9,9 +9,10 @@
  *)
 
 theory ptr_modifies
-imports "../../../lib/$L4V_ARCH/WordSetup" "../CTranslation"
+imports "Word_Lib.WordSetup" "CParser.CTranslation"
 begin
 
+external_file "ptr_modifies.c"
 install_C_file "ptr_modifies.c"
 
 context ptr_modifies

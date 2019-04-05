@@ -38,14 +38,13 @@ definition
 where
   "sanitise_and_flags \<equiv> mask 12 && ~~ bit 8 && ~~ bit 3 && ~~ bit 5"
 
-(* FIXME x64: this is disgusting *)
 definition
   sanitise_register :: "bool \<Rightarrow> register \<Rightarrow> machine_word \<Rightarrow> machine_word"
 where
   "sanitise_register t r v \<equiv>
-    let val = (if (r = FaultIP \<or> r = NextIP) then
-                if (v > 0x00007fffffffffff \<and> v < 0xffff800000000000) then 0 else v
-              else v)
+    let val = (if r = FaultIP \<or> r = NextIP
+               then if v > 0x00007fffffffffff \<and> v < 0xffff800000000000 then 0 else v
+               else v)
     in
       if r = FLAGS then (val || sanitise_or_flags) && sanitise_and_flags else val"
 
@@ -57,7 +56,7 @@ where
 definition
   arch_post_modify_registers :: "obj_ref \<Rightarrow> obj_ref \<Rightarrow> (unit, 'a::state_ext) s_monad"
 where
-  "arch_post_modify_registers cur t \<equiv> when (t \<noteq> cur) $ as_user t $ set_register ErrorRegister 0"
+  "arch_post_modify_registers cur t \<equiv> when (t \<noteq> cur) $ as_user t $ setRegister ErrorRegister 0"
 
 end
 end

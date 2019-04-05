@@ -9,12 +9,13 @@
  *)
 
 theory swap
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
 declare hrs_simps [simp add]
 declare sep_conj_ac [simp add]
 
+external_file "swap.c"
 install_C_file memsafe "swap.c"
 
 thm swap_spec_def

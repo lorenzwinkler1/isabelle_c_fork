@@ -11,9 +11,9 @@
 theory Invariants_H
 imports
   LevityCatch
-  "../../invariant-abstract/Deterministic_AI"
-  "../../invariant-abstract/AInvs"
-  "../../../lib/AddUpdSimps"
+  "AInvs.Deterministic_AI"
+  "AInvs.AInvs"
+  "Lib.AddUpdSimps"
 begin
 
 context Arch begin
@@ -36,7 +36,7 @@ end
 end
 
 context begin interpretation Arch . (*FIXME: arch_split*)
--- ---------------------------------------------------------------------------
+\<comment> \<open>---------------------------------------------------------------------------\<close>
 section "Invariants on Executable Spec"
 
 definition
@@ -322,6 +322,7 @@ where
 | "acapBits (PDPointerTableCap x y) = table_size"
 | "acapBits (PML4Cap x y) = table_size"
 | "acapBits (IOPortCap f l) = 0"
+| "acapBits IOPortControlCap = 0"
 
 end
 
@@ -420,6 +421,7 @@ where valid_cap'_def:
   | Structures_H.UntypedCap d r n f \<Rightarrow>
       valid_untyped' d r n f s \<and> r \<noteq> 0 \<and> minUntypedSizeBits \<le> n \<and> n \<le> maxUntypedSizeBits
         \<and> f \<le> 2^n \<and> is_aligned (of_nat f :: machine_word) minUntypedSizeBits
+        \<and> canonical_address r \<and> r \<in> kernel_mappings
   | Structures_H.EndpointCap r badge x y z \<Rightarrow> ep_at' r s
   | Structures_H.NotificationCap r badge x y \<Rightarrow> ntfn_at' r s
   | Structures_H.CNodeCap r bits guard guard_sz \<Rightarrow>
@@ -435,27 +437,28 @@ where valid_cap'_def:
                     \<and> (\<forall>addr. real_cte_at' (r + 2^cteSizeBits * (addr && mask n)) s))
   | Structures_H.ArchObjectCap ac \<Rightarrow> (case ac of
     ASIDPoolCap pool asid \<Rightarrow>
-    typ_at' (ArchT ASIDPoolT) pool s \<and> is_aligned asid asid_low_bits \<and> asid \<le> 2^asid_bits - 1
+    typ_at' (ArchT ASIDPoolT) pool s \<and> is_aligned asid asid_low_bits \<and> asid_wf asid
   | ASIDControlCap \<Rightarrow> True
   | PageCap ref rghts t sz d mapdata \<Rightarrow> ref \<noteq> 0 \<and>
     (\<forall>p < 2 ^ (pageBitsForSize sz - pageBits). typ_at' (if d then UserDataDeviceT else UserDataT)
     (ref + p * 2 ^ pageBits) s) \<and>
-    (case mapdata of None \<Rightarrow> True | Some (asid, ref) \<Rightarrow>
-            0 < asid \<and> asid \<le> 2 ^ asid_bits - 1 \<and> vmsz_aligned' ref sz \<and> ref < pptrBase)
+    (case mapdata of None \<Rightarrow> (t=VMNoMap) | Some (asid, ref) \<Rightarrow>
+            (t = VMVSpaceMap) \<and> 0 < asid \<and> asid_wf asid \<and> vmsz_aligned' ref sz \<and> ref < pptrBase)
   | PageTableCap ref mapdata \<Rightarrow>
     page_table_at' ref s \<and>
     (case mapdata of None \<Rightarrow> True | Some (asid, ref) \<Rightarrow>
-            0 < asid \<and> asid \<le> 2^asid_bits - 1 \<and> ref < pptrBase)
+            0 < asid \<and> asid_wf asid \<and> ref < pptrBase)
   | PageDirectoryCap ref mapdata \<Rightarrow>
     page_directory_at' ref s \<and>
-    (case mapdata of None \<Rightarrow> True | Some (asid, ref) \<Rightarrow> 0 < asid \<and> asid \<le> 2^asid_bits-1 \<and> ref < pptrBase)
+    (case mapdata of None \<Rightarrow> True | Some (asid, ref) \<Rightarrow> 0 < asid \<and> asid_wf asid \<and> ref < pptrBase)
   | PDPointerTableCap ref mapdata \<Rightarrow>
     pd_pointer_table_at' ref s \<and>
-    (case mapdata of None \<Rightarrow> True | Some (asid, ref) \<Rightarrow> 0 < asid \<and> asid \<le> 2^asid_bits-1 \<and> ref < pptrBase)
+    (case mapdata of None \<Rightarrow> True | Some (asid, ref) \<Rightarrow> 0 < asid \<and> asid_wf asid \<and> ref < pptrBase)
   | PML4Cap ref mapdata \<Rightarrow>
     page_map_l4_at' ref s \<and>
-    case_option True (\<lambda>asid. 0 < asid \<and> asid \<le> 2^asid_bits - 1) mapdata
-  | IOPortCap first l \<Rightarrow> first \<le> l))"
+    case_option True (\<lambda>asid. 0 < asid \<and> asid_wf asid) mapdata
+  | IOPortCap first l \<Rightarrow> first \<le> l
+  | IOPortControlCap \<Rightarrow> True))"
 
 abbreviation (input)
   valid_cap'_syn :: "kernel_state \<Rightarrow> capability \<Rightarrow> bool" ("_ \<turnstile>' _" [60, 60] 61)
@@ -601,6 +604,16 @@ where
   \<forall>x \<in> dom (ksPSpace s). is_aligned x (objBitsKO (the (ksPSpace s x)))"
 
 definition
+  pspace_canonical' :: "kernel_state \<Rightarrow> bool"
+where
+ "pspace_canonical' s \<equiv> \<forall>p \<in> dom (ksPSpace s). canonical_address p"
+
+definition
+  pspace_in_kernel_mappings' :: "kernel_state \<Rightarrow> bool"
+where
+ "pspace_in_kernel_mappings' s \<equiv> \<forall>p \<in> dom (ksPSpace s). p \<in> kernel_mappings"
+
+definition
   pspace_distinct' :: "kernel_state \<Rightarrow> bool"
 where
   "pspace_distinct' s \<equiv>
@@ -692,6 +705,7 @@ where
 | "acapClass (PDPointerTableCap x y) = PhysicalClass"
 | "acapClass (PML4Cap x y) = PhysicalClass"
 | "acapClass (IOPortCap x y) = IOPortClass"
+| "acapClass IOPortControlCap = IOPortClass"
 
 
 primrec
@@ -822,6 +836,13 @@ definition
         mdbRevocable n \<and>
         (\<forall>p' n'. m p' = Some (CTE IRQControlCap n') \<longrightarrow> p' = p)"
 
+(* IOPortControl caps are unique and always revocable *)
+definition
+  "ioport_control m \<equiv>
+  \<forall>p n. m p = Some (CTE (ArchObjectCap IOPortControlCap) n) \<longrightarrow>
+        mdbRevocable n \<and>
+        (\<forall>p' n'. m p' = Some (CTE (ArchObjectCap IOPortControlCap) n') \<longrightarrow> p' = p)"
+
 definition
   isArchPageCap :: "capability \<Rightarrow> bool"
 where
@@ -860,7 +881,7 @@ where
                         mdb_chunked m \<and> untyped_mdb' m \<and>
                         untyped_inc' m \<and> valid_nullcaps m \<and>
                         ut_revocable' m \<and> class_links m \<and> distinct_zombies m
-                        \<and> irq_control m \<and> reply_masters_rvk_fb m"
+                        \<and> irq_control m \<and> reply_masters_rvk_fb m \<and> ioport_control m"
 
 definition
   valid_mdb' :: "kernel_state \<Rightarrow> bool"
@@ -875,6 +896,8 @@ definition
 where
   "valid_pspace' \<equiv> valid_objs' and
                    pspace_aligned' and
+                   pspace_canonical' and
+                   pspace_in_kernel_mappings' and
                    pspace_distinct' and
                    no_0_obj' and
                    valid_mdb'"
@@ -1033,10 +1056,10 @@ definition
 where
   "global_refs' \<equiv> \<lambda>s.
   {ksIdleThread s} \<union>
-   table_refs' (x64KSGlobalPML4 (ksArchState s)) \<union>
-   (\<Union>pt \<in> set (x64KSGlobalPDs (ksArchState s)). table_refs' pt) \<union>
-   (\<Union>pt \<in> set (x64KSGlobalPTs (ksArchState s)). table_refs' pt) \<union>
-   (\<Union>pt \<in> set (x64KSGlobalPDPTs (ksArchState s)). table_refs' pt) \<union>
+   table_refs' (x64KSSKIMPML4 (ksArchState s)) \<union>
+   (\<Union>pt \<in> set (x64KSSKIMPDs (ksArchState s)). table_refs' pt) \<union>
+   (\<Union>pt \<in> set (x64KSSKIMPTs (ksArchState s)). table_refs' pt) \<union>
+   (\<Union>pt \<in> set (x64KSSKIMPDPTs (ksArchState s)). table_refs' pt) \<union>
    range (\<lambda>irq :: irq. irq_node' s + 32 * ucast irq)"
 
 definition
@@ -1063,6 +1086,13 @@ where
   "valid_asid_table' table \<equiv> \<lambda>s. dom table \<subseteq> {0 .. 2^asid_high_bits - 1}
                                   \<and> 0 \<notin> ran table"
 
+primrec
+  valid_cr3' :: "cr3 \<Rightarrow> bool"
+where
+  "valid_cr3' (CR3 addr pcid) = (is_aligned addr asid_bits
+                                   \<and> addr \<le> mask (pml4ShiftBits + asid_bits)
+                                   \<and> asid_wf pcid)"
+
 definition
   valid_global_pts' :: "machine_word list \<Rightarrow> kernel_state \<Rightarrow> bool"
 where
@@ -1079,14 +1109,21 @@ where
   "valid_global_pdpts' pdpts \<equiv> \<lambda>s. \<forall>p \<in> set pdpts. pd_pointer_table_at' p s"
 
 definition
+  valid_x64_irq_state' :: "(8 word \<Rightarrow> x64irqstate) \<Rightarrow> bool"
+where
+  "valid_x64_irq_state' irqState \<equiv> \<forall>irq > maxIRQ. irqState irq = X64IRQFree"
+
+definition
   valid_arch_state' :: "kernel_state \<Rightarrow> bool"
 where
   "valid_arch_state' \<equiv> \<lambda>s.
   valid_asid_table' (x64KSASIDTable (ksArchState s)) s \<and>
-  page_map_l4_at' (x64KSGlobalPML4 (ksArchState s)) s \<and>
-  valid_global_pds' (x64KSGlobalPDs (ksArchState s)) s \<and>
-  valid_global_pdpts' (x64KSGlobalPDPTs (ksArchState s)) s \<and>
-  valid_global_pts' (x64KSGlobalPTs (ksArchState s)) s"
+  valid_cr3' (x64KSCurrentUserCR3 (ksArchState s)) \<and>
+  page_map_l4_at' (x64KSSKIMPML4 (ksArchState s)) s \<and>
+  valid_global_pds' (x64KSSKIMPDs (ksArchState s)) s \<and>
+  valid_global_pdpts' (x64KSSKIMPDPTs (ksArchState s)) s \<and>
+  valid_global_pts' (x64KSSKIMPTs (ksArchState s)) s \<and>
+  valid_x64_irq_state' (x64KSIRQState (ksArchState s))"
 
 definition
   irq_issued' :: "irq \<Rightarrow> kernel_state \<Rightarrow> bool"
@@ -1103,6 +1140,39 @@ definition
 where
   "valid_irq_handlers' \<equiv> \<lambda>s. \<forall>cap \<in> ran (cteCaps_of s). \<forall>irq.
                                  cap = IRQHandlerCap irq \<longrightarrow> irq_issued' irq s"
+
+definition
+  cap_ioports' :: "capability \<Rightarrow> ioport set"
+where
+  "cap_ioports' c \<equiv> case c of
+    ArchObjectCap (IOPortCap f l) \<Rightarrow> {f..l}
+  | _ \<Rightarrow> {}"
+
+definition
+  issued_ioports' :: "Arch.kernel_state \<Rightarrow> ioport set"
+where
+  "issued_ioports' \<equiv> \<lambda>as. Collect (x64KSAllocatedIOPorts as)"
+
+definition
+  all_ioports_issued' :: "(machine_word \<Rightarrow> capability option) \<Rightarrow> Arch.kernel_state \<Rightarrow> bool"
+where
+  "all_ioports_issued' \<equiv> \<lambda>cs as. \<forall>cap \<in> ran cs. cap_ioports' cap \<subseteq> issued_ioports' as"
+
+definition
+  ioports_no_overlap' :: "(machine_word \<Rightarrow> capability option) \<Rightarrow> bool"
+where
+  "ioports_no_overlap' \<equiv> \<lambda>cs. \<forall>cap \<in> ran cs. \<forall>cap' \<in> ran cs.
+                                 cap_ioports' cap \<inter> cap_ioports' cap' \<noteq> {} \<longrightarrow>
+                                        cap_ioports' cap = cap_ioports' cap'"
+
+definition
+  valid_ioports' :: "kernel_state \<Rightarrow> bool"
+where
+  "valid_ioports' \<equiv> \<lambda>s. all_ioports_issued' (cteCaps_of s) (ksArchState s)
+                      \<and> ioports_no_overlap' (cteCaps_of s)"
+
+lemmas valid_ioports'_simps = valid_ioports'_def all_ioports_issued'_def ioports_no_overlap'_def
+                              issued_ioports'_def
 
 definition
   "irqs_masked' \<equiv> \<lambda>s. \<forall>irq > maxIRQ. intStateIRQTable (ksInterruptState s) irq = IRQInactive"
@@ -1155,6 +1225,7 @@ where
                       \<and> valid_irq_states' s
                       \<and> valid_machine_state' s
                       \<and> irqs_masked' s
+                      \<and> valid_ioports' s
                       \<and> valid_queues' s
                       \<and> ct_not_inQ s
                       \<and> ct_idle_or_in_cur_domain' s
@@ -1228,7 +1299,7 @@ abbreviation(input)
            \<and> valid_irq_node' (irq_node' s) s \<and> valid_irq_handlers' s
            \<and> valid_irq_states' s \<and> irqs_masked' s \<and> valid_machine_state' s
            \<and> cur_tcb' s \<and> valid_queues' s \<and> ct_idle_or_in_cur_domain' s
-           \<and> pspace_domain_valid s
+           \<and> pspace_domain_valid s \<and> valid_ioports' s
            \<and> ksCurDomain s \<le> maxDomain
            \<and> valid_dom_schedule' s \<and> untyped_ranges_zero' s"
 
@@ -1241,7 +1312,7 @@ abbreviation(input)
            \<and> valid_irq_node' (irq_node' s) s \<and> valid_irq_handlers' s
            \<and> valid_irq_states' s \<and> irqs_masked' s \<and> valid_machine_state' s
            \<and> cur_tcb' s \<and> valid_queues' s \<and> ct_idle_or_in_cur_domain' s
-           \<and> pspace_domain_valid s
+           \<and> pspace_domain_valid s \<and> valid_ioports' s
            \<and> ksCurDomain s \<le> maxDomain
            \<and> valid_dom_schedule' s \<and> untyped_ranges_zero' s"
 
@@ -1262,7 +1333,7 @@ definition
            \<and> valid_irq_node' (irq_node' s) s \<and> valid_irq_handlers' s
            \<and> valid_irq_states' s \<and> irqs_masked' s \<and> valid_machine_state' s
            \<and> cur_tcb' s \<and> valid_queues' s \<and> ct_not_inQ s
-           \<and> pspace_domain_valid s
+           \<and> pspace_domain_valid s \<and> valid_ioports' s
            \<and> ksCurDomain s \<le> maxDomain
            \<and> valid_dom_schedule' s \<and> untyped_ranges_zero' s"
 
@@ -1294,7 +1365,7 @@ locale mdb_order = mdb_next +
   assumes no_0: "no_0 m"
   assumes chain: "mdb_chain_0 m"
 
--- ---------------------------------------------------------------------------
+\<comment> \<open>---------------------------------------------------------------------------\<close>
 section "Alternate split rules for preserving subgoal order"
 context begin interpretation Arch . (*FIXME: arch_split*)
 lemma capability_splits[split]:
@@ -1463,7 +1534,7 @@ lemma ntfn_splits[split]:
        (\<exists>x3. ntfn = Structures_H.ntfn.WaitingNtfn x3 \<and>
              \<not> P (f3 x3))))"
   by (case_tac ntfn; simp)+
--- ---------------------------------------------------------------------------
+\<comment> \<open>---------------------------------------------------------------------------\<close>
 
 section "Lemmas"
 
@@ -1857,6 +1928,7 @@ lemma
              | ReplyCap r m                    \<Rightarrow> False
              | ArchObjectCap ASIDControlCap    \<Rightarrow> False
              | ArchObjectCap (IOPortCap _ _)   \<Rightarrow> False
+             | ArchObjectCap IOPortControlCap  \<Rightarrow> False
              | _                               \<Rightarrow> True)"
   by (simp split: capability.splits arch_capability.splits zombie_type.splits)
 
@@ -1870,13 +1942,15 @@ lemma objBits_cte_conv: "objBits (cte :: cte) = cteSizeBits"
 lemmas valid_irq_states'_def = valid_irq_masks'_def
 
 lemma valid_pspaceI' [intro]:
-  "\<lbrakk>valid_objs' s; pspace_aligned' s; pspace_distinct' s; valid_mdb' s; no_0_obj' s\<rbrakk>
-  \<Longrightarrow> valid_pspace' s"  unfolding valid_pspace'_def by simp
+  "\<lbrakk>valid_objs' s; pspace_aligned' s; pspace_canonical' s; pspace_distinct' s;
+    valid_mdb' s; no_0_obj' s; pspace_in_kernel_mappings' s\<rbrakk>
+   \<Longrightarrow> valid_pspace' s"
+  unfolding valid_pspace'_def by simp
 
 lemma valid_pspaceE' [elim]:
   "\<lbrakk>valid_pspace' s;
     \<lbrakk> valid_objs' s; pspace_aligned' s; pspace_distinct' s; no_0_obj' s;
-      valid_mdb' s\<rbrakk> \<Longrightarrow> R \<rbrakk> \<Longrightarrow> R"
+      valid_mdb' s; pspace_canonical' s; pspace_in_kernel_mappings' s\<rbrakk> \<Longrightarrow> R \<rbrakk> \<Longrightarrow> R"
   unfolding valid_pspace'_def by simp
 
 lemma idle'_no_refs:
@@ -2017,9 +2091,9 @@ lemma no_0_obj_pspaceI:
 
 lemma valid_pspace':
   "valid_pspace' s \<Longrightarrow> ksPSpace s = ksPSpace s' \<Longrightarrow> valid_pspace' s'"
-  by  (auto simp add: valid_pspace'_def valid_objs'_def pspace_aligned'_def
+  by  (auto simp add: valid_pspace'_def valid_objs'_def pspace_aligned'_def pspace_canonical'_def
                      pspace_distinct'_def ps_clear_def no_0_obj'_def ko_wp_at'_def
-                     typ_at'_def
+                     typ_at'_def pspace_in_kernel_mappings'_def
            intro: valid_obj'_pspaceI valid_mdb'_pspaceI)
 
 lemma ex_cte_cap_to_pspaceI'[elim]:
@@ -2802,11 +2876,11 @@ lemma vdlist_next_src_unique:
   by (drule (2) vdlist_nextD0)+ (clarsimp simp: mdb_prev_def)
 
 lemma cte_at_cte_wp_atD:
-  "cte_at' p s \<Longrightarrow> \<exists>cte. cte_wp_at' (op = cte) p s"
+  "cte_at' p s \<Longrightarrow> \<exists>cte. cte_wp_at' ((=) cte) p s"
   by (clarsimp simp add: cte_wp_at'_def)
 
 lemma cte_at_cte_wp_atE:
-  "\<lbrakk> cte_at' p s;  \<And>cte. cte_wp_at' (op = cte) p s \<Longrightarrow> P \<rbrakk> \<Longrightarrow> P"
+  "\<lbrakk> cte_at' p s;  \<And>cte. cte_wp_at' ((=) cte) p s \<Longrightarrow> P \<rbrakk> \<Longrightarrow> P"
   by (blast dest: cte_at_cte_wp_atD)
 
 lemma valid_pspace_no_0 [elim]:
@@ -2892,7 +2966,7 @@ lemma valid_mdb_ctesE [elim]:
       caps_contained' m; mdb_chunked m; untyped_mdb' m;
       untyped_inc' m; valid_nullcaps m; ut_revocable' m;
       class_links m; distinct_zombies m; irq_control m;
-      reply_masters_rvk_fb m \<rbrakk>
+      reply_masters_rvk_fb m; ioport_control m \<rbrakk>
           \<Longrightarrow> P\<rbrakk> \<Longrightarrow> P"
   unfolding valid_mdb_ctes_def by auto
 
@@ -2901,7 +2975,7 @@ lemma valid_mdb_ctesI [intro]:
     caps_contained' m; mdb_chunked m; untyped_mdb' m;
     untyped_inc' m; valid_nullcaps m; ut_revocable' m;
     class_links m; distinct_zombies m; irq_control m;
-    reply_masters_rvk_fb m \<rbrakk>
+    reply_masters_rvk_fb m; ioport_control m \<rbrakk>
   \<Longrightarrow> valid_mdb_ctes m"
   unfolding valid_mdb_ctes_def by auto
 
@@ -2952,6 +3026,14 @@ lemma valid_objs_update [iff]:
 lemma pspace_aligned_update [iff]:
   "pspace_aligned' (f s) = pspace_aligned' s"
   by (simp add: pspace pspace_aligned'_def)
+
+lemma pspace_canonical_update [iff]:
+  "pspace_canonical' (f s) = pspace_canonical' s"
+  by (simp add: pspace pspace_canonical'_def)
+
+lemma pspace_in_kernel_mappings_update [iff]:
+  "pspace_in_kernel_mappings' (f s) = pspace_in_kernel_mappings' s"
+  by (simp add: pspace pspace_in_kernel_mappings'_def)
 
 lemma pspace_distinct_update [iff]:
   "pspace_distinct' (f s) = pspace_distinct' s"
@@ -3095,8 +3177,14 @@ end
 locale P_Int_Cur_update_eq =
           P_Int_update_eq + P_Cur_update_eq
 
-locale P_Arch_Idle_Int_update_eq =
-          P_Arch_Idle_update_eq + P_Int_update_eq
+locale P_Arch_Idle_Int_update_eq = P_Arch_Idle_update_eq + P_Int_update_eq
+begin
+
+lemma valid_ioports_update'[iff]:
+  "valid_ioports' (f s) = valid_ioports' s"
+  by (simp add: valid_ioports'_def cteCaps_of_def pspace arch)
+
+end
 
 locale P_Arch_Idle_Int_Cur_update_eq =
           P_Arch_Idle_Int_update_eq + P_Cur_update_eq
@@ -3147,7 +3235,7 @@ interpretation gsCNodes_update: P_Arch_Idle_update_eq "gsCNodes_update f"
 interpretation gsUserPages_update: P_Arch_Idle_update_eq "gsUserPages_update f"
   by unfold_locales simp_all
 lemma ko_wp_at_aligned:
-  "ko_wp_at' (op = ko) p s \<Longrightarrow> is_aligned p (objBitsKO ko)"
+  "ko_wp_at' ((=) ko) p s \<Longrightarrow> is_aligned p (objBitsKO ko)"
   by (simp add: ko_wp_at'_def)
 
 interpretation ksCurDomain:
@@ -3171,7 +3259,7 @@ interpretation gsUntypedZeroRanges:
   by unfold_locales auto
 
 lemma ko_wp_at_norm:
-  "ko_wp_at' P p s \<Longrightarrow> \<exists>ko. P ko \<and> ko_wp_at' (op = ko) p s"
+  "ko_wp_at' P p s \<Longrightarrow> \<exists>ko. P ko \<and> ko_wp_at' ((=) ko) p s"
   by (auto simp add: ko_wp_at'_def)
 
 lemma valid_mdb'_queues [iff]:
@@ -3183,7 +3271,7 @@ lemma valid_mdb_machine_state [iff]:
   by (simp add: valid_mdb'_def)
 
 lemma cte_wp_at_norm':
-  "cte_wp_at' P p s \<Longrightarrow> \<exists>cte. cte_wp_at' (op = cte) p s \<and> P cte"
+  "cte_wp_at' P p s \<Longrightarrow> \<exists>cte. cte_wp_at' ((=) cte) p s \<and> P cte"
   by (simp add: cte_wp_at'_def)
 
 lemma pred_tcb_at'_disj:
@@ -3295,6 +3383,15 @@ lemma irq_controlD:
 lemma irq_revocable:
   "\<lbrakk> m p = Some (CTE IRQControlCap n); irq_control m \<rbrakk> \<Longrightarrow> mdbRevocable n"
   unfolding irq_control_def by blast
+
+lemma ioport_controlD:
+  "\<lbrakk> m p = Some (CTE (ArchObjectCap IOPortControlCap) n); m p' = Some (CTE (ArchObjectCap IOPortControlCap) n');
+    ioport_control m \<rbrakk> \<Longrightarrow> p' = p"
+  unfolding ioport_control_def by blast
+
+lemma ioport_revocable:
+  "\<lbrakk> m p = Some (CTE (ArchObjectCap IOPortControlCap) n); ioport_control m \<rbrakk> \<Longrightarrow> mdbRevocable n"
+  unfolding ioport_control_def by blast
 
 lemma sch_act_wf_arch [simp]:
   "sch_act_wf sa (ksArchState_update f s) = sch_act_wf sa s"
@@ -3544,6 +3641,10 @@ lemma invs_arch_state' [elim!]:
   "invs' s \<Longrightarrow> valid_arch_state' s"
   by (simp add: invs'_def valid_state'_def)
 
+lemma invs_valid_ioports' [elim!]:
+  "invs' s \<Longrightarrow> valid_ioports' s"
+  by (simp add: invs'_def valid_state'_def)
+
 lemma invs_cur' [elim!]:
   "invs' s \<Longrightarrow> cur_tcb' s"
   by (simp add: invs'_def)
@@ -3650,7 +3751,7 @@ lemma invs'_gsCNodes_update[simp]:
   "invs' (gsCNodes_update f s') = invs' s'"
   apply (clarsimp simp: invs'_def valid_state'_def valid_queues_def valid_queues_no_bitmap_def
              bitmapQ_defs
-             valid_queues'_def valid_irq_node'_def valid_irq_handlers'_def
+             valid_queues'_def valid_irq_node'_def valid_irq_handlers'_def valid_ioports'_def
              irq_issued'_def irqs_masked'_def valid_machine_state'_def
              cur_tcb'_def)
   apply (cases "ksSchedulerAction s'")
@@ -3661,7 +3762,7 @@ lemma invs'_gsUserPages_update[simp]:
   "invs' (gsUserPages_update f s') = invs' s'"
   apply (clarsimp simp: invs'_def valid_state'_def valid_queues_def valid_queues_no_bitmap_def
              bitmapQ_defs
-             valid_queues'_def valid_irq_node'_def valid_irq_handlers'_def
+             valid_queues'_def valid_irq_node'_def valid_irq_handlers'_def valid_ioports'_def
              irq_issued'_def irqs_masked'_def valid_machine_state'_def
              cur_tcb'_def)
   apply (cases "ksSchedulerAction s'")
@@ -3742,6 +3843,70 @@ lemma priority_mask_wordRadix_size:
   "unat ((w::priority) && mask wordRadix) < wordBits"
   by (rule mask_wordRadix_less_wordBits, simp add: wordRadix_def word_size)
 
+lemma range_cover_canonical_address:
+  "\<lbrakk> range_cover ptr sz us n ; p < n ;
+     canonical_address (ptr && ~~ mask sz) ; sz \<le> maxUntypedSizeBits \<rbrakk>
+   \<Longrightarrow> canonical_address (ptr + of_nat p * 2 ^ us)"
+  apply (subst word_plus_and_or_coroll2[symmetric, where w = "mask sz"])
+  apply (subst add.commute)
+  apply (subst add.assoc)
+  apply (rule canonical_address_add[where n=sz] ; simp add: untypedBits_defs is_aligned_neg_mask)
+  apply (drule (1) range_cover.range_cover_compare)
+  apply (clarsimp simp: word_less_nat_alt)
+  apply unat_arith
+  done
+
+lemma canonical_address_neq_mask:
+  "\<lbrakk> canonical_address ptr ; sz \<le> maxUntypedSizeBits \<rbrakk>
+   \<Longrightarrow> canonical_address (ptr && ~~ mask sz)"
+  by (simp add: canonical_address_sign_extended untypedBits_defs sign_extended_neq_mask)
+
+lemma invs_pspace_canonical'[elim!]:
+  "invs' s \<Longrightarrow> pspace_canonical' s"
+  by (fastforce dest!: invs_valid_pspace' simp: valid_pspace'_def)
+
+lemma valid_pspace_canonical'[elim!]:
+  "valid_pspace' s \<Longrightarrow> pspace_canonical' s"
+  by (clarsimp simp: valid_pspace'_def)
+
+lemma in_kernel_mappings_add:
+  assumes "is_aligned p n"
+  assumes "f < 2 ^ n"
+  assumes "p \<in> kernel_mappings"
+  shows "p + f \<in> kernel_mappings"
+  using assms
+  unfolding kernel_mappings_def pptr_base_def X64.pptrBase_def
+  using is_aligned_no_wrap' word_le_plus_either by blast
+
+
+lemma range_cover_in_kernel_mappings:
+  "\<lbrakk> range_cover ptr sz us n ; p < n ;
+     (ptr && ~~ mask sz) \<in> kernel_mappings ; sz \<le> maxUntypedSizeBits \<rbrakk>
+   \<Longrightarrow> (ptr + of_nat p * 2 ^ us) \<in> kernel_mappings"
+  apply (subst word_plus_and_or_coroll2[symmetric, where w = "mask sz"])
+  apply (subst add.commute)
+  apply (subst add.assoc)
+  apply (rule in_kernel_mappings_add[where n=sz] ; simp add: untypedBits_defs is_aligned_neg_mask)
+  apply (drule (1) range_cover.range_cover_compare)
+  apply (clarsimp simp: word_less_nat_alt)
+  apply unat_arith
+  done
+
+lemma in_kernel_mappings_neq_mask:
+  "\<lbrakk> (ptr :: machine_word) \<in> kernel_mappings ; sz \<le> 39 \<rbrakk>
+   \<Longrightarrow> ptr && ~~ mask sz \<in> kernel_mappings"
+  apply (clarsimp simp: kernel_mappings_def untypedBits_defs pptr_base_def
+                        X64.pptrBase_def)
+  by (word_bitwise, clarsimp simp: neg_mask_bang word_size)
+
+lemma invs_pspace_in_kernel_mappings'[elim!]:
+  "invs' s \<Longrightarrow> pspace_in_kernel_mappings' s"
+  by (fastforce dest!: invs_valid_pspace' simp: valid_pspace'_def)
+
+lemma valid_pspace_in_kernel_mappings'[elim!]:
+  "valid_pspace' s \<Longrightarrow> pspace_in_kernel_mappings' s"
+  by (clarsimp simp: valid_pspace'_def)
+
 end
 (* The normalise_obj_at' tactic was designed to simplify situations similar to:
   ko_at' ko p s \<Longrightarrow>
@@ -3787,5 +3952,5 @@ add_upd_simps "invs' (gsUntypedZeroRanges_update f s)
     \<and> valid_queues (gsUntypedZeroRanges_update f s)"
   (obj_at'_real_def)
 declare upd_simps[simp]
-end
 
+end

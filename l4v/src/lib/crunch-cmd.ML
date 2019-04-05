@@ -16,7 +16,7 @@ we want to prove. However f is defined in terms of subfunctions g etc.
 To prove P \<turnstile> f, we will first show many lemmas P \<turnstile> g, which crunch lets us
 do easily.
 
-As a first step, crunch must discover "cruch rules" which structure the proof.
+As a first step, crunch must discover "crunch rules" which structure the proof.
 For instance, if f is a constant with a definition, crunch may discover the
 definition "f == f_body" and derive the crunch rule "P \<turnstile> f_body \<Longrightarrow> P \<turnstile> f".
 A crunch rule will be used if all its premises are either proofs of the
@@ -28,20 +28,44 @@ as introduction rules. Crunch also has a number of builtin strategies
 for finding definitional rules in the context.
 
 Once a crunch rule for P \<turnstile> f is found, crunch will recursively apply to
-all monadic constants in all the premises. (The exploration terminates
-where crunch rules can be found without premises.) Crunch will obtain
-proofs e.g. P \<turnstile> g for all f's dependencies, then finally try to prove
-P \<turnstile> f using the crunch rule, wp (with the given dependencies) and simp.
-Additional wp and simp rules can also be given with the wp: and simp:
-sections.
+almost all monadic constants in all of the premises. (The exploration
+terminates where crunch rules can be found without premises.) Crunch
+will obtain proofs e.g. P \<turnstile> g for all f's dependencies, then finally
+try to prove P \<turnstile> f using the crunch rule, wp (with the given dependencies)
+and simp. Additional wp and simp rules can also be given with the wp: and
+simp: sections.
+
+When obtaining proofs for f's dependencies, crunch will first determine
+whether a rule already exists for that goal (P \<turnstile> g). It does this by
+checking whether a) crunch has already proven a rule for that constant,
+b) a rule in the wp set can be used to solve the goal, or c) a rule
+already exists with the name that crunch would use. In the case of c),
+crunch will fail if the found rule cannot be applied to the goal.
+
+There are some monadic constants that it does not make sense to apply
+crunch to. These are added to a crunch_ignore set, and are removed from
+f's dependencies if they are ever found. The command crunch_ignore (add: )
+can be used to add new constants, along with the ignore: section of a
+specific crunch invocation.
 
 *)
 
 (* Tracing debug. *)
-val should_debug = Unsynchronized.ref false
+val crunch_debug = Unsynchronized.ref false
+fun debug_trace_pf pref f =
+  if (!crunch_debug) then
+    tracing (pref ^ f ())
+  else
+    ()
 fun debug_trace s =
-  if (!should_debug) then
+  if (!crunch_debug) then
     tracing s
+  else
+    ()
+fun debug_trace_bl bl =
+  if (!crunch_debug) then
+    tracing (Pretty.string_of (Pretty.block
+        (map (fn f => f ()) bl)))
   else
     ()
 
@@ -74,26 +98,49 @@ fun gen_term_eq (f $ x, f' $ x') = gen_term_eq (f, f') andalso gen_term_eq (x, x
 fun ae_conv (t, t') = gen_term_eq
   (Envir.beta_eta_contract t, Envir.beta_eta_contract t')
 
+(*
+Crunch can be instantiated to prove different properties about monadic
+specifications. For several examples of this instantion see
+Crunch_Instances_NonDet.
+*)
 signature CrunchInstance =
 sig
-    type extra;
+    (* The name of the property. *)
     val name : string;
-    val has_preconds : bool;
-    val mk_term : term -> term -> extra -> term;
-    val dest_term : term -> (term * term * extra) option;
-    val get_precond : term -> term;
-    val put_precond : term -> term -> term;
+    (* The type of any parameters of the property beyond a (optional) precondition
+       and the function being crunched. *)
+    type extra;
+    (* Equality of the extra parameter, often uses ae_conv. *)
     val eq_extra : extra * extra -> bool;
-    val pre_thms : thm list;
-    val wpc_tactic : Proof.context -> tactic;
+    (* How to parse anything after the list of specifications to be crunched,
+       returns a precondition and extra field. *)
     val parse_extra : Proof.context -> string -> term * extra;
+    (* Whether the property has preconditions. *)
+    val has_preconds : bool;
+    (* Construct the property out of a precondition, function and extra. *)
+    val mk_term : term -> term -> extra -> term;
+    (* Deconstruct the property. *)
+    val dest_term : term -> (term * term * extra) option;
+    (* Put a new precondition into an instance of the property*)
+    val put_precond : term -> term -> term;
+    (* Theorems used to modify the precondition of the property. An empty list
+       if the property has no preconditions. *)
+    val pre_thms : thm list;
+    (* The wpc_tactic used, normally wp_cases_tactic_weak. See BCorres_UL for
+       an alternative. *)
+    val wpc_tactic : Proof.context -> tactic;
     val magic : term;
+    (* Get the type of the state a monadic specification is operating on. Returns
+       NONE when given the wrong type. See get_nondet_monad_state_type in
+       Crunch_Instances_NonDet for an example. *)
+    val get_monad_state_type : typ -> typ option
 end
 
 signature CRUNCH =
 sig
     type extra;
-    (* Crunch configuration: theory, naming scheme, lifting rules, wp rules *)
+    (* Crunch configuration: theory, naming scheme, name space, wp rules,
+    constants to ignore, simp rules, constants to not ignore, unfold rules*)
     type crunch_cfg = {ctxt: local_theory, prp_name: string, nmspce: string option,
         wps: (string * thm) list, igs: string list, simps: thm list, ig_dels: string list,
         rules: thm list};
@@ -104,7 +151,7 @@ sig
     had already been proven). *)
     val crunch :
        crunch_cfg -> term -> extra -> string list -> string
-         -> (string * thm) list ->  (thm option * (string * thm) list);
+         -> (string * thm) list -> (thm option * (string * thm) list);
 
     val crunch_x : Token.src list -> string -> string -> (string * xstring) list
          -> string list -> local_theory -> local_theory;
@@ -123,7 +170,7 @@ type crunch_cfg = {ctxt: local_theory, prp_name: string, nmspce: string option,
     wps: (string * thm) list, igs: string list, simps: thm list, ig_dels: string list,
     rules: thm list};
 
-structure CrunchIgnore = Generic_Data
+structure CrunchIgnore = Theory_Data
 (struct
     type T = string list
     val empty = []
@@ -132,13 +179,13 @@ structure CrunchIgnore = Generic_Data
 end);
 
 fun crunch_ignore_add thms thy =
-  Context.theory_map (CrunchIgnore.map (curry (Library.merge (op =)) thms)) thy
+  CrunchIgnore.map (curry (Library.merge (op =)) thms) thy
 
 fun crunch_ignore_del thms thy =
-  Context.theory_map (CrunchIgnore.map (Library.subtract (op =) thms)) thy
+  CrunchIgnore.map (Library.subtract (op =) thms) thy
 
-fun crunch_ignore_add_del adds dels thy =
-  thy |> crunch_ignore_add adds |> crunch_ignore_del dels
+fun crunch_ignore_add_del adds dels =
+  crunch_ignore_add adds #> crunch_ignore_del dels
 
 val def_sfx = "_def";
 val induct_sfx = ".induct";
@@ -169,9 +216,9 @@ fun get_monad ctxt f xs = if is_Const f then
        constants like If, case_option, K_bind being considered monadic *)
     let val T = dest_Const f |> fst |> read_const ctxt |> type_of;
 
-    fun is_product v (Type ("Product_Type.prod", [Type ("fun", [Type ("Product_Type.prod", [_,v']), Type ("HOL.bool",[])]), Type ("HOL.bool",[])])) = (v = v')
-      | is_product v (Type ("Product_Type.prod", [Type ("Set.set", [Type ("Product_Type.prod", [_,v'])]), Type ("HOL.bool",[])])) = (v = v')
-      | is_product _ _ = false;
+    fun is_product v p =
+      Option.getOpt (Option.map (fn v' => v = v') (Instance.get_monad_state_type p),
+                     false)
 
     fun num_args (Type ("fun", [v,p])) n =
           if is_product v p then SOME n else num_args p (n + 1)
@@ -199,9 +246,6 @@ fun thy_maybe_thms thy name = Global_Theory.get_thms thy name handle ERROR _ => 
 fun add_thm thm atts name ctxt =
   Local_Theory.notes [((Binding.name name, atts), [([thm], atts)])] ctxt |> #2
 
-fun get_thm_name_bluh (cfg: crunch_cfg) const_name
-  = Long_Name.base_name const_name ^ "_" ^ (#prp_name cfg)
-
 fun get_thm_name (cfg : crunch_cfg) const_name
   = if read_const (#ctxt cfg) (Long_Name.base_name const_name)
          = read_const (#ctxt cfg) const_name
@@ -209,11 +253,6 @@ fun get_thm_name (cfg : crunch_cfg) const_name
       else space_implode "_" (space_explode "." const_name @ [#prp_name cfg])
 
 fun get_stored cfg n = get_thm (#ctxt cfg) (get_thm_name cfg n)
-
-fun get_stored_bluh cfg n =
-  let val r = (maybe_thms (#ctxt cfg) (get_thm_name cfg n)) @ (maybe_thms (#ctxt cfg) (get_thm_name_bluh cfg n));
-      in (case r of [] => error ("") | _ => (hd r))
-  end
 
 fun mapM _ [] y = y
   | mapM f (x::xs) y = mapM f xs (f x y)
@@ -246,22 +285,27 @@ fun deep_search_thms ctxt defn const nmspce =
         | defs => defs
      end;
 
-val unfold_get_params = @{thms Let_def return_bind returnOk_bindE
-    K_bind_def split_def bind_assoc bindE_assoc
-    trans[OF liftE_bindE return_bind]};
+(*
+When making recursive crunch calls we want to identify and collect preconditions
+about parameters of the functions we are crunching. To assist with this we
+attempt to turn bound variables into free variables by simplifying with rules
+like Let_def, return_bind and bind_assoc. One example of this named_theorem
+being populated can be found in Crunch_Instances_NonDet.
+*)
+fun unfold_get_params ctxt =
+  Named_Theorems.get ctxt @{named_theorems crunch_param_rules}
 
 fun def_from_ctxt ctxt const =
   let
     val crunch_defs = Named_Theorems.get ctxt @{named_theorems crunch_def}
     val abs_def = Local_Defs.meta_rewrite_rule ctxt #> Drule.abs_def;
     fun do_filter thm =
-    let
-      val (Const (nm, _), _) = Logic.dest_equals (Thm.prop_of (abs_def thm));
-    in nm = const end
+      try (abs_def #> Thm.prop_of #> Logic.dest_equals #> fst #> dest_Const #> fst) thm
+        = SOME const
   in
    case crunch_defs |> filter do_filter of
-     [x] => [x]
-   | [] => []
+     [x] => SOME x
+   | [] => NONE
    | _ => raise Fail ("Multiple definitions declared for:" ^ const)
   end
 
@@ -272,14 +316,17 @@ fun unfold ctxt const triple nmspce =
       val const_defn = const |> Long_Name.base_name |> def_of;
       val const_def = deep_search_thms ctxt const_defn const_term nmspce
                         |> hd |> Simpdata.safe_mk_meta_eq;
-      val _ = Pretty.writeln (Pretty.block [Pretty.str ("const_def: " ^ @{make_string} const_defn), Thm.pretty_thm ctxt const_def])
+      val _ = debug_trace_bl [K (Pretty.str "const_def:"),
+        fn () => Pretty.str (@{make_string} const_defn), fn () => Thm.pretty_thm ctxt const_def]
       val trivial_rule = Thm.trivial triple
-      val _ = Pretty.writeln (Pretty.block [Pretty.str "trivial_rule: ", Thm.pretty_thm ctxt trivial_rule])
+      val _ = debug_trace_bl [K (Pretty.str "trivial_rule :"),
+        fn () => Thm.pretty_thm ctxt trivial_rule]
       val unfold_rule = trivial_rule
         |> Simplifier.rewrite_goals_rule ctxt [const_def];
-      val _ = Pretty.writeln (Pretty.block [Pretty.str "unfold_rule: ", Thm.pretty_thm ctxt unfold_rule])
+      val _ = debug_trace_bl [K (Pretty.str "unfold_rule :"),
+        fn () => Thm.pretty_thm ctxt unfold_rule]
       val ms = unfold_rule
-        |> Simplifier.rewrite_goals_rule ctxt unfold_get_params
+        |> Simplifier.rewrite_goals_rule ctxt (unfold_get_params ctxt)
         |> Thm.prems_of |> maps (monads_of ctxt);
     in if Thm.eq_thm_prop (trivial_rule, unfold_rule)
        then error ("Unfold rule generated for " ^ const ^ " does not apply")
@@ -315,48 +362,60 @@ fun map_consts f =
 
 fun map_unvarifyT t = map_types Logic.unvarifyT_global t
 
+fun dummy_fix ctxt vars = let
+    val nns = Name.invent Name.context "dummy_var_a" (length vars)
+    val frees = map Free (nns ~~ map fastype_of vars)
+      |> map (Thm.cterm_of ctxt)
+  in Drule.infer_instantiate ctxt (map (fst o dest_Var) vars ~~ frees) end
+
 fun induct_inst ctxt const goal nmspce =
     let
       val _ = debug_trace "induct_inst"
       val base_const = Long_Name.base_name const;
-      val _ = debug_trace ("base_const: " ^ @{make_string} base_const)
+      val _ = debug_trace_pf "base_const: " (fn () => @{make_string} base_const)
       val induct_thm = base_const |> induct_of |> get_thm ctxt;
-      val _ = debug_trace ("induct_thm: " ^ @{make_string} induct_thm)
-      val const_term = read_const ctxt const |> map_unvarifyT;
-      val n = const_term |> fastype_of |> num_args;
-      val t = mk_abs (Instance.magic $ mk_apps const_term n 0) n
-              |> Syntax.check_term ctxt |> Logic.varify_global |> Thm.cterm_of ctxt;
-      val P = Thm.concl_of induct_thm |> HOLogic.dest_Trueprop |> head_of |> Term.dest_Var;
+      val _ = debug_trace_pf "induct_thm: "  (fn () => @{make_string} induct_thm)
+      val act_goal = HOLogic.dest_Trueprop (Thm.term_of goal)
+      val goal_f = case Instance.dest_term act_goal of
+            NONE => (warning "induct_inst: dest_term failed"; error "induct_inst: dest_term failed")
+        | SOME (_, goal_f, _) => goal_f
+      val params = map_filter (fn Free (s, _) =>
+            (if String.isPrefix "param" s then SOME s else NONE) | _ => NONE)
+          (snd (strip_comb goal_f))
+      val _ = debug_trace ("induct_inst params: " ^ commas params)
+      val induct_thm_params = induct_thm |> Thm.concl_of
+          |> HOLogic.dest_Trueprop |> strip_comb |> snd
+      val induct_thm_inst = dummy_fix ctxt (drop (length params) induct_thm_params) induct_thm
       val trivial_rule = Thm.trivial goal;
-      val induct_inst = Thm.instantiate ([], [(P, t)]) induct_thm
-                        RS trivial_rule;
-      val _ = debug_trace ("induct_inst" ^ Syntax.string_of_term ctxt (Thm.prop_of induct_inst));
-      val simp_thms = deep_search_thms ctxt (base_const |> simps_of) const_term nmspce;
+      val tac = Induct_Tacs.induct_tac ctxt [map SOME params] (SOME [induct_thm_inst]) 1
+      val induct_inst = tac trivial_rule |> Seq.hd
+      val _ = debug_trace_pf "induct_inst: " (fn () => Syntax.string_of_term ctxt (Thm.prop_of induct_inst))
+      val simp_thms = deep_search_thms ctxt (base_const |> simps_of) (head_of goal_f) nmspce;
       val induct_inst_simplified = induct_inst
         |> Simplifier.rewrite_goals_rule ctxt (map Simpdata.safe_mk_meta_eq simp_thms);
       val ms = maps (monads_of ctxt) (Thm.prems_of induct_inst_simplified);
-      val ms' = filter_out (eq_cname (resolve_abbreviated ctxt const_term) o head_of) ms;
+      val ms' = filter_out (eq_cname (resolve_abbreviated ctxt (head_of goal_f)) o head_of) ms;
     in if Thm.eq_thm_prop (trivial_rule, induct_inst)
        then error ("Unfold rule generated for " ^ const ^ " does not apply")
-       else (ms', induct_inst) end
+       else (ms', induct_inst_simplified) end
 
-fun unfold_data ctxt constn goal nmspce nil = (
+fun unfold_data ctxt constn goal nmspce NONE = (
     induct_inst ctxt constn goal nmspce handle exn => handle_int exn
     unfold ctxt constn goal nmspce handle exn => handle_int exn
     error ("unfold_data: couldn't find defn or induct rule for " ^ constn))
-  | unfold_data ctxt constn goal _ [(_, thm)] =
+  | unfold_data ctxt constn goal _ (SOME thm) =
     let
       val trivial_rule = Thm.trivial goal
       val unfold_rule = Simplifier.rewrite_goals_rule ctxt [safe_mk_meta_eq thm] trivial_rule;
       val ms = unfold_rule
-        |> Simplifier.rewrite_goals_rule ctxt unfold_get_params
+        |> Simplifier.rewrite_goals_rule ctxt (unfold_get_params ctxt)
         |> Thm.prems_of |> maps (monads_of ctxt);
     in if Thm.eq_thm_prop (trivial_rule, unfold_rule)
        then error ("Unfold rule given for " ^ constn ^ " does not apply")
        else (ms, unfold_rule) end
-  | unfold_data _ constn _ _ _ = error ("Multiple unfolds are given for " ^ constn)
 
-
+fun get_unfold_rule ctxt const cgoal namespace =
+  unfold_data ctxt const cgoal namespace (def_from_ctxt ctxt const)
 
 val split_if = @{thm "if_split"}
 
@@ -365,9 +424,16 @@ fun maybe_cheat_tac ctxt thm =
   then ALLGOALS (Skip_Proof.cheat_tac ctxt) thm
   else all_tac thm;
 
+fun get_precond t =
+  if Instance.has_preconds
+    then case Instance.dest_term t of
+      SOME (pre, _, _) => pre
+    | _ => error ("get_precond: not a " ^ Instance.name ^ " term")
+    else error ("crunch (" ^ Instance.name ^ ") should not be calling get_precond")
+
 fun var_precond v =
   if Instance.has_preconds
-  then Instance.put_precond (Var (("Precond", 0), Instance.get_precond v |> fastype_of)) v
+  then Instance.put_precond (Var (("Precond", 0), get_precond v |> fastype_of)) v
   else v;
 
 fun is_proof_of cfg const (name, _) =
@@ -384,7 +450,7 @@ fun get_inst_precond ctxt pre extra (mapply, goal) = let
       |> Syntax.check_term ctxt |> var_precond
       |> HOLogic.mk_Trueprop |> Thm.cterm_of ctxt;
     val spec = goal RS Thm.trivial goal2;
-    val precond = Thm.concl_of spec |> HOLogic.dest_Trueprop |> Instance.get_precond;
+    val precond = Thm.concl_of spec |> HOLogic.dest_Trueprop |> get_precond;
   in SOME precond end
     (* in rare cases the tuple extracted from the naming scheme doesn't
        match what we were trying to prove, thus a THM exception from RS *)
@@ -402,9 +468,8 @@ val precond_implication_term
 
 fun precond_needed ctxt pre css pre' = let
     val imp = Syntax.check_term ctxt (precond_implication_term $ pre $ pre');
-  in Goal.prove ctxt [] [] imp
-       (fn _ => clarsimp_tac css 1); false end
-     handle exn => handle_int exn true;
+  in not (can (Goal.prove ctxt [] [] imp)
+       (fn _ => clarsimp_tac css 1)) end
 
 fun combine_preconds ctxt pre pres = let
     val pres' = maps (split_precond o Envir.beta_eta_contract) pres
@@ -440,36 +505,103 @@ fun make_goal const_term const pre extra ctxt =
       val body = parse (String.concat (separate " " (const :: nns)));
   in check (Instance.mk_term pre body extra) end;
 
-fun seq_try_apply f x = Seq.map_filter (try f) (Seq.single x)
+fun unify_helper rs n t =
+  case
+    Thm.cprem_of t n |> Thm.term_of |> snd (#trips rs) (Thm.theory_of_thm t)
+        |> Envir.beta_eta_contract |> Logic.strip_assums_concl
+     handle THM _ => @{const True}
+  of
+    Const (@{const_name Trueprop}, _) $
+      (Const (@{const_name triple_judgement}, _) $ _ $ f $ _) => SOME f
+  | _ => NONE
 
-fun crunch_known_rule cfg const const_long_name thms goal_prop =
+fun get_wp_rules ctxt n goal =
   let
-    val thms_proof = Seq.filter (is_proof_of cfg const) (Seq.of_list thms)
-    val stored = seq_try_apply (get_stored cfg) const
+    val wp_data = WeakestPre.debug_get ctxt
+    val f = unify_helper wp_data n goal
+  in case f of
+    SOME f => Net.unify_term (#1 (#rules wp_data)) f |> order_list |> rev
+  | NONE => map snd (#3 (#rules wp_data)) end
+
+fun pretty_thm ctxt thm =
+  let val name = Thm.get_name_hint thm
+  in Find_Theorems.pretty_thm ctxt (Facts.named name, thm) end
+
+(*rule can either solve thm or can be applied and refers to the same const*)
+fun can_solve_or_apply ctxt goal thm rule =
+  let
+    fun body term = term |> Instance.dest_term
+      |> Option.map (Term.term_name o Term.head_of o #2)
+    val const' = rule |> Thm.concl_of |> HOLogic.dest_Trueprop |> body
+      handle TERM _ => NONE
+    val thm' = SINGLE (resolve_tac ctxt [rule] 1) thm
+    fun changed st' = not (Thm.eq_thm (thm, st'));
+    fun solved st' = Thm.nprems_of st' < Thm.nprems_of thm
+  in if is_some thm'
+    then solved (the thm') orelse
+         (body goal = const' andalso changed (the thm'))
+    else false end
+
+fun test_thm_applies _ _ NONE = (false, false, "")
+  | test_thm_applies ctxt goal (SOME thm) =
+      if (is_some o SINGLE (CHANGED (resolve_tac ctxt [thm] 1))) goal
+      then (true, false, "")
+      else (false, true, ("the generated goal does not match the existing rule\n"
+                           ^ Pretty.string_of (pretty_thm ctxt thm)))
+
+fun crunch_known_rule cfg const thms goal =
+  let
     val ctxt = #ctxt cfg
-    val cgoal_in = Goal.init (Thm.cterm_of ctxt goal_prop)
-    val empty_ref = Unsynchronized.ref []
-    val wps = Seq.filter (fn (s, t) => s = const_long_name andalso
-                    (is_some o SINGLE (WeakestPre.apply_rules_tac_n false ctxt [t] empty_ref 1)) cgoal_in)
-           (Seq.of_list (#wps cfg))
-    val seq = Seq.append (Seq.map snd thms_proof) (Seq.append stored (Seq.map snd wps))
-  in Seq.pull seq |> Option.map fst end
+    val vgoal_prop = goal |> var_precond |> HOLogic.mk_Trueprop
+    val cgoal_in = Goal.init (Thm.cterm_of ctxt vgoal_prop)
+
+    (*first option: previously crunched thm*)
+    val thms_proof = Seq.filter (is_proof_of cfg const) (Seq.of_list thms)
+
+    fun used_rule thm =
+      (writeln ("found a rule for this constant:\n"
+                ^ Pretty.string_of (pretty_thm ctxt thm)); thm)
+
+    (*second option: thm with same name*)
+    val stored_rule = try (get_stored cfg) const
+    val (stored_rule_applies, error', error_msg) =
+      test_thm_applies ctxt cgoal_in stored_rule
+    val stored =
+      if stored_rule_applies
+      then (Seq.single (the stored_rule)) |> Seq.map used_rule
+      else Seq.empty
+
+    (*third option: thm in wp set*)
+    val wp_rules = get_wp_rules ctxt 1 cgoal_in
+    val rules = map snd (thms @ #wps cfg) @ wp_rules
+    val wps = filter (can_solve_or_apply ctxt goal cgoal_in) rules
+    val wps' = Seq.map used_rule (Seq.of_list wps)
+
+    (*error if no thm found and thm with same name does not apply*)
+    fun error'' (SOME opt) = SOME opt
+      | error'' NONE = if error' then error error_msg else NONE
+
+    val seq = Seq.append (Seq.map snd thms_proof) (Seq.append stored wps')
+  in Seq.pull seq |> Option.map fst |> error'' end
 
 val mism_term_trace = Unsynchronized.ref []
+
+fun seq_try_apply f x = Seq.map_filter (try f) (Seq.single x)
+
+fun wp ctxt rules =
+  WeakestPre.apply_rules_tac_n false ctxt rules (Unsynchronized.ref [])
 
 fun crunch_rule cfg const goal extra thms =
   let
     (* first option: produce a terminal rule via wp *)
     val ctxt = #ctxt cfg
-    val empty_ref = Unsynchronized.ref []
-    fun wp rules = WeakestPre.apply_rules_tac_n false ctxt
-        (map snd (thms @ #wps cfg) @ rules) empty_ref
+    fun wp' rules = wp ctxt (map snd (thms @ #wps cfg) @ rules)
     val vgoal_prop = goal |> var_precond |> HOLogic.mk_Trueprop
     val goal_prop = goal |> HOLogic.mk_Trueprop
     val ctxt' = Variable.auto_fixes goal_prop
         (Variable.auto_fixes vgoal_prop ctxt)
-    val wp_seq = seq_try_apply (Goal.prove ctxt' [] [] goal_prop) (fn _ =>
-                                  TRY (wp [] 1))
+    val wp_seq = seq_try_apply (Goal.prove ctxt' [] [] goal_prop)
+                               (fn _ => TRY (wp' [] 1))
       |> Seq.map (singleton (Proof_Context.export ctxt' ctxt))
       |> Seq.map (pair NONE)
 
@@ -479,18 +611,18 @@ fun crunch_rule cfg const goal extra thms =
     val base_rule = Thm.trivial cgoal
     fun app_rew r t = Seq.single (Simplifier.rewrite_goals_rule ctxt [r] t)
       |> Seq.filter (fn t' => not (Thm.eq_thm_prop (t, t')))
-    val supplied_seq = Seq.of_list (#rules cfg)
-      |> Seq.maps (fn r => Seq.append
-        (resolve_tac ctxt [r] 1 base_rule) (app_rew r base_rule))
-      |> Seq.map (pair NONE)
+    val supplied_apps = Seq.of_list (#rules cfg)
+        |> Seq.maps (fn r => resolve_tac ctxt [r] 1 base_rule)
+    val supplied_app_rews = Seq.of_list (#rules cfg)
+        |> Seq.maps (fn r => app_rew r base_rule)
+    val supplied_seq = Seq.append supplied_apps supplied_app_rews
+        |> Seq.map (pair NONE)
 
     (* third option: builtins *)
-    val unfolds' = (map (pair "") (def_from_ctxt ctxt const))
-    val unf_seq = Seq.map (unfold_data ctxt' const cgoal (#nmspce cfg))
-          (Seq.single unfolds')
-      |> Seq.map (apfst SOME)
+    val builtin_seq = seq_try_apply (get_unfold_rule ctxt' const cgoal) (#nmspce cfg)
+        |> Seq.map (apfst SOME)
 
-    val seq = foldr1 (uncurry Seq.append) [wp_seq, supplied_seq, unf_seq]
+    val seq = foldr1 (uncurry Seq.append) [wp_seq, supplied_seq, builtin_seq]
 
     fun fail_tac t _ _ = (writeln "discarding crunch rule, unsolved premise:";
       Syntax.pretty_term ctxt t |> Pretty.writeln;
@@ -502,36 +634,43 @@ fun crunch_rule cfg const goal extra thms =
                 #> Instance.dest_term #> the #> #3 #> curry Instance.eq_extra goal_extra)
             t = SOME true
           then all_tac
-          else DETERM (((wp [] ORELSE' simp_tac ctxt) THEN_ALL_NEW fail_tac t) i)))
+          else DETERM (((fn i => REPEAT_DETERM (CHANGED (wp' [] i ORELSE simp_tac ctxt i)))
+                        THEN_ALL_NEW fail_tac t) i)))
 
     val seq = Seq.maps (fn (ms, t) => Seq.map (pair ms) (finalise t)) seq
 
     val (ms, thm) = case Seq.pull seq of SOME ((ms, thm), _) => (ms, thm)
       | NONE => error ("could not find crunch rule for " ^ const)
 
-    val _ = Pretty.writeln (Pretty.block
-        [Pretty.str "crunch rule: ", Thm.pretty_thm ctxt thm])
+    val _ = debug_trace_bl [K (Pretty.str "crunch rule: "), fn () => Thm.pretty_thm ctxt thm]
 
     val ms = case ms of SOME ms => ms
         | NONE => Thm.prems_of thm |> maps (monads_of ctxt)
   in (ms, thm) end
 
+fun warn_helper_thms ctxt n t =
+  let val simp_thms = maybe_thms ctxt "crunch_simps"
+      val ctxt' = ctxt addsimps simp_thms
+      val wp_thms = maybe_thms ctxt "crunch_wps"
+      val can_simp = (is_some o SINGLE (CHANGED (clarsimp_tac ctxt' n))) t
+      val can_wp = (is_some o SINGLE (CHANGED (wp ctxt' wp_thms n))) t
+  in if can_simp orelse can_wp
+     then warning "Using crunch_simps and crunch_wps makes more progress"
+     else () end;
+
 fun crunch cfg pre extra stack const' thms =
   let
     val ctxt = #ctxt cfg |> Context_Position.set_visible false;
     val const = real_const_from_name const' (#nmspce cfg) ctxt;
-    val empty_ref = Unsynchronized.ref [] : thm list Unsynchronized.ref (* FIXME: avoid refs *)
   in
     let
       val _ = "crunching constant: " ^ const |> writeln;
       val const_term = read_const ctxt const;
-      val real_const_term = resolve_abbreviated ctxt const_term;
       val goal = make_goal const_term const pre extra ctxt
                  handle exn => handle_int exn (raise WrongType);
       val goal_prop = HOLogic.mk_Trueprop goal;
-      val const_long_name = real_const_term |> dest_Const |> fst;
     in (* first check: has this constant already been done or supplied? *)
-      case crunch_known_rule cfg const const_long_name thms goal_prop
+      case crunch_known_rule cfg const thms goal
         of SOME thm => (SOME thm, [])
           | NONE => let (* not already known, find a crunch rule. *)
           val (ms, rule) = crunch_rule cfg const goal extra thms
@@ -540,7 +679,7 @@ fun crunch cfg pre extra stack const' thms =
           val ms = ms
             |> map (fn t => (real_const_from_name (fst (dest_Const (head_of t))) (#nmspce cfg) ctxt', t))
             |> subtract (fn (a, b) => a = (fst b))
-                      (subtract (op =) (#ig_dels cfg) (#igs cfg @ CrunchIgnore.get (Context.Proof ctxt')))
+                      (subtract (op =) (#ig_dels cfg) (#igs cfg @ CrunchIgnore.get (Proof_Context.theory_of ctxt')))
             |> filter_out (fn (s, _) => s = const');
           val stack' = const :: stack;
           val _ = if (length stack' > 20) then
@@ -555,27 +694,27 @@ fun crunch cfg pre extra stack const' thms =
           fun collect_preconds pre =
             let val preconds = map_filter (fn (x, SOME y) => SOME (x, y) | (_, NONE) => NONE) (map snd ms ~~ goals)
                                                     |> map_filter (get_inst_precond ctxt'' pre extra);
-              val precond = combine_preconds ctxt'' (Instance.get_precond goal) preconds;
+              val precond = combine_preconds ctxt'' (get_precond goal) preconds;
             in Instance.put_precond precond goal |> HOLogic.mk_Trueprop end;
           val goal_prop2 = if Instance.has_preconds then collect_preconds pre else goal_prop;
 
           val ctxt''' = ctxt'' |> Variable.auto_fixes goal_prop2
           val _ = writeln ("attempting: " ^ Syntax.string_of_term ctxt''' goal_prop2);
 
-          fun wp rules = WeakestPre.apply_rules_tac_n false ctxt
-              (map snd (thms @ #wps cfg) @ rules) empty_ref
+          fun wp' rules = wp ctxt (map snd (thms @ #wps cfg) @ rules)
 
           val thm = Goal.prove_future ctxt''' [] [] goal_prop2
               ( (*DupSkip.goal_prove_wrapper *) (fn _ =>
               resolve_tac ctxt''' [rule] 1
                 THEN maybe_cheat_tac ctxt'''
+              THEN ALLGOALS (simp_tac ctxt''')
               THEN ALLGOALS (fn n =>
-                simp_tac ctxt''' n
-                THEN
                 TRY (resolve_tac ctxt''' Instance.pre_thms n)
                 THEN
                 REPEAT_DETERM (
-                  wp goals' n
+                  WPFix.tac ctxt n
+                  ORELSE
+                  wp' goals' n
                   ORELSE
                   CHANGED (clarsimp_tac ctxt''' n)
                   ORELSE
@@ -586,7 +725,9 @@ fun crunch cfg pre extra stack const' thms =
                   safe_tac ctxt'''
                   ORELSE
                   CHANGED (simp_tac ctxt''' n)
-              )))) |> singleton (Proof_Context.export ctxt''' ctxt)
+                  ORELSE
+                  (fn t => (warn_helper_thms ctxt''' n t; no_tac t)))
+              ))) |> singleton (Proof_Context.export ctxt''' ctxt)
               handle e =>
                      (writeln "Crunch call stack:";
                       map writeln (const::stack);
@@ -654,6 +795,7 @@ fun crunch_x atts extra prp_name wpigs consts ctxt =
 
         val nmspce = get_locale_origins full_const_names ctxt;
         val (pre', extra') = Instance.parse_extra ctxt extra
+            handle ERROR s => error ("parsing parameters for " ^ prp_name ^ ": " ^ s)
 
         (* check that the given constants match the type of the given property*)
         val const_terms = map (read_const ctxt) full_const_names;
@@ -669,6 +811,7 @@ fun crunch_x atts extra prp_name wpigs consts ctxt =
         val (_, thms) = funkyfold (crunch {ctxt = ctxt'', prp_name = prp_name, nmspce = nmspce,
               wps = wps, igs = igs, simps = simps, ig_dels = ig_dels, rules = rules} pre' extra' [])
             full_const_names [];
+        val _ = if null thms then warning "crunch: no theorems proven" else ();
 
         val atts' = map (Attrib.check_src ctxt) atts;
 
@@ -685,6 +828,3 @@ fun crunch_x atts extra prp_name wpigs consts ctxt =
     end
 
 end
-(*
-structure Crunch_Crunches : CRUNCH = Crunch;
-*)

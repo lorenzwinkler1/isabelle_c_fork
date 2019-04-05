@@ -100,10 +100,6 @@ where
 
 context begin interpretation Arch . (*FIXME: arch_split*)
 
-lemma data_to_bool_toBool[simp]:
-  "data_to_bool dat = toBool dat"
-  by (auto simp: data_to_bool_def toBool_def)
-
 lemma decode_irq_handler_corres:
   "\<lbrakk> list_all2 cap_relation (map fst caps) (map fst caps');
     list_all2 (\<lambda>p pa. snd pa = cte_map (snd p)) caps caps' \<rbrakk> \<Longrightarrow>
@@ -145,7 +141,7 @@ lemma decode_irq_handler_valid'[wp]:
   done
 
 lemma is_irq_active_corres:
-  "corres op = \<top> \<top> (is_irq_active irq) (isIRQActive irq)"
+  "corres (=) \<top> \<top> (is_irq_active irq) (isIRQActive irq)"
   apply (simp add: is_irq_active_def isIRQActive_def get_irq_state_def
                    getIRQState_def getInterruptState_def)
   apply (clarsimp simp: state_relation_def interrupt_state_relation_def)
@@ -178,6 +174,10 @@ lemma unat_ucast_ucast_shenanigans[simp]:
   apply (subst (asm) word_le_nat_alt[symmetric])
   apply (simp add: ucast_ucast_mask mask_def)
    by (word_bitwise, auto)
+
+lemmas irq_const_defs =
+  maxIRQ_def minIRQ_def
+  X64.maxUserIRQ_def X64.minUserIRQ_def X64_H.maxUserIRQ_def X64_H.minUserIRQ_def
 
 (* FIXME x64: move *)
 lemma whenE_throwError_corresK[corresK]:
@@ -212,14 +212,14 @@ lemma arch_decode_irq_control_corres:
                              liftE_bindE split_def)
    prefer 2 apply (auto split: list.split)[1]
   apply (rule conjI, clarsimp)
-  -- "MSI"
+  \<comment> \<open>MSI\<close>
   apply (rule corres_guard_imp)
    apply (rule whenE_throwError_corres)
-     apply (simp add: maxIRQ_def minIRQ_def)
-    apply (simp add: maxIRQ_def minIRQ_def ucast_nat_def)
+     apply (simp add: irq_const_defs)
+    apply (simp add: irq_const_defs)
    apply (simp add: linorder_not_less )
-   apply (simp add: maxIRQ_def word_le_nat_alt)
-   apply (simp add: ucast_nat_def)
+   apply (simp add: irq_const_defs word_le_nat_alt ucast_id)
+   apply (simp add: ucast_nat_def Groups.ab_semigroup_add_class.add.commute)
    apply (rule corres_split_eqr[OF _ is_irq_active_corres])
      apply (rule whenE_throwError_corres, simp, simp)
      apply (rule corres_splitEE[OF _ lsfc_corres])
@@ -230,20 +230,21 @@ lemma arch_decode_irq_control_corres:
            apply ((wpsimp wp: isIRQActive_inv
       simp: invs_valid_objs invs_psp_aligned invs_valid_objs' invs_pspace_aligned' invs_pspace_distinct'
       | wp_once hoare_drop_imps)+)
-    -- "IOAPIC"
+    \<comment> \<open>IOAPIC\<close>
   apply (rule conjI, clarsimp)
   apply (rule corres_guard_imp)
    apply (rule whenE_throwError_corres)
-     apply (simp add: maxIRQ_def minIRQ_def)
-    apply (simp add: maxIRQ_def minIRQ_def ucast_nat_def)
+     apply (simp add: irq_const_defs)
+    apply (simp add: irq_const_defs)
    apply (simp add: linorder_not_less )
-   apply (simp add: maxIRQ_def word_le_nat_alt)
-   apply (simp add: ucast_nat_def)
+   apply (simp add: irq_const_defs word_le_nat_alt ucast_id)
+   apply (simp add: ucast_nat_def add.commute)
    apply (rule corres_split_eqr[OF _ is_irq_active_corres])
      apply (rule whenE_throwError_corres, simp, simp)
      apply (rule corres_splitEE[OF _ lsfc_corres])
          apply (rule corres_splitEE[OF _ ensure_empty_corres])
-            apply (rule whenE_throwError_corres, ((simp add: numIOAPICs_def ioapicIRQLines_def)+)[2])+
+            apply (rule corres_split[OF _ corres_gets_num_ioapics])
+            apply (rule whenE_throwError_corres, ((simp add: ucast_id ioapicIRQLines_def)+)[2])+
               apply (rule corres_returnOkTT)
               apply (clarsimp simp: arch_irq_control_inv_relation_def )
              apply ((wpsimp wp: isIRQActive_inv
@@ -313,7 +314,8 @@ lemma arch_decode_irq_control_valid'[wp]:
           | wp whenE_throwError_wp isIRQActive_wp ensureEmptySlot_stronger
           | wpc
           | wp_once hoare_drop_imps)+
-  by (auto simp: invs_valid_objs' maxIRQ_def word_le_nat_alt unat_of_nat minIRQ_def)
+  apply (fastforce simp: invs_valid_objs' irq_const_defs unat_word_ariths word_le_nat_alt)
+  done
 
 lemma decode_irq_control_valid'[wp]:
   "\<lbrace>\<lambda>s. invs' s \<and> (\<forall>cap \<in> set caps. s \<turnstile>' cap)
@@ -418,6 +420,10 @@ lemma isnt_irq_handler_strg:
   "(\<not> isIRQHandlerCap cap) \<longrightarrow> (\<forall>irq. cap = IRQHandlerCap irq \<longrightarrow> P irq)"
   by (clarsimp simp: isCap_simps)
 
+lemma safe_ioport_insert'_ntfn_strg:
+  "isNotificationCap cap \<longrightarrow> safe_ioport_insert' cap cap' s"
+  by (clarsimp simp: safe_ioport_insert'_not_ioport isCap_simps)
+
 lemma ct_in_current_domain_ksMachineState:
   "ct_idle_or_in_cur_domain' (ksMachineState_update p s) = ct_idle_or_in_cur_domain' s"
   apply (simp add:ct_idle_or_in_cur_domain'_def)
@@ -433,7 +439,7 @@ lemma invoke_irq_handler_invs'[wp]:
       valid_machine_state'_def ct_not_inQ_def
       ct_in_current_domain_ksMachineState)
    apply (wp cteInsert_invs)+
-   apply (strengthen ntfn_badge_derived_enough_strg isnt_irq_handler_strg)
+   apply (strengthen ntfn_badge_derived_enough_strg isnt_irq_handler_strg safe_ioport_insert'_ntfn_strg)
    apply (wp cteDeleteOne_other_cap cteDeleteOne_other_cap[unfolded o_def])
   apply (rename_tac word1 cap word2)
   apply (simp add: getInterruptState_def getIRQSlot_def locateSlot_conv)
@@ -459,15 +465,37 @@ crunch valid_mdb'[wp]: setIRQState "valid_mdb'"
 crunch cte_wp_at[wp]: setIRQState "cte_wp_at' P p"
 
 (* FIXME x64: move *)
-lemma no_fail_updateIRQState[wp]: "no_fail \<top> (updateIRQState a b)"
-  by (simp add: updateIRQState_def)
-
-(* FIXME x64: move *)
 lemma no_fail_ioapicMapPinToVector[wp]: "no_fail \<top> (ioapicMapPinToVector a b c d e) "
   by (simp add: ioapicMapPinToVector_def)
 
 method do_machine_op_corres
   = (rule corres_machine_op, rule corres_Id, rule refl, simp)
+
+lemma updateIRQState_corres[wp]:
+  "state = x64irqstate_to_abstract state' \<Longrightarrow>
+     corres dc \<top> \<top>
+       (X64_A.updateIRQState irq state)
+       (X64_H.updateIRQState irq state')"
+  apply (clarsimp simp: X64_A.updateIRQState_def X64_H.updateIRQState_def)
+  apply (rule corres_guard_imp)
+    apply (rule corres_split[OF _ corres_gets_x64_irq_state])
+      apply (rule corres_modify[where P=\<top> and P'=\<top>])
+      apply (auto simp: state_relation_def arch_state_relation_def x64_irq_relation_def)
+  done
+
+crunches X64_H.updateIRQState
+  for pspace_distinct'[wp]: "pspace_distinct'"
+  and pspace_aligned'[wp]: "pspace_aligned'"
+  and cte_wp_at'[wp]: "cte_wp_at' a b"
+  and valid_mdb'[wp]: "valid_mdb'"
+  and ksPSpace[wp]: "\<lambda>s. P (ksPSpace s)"
+  and real_cte_at'[wp]: "real_cte_at' x"
+  and valid_cap'[wp]: "valid_cap' a"
+  and ctes_of[wp]: "\<lambda>s. P (ctes_of s a)"
+  and ksPSpace[wp]: "\<lambda>s. P (ksPSpace s)"
+  and inv[wp]: "\<lambda>s. P"
+  and ex_cte_cap_wp_to'[wp]: "ex_cte_cap_wp_to' a b"
+  (simp: ex_cte_cap_wp_to'_def valid_mdb'_def)
 
 lemma arch_invoke_irq_control_corres:
   "arch_irq_control_inv_relation x2 ivk' \<Longrightarrow> corres (intr \<oplus> dc)
@@ -483,7 +511,7 @@ lemma arch_invoke_irq_control_corres:
               apply (rule cins_corres_simple)
                 apply (wp | simp add: irq_state_relation_def
                                       IRQHandler_valid IRQHandler_valid')+
-          apply (do_machine_op_corres  | wpsimp)+
+          apply (do_machine_op_corres | wpsimp simp: IRQ_def | wps)+
     apply (clarsimp simp: invs_def valid_state_def valid_pspace_def cte_wp_at_caps_of_state
                             is_simple_cap_def is_cap_simps arch_irq_control_inv_valid_def
                             safe_parent_for_def)
@@ -499,7 +527,7 @@ lemma arch_invoke_irq_control_corres:
         apply (rule cins_corres_simple)
             apply (wp | simp add: irq_state_relation_def
                                 IRQHandler_valid IRQHandler_valid')+
-      apply (do_machine_op_corres  | wpsimp)+
+      apply (do_machine_op_corres  | wpsimp simp: IRQ_def | wps)+
    apply (clarsimp simp: invs_def valid_state_def valid_pspace_def cte_wp_at_caps_of_state
                             is_simple_cap_def is_cap_simps arch_irq_control_inv_valid_def
                             safe_parent_for_def)
@@ -553,19 +581,23 @@ lemma setIRQState_issued[wp]:
   apply clarsimp
   done
 
-(* FIXME x64: move*)
-lemma no_irq_updateIRQState[wp]:
-  "no_irq (updateIRQState a b)"
-  by (simp add: updateIRQState_def)
-
-lemma dmo_updateIRQState_invs'[wp]:
-  "\<lbrace>invs'\<rbrace> doMachineOp (updateIRQState a b) \<lbrace>\<lambda>_. invs'\<rbrace>"
-  apply (wp dmo_invs' no_irq_updateIRQState no_irq)
-  apply clarsimp
-  apply (drule_tac P4="\<lambda>m'. underlying_memory m' p = underlying_memory m p"
-         in use_valid[where P=P and Q="\<lambda>_. P" for P])
-    apply (simp add: updateIRQState_def machine_op_lift_def
-                     machine_rest_lift_def split_def | wp)+
+lemma updateIRQState_invs'[wp]:
+  "\<lbrace>invs' and K (irq \<le> maxIRQ)\<rbrace>
+   X64_H.updateIRQState irq state
+   \<lbrace>\<lambda>_. invs'\<rbrace>"
+  apply (clarsimp simp: X64_H.updateIRQState_def)
+  apply wp
+  apply (fastforce simp: invs'_def valid_state'_def cur_tcb'_def
+                         Invariants_H.valid_queues_def valid_queues'_def
+                         valid_idle'_def valid_irq_node'_def
+                         valid_arch_state'_def valid_global_refs'_def
+                         global_refs'_def valid_machine_state'_def
+                         if_unsafe_then_cap'_def ex_cte_cap_to'_def
+                         valid_irq_handlers'_def irq_issued'_def
+                         cteCaps_of_def valid_irq_masks'_def
+                         bitmapQ_defs valid_queues_no_bitmap_def valid_x64_irq_state'_def
+                         valid_ioports'_def all_ioports_issued'_def issued_ioports'_def
+                         Word_Lemmas.word_not_le[symmetric])
   done
 
 (* FIXME x64: move*)
@@ -587,7 +619,9 @@ lemma arch_invoke_irq_control_invs'[wp]:
   "\<lbrace>invs' and arch_irq_control_inv_valid' i\<rbrace> X64_H.performIRQControl i \<lbrace>\<lambda>rv. invs'\<rbrace>"
   apply (simp add: X64_H.performIRQControl_def)
   apply (rule hoare_pre)
-   apply (wp cteInsert_simple_invs | simp add: cte_wp_at_ctes_of | wpc)+
+   apply (wp cteInsert_simple_invs
+            | simp add: cte_wp_at_ctes_of safe_ioport_insert'_not_ioport isCap_simps
+            | wpc)+
   apply (clarsimp simp: cte_wp_at_ctes_of IRQHandler_valid'
                         is_simple_cap'_def isCap_simps
                         safe_parent_for'_def sameRegionAs_def3)
@@ -605,7 +639,8 @@ lemma invoke_irq_control_invs'[wp]:
   "\<lbrace>invs' and irq_control_inv_valid' i\<rbrace> performIRQControl i \<lbrace>\<lambda>rv. invs'\<rbrace>"
   apply (cases i, simp_all add: performIRQControl_def)
   apply (rule hoare_pre)
-   apply (wp cteInsert_simple_invs | simp add: cte_wp_at_ctes_of)+
+   apply (wp cteInsert_simple_invs
+           | simp add: cte_wp_at_ctes_of safe_ioport_insert'_not_ioport isCap_simps)+
   apply (clarsimp simp: cte_wp_at_ctes_of IRQHandler_valid'
                         is_simple_cap'_def isCap_simps
                         safe_parent_for'_def sameRegionAs_def3)
@@ -709,7 +744,7 @@ lemma timerTick_corres:
           apply (rule corres_if[where Q = \<top> and Q' = \<top>])
             apply (case_tac state,simp_all)[1]
           apply (simp add: Let_def)
-          apply (rule_tac r'="op =" in corres_split [OF _ ethreadget_corres])
+          apply (rule_tac r'="(=)" in corres_split [OF _ ethreadget_corres])
              apply (rename_tac ts ts')
              apply (rule_tac R="1 < ts" in corres_cases)
               apply (simp)
@@ -724,7 +759,7 @@ lemma timerTick_corres:
                         apply (rule rescheduleRequired_corres)
                        apply (wp)[1]
                       apply (rule hoare_strengthen_post)
-                       apply (wp tcbSchedAppend_invs_but_ct_not_inQ', clarsimp simp: sch_act_wf_weak)
+                       apply (rule tcbSchedAppend_invs_but_ct_not_inQ', clarsimp simp: sch_act_wf_weak)
                      apply (simp add: sch_act_wf_weak etcb_relation_def
                        time_slice_def timeSlice_def pred_conj_def)+
                  apply (wp threadSet_timeslice_invs threadSet_valid_queues

@@ -22,6 +22,10 @@ crunch v_ker_map[wp,IpcCancel_AI_asms]: set_endpoint "valid_kernel_mappings"
 crunch eq_ker_map[wp,IpcCancel_AI_asms]: set_endpoint "equal_kernel_mappings"
   (ignore: set_object wp: set_object_equal_mappings crunch_wps)
 
+crunches arch_post_cap_deletion
+  for typ_at[wp, IpcCancel_AI_asms]: "\<lambda>s. P (typ_at T p s)"
+  and idle_thread[wp, IpcCancel_AI_asms]: "\<lambda>s. P (idle_thread s)"
+
 end
 
 interpretation IpcCancel_AI?: IpcCancel_AI

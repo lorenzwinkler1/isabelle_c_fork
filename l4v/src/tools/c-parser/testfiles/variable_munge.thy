@@ -9,9 +9,10 @@
  *)
 
 theory variable_munge
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "variable_munge.c"
 install_C_file "variable_munge.c"
 
 context variable_munge_global_addresses

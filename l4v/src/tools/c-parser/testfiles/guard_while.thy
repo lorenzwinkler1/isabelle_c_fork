@@ -9,9 +9,10 @@
  *)
 
 theory guard_while
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "guard_while.c"
 install_C_file "guard_while.c"
 
 print_locale guard_while_global_addresses

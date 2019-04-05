@@ -12,10 +12,10 @@ chapter "Restricted capabilities in the Separation Kernel Abstract Specification
 
 theory Separation
 imports
-  "../../spec/sep-abstract/Syscall_SA"
-  "../invariant-abstract/AInvs"
-  "../../lib/Bisim_UL"
-  "../../lib/LemmaBucket"
+  "ASepSpec.Syscall_SA"
+  "AInvs.AInvs"
+  "Lib.Bisim_UL"
+  "Lib.LemmaBucket"
 begin
 
 text {*
@@ -82,7 +82,7 @@ definition
 
 definition
   "separate_tcb p cs \<equiv> case_option True (separate_cnode_cap cs) (cs (p, tcb_cnode_index 0))
-                       \<and> cs (p, tcb_cnode_index 3) = Some NullCap" -- "ctable and caller cap"
+                       \<and> cs (p, tcb_cnode_index 3) = Some NullCap" \<comment> \<open>ctable and caller cap\<close>
 
 lemma separate_cnode_cap_rab:
   "\<lbrakk> separate_cnode_cap cs cap; length cref = word_bits \<rbrakk> \<Longrightarrow>
@@ -142,7 +142,7 @@ lemma caps_of_state_tcb:
   "\<lbrakk> get_tcb p s = Some tcb; option_map fst (tcb_cap_cases idx) = Some getF \<rbrakk> \<Longrightarrow> caps_of_state s (p, idx) = Some (getF tcb)"
   apply (drule get_tcb_SomeD)
   apply clarsimp
-  apply (drule (1) cte_wp_at_tcbI [where t = "(p, idx)" and P = "op = (getF tcb)", simplified])
+  apply (drule (1) cte_wp_at_tcbI [where t = "(p, idx)" and P = "(=) (getF tcb)", simplified])
   apply simp
   apply (clarsimp simp: cte_wp_at_caps_of_state)
   done

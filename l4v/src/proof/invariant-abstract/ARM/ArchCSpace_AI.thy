@@ -100,7 +100,7 @@ lemma weak_derived_obj_ref_of [CSpace_AI_assms]:
 
 lemma set_free_index_invs [CSpace_AI_assms]:
   "\<lbrace>\<lambda>s. (free_index_of cap \<le> idx \<and> is_untyped_cap cap \<and> idx \<le> 2^cap_bits cap) \<and>
-        invs s \<and> cte_wp_at (op = cap ) cref s\<rbrace>
+        invs s \<and> cte_wp_at ((=) cap ) cref s\<rbrace>
    set_cap (free_index_update (\<lambda>_. idx) cap) cref
    \<lbrace>\<lambda>rv s'. invs s'\<rbrace>"
   apply (rule hoare_grab_asm)+
@@ -111,7 +111,7 @@ lemma set_free_index_invs [CSpace_AI_assms]:
   apply (simp add:valid_irq_node_def)
   apply wps
 
-  apply (wp hoare_vcg_all_lift set_cap_irq_handlers set_cap_vspace_objs set_cap_valid_arch_caps
+  apply (wp hoare_vcg_all_lift set_cap_irq_handlers set_cap_valid_arch_caps
     set_cap_irq_handlers cap_table_at_lift_valid set_cap_typ_at
     set_cap_cap_refs_respects_device_region_spec[where ptr = cref])
   apply (clarsimp simp:cte_wp_at_caps_of_state)
@@ -144,7 +144,7 @@ lemma set_free_index_invs [CSpace_AI_assms]:
   done
 
 lemma set_untyped_cap_as_full_valid_arch_caps [CSpace_AI_assms]:
-  "\<lbrace>valid_arch_caps and cte_wp_at (op = src_cap) src\<rbrace>
+  "\<lbrace>valid_arch_caps and cte_wp_at ((=) src_cap) src\<rbrace>
    set_untyped_cap_as_full src_cap cap src
    \<lbrace>\<lambda>ya. valid_arch_caps\<rbrace>"
   apply (clarsimp simp:valid_arch_caps_def set_untyped_cap_as_full_def)
@@ -162,7 +162,7 @@ lemma set_untyped_cap_as_full_valid_arch_caps [CSpace_AI_assms]:
   done
 
 lemma set_untyped_cap_as_full[wp, CSpace_AI_assms]:
-  "\<lbrace>\<lambda>s. no_cap_to_obj_with_diff_ref a b s \<and> cte_wp_at (op = src_cap) src s\<rbrace>
+  "\<lbrace>\<lambda>s. no_cap_to_obj_with_diff_ref a b s \<and> cte_wp_at ((=) src_cap) src s\<rbrace>
    set_untyped_cap_as_full src_cap cap src
    \<lbrace>\<lambda>rv s. no_cap_to_obj_with_diff_ref a b s\<rbrace>"
   apply (clarsimp simp:no_cap_to_obj_with_diff_ref_def)
@@ -531,8 +531,17 @@ lemma cap_insert_simple_arch_caps_no_ap:
   apply (intro conjI impI allI)
   by (auto simp:is_simple_cap_def[simplified is_simple_cap_arch_def] is_cap_simps)
 
-end
+lemma setup_reply_master_ioports[wp, CSpace_AI_assms]:
+  "\<lbrace>valid_ioports\<rbrace> setup_reply_master c \<lbrace>\<lambda>rv. valid_ioports\<rbrace>"
+  by wpsimp
 
+lemma cap_insert_derived_ioports[CSpace_AI_assms]:
+  "\<lbrace>valid_ioports and (\<lambda>s. cte_wp_at (is_derived (cdt s) src cap) src s)\<rbrace>
+     cap_insert cap src dest
+   \<lbrace>\<lambda>rv. valid_ioports\<rbrace>"
+  by wpsimp
+
+end
 
 global_interpretation CSpace_AI?: CSpace_AI
   proof goal_cases
@@ -588,6 +597,26 @@ lemma cap_insert_simple_invs:
   done
 
 lemmas is_derived_def = is_derived_def[simplified is_derived_arch_def]
+
+crunches arch_post_cap_deletion
+  for pred_tcb_at[wp]: "pred_tcb_at proj P t"
+  and valid_objs[wp]: valid_objs
+  and cte_wp_at[wp]: "\<lambda>s. P (cte_wp_at P' p s)"
+  and caps_of_state[wp]: "\<lambda>s. P (caps_of_state s)"
+  and irq_node[wp]: "\<lambda>s. P (interrupt_irq_node s)"
+  and invs_no_pre[wp]: invs
+  and cur_thread[wp]:  "\<lambda>s. P (cur_thread s)"
+  and state_refs_of[wp]: "\<lambda>s. P (state_refs_of s)"
+  and mdb_inv[wp]: "\<lambda>s. P (cdt s)"
+  and valid_list[wp]: valid_list
+
+definition
+  "arch_post_cap_delete_pre \<equiv> \<lambda>_ _. True"
+
+lemma arch_post_cap_deletion_invs:
+  "\<lbrace>invs and (\<lambda>s. arch_post_cap_delete_pre (ArchObjectCap c) (caps_of_state s))\<rbrace> arch_post_cap_deletion c \<lbrace>\<lambda>rv. invs\<rbrace>"
+  by (wpsimp simp: arch_post_cap_delete_pre_def)
+
 end
 
 (* is this the right way? we need this fact globally but it's proven with

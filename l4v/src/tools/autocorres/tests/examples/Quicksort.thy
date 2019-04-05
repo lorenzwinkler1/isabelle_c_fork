@@ -13,8 +13,8 @@
  *)
 theory Quicksort
 imports
-  "../../AutoCorres"
-  "~~/src/HOL/Library/Multiset"
+  "AutoCorres.AutoCorres"
+  "HOL-Library.Multiset"
 begin
 
 declare validNF_whileLoop_inv_measure_twosteps [wp]
@@ -22,6 +22,7 @@ declare validNF_whileLoopE_inv_measure_twosteps [wp]
 
 declare creturn_def [vcg_simp]
 
+external_file "quicksort.c"
 install_C_file "quicksort.c"
 autocorres "quicksort.c"
 
@@ -850,7 +851,6 @@ lemma partitioned_array_sorted:
   apply (subst sorted_append, simp)
   apply (rule conjI)
    apply (subst the_array_concat2[where m = "1"], simp+)
-   apply (subst sorted_Cons)
    apply (simp add: partitioned_def)
    apply (subst all_set_conv_all_nth)
    apply (clarsimp simp: the_array_elem)

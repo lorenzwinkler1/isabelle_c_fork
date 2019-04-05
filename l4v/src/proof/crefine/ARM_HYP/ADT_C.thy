@@ -11,7 +11,7 @@
 theory ADT_C
 imports
   Schedule_C Retype_C Recycle_C
-  "../../invariant-abstract/BCorres2_AI"
+  "AInvs.BCorres2_AI"
 begin
 
 
@@ -288,19 +288,7 @@ definition
 
 
 
-(* FIXME: move *)
-lemma not_neq:
-  "(\<not> a \<noteq> b) = (a = b)"
-  by simp
-
-lemma max_word_neq_0[simp]: "max_word \<noteq> 0"
-  apply (rule ccontr)
-  apply (cut_tac max_word_minus[where 'a = 'a])
-  apply (case_tac "len_of TYPE('a)")
-   apply clarsimp
-  apply (subst(asm) not_neq)
-  apply (metis eq_iff_diff_eq_0 max_word_def max_word_eq word_pow_0 zero_neq_one)
-  done
+declare max_word_neq_0[simp]
 
 lemma csch_act_rel_to_H:
   "(\<forall>t. a = SwitchToThread t \<longrightarrow> is_aligned t tcbBlockSizeBits) \<Longrightarrow>
@@ -364,6 +352,7 @@ lemma projectKO_opt_UserData [simp]:
   "projectKO_opt KOUserData = Some UserData"
   by (simp add: projectKO_opts_defs)
 
+(* FIXME: rewrite using ucast_ucast_mask_shift *)
 lemma ucast_ucast_mask_pageBits_shift:
   "ucast (ucast (p && mask pageBits >> 2) :: 10 word) = p && mask pageBits >> 2"
   apply (rule word_eqI)
@@ -374,10 +363,11 @@ definition
 "processMemory s \<equiv> (ksMachineState s) \<lparr>underlying_memory := option_to_0 \<circ> (user_mem' s)\<rparr>"
 
 
+(* FIXME: rewrite using unat_ucast_mask_shift *)
 lemma unat_ucast_mask_pageBits_shift:
   "unat (ucast (p && mask pageBits >> 2) :: 10 word) = unat ((p::word32) && mask pageBits >> 2)"
   apply (simp only: unat_ucast)
-  apply (rule Divides.mod_less)
+  apply (rule Divides.mod_less, simp)
   apply (rule unat_less_power)
    apply (simp add: word_bits_def)
   apply (rule shiftr_less_t2n)
@@ -385,6 +375,7 @@ lemma unat_ucast_mask_pageBits_shift:
   apply (simp add: pageBits_def mask_def)
   done
 
+(* FIXME: rewrite using mask_shift_sum *)
 lemma mask_pageBits_shift_sum:
   "unat n = unat (p && mask 2) \<Longrightarrow>
   (p && ~~ mask pageBits) + (p && mask pageBits >> 2) * 4 + n = (p::word32)"
@@ -620,9 +611,6 @@ definition
              (the_inv_map (array_map_conv (\<lambda>x. if x=0 then None else Some x)
                              0xFF hw_asid_table) asid))"
 
-(* FIXME: move *)
-lemma word_le_p2m1:
-  "(w::'a::len word) <= 2 ^ len_of TYPE('a) - 1" by (simp add: p2len)
 
 (* FIXME: move *)
 lemma ran_map_comp_subset: "ran (map_comp f g) <= (ran f)"
@@ -635,7 +623,7 @@ lemma inj_on_option_map:
 
 lemma eq_option_to_0_rev:
   "Some 0 ~: A \<Longrightarrow> \<forall>x. \<forall>y\<in>A.
-   (op = \<circ> option_to_0) y x \<longrightarrow> (if x = 0 then None else Some x) = y"
+   ((=) \<circ> option_to_0) y x \<longrightarrow> (if x = 0 then None else Some x) = y"
   by (clarsimp simp: option_to_0_def split: option.splits)
 
 lemma inj_hwasidsI:
@@ -722,7 +710,7 @@ definition (in state_rel)
 
 lemma eq_option_to_ptr_rev:
   "Some 0 \<notin> A \<Longrightarrow>
-   \<forall>x. \<forall>y\<in>A. (op = \<circ> option_to_ptr) y x \<longrightarrow>
+   \<forall>x. \<forall>y\<in>A. ((=) \<circ> option_to_ptr) y x \<longrightarrow>
               (if x=NULL then None else Some (ptr_val x)) = y"
   apply (clarsimp simp: option_to_ptr_def option_to_0_def split: option.splits)
   apply (auto intro: word_gt_0[THEN iffD2])
@@ -1292,7 +1280,7 @@ lemmas projectKO_opts = projectKO_opt_ep projectKO_opt_ntfn projectKO_opt_tcb
 abbreviation
   map_to_cnes :: "(word32 \<rightharpoonup> kernel_object) \<Rightarrow> word32 \<rightharpoonup> cte"
 where
-  "map_to_cnes \<equiv> op \<circ>\<^sub>m projectKO_opt"
+  "map_to_cnes \<equiv> (\<circ>\<^sub>m) projectKO_opt"
 
 lemma map_to_cnes_eq:
   assumes aligned: "pspace_aligned' s"   and aligned': "pspace_aligned' s'"

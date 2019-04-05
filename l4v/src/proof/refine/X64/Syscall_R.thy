@@ -180,20 +180,20 @@ lemma decode_invocation_corres:
   apply (rule corres_gen_asm)
   apply (unfold decode_invocation_def decodeInvocation_def)
   apply (case_tac cap, simp_all only: cap.simps)
-   --"dammit, simp_all messes things up, must handle cases manually"
-             -- "Null"
+   \<comment> \<open>dammit, simp_all messes things up, must handle cases manually\<close>
+             \<comment> \<open>Null\<close>
              apply (simp add: isCap_defs)
-            -- "Untyped"
+            \<comment> \<open>Untyped\<close>
             apply (simp add: isCap_defs Let_def o_def split del: if_split)
             apply (rule corres_guard_imp, rule dec_untyped_inv_corres)
               apply ((clarsimp simp:cte_wp_at_caps_of_state diminished_def)+)[3]
-           -- "(Async)Endpoint"
+           \<comment> \<open>(Async)Endpoint\<close>
            apply (simp add: isCap_defs returnOk_def)
           apply (simp add: isCap_defs)
           apply (clarsimp simp: returnOk_def neq_Nil_conv)
-         -- "ReplyCap"
+         \<comment> \<open>ReplyCap\<close>
          apply (simp add: isCap_defs Let_def returnOk_def)
-        -- "CNodeCap"
+        \<comment> \<open>CNodeCap\<close>
         apply (rename_tac word nat list)
         apply (simp add: isCap_defs Let_def CanModify_def
                     split del: if_split cong: if_cong)
@@ -203,7 +203,7 @@ lemma decode_invocation_corres:
           apply (rule dec_cnode_inv_corres, simp+)
          apply (simp add: valid_cap_def word_bits_def)
         apply simp
-       -- "ThreadCap"
+       \<comment> \<open>ThreadCap\<close>
        apply (simp add: isCap_defs Let_def CanModify_def
                    split del: if_split cong: if_cong)
        apply (clarsimp simp add: o_def)
@@ -214,20 +214,20 @@ lemma decode_invocation_corres:
        apply (rule list_all2_conj)
         apply (simp add: list_all2_map2 list_all2_map1)
        apply assumption
-      -- "DomainCap"
+      \<comment> \<open>DomainCap\<close>
       apply (simp add: isCap_defs)
       apply (rule corres_guard_imp)
       apply (rule dec_domain_inv_corres)
       apply (simp+)[4]
-     -- "IRQControl"
+     \<comment> \<open>IRQControl\<close>
      apply (simp add: isCap_defs o_def)
      apply (rule corres_guard_imp, rule decode_irq_control_corres, simp+)[1]
-    -- "IRQHandler"
+    \<comment> \<open>IRQHandler\<close>
     apply (simp add: isCap_defs o_def)
     apply (rule corres_guard_imp, rule decode_irq_handler_corres, simp+)[1]
-   -- "Zombie"
+   \<comment> \<open>Zombie\<close>
    apply (simp add: isCap_defs)
-  -- "Arch"
+  \<comment> \<open>Arch\<close>
   apply (clarsimp simp only: cap_relation.simps)
   apply (clarsimp simp add: isCap_defs Let_def o_def)
   apply (rule corres_guard_imp [OF dec_arch_inv_corres])
@@ -244,7 +244,7 @@ crunch inv' [wp]: lookupCapAndSlot P
 lemma load_word_offs_word_corres:
   assumes y: "y < max_ipc_words"
   and    yv: "y' = y * 8"
-  shows "corres op = \<top> (valid_ipc_buffer_ptr' a) (load_word_offs_word a y) (loadWordUser (a + y'))"
+  shows "corres (=) \<top> (valid_ipc_buffer_ptr' a) (load_word_offs_word a y) (loadWordUser (a + y'))"
   unfolding loadWordUser_def yv using y
   apply -
   apply (rule corres_stateAssert_assume [rotated])
@@ -308,7 +308,7 @@ lemma hinv_corres_assist:
   apply (rule corres_guard_imp)
     apply (rule corres_splitEE [OF _ corres_cap_fault])
        prefer 2
-       -- "switched over to argument of corres_cap_fault"
+       \<comment> \<open>switched over to argument of corres_cap_fault\<close>
        apply (rule lcs_corres, simp)
       apply (rule corres_split [OF _ lipcb_corres])
         apply (rule corres_splitEE [OF _ lec_corres])
@@ -359,7 +359,7 @@ lemma threadSet_tcbDomain_update_ct_not_inQ:
 
 (* FIXME: move *)
 lemma setObject_F_ct_activatable':
-  "\<lbrakk>\<And>tcb f. tcbState (F f tcb) = tcbState tcb \<rbrakk> \<Longrightarrow>  \<lbrace>ct_in_state' activatable' and obj_at' (op = tcb) t\<rbrace>
+  "\<lbrakk>\<And>tcb f. tcbState (F f tcb) = tcbState tcb \<rbrakk> \<Longrightarrow>  \<lbrace>ct_in_state' activatable' and obj_at' ((=) tcb) t\<rbrace>
     setObject t (F f tcb)
    \<lbrace>\<lambda>_. ct_in_state' activatable'\<rbrace>"
   apply (clarsimp simp: ct_in_state'_def st_tcb_at'_def)
@@ -373,7 +373,7 @@ lemmas setObject_tcbDomain_update_ct_activatable'[wp] = setObject_F_ct_activatab
 
 (* FIXME: move *)
 lemma setObject_F_st_tcb_at':
-  "\<lbrakk>\<And>tcb f. tcbState (F f tcb) = tcbState tcb \<rbrakk> \<Longrightarrow> \<lbrace>st_tcb_at' P t' and obj_at' (op = tcb) t\<rbrace>
+  "\<lbrakk>\<And>tcb f. tcbState (F f tcb) = tcbState tcb \<rbrakk> \<Longrightarrow> \<lbrace>st_tcb_at' P t' and obj_at' ((=) tcb) t\<rbrace>
     setObject t (F f tcb)
    \<lbrace>\<lambda>_. st_tcb_at' P t'\<rbrace>"
   apply (simp add: st_tcb_at'_def)
@@ -427,6 +427,7 @@ lemma threadSet_tcbDomain_update_invs':
                irqs_masked_lift
                valid_irq_node_lift
                valid_irq_handlers_lift''
+               valid_ioports_lift''
                threadSet_ctes_ofT
                threadSet_tcbDomain_update_ct_not_inQ
                threadSet_valid_dom_schedule'
@@ -486,7 +487,7 @@ lemma set_domain_setDomain_corres:
 
 lemma pinv_corres:
   "\<lbrakk> inv_relation i i'; call \<longrightarrow> block \<rbrakk> \<Longrightarrow>
-   corres (intr \<oplus> op=)
+   corres (intr \<oplus> (=))
      (einvs and valid_invocation i
             and simple_sched_action
             and ct_active
@@ -537,14 +538,14 @@ lemma pinv_corres:
       apply (rule corres_guard_imp)
         apply (erule tcbinv_corres)
        apply (simp)+
-      -- "domain cap"
+      \<comment> \<open>domain cap\<close>
       apply (clarsimp simp: invoke_domain_def)
       apply (rule corres_guard_imp)
       apply (rule corres_split [OF _ set_domain_setDomain_corres])
         apply (rule corres_trivial, simp)
        apply (wp)+
        apply (clarsimp+)[2]
-     -- "CNodes"
+     \<comment> \<open>CNodes\<close>
      apply clarsimp
      apply (rule corres_guard_imp)
        apply (rule corres_splitEE [OF _ inv_cnode_corres])
@@ -572,7 +573,7 @@ lemma sendSignal_tcb_at'[wp]:
   done
 
 lemmas checkCap_inv_typ_at'
-  = checkCap_inv[where P="\<lambda>s. P (typ_at' T p s)" for T p]
+  = checkCap_inv[where P="\<lambda>s. P (typ_at' T p s)" for P T p]
 
 crunch typ_at'[wp]: restart, bindNotification "\<lambda>s. P (typ_at' T p s)"
 crunch typ_at'[wp]: performTransfer "\<lambda>s. P (typ_at' T p s)"
@@ -1047,6 +1048,7 @@ abbreviation (input) "all_invs_but_sch_extra \<equiv>
     valid_irq_handlers' s \<and>
     valid_irq_states' s \<and>
     irqs_masked' s \<and>
+    valid_ioports' s \<and>
     valid_machine_state' s \<and>
     cur_tcb' s \<and>
     untyped_ranges_zero' s \<and>
@@ -1064,9 +1066,8 @@ lemma rescheduleRequired_all_invs_but_extra:
     rescheduleRequired_sch_act'
     rescheduleRequired_valid_queues_but_ct_domain
     rescheduleRequired_valid_queues'_but_ct_domain
-    valid_irq_node_lift valid_irq_handlers_lift''
-    irqs_masked_lift cur_tcb_lift
-    del:rescheduleRequired_valid_queues')
+    valid_irq_node_lift valid_irq_handlers_lift'' valid_ioports_lift''
+    irqs_masked_lift cur_tcb_lift)
   apply auto
   done
 
@@ -1089,6 +1090,7 @@ lemma threadSet_all_invs_but_sch_extra:
      irqs_masked_lift
      valid_irq_node_lift
      valid_irq_handlers_lift''
+     valid_ioports_lift''
      threadSet_ctes_ofT
      threadSet_not_inQ
      threadSet_valid_queues'_no_state
@@ -1610,7 +1612,8 @@ lemma cteDeleteOne_reply_cap_to''[wp]:
   apply (rule hoare_assume_pre)
   apply (subgoal_tac "isReplyCap (cteCap cte) \<or> isNullCap (cteCap cte)")
    apply (wp hoare_vcg_ex_lift emptySlot_cte_wp_cap_other isFinalCapability_inv
-        | clarsimp simp: finaliseCap_def isCap_simps | simp)+
+        | clarsimp simp: finaliseCap_def isCap_simps | simp
+        | wp_once hoare_drop_imps)+
    apply (fastforce simp: cte_wp_at_ctes_of)
   apply (clarsimp simp: cte_wp_at_ctes_of isCap_simps)
   done
@@ -1899,7 +1902,7 @@ lemma hr_corres:
   apply (rule corres_guard_imp)
     apply (rule corres_split_eqr [OF _ gct_corres])
       apply (rule corres_split [OF _ get_cap_corres])
-        apply (rule_tac P="einvs and cte_wp_at (op = caller_cap) (thread, tcb_cnode_index 3)
+        apply (rule_tac P="einvs and cte_wp_at ((=) caller_cap) (thread, tcb_cnode_index 3)
                                 and K (is_reply_cap caller_cap \<or> caller_cap = cap.NullCap)
                                 and tcb_at thread and st_tcb_at active thread
                                 and valid_cap caller_cap"
@@ -2113,7 +2116,7 @@ proof -
                       hoare_lift_Pf2 [OF cteDeleteOne_sch_act_not cteDeleteOne_ct']
                       hoare_lift_Pf2 [OF doIPCTransfer_pred_tcb_at' doIPCTransfer_ct']
                       hoare_lift_Pf2 [OF doIPCTransfer_ksQ doIPCTransfer_ct']
-                      hoare_lift_Pf2 [OF threadSet_ksQ threadSet_ct']
+                      hoare_lift_Pf2 [OF threadSet_ksQ threadSet_ct]
                       hoare_lift_Pf2 [OF handleFaultReply_ksQ handleFaultReply_ct']
                    | simp add: ct_in_state'_def)+
      apply (fastforce simp: sch_act_simple_def sch_act_sane_def ct_in_state'_def)+

@@ -9,9 +9,10 @@
  *)
 
 theory bugzilla182
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "bugzilla182.c"
 install_C_file "bugzilla182.c"
 
 end

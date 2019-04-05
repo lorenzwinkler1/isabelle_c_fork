@@ -13,8 +13,7 @@ Lemmas on arch get/set object etc
 *)
 
 theory ArchAcc_AI
-imports "../SubMonad_AI" "ArchVSpaceLookup_AI"
- "../../../lib/Crunch"
+imports "../SubMonad_AI" "ArchVSpaceLookup_AI" "Lib.Crunch_Instances_NonDet"
 begin
 
 
@@ -354,8 +353,6 @@ lemma lookup_pt_slot_inv_any:
 
 crunch cte_wp_at[wp]: set_irq_state "\<lambda>s. P (cte_wp_at P' p s)"
 
-crunch inv[wp]: get_irq_slot "P"
-
 (* Generic lemmas about update arch object  *)
 
 lemma update_object_typ_at [wp]:
@@ -689,7 +686,7 @@ lemma set_pt_global_objs [wp]:
       apply (clarsimp dest!: a_type_is_aobj aa_type_pml4D
                      simp: valid_arch_state_def aa_type_simps
                            valid_global_objs_upd_def obj_at_def)
-      apply (rule update_object_is_kheap_upd[OF valid_pml4e_lift2])
+      apply (rule update_object_is_kheap_upd[OF valid_pml4e_lift])
          apply (wp | clarsimp | rule conjI | assumption)+
         apply (drule_tac x = x in bspec, simp+)
         apply (simp add: empty_table_def)
@@ -744,7 +741,7 @@ lemmas undefined_validE_R = hoare_FalseE_R[where f=undefined]
 lemma arch_derive_cap_valid_cap:
   "\<lbrace>valid_cap (cap.ArchObjectCap arch_cap)\<rbrace>
   arch_derive_cap arch_cap
-  \<lbrace>valid_cap \<circ> cap.ArchObjectCap\<rbrace>, -"
+  \<lbrace>valid_cap\<rbrace>, -"
   apply(simp add: arch_derive_cap_def)
   apply(cases arch_cap, simp_all add: arch_derive_cap_def o_def)
       apply(rule hoare_pre, wpc?, wp+,
@@ -797,19 +794,23 @@ definition
       \<lambda>s. (\<exists>\<rhd> (p && ~~ mask pdpt_bits) and pdpte_at p) s \<and>
           wellformed_pdpte pdpte \<and> valid_pdpte pdpte s"
 
-lemma ucast_mask_asid_low_bits [simp]:
-  "ucast ((asid::word64) && mask asid_low_bits) = (ucast asid :: 9 word)"
-  apply (rule word_eqI)
-  apply (clarsimp simp: word_size nth_ucast asid_low_bits_def)
-  done
-
-
 lemma ucast_ucast_asid_high_bits [simp]:
   "ucast (ucast (asid_high_bits_of asid)::word64) = asid_high_bits_of asid"
   apply (rule word_eqI)
   apply (clarsimp simp: word_size nth_ucast asid_low_bits_def)
   done
 
+lemma ucast_ucast_asid_low_bits [simp]:
+  "ucast (ucast (asid_low_bits_of asid)::word64) = asid_low_bits_of asid"
+  apply (rule word_eqI)
+  apply (clarsimp simp: word_size nth_ucast asid_low_bits_def)
+  done
+
+lemma ucast_mask_asid_low_bits [simp]:
+  "ucast ((asid::word64) && mask asid_low_bits) = (ucast asid :: 9 word)"
+  apply (rule word_eqI)
+  apply (clarsimp simp: word_size nth_ucast asid_low_bits_def)
+  done
 
 lemma mask_asid_low_bits_ucast_ucast:
   "((asid::word64) && mask asid_low_bits) = ucast (ucast asid :: 9 word)"
@@ -1038,6 +1039,15 @@ lemma canonical_address_sign_extended: "canonical_address p = sign_extended 47 p
 lemmas canonical_address_high_bits
   = canonical_address_sign_extended[THEN iffD1, THEN sign_extended_high_bits]
 
+lemma canonical_address_add:
+  assumes "is_aligned p n"
+  assumes "f < 2 ^ n"
+  assumes "n \<le> 47"
+  assumes "canonical_address p"
+  shows "canonical_address (p + f)"
+  using assms sign_extended_add
+  unfolding canonical_address_sign_extended
+  by auto
 
 (* FIXME: move *)
 lemma validE_R_post_conjD1:
@@ -1255,7 +1265,7 @@ method hammer =
 
 lemma is_aligned_addrFromPPtr_eq: "n \<le> 39 \<Longrightarrow> is_aligned (addrFromPPtr p) n = is_aligned p n"
   apply (simp add: addrFromPPtr_def; rule iffI)
-   apply (drule aligned_sub_aligned[where y="-pptrBase"]; hammer)
+   apply (drule aligned_sub_aligned[where b="-pptrBase"]; hammer)
   apply (erule aligned_sub_aligned; hammer)
   done
 
@@ -1870,7 +1880,7 @@ lemma update_object_invs[wp]:
     update_object ptr (ArchObj obj)
   \<lbrace> \<lambda>_. invs \<rbrace>"
   apply (clarsimp simp: invs_def valid_state_def valid_pspace_def valid_asid_map_def)
-  apply (wp valid_irq_node_typ valid_irq_handlers_lift update_aobj_valid_global_vspace_mappings)
+  apply (wp valid_irq_node_typ valid_irq_handlers_lift valid_ioports_lift update_aobj_valid_global_vspace_mappings)
   apply (clarsimp simp: valid_arch_state_def)
   done
 
@@ -1882,7 +1892,7 @@ lemma valid_global_refsD2:
                 cte_wp_at_caps_of_state)
 
 lemma valid_global_refsD:
-  "\<lbrakk> valid_global_refs s; cte_wp_at (op = cap) ptr s;
+  "\<lbrakk> valid_global_refs s; cte_wp_at ((=) cap) ptr s;
          r \<in> global_refs s \<rbrakk>
         \<Longrightarrow> r \<notin> cap_range cap"
   apply (clarsimp simp: cte_wp_at_caps_of_state)
@@ -1977,9 +1987,9 @@ lemmas update_aobj_cte_wp_at1[wp]
     = hoare_cte_wp_caps_of_state_lift [OF update_aobj_caps_of_state]
 
 lemma update_aobj_mdb_cte_at[wp]:
-  "\<lbrace>\<lambda>s. mdb_cte_at (swp (cte_wp_at (op \<noteq> cap.NullCap)) s) (cdt s)\<rbrace>
+  "\<lbrace>\<lambda>s. mdb_cte_at (swp (cte_wp_at ((\<noteq>) cap.NullCap)) s) (cdt s)\<rbrace>
    update_object ptr (ArchObj pool)
-   \<lbrace>\<lambda>r s. mdb_cte_at (swp (cte_wp_at (op \<noteq> cap.NullCap)) s) (cdt s)\<rbrace>"
+   \<lbrace>\<lambda>r s. mdb_cte_at (swp (cte_wp_at ((\<noteq>) cap.NullCap)) s) (cdt s)\<rbrace>"
   apply (rule hoare_pre)
   apply wps
   apply (clarsimp simp: mdb_cte_at_def cte_wp_at_caps_of_state)
@@ -2002,15 +2012,6 @@ lemma valid_slots_typ_at:
 lemma ucast_ucast_id:
   "(len_of TYPE('a)) < (len_of TYPE('b)) \<Longrightarrow> ucast ((ucast (x::('a::len) word))::('b::len) word) = x"
   by (auto intro: ucast_up_ucast_id simp: is_up_def source_size_def target_size_def word_size)
-
-
-lemma shiftr_less_t2n3:
-  "\<lbrakk>(2 :: 'a word) ^ (n + m) = 0; m < len_of TYPE('a)\<rbrakk>
-   \<Longrightarrow> (x :: 'a :: len word) >> n < 2 ^ m"
-  apply (rule shiftr_less_t2n')
-   apply (simp add: mask_def power_overflow)
-  apply simp
-  done
 
 
 lemma shiftr_shiftl_mask_pml4_bits:
@@ -2044,12 +2045,6 @@ lemma shiftr_20_unat_ucast:
   apply (rule unat_less_power)
    apply (simp add: word_bits_def)
   apply (simp add: bit_simps get_pml4_index_def)
-  done
-
-lemma shiftr_eqD:
-  "\<lbrakk> x >> n = y >> n; is_aligned x n; is_aligned y n \<rbrakk> \<Longrightarrow> x = y"
-  apply (drule arg_cong[where f="\<lambda>v. v << n"])
-  apply (simp add: and_not_mask[symmetric] is_aligned_neg_mask_eq)
   done
 
 lemma mask_out_first_mask_some:
@@ -2167,10 +2162,6 @@ lemma unique_table_caps_pdE:
   apply (frule(6) unique_table_caps_pdD[where cs=cs])
   apply simp
   done
-
-lemmas unique_table_caps_pml4E' = unique_table_caps_pml4E[where cs="arch_caps_of x" for x, simplified]
-lemmas unique_table_caps_pdptE' = unique_table_caps_pdptE[where cs="arch_caps_of x" for x, simplified]
-lemmas unique_table_caps_pdE' = unique_table_caps_pdE[where cs="arch_caps_of x" for x, simplified]
 
 (* FIXME: valid_globals_refsD is used here, so it might be still useful *)
 
@@ -2665,8 +2656,8 @@ lemma store_pte_invs:
     and (\<lambda>s. p && ~~ mask pt_bits \<notin> global_refs s \<and> wellformed_pte pte)\<rbrace>
   store_pte p pte \<lbrace>\<lambda>_. invs\<rbrace>"
   apply (simp add: store_pte_def)
-  apply_trace (wp)
-  apply_trace (intro impI allI conjI valid_table_caps_aobj_upd_invalid_pte invs_valid_table_caps,
+  apply (wp)
+  apply (intro impI allI conjI valid_table_caps_aobj_upd_invalid_pte invs_valid_table_caps,
          simp_all add: obj_at_def)
             apply (clarsimp simp: obj_at_def aa_type_simps aobj_upd_invalid_slots_simps ucast_ucast_mask
                            split: if_split_asm option.split_asm
@@ -2907,7 +2898,7 @@ lemma set_asid_pool_invs_restrict:
                    valid_arch_caps_def del: set_asid_pool_simpler_def)
   apply (wp valid_irq_node_typ
             set_asid_pool_vspace_objs_unmap  valid_irq_handlers_lift
-            set_asid_pool_vs_lookup_unmap
+            set_asid_pool_vs_lookup_unmap valid_ioports_lift
          | simp del: set_asid_pool_simpler_def)+
   done
 
@@ -3089,7 +3080,7 @@ lemma pspace_respects_device_region_dmo:
   apply (clarsimp simp: do_machine_op_def gets_def select_f_def simpler_modify_def
                         bind_def valid_def get_def return_def)
   apply (drule use_valid[OF _ valid_f,
-                         of _ _ _ "op = (device_state (machine_state s))" for s,
+                         of _ _ _ "(=) (device_state (machine_state s))" for s,
                          OF _ refl])
   by simp
 
@@ -3099,7 +3090,7 @@ lemma cap_refs_respects_device_region_dmo:
   apply (clarsimp simp: do_machine_op_def gets_def select_f_def simpler_modify_def bind_def
                         valid_def get_def return_def)
   apply (drule use_valid[OF _ valid_f,
-                         of _ _ _ "op = (device_state (machine_state s))" for s,
+                         of _ _ _ "(=) (device_state (machine_state s))" for s,
                          OF _ refl])
   by simp
 
@@ -3109,6 +3100,35 @@ lemma machine_op_lift_device_state[wp]:
                      machine_rest_lift_def gets_def simpler_modify_def get_def return_def
                      select_def ignore_failure_def select_f_def
               split: if_splits)
+
+lemma as_user_inv:
+  assumes x: "\<And>P. \<lbrace>P\<rbrace> f \<lbrace>\<lambda>x. P\<rbrace>"
+  shows      "\<lbrace>P\<rbrace> as_user t f \<lbrace>\<lambda>x. P\<rbrace>"
+  proof -
+  have P: "\<And>a b input. (a, b) \<in> fst (f input) \<Longrightarrow> b = input"
+    by (rule use_valid [OF _ x], assumption, rule refl)
+  have Q: "\<And>s ps. ps (kheap s) = kheap s \<Longrightarrow> kheap_update ps s = s"
+    by simp
+  show ?thesis
+    apply (simp add: as_user_def gets_the_def assert_opt_def set_object_def split_def)
+    apply wp
+    apply (clarsimp dest!: P)
+    apply (subst Q)
+     prefer 2
+     apply assumption
+    apply (rule ext)
+    apply (simp add: get_tcb_def)
+    apply (case_tac "kheap s t"; simp)
+    apply (case_tac a; simp)
+    apply (clarsimp simp: arch_tcb_context_set_def arch_tcb_context_get_def)
+    done
+qed
+
+lemma user_getreg_inv[wp]:
+  "\<lbrace>P\<rbrace> as_user t (getRegister r) \<lbrace>\<lambda>x. P\<rbrace>"
+  apply (rule as_user_inv)
+  apply (simp add: getRegister_def)
+  done
 
 end
 

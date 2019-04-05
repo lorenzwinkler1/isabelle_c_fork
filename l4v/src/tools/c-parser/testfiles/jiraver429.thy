@@ -9,9 +9,10 @@
  *)
 
 theory jiraver429
-  imports "../CTranslation"
+  imports "CParser.CTranslation"
 begin
 
+external_file "jiraver429.c"
   install_C_file "jiraver429.c"
 
   context jiraver429

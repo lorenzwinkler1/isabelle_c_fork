@@ -9,7 +9,7 @@
  *)
 
 theory simple_annotated_fn
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
 consts
@@ -21,6 +21,7 @@ primrec
   "FACT (Suc n) = Suc n * FACT n"
 *)
 
+external_file "simple_annotated_fn.c"
 install_C_file "simple_annotated_fn.c"
 
 print_locale simple_annotated_fn_global_addresses

@@ -9,9 +9,10 @@
  *)
 
 theory parse_forloop
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "parse_forloop.c"
 install_C_file "parse_forloop.c"
 
 print_locale parse_forloop_global_addresses

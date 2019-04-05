@@ -9,9 +9,10 @@
  *)
 
 theory ptr_diff
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "ptr_diff.c"
 install_C_file "ptr_diff.c"
 
   context ptr_diff

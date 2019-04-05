@@ -9,9 +9,10 @@
  *)
 
 theory array_of_ptr
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "array_of_ptr.c"
 install_C_file "array_of_ptr.c"
 
 print_locale array_of_ptr_global_addresses

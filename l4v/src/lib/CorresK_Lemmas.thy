@@ -11,7 +11,10 @@
 
 
 theory CorresK_Lemmas
-imports Corres_Method "../spec/design/Syscall_H" "../spec/abstract/Syscall_A"
+imports
+  "Lib.Corres_Method"
+  "ExecSpec.Syscall_H"
+  "ASpec.Syscall_A"
 begin
 
 lemma corres_throwError_str [corres_concrete_rER]:
@@ -190,9 +193,9 @@ lemma corresK_Id:
   done
 
 lemmas [corresK] =
-  corresK_Id[where nf'=False and r="op =",simplified]
+  corresK_Id[where nf'=False and r="(=)",simplified]
   corresK_Id[where nf'=False,simplified]
-  corresK_Id[where nf'=True and r="op =", simplified]
+  corresK_Id[where nf'=True and r="(=)", simplified]
   corresK_Id[where nf'=True, simplified]
 
 lemma corresK_unit_rv_eq_any[corres_concrete_r]:

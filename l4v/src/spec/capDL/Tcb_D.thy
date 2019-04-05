@@ -79,7 +79,7 @@ where
          returnOk (Resume (cap_object target)) \<sqinter> throw
 
        (* Configure: target, fault_ep, mcp, priority, cspace_root_data, vspace_root_data, buffer *)
-     | TcbConfigureIntent fault_ep (mcp, priority) cspace_root_data vspace_root_data buffer \<Rightarrow>
+     | TcbConfigureIntent fault_ep cspace_root_data vspace_root_data buffer \<Rightarrow>
          doE
            cspace_root \<leftarrow> throw_on_none $ get_index caps 0;
            vspace_root \<leftarrow> throw_on_none $ get_index caps 1;
@@ -93,11 +93,24 @@ where
 
        (* Modify a thread's maximum control priority. *)
      | TcbSetMCPriorityIntent mcp \<Rightarrow>
-         returnOk (ThreadControl (cap_object target) slot None None None None) \<sqinter> throw
+         doE
+           auth_cap \<leftarrow> throw_on_none $ get_index caps 0;
+           returnOk (ThreadControl (cap_object target) slot None None None None)
+         odE \<sqinter> throw
 
        (* Modify a thread's priority. *)
      | TcbSetPriorityIntent priority \<Rightarrow>
-         returnOk (ThreadControl (cap_object target) slot None None None None) \<sqinter> throw
+         doE
+           auth_cap \<leftarrow> throw_on_none $ get_index caps 0;
+           returnOk (ThreadControl (cap_object target) slot None None None None)
+         odE \<sqinter> throw
+
+       (* Modify a thread's mcp and priority at the same time. *)
+     | TcbSetSchedParamsIntent mcp priority \<Rightarrow>
+         doE
+           auth_cap \<leftarrow> throw_on_none $ get_index caps 0;
+           returnOk (ThreadControl (cap_object target) slot None None None None)
+         odE \<sqinter> throw
 
        (* Modify a thread's IPC buffer. *)
      | TcbSetIPCBufferIntent buffer \<Rightarrow>
@@ -122,6 +135,7 @@ where
            returnOk (NotificationControl (cap_object target) (Some (cap_object ntfn_cap)))
          odE \<sqinter> throw
      | TcbUnbindNTFNIntent \<Rightarrow> returnOk (NotificationControl (cap_object target) None) \<sqinter> throw
+     | TCBSetTLSBaseIntent \<Rightarrow> returnOk (SetTLSBase (cap_object target)) \<sqinter> throw
   "
 
 
@@ -285,7 +299,8 @@ where
     | NotificationControl tcb ntfn \<Rightarrow>
           liftE $ (case ntfn of
              Some ntfn_id \<Rightarrow> bind_notification tcb ntfn_id
-           | None \<Rightarrow> unbind_notification tcb)"
+           | None \<Rightarrow> unbind_notification tcb)
+    | SetTLSBase tcb \<Rightarrow> liftE $ corrupt_tcb_intent tcb"
 
 
 definition

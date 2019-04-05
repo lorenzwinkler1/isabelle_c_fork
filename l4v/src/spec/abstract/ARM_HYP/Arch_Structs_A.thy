@@ -16,9 +16,9 @@ chapter "ARM-Specific Data Types"
 
 theory Arch_Structs_A
 imports
-  "../../design/$L4V_ARCH/Arch_Structs_B"
+  "ExecSpec.Arch_Structs_B"
   "../ExceptionTypes_A"
-  ArchVMRights_A
+  "../VMRights_A"
 begin
 
 context Arch begin global_naming ARM_A
@@ -142,10 +142,8 @@ record  gic_vcpu_interface =
   vgic_apr  :: machine_word
   vgic_lr   :: "nat \<Rightarrow> ARM_A.virq"
 
-
 record vcpu =
   vcpu_tcb   :: "obj_ref option"
-  vcpu_actlr :: machine_word
   vcpu_vgic  :: gic_vcpu_interface
   vcpu_regs :: "vcpureg \<Rightarrow> machine_word"
 
@@ -169,9 +167,9 @@ definition
   default_vcpu :: vcpu where
   "default_vcpu \<equiv> \<lparr>
       vcpu_tcb    = None,
-      vcpu_actlr  = actlrDefault,
       vcpu_vgic   = default_gic_vcpu_interface,
-      vcpu_regs   = (\<lambda>_. 0) (VCPURegSCTLR := sctlrDefault) \<rparr>"
+      vcpu_regs   = (\<lambda>_. 0) (VCPURegSCTLR := sctlrDefault
+                             , VCPURegACTLR := actlrDefault) \<rparr>"
 
 
 text {*
@@ -409,6 +407,16 @@ definition
   arch_tcb_context_get :: "arch_tcb \<Rightarrow> user_context"
 where
   "arch_tcb_context_get a_tcb \<equiv> tcb_context a_tcb"
+
+definition
+  arch_tcb_set_registers :: "(register \<Rightarrow> machine_word) \<Rightarrow> arch_tcb \<Rightarrow> arch_tcb"
+where
+  "arch_tcb_set_registers \<equiv> arch_tcb_context_set"
+
+definition
+  arch_tcb_get_registers :: "arch_tcb \<Rightarrow> register \<Rightarrow> machine_word"
+where
+  "arch_tcb_get_registers \<equiv> arch_tcb_context_get"
 
 end
 

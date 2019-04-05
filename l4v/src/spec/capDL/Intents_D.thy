@@ -28,8 +28,8 @@
 
 theory Intents_D
 imports
-  "../../lib/$L4V_ARCH/WordSetup"
-  "../abstract/CapRights_A"
+  "Word_Lib.WordSetup"
+  "ASpec.CapRights_A"
 begin
 
 (*
@@ -103,12 +103,14 @@ datatype cdl_tcb_intent =
  |  TcbSuspendIntent
     (* Resume: (target) *)
  |  TcbResumeIntent
-    (* Configure: (target), fault_ep, (mcp, priority), (cspace_root), cspace_root_data, (vspace_root), vspace_root_data, buffer, (bufferFrame) *)
- |  TcbConfigureIntent cdl_cptr "word8 \<times> word8" cdl_raw_capdata cdl_raw_capdata word32
+    (* Configure: (target), fault_ep, (cspace_root), cspace_root_data, (vspace_root), vspace_root_data, buffer, (bufferFrame) *)
+ |  TcbConfigureIntent cdl_cptr cdl_raw_capdata cdl_raw_capdata word32
     (* SetMCPriority: (target), mcp *)
  |  TcbSetMCPriorityIntent word8
     (* SetPriority: (target), priority *)
  |  TcbSetPriorityIntent word8
+    (* SetSchedParams: (target), mcp, priority *)
+ |  TcbSetSchedParamsIntent word8 word8
     (* SetIPCBuffer: (target), buffer, (bufferFrame) *)
  |  TcbSetIPCBufferIntent word32
     (* SetSpace: (target), fault_ep, (cspace_root), cspace_root_data, (vspace_root), vspace_root_data *)
@@ -117,6 +119,8 @@ datatype cdl_tcb_intent =
  |  TcbBindNTFNIntent
     (* UnbindNTFN: (target) *)
  |  TcbUnbindNTFNIntent
+    (* SetTLSBase: (target) *)
+ |  TcbSetTLSBaseIntent
 
 datatype cdl_untyped_intent =
     (* Retype: (target), (do_reset), type, size_bits, (root), node_index, node_depth, node_offset, node_window, has_children *)
@@ -130,11 +134,15 @@ datatype cdl_irq_handler_intent =
     (* Clear: (target) *)
  |  IrqHandlerClearIntent
 
+datatype cdl_arch_irq_control_intent =
+    (* ArchIssueIrqHandler: (target), irq, (root), index, depth *)
+    ARMIrqControlIssueIrqHandlerIntent "10 word" word32 word32
+
 datatype cdl_irq_control_intent =
     (* IssueIrqHandler: (target), irq, (root), index, depth *)
     IrqControlIssueIrqHandlerIntent "10 word" word32 word32
     (* InterruptControl *)
- |  IrqControlArchIrqControlIntent
+ |  ArchIrqControlIssueIrqHandlerIntent cdl_arch_irq_control_intent
 
 datatype cdl_page_table_intent =
     (* Map: (target), (pd), vaddr, attr *)

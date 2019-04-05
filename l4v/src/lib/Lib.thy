@@ -17,11 +17,12 @@ chapter "Library"
 theory Lib
 imports
   Value_Abbreviation
+  Match_Abbreviation
   Try_Methods
   Extract_Conjunct
   Eval_Bool
   NICTATools
-  "~~/src/HOL/Library/Prefix_Order"
+  "HOL-Library.Prefix_Order"
 begin
 
 (* FIXME: eliminate *)
@@ -643,6 +644,36 @@ lemma trancl_trancl:
   "(R\<^sup>+)\<^sup>+ = R\<^sup>+"
   by auto
 
+text {* Some rules for showing that the reflexive transitive closure of a
+relation/predicate doesn't add much if it was already transitively
+closed. *}
+
+lemma rtrancl_eq_reflc_trans:
+  assumes trans: "trans X"
+  shows "rtrancl X = X \<union> Id"
+  by (simp only: rtrancl_trancl_reflcl trancl_id[OF trans])
+
+lemma rtrancl_id:
+  assumes refl: "Id \<subseteq> X"
+  assumes trans: "trans X"
+  shows "rtrancl X = X"
+  using refl rtrancl_eq_reflc_trans[OF trans]
+  by blast
+
+lemma rtranclp_eq_reflcp_transp:
+  assumes trans: "transp X"
+  shows "rtranclp X = (\<lambda>x y. X x y \<or> x = y)"
+  by (simp add: Enum.rtranclp_rtrancl_eq fun_eq_iff
+                rtrancl_eq_reflc_trans trans[unfolded transp_trans])
+
+lemma rtranclp_id:
+  shows "reflp X \<Longrightarrow> transp X \<Longrightarrow> rtranclp X = X"
+  apply (simp add: rtranclp_eq_reflcp_transp)
+  apply (auto simp: fun_eq_iff elim: reflpD)
+  done
+
+lemmas rtranclp_id2 = rtranclp_id[unfolded reflp_def transp_relcompp le_fun_def]
+
 lemma if_1_0_0:
   "((if P then 1 else 0) = (0 :: ('a :: zero_neq_one))) = (\<not> P)"
   by (simp split: if_split)
@@ -714,7 +745,7 @@ lemma graph_ofI:
   by (simp add: graph_of_def)
 
 lemma graph_of_empty :
-  "graph_of empty = {}"
+  "graph_of Map.empty = {}"
   by (simp add: graph_of_def)
 
 lemma graph_of_in_ranD: "\<forall>y \<in> ran f. P y \<Longrightarrow> (x,y) \<in> graph_of f \<Longrightarrow> P y"
@@ -851,7 +882,7 @@ lemma Union_subset:
 
 lemma UN_sub_empty:
   "\<lbrakk>list_all P xs; \<And>x. P x \<Longrightarrow> f x = g x\<rbrakk> \<Longrightarrow> (\<Union>x\<in>set xs. f x) - (\<Union>x\<in>set xs. g x) = {}"
-  by (metis Ball_set_list_all Diff_cancel SUP_cong)
+  by (simp add: Ball_set_list_all[symmetric] Union_subset)
 
 (*******************
  * bij_betw rules. *
@@ -945,27 +976,27 @@ lemma dom_unpack:
   by (simp add: dom_map_of_conv_image_fst image_image)
 
 lemma fold_to_disj:
-"fold op ++ ms a x = Some y \<Longrightarrow> (\<exists>b \<in> set ms. b x = Some y) \<or> a x = Some y"
+"fold (++) ms a x = Some y \<Longrightarrow> (\<exists>b \<in> set ms. b x = Some y) \<or> a x = Some y"
   by (induct ms arbitrary:a x y; clarsimp) blast
 
 lemma fold_ignore1:
-  "a x = Some y \<Longrightarrow> fold op ++ ms a x = Some y"
+  "a x = Some y \<Longrightarrow> fold (++) ms a x = Some y"
   by (induct ms arbitrary:a x y; clarsimp)
 
 lemma fold_ignore2:
-  "fold op ++ ms a x = None \<Longrightarrow> a x = None"
+  "fold (++) ms a x = None \<Longrightarrow> a x = None"
   by (metis fold_ignore1 option.collapse)
 
 lemma fold_ignore3:
-  "fold op ++ ms a x = None \<Longrightarrow> (\<forall>b \<in> set ms. b x = None)"
+  "fold (++) ms a x = None \<Longrightarrow> (\<forall>b \<in> set ms. b x = None)"
   by (induct ms arbitrary:a x; clarsimp) (meson fold_ignore2 map_add_None)
 
 lemma fold_ignore4:
-  "b \<in> set ms \<Longrightarrow> b x = Some y \<Longrightarrow> \<exists>y. fold op ++ ms a x = Some y"
+  "b \<in> set ms \<Longrightarrow> b x = Some y \<Longrightarrow> \<exists>y. fold (++) ms a x = Some y"
   using fold_ignore3 by fastforce
 
 lemma dom_unpack2:
-  "dom (fold op ++ ms empty) = \<Union>(set (map dom ms))"
+  "dom (fold (++) ms Map.empty) = \<Union>(set (map dom ms))"
   apply (induct ms; clarsimp simp:dom_def)
   apply (rule equalityI; clarsimp)
    apply (drule fold_to_disj)
@@ -983,19 +1014,19 @@ lemma dom_unpack2:
   apply (erule_tac y=y in fold_ignore4; clarsimp)
   done
 
-lemma fold_ignore5:"fold op ++ ms a x = Some y \<Longrightarrow> a x = Some y \<or> (\<exists>b \<in> set ms. b x = Some y)"
+lemma fold_ignore5:"fold (++) ms a x = Some y \<Longrightarrow> a x = Some y \<or> (\<exists>b \<in> set ms. b x = Some y)"
   by (induct ms arbitrary:a x y; clarsimp) blast
 
 lemma dom_inter_nothing:"dom f \<inter> dom g = {} \<Longrightarrow> \<forall>x. f x = None \<or> g x = None"
   by auto
 
 lemma fold_ignore6:
-  "f x = None \<Longrightarrow> fold op ++ ms f x = fold op ++ ms empty x"
+  "f x = None \<Longrightarrow> fold (++) ms f x = fold (++) ms Map.empty x"
   apply (induct ms arbitrary:f x; clarsimp simp:map_add_def)
   by (metis (no_types, lifting) fold_ignore1 option.collapse option.simps(4))
 
 lemma fold_ignore7:
-  "m x = m' x \<Longrightarrow> fold op ++ ms m x = fold op ++ ms m' x"
+  "m x = m' x \<Longrightarrow> fold (++) ms m x = fold (++) ms m' x"
   apply (case_tac "m x")
    apply (frule_tac ms=ms in fold_ignore6)
    apply (cut_tac f=m' and ms=ms and x=x in fold_ignore6)
@@ -1006,7 +1037,7 @@ lemma fold_ignore7:
   done
 
 lemma fold_ignore8:
-  "fold op ++ ms [x \<mapsto> y] = (fold op ++ ms empty)(x \<mapsto> y)"
+  "fold (++) ms [x \<mapsto> y] = (fold (++) ms Map.empty)(x \<mapsto> y)"
   apply (rule ext)
   apply (rename_tac xa)
   apply (case_tac "xa = x")
@@ -1017,14 +1048,14 @@ lemma fold_ignore8:
   done
 
 lemma fold_ignore9:
-  "\<lbrakk>fold op ++ ms [x \<mapsto> y] x' = Some z; x = x'\<rbrakk> \<Longrightarrow> y = z"
+  "\<lbrakk>fold (++) ms [x \<mapsto> y] x' = Some z; x = x'\<rbrakk> \<Longrightarrow> y = z"
   by (subst (asm) fold_ignore8) clarsimp
 
 lemma fold_to_map_of:
-  "fold op ++ (map (\<lambda>x. [f x \<mapsto> g x]) xs) empty = map_of (map (\<lambda>x. (f x, g x)) xs)"
+  "fold (++) (map (\<lambda>x. [f x \<mapsto> g x]) xs) Map.empty = map_of (map (\<lambda>x. (f x, g x)) xs)"
   apply (rule ext)
   apply (rename_tac x)
-  apply (case_tac "fold op ++ (map (\<lambda>x. [f x \<mapsto> g x]) xs) Map.empty x")
+  apply (case_tac "fold (++) (map (\<lambda>x. [f x \<mapsto> g x]) xs) Map.empty x")
    apply clarsimp
    apply (drule fold_ignore3)
    apply (clarsimp split:if_split_asm)
@@ -1035,7 +1066,7 @@ lemma fold_to_map_of:
    apply (erule_tac x=xa in ballE; clarsimp)
   apply clarsimp
   apply (frule fold_ignore5; clarsimp split:if_split_asm)
-  apply (subst map_add_map_of_foldr[where m=empty, simplified])
+  apply (subst map_add_map_of_foldr[where m=Map.empty, simplified])
   apply (induct xs arbitrary:f g; clarsimp split:if_split)
   apply (rule conjI; clarsimp)
    apply (drule fold_ignore9; clarsimp)
@@ -1559,7 +1590,7 @@ lemma tl_drop_1 :
   by (simp add: drop_Suc)
 
 lemma upt_lhs_sub_map:
-  "[x ..< y] = map (op + x) [0 ..< y - x]"
+  "[x ..< y] = map ((+) x) [0 ..< y - x]"
   by (induct y) (auto simp: Suc_diff_le)
 
 lemma upto_0_to_4:
@@ -1576,7 +1607,7 @@ lemma dom_fun_upd2:
   by (simp add: insert_absorb domI)
 
 lemma foldl_True :
-  "foldl op \<or> True bs"
+  "foldl (\<or>) True bs"
   by (induct bs) auto
 
 lemma image_set_comp:
@@ -1812,10 +1843,6 @@ lemma rtrancl_simulate_weak:
   apply clarsimp
   by (rule converse_rtrancl_into_rtrancl)
 
-lemma nat_le_Suc_less_imp:
-  "x < y \<Longrightarrow> x \<le> y - Suc 0"
-  by arith
-
 lemma list_case_If2:
   "case_list f g xs = If (xs = []) f (g (hd xs) (tl xs))"
   by (simp split: list.split)
@@ -1975,24 +2002,24 @@ lemma filter_eq_If:
   by (induct xs) auto
 
 lemma (in semigroup_add) foldl_assoc:
-shows "foldl op+ (x+y) zs = x + (foldl op+ y zs)"
+shows "foldl (+) (x+y) zs = x + (foldl (+) y zs)"
   by (induct zs arbitrary: y) (simp_all add:add.assoc)
 
 lemma (in monoid_add) foldl_absorb0:
-shows "x + (foldl op+ 0 zs) = foldl op+ x zs"
+shows "x + (foldl (+) 0 zs) = foldl (+) x zs"
   by (induct zs) (simp_all add:foldl_assoc)
 
 lemma foldl_conv_concat:
-  "foldl (op @) xs xss = xs @ concat xss"
+  "foldl (@) xs xss = xs @ concat xss"
 proof (induct xss arbitrary: xs)
   case Nil show ?case by simp
 next
-  interpret monoid_add "op @" "[]" proof qed simp_all
+  interpret monoid_add "(@)" "[]" proof qed simp_all
   case Cons then show ?case by (simp add: foldl_absorb0)
 qed
 
 lemma foldl_concat_concat:
-  "foldl op @ [] (xs @ ys) = foldl op @ [] xs @ foldl op @ [] ys"
+  "foldl (@) [] (xs @ ys) = foldl (@) [] xs @ foldl (@) [] ys"
   by (simp add: foldl_conv_concat)
 
 lemma foldl_does_nothing:
@@ -2036,7 +2063,7 @@ lemma take_min_len:
 lemmas interval_empty = atLeastatMost_empty_iff
 
 lemma fold_and_false[simp]:
-  "\<not>(fold (op \<and>) xs False)"
+  "\<not>(fold (\<and>) xs False)"
   apply clarsimp
   apply (induct xs)
    apply simp
@@ -2044,7 +2071,7 @@ lemma fold_and_false[simp]:
   done
 
 lemma fold_and_true:
-  "fold (op \<and>) xs True \<Longrightarrow> \<forall>i < length xs. xs ! i"
+  "fold (\<and>) xs True \<Longrightarrow> \<forall>i < length xs. xs ! i"
   apply clarsimp
   apply (induct xs)
    apply simp
@@ -2054,11 +2081,11 @@ lemma fold_and_true:
   done
 
 lemma fold_or_true[simp]:
-  "fold (op \<or>) xs True"
+  "fold (\<or>) xs True"
   by (induct xs, simp+)
 
 lemma fold_or_false:
-  "\<not>(fold (op \<or>) xs False) \<Longrightarrow> \<forall>i < length xs. \<not>(xs ! i)"
+  "\<not>(fold (\<or>) xs False) \<Longrightarrow> \<forall>i < length xs. \<not>(xs ! i)"
   apply (induct xs, simp+)
   apply (case_tac a, simp+)
   apply (rule allI, case_tac "i = 0", simp+)
@@ -2310,7 +2337,7 @@ lemma not_psubset_eq:
 
 
 lemma in_image_op_plus:
-  "(x + y \<in> op + x ` S) = ((y :: 'a :: ring) \<in> S)"
+  "(x + y \<in> (+) x ` S) = ((y :: 'a :: ring) \<in> S)"
   by (simp add: image_def)
 
 lemma insert_subtract_new:
@@ -2351,7 +2378,7 @@ lemma suffix_eqI:
 
 lemma suffix_Cons_mem:
   "suffix (x # xs) as \<Longrightarrow> x \<in> set as"
-  by (drule suffix_set_subset) simp
+  by (metis in_set_conv_decomp suffix_def)
 
 lemma distinct_imply_not_in_tail:
   "\<lbrakk> distinct list; suffix (y # ys) list\<rbrakk> \<Longrightarrow> y \<notin> set ys"
@@ -2362,7 +2389,7 @@ lemma list_induct_suffix [case_names Nil Cons]:
   and    consr: "\<And>x xs. \<lbrakk>P xs; suffix (x # xs) as \<rbrakk> \<Longrightarrow> P (x # xs)"
   shows  "P as"
 proof -
-  def as' == as
+  define as' where "as' == as"
 
   have "suffix as as'" unfolding as'_def by simp
   then show ?thesis

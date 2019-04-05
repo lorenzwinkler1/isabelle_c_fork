@@ -9,9 +9,10 @@
  *)
 
 theory parse_struct_array
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "parse_struct_array.c"
 install_C_file "parse_struct_array.c"
 
 term "globk2_'"
@@ -33,7 +34,7 @@ ML {*
   val cs = Term.add_consts b_t []
 *}
 
-ML {* member op= (map #1 cs) "CProof.strictc_errortype.C_Guard" orelse
+ML {* member (=) (map #1 cs) "CProof.strictc_errortype.C_Guard" orelse
       OS.Process.exit OS.Process.failure *}
 
 end

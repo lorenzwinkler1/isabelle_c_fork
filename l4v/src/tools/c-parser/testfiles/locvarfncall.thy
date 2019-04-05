@@ -9,9 +9,10 @@
  *)
 
 theory locvarfncall
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "locvarfncall.c"
 install_C_file "locvarfncall.c"
 
 context "locvarfncall"

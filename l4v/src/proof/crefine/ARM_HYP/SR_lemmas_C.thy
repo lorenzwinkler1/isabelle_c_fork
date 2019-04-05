@@ -11,7 +11,7 @@
 theory SR_lemmas_C
 imports
   StateRelation_C
-  "../../refine/$L4V_ARCH/Invariants_H"
+  "Refine.Invariants_H"
 begin
 
 context begin interpretation Arch . (*FIXME: arch_split*)
@@ -102,7 +102,7 @@ lemma cap_get_tag_isCap0:
   apply (erule ccap_relationE)
   apply (simp add: cap_to_H_def cap_lift_def Let_def isArchCap_tag_def2 isArchCap_def)
   by (clarsimp simp: isCap_simps cap_tag_defs word_le_nat_alt pageSize_def Let_def
-              split: if_split_asm) -- "takes a while"
+              split: if_split_asm) \<comment> \<open>takes a while\<close>
 
 
 lemma cap_get_tag_isCap:
@@ -505,7 +505,7 @@ lemma ctes_of_ksI [intro?]:
   and     pd: "pspace_distinct' s"
   shows   "ctes_of s x = Some cte"
 proof (rule ctes_of_eq_cte_wp_at')
-  from ks show "cte_wp_at' (op = cte) x s"
+  from ks show "cte_wp_at' ((=) cte) x s"
   proof (rule cte_wp_at_cteI' [OF _ _ _ refl])
     from ks pa have "is_aligned x (objBitsKO (KOCTE cte))" ..
     thus "is_aligned x cte_level_bits"
@@ -754,7 +754,7 @@ lemma lifth_update:
   by simp
 
 lemma getCTE_exs_valid:
-  "cte_at' dest s \<Longrightarrow> \<lbrace>op = s\<rbrace> getCTE dest \<exists>\<lbrace>\<lambda>r. op = s\<rbrace>"
+  "cte_at' dest s \<Longrightarrow> \<lbrace>(=) s\<rbrace> getCTE dest \<exists>\<lbrace>\<lambda>r. (=) s\<rbrace>"
   unfolding exs_valid_def getCTE_def cte_wp_at'_def
   by clarsimp
 
@@ -914,15 +914,6 @@ lemma cspace_cte_relation_upd_mdbI:
   apply simp
 done
 
-(* FIXME: move, generic *)
-lemma aligned_neg_mask [simp]:
-  "is_aligned x n \<Longrightarrow> x && ~~ mask n = x"
-  apply (erule is_aligned_get_word_bits)
-   apply (rule iffD2 [OF mask_in_range])
-    apply assumption
-   apply simp
-  apply (simp add: power_overflow NOT_mask)
-  done
 
 lemma mdb_node_to_H_mdbPrev_update[simp]:
   "mdb_node_to_H (mdbPrev_CL_update (\<lambda>_. x) m)
@@ -971,7 +962,7 @@ lemma ctes_of_aligned_bits [simp]:
   and   bits: "bits \<le> cte_level_bits"
   shows  "is_aligned p bits"
 proof -
-  from cof have "cte_wp_at' (op = cte) p s"
+  from cof have "cte_wp_at' ((=) cte) p s"
     by (simp add: cte_wp_at_ctes_of)
   thus ?thesis
     apply -
@@ -1282,7 +1273,7 @@ lemma ko_at_valid_ntfn':
 
 (* MOVE *)
 lemma ntfn_blocked_in_queueD:
-  "\<lbrakk> st_tcb_at' (op = (Structures_H.thread_state.BlockedOnNotification ntfn)) thread \<sigma>; ko_at' ntfn' ntfn \<sigma>; invs' \<sigma> \<rbrakk>
+  "\<lbrakk> st_tcb_at' ((=) (Structures_H.thread_state.BlockedOnNotification ntfn)) thread \<sigma>; ko_at' ntfn' ntfn \<sigma>; invs' \<sigma> \<rbrakk>
    \<Longrightarrow> thread \<in> set (ntfnQueue (ntfnObj ntfn')) \<and> isWaitingNtfn (ntfnObj ntfn')"
   apply (drule sym_refs_st_tcb_atD')
    apply clarsimp
@@ -1385,7 +1376,7 @@ lemma exs_getObject:
                 (loadObject_default p q n ko :: ('a :: pspace_storable) kernel)"
   assumes P: "\<And>(v::'a::pspace_storable). (1 :: word32) < 2 ^ (objBits v)"
   and objat: "obj_at' (P :: ('a::pspace_storable \<Rightarrow> bool)) p s"
-  shows      "\<lbrace>op = s\<rbrace> getObject p \<exists>\<lbrace>\<lambda>r :: ('a :: pspace_storable). op = s\<rbrace>"
+  shows      "\<lbrace>(=) s\<rbrace> getObject p \<exists>\<lbrace>\<lambda>r :: ('a :: pspace_storable). (=) s\<rbrace>"
   using objat unfolding exs_valid_def obj_at'_def
   apply clarsimp
   apply (rule_tac x = "(the (projectKO_opt ko), s)" in bexI)
@@ -1541,7 +1532,7 @@ lemma cmap_relation_cong:
    apply (rule Some_the [where f = cm'])
    apply (erule subsetD)
    apply (erule imageI)
-  -- "clag"
+  \<comment> \<open>clag\<close>
    apply simp
    apply (erule conjE)
    apply (drule equalityD1)
@@ -1947,13 +1938,6 @@ lemma ko_at_projectKO_opt:
   "ko_at' ko p s \<Longrightarrow> (projectKO_opt \<circ>\<^sub>m ksPSpace s) p = Some ko"
   by (clarsimp elim!: obj_atE' simp: projectKOs)
 
-lemma int_and_leR:
-  "0 \<le> b \<Longrightarrow> a AND b \<le> (b :: int)"
-  by (clarsimp simp: int_and_le bin_sign_def split: if_split_asm)
-
-lemma int_and_leL:
-  "0 \<le> a \<Longrightarrow> a AND b \<le> (a :: int)"
-  by (metis int_and_leR int_and_comm)
 
 lemma user_word_at_cross_over:
   "\<lbrakk> user_word_at x p s; (s, s') \<in> rf_sr; p' = Ptr p \<rbrakk>
@@ -1980,7 +1964,7 @@ lemma user_word_at_cross_over:
    apply (rule order_trans[rotated])
     apply (rule_tac x="p && mask pageBits" and y=4 in intvl_sub_offset)
     apply (cut_tac y=p and a="mask pageBits && (~~ mask 2)" in word_and_le1)
-    apply (subst(asm) word_bw_assocs[symmetric], subst(asm) aligned_neg_mask,
+    apply (subst(asm) word_bw_assocs[symmetric], subst(asm) is_aligned_neg_mask_eq,
            erule is_aligned_andI1)
     apply (simp add: word_le_nat_alt mask_def pageBits_def)
    apply simp
@@ -2080,8 +2064,6 @@ lemma device_word_at_cross_over:
   done
 *)
 
-(* FIXME: move to GenericLib *)
-lemmas unat32_eq_of_nat = unat_eq_of_nat[where 'a=32, folded word_bits_def]
 
 lemma memory_cross_over:
   "\<lbrakk>(\<sigma>, s) \<in> rf_sr; pspace_aligned' \<sigma>; pspace_distinct' \<sigma>;
@@ -2124,7 +2106,7 @@ lemma cap_get_tag_isCap_ArchObject0:
   apply -
   apply (erule ccap_relationE)
   apply (simp add: cap_to_H_def cap_lift_def Let_def isArchCap_def)
-  by (clarsimp simp: isCap_simps cap_tag_defs word_le_nat_alt pageSize_def Let_def split: if_split_asm) -- "takes a while"
+  by (clarsimp simp: isCap_simps cap_tag_defs word_le_nat_alt pageSize_def Let_def split: if_split_asm) \<comment> \<open>takes a while\<close>
 
 lemma cap_get_tag_isCap_ArchObject:
   assumes cr: "ccap_relation (capability.ArchObjectCap cap) cap'"
@@ -2387,6 +2369,24 @@ lemma vcpu_at_rf_sr:
 (* all definitions of seL4_VCPUReg enum - these don't get autogenerated *)
 lemmas seL4_VCPUReg_defs =
     seL4_VCPUReg_SCTLR_def
+    seL4_VCPUReg_ACTLR_def
+    seL4_VCPUReg_TTBCR_def
+    seL4_VCPUReg_TTBR0_def
+    seL4_VCPUReg_TTBR1_def
+    seL4_VCPUReg_DACR_def
+    seL4_VCPUReg_DFSR_def
+    seL4_VCPUReg_IFSR_def
+    seL4_VCPUReg_ADFSR_def
+    seL4_VCPUReg_AIFSR_def
+    seL4_VCPUReg_DFAR_def
+    seL4_VCPUReg_IFAR_def
+    seL4_VCPUReg_PRRR_def
+    seL4_VCPUReg_NMRR_def
+    seL4_VCPUReg_CIDR_def
+    seL4_VCPUReg_TPIDRPRW_def
+    seL4_VCPUReg_FPEXC_def
+    seL4_VCPUReg_CNTV_TVAL_def
+    seL4_VCPUReg_CNTV_CTL_def
     seL4_VCPUReg_LRsvc_def
     seL4_VCPUReg_SPsvc_def
     seL4_VCPUReg_LRabt_def
@@ -2402,6 +2402,11 @@ lemmas seL4_VCPUReg_defs =
     seL4_VCPUReg_R10fiq_def
     seL4_VCPUReg_R11fiq_def
     seL4_VCPUReg_R12fiq_def
+    seL4_VCPUReg_SPSRsvc_def
+    seL4_VCPUReg_SPSRabt_def
+    seL4_VCPUReg_SPSRund_def
+    seL4_VCPUReg_SPSRirq_def
+    seL4_VCPUReg_SPSRfiq_def
 
 (* rewrite a definition from a C enum into a vcpureg enumeration lookup *)
 (* FIXME type annotations are ham-fisted and repetitive *)
@@ -2471,34 +2476,26 @@ lemma update_vcpu_map_to_vcpu:
              = (map_to_vcpus (ksPSpace s))(p \<mapsto> vcpu)"
   by (rule ext, clarsimp simp: projectKOs map_comp_def split: if_split)
 
-(* Solves goals of the following shape (rf_sr on fields of VCPUs)
-   \<lbrakk> (\<sigma>, \<sigma>') \<in> rf_sr; ko_at' vcpu vcpuptr \<sigma> \<rbrakk>
-    \<Longrightarrow> (\<sigma>\<lparr>ksPSpace := ksPSpace \<sigma>(vcpuptr \<mapsto> KOArch (KOVCPU (f vcpu)))\<rparr>,
-       globals_update
-        (t_hrs_'_update (hrs_mem_update (heap_update (Ptr &(vcpu_Ptr vcpuptr\<rightarrow>[''some_field''])) val)))
-        \<sigma>')
-      \<in> rf_sr *)
-(* FIXME ARMHYP: I would like to generalise this more, maybe with a rule people can find *)
-(* Note, this can choke on whatever weirdness you have in your goals, one example is disjunctions *)
-(* Also note this is slow, around 10 seconds *)
-method solve_rf_sr_vcpu_update = solves \<open>
-  clarsimp?
-  , determ \<open>rule cmap_relationE1[OF cmap_relation_vcpu], assumption, erule ko_at_projectKO_opt\<close>
-  , clarsimp simp: rf_sr_def cstate_relation_def Let_def
-                   typ_heap_simps' cpspace_relation_def update_vcpu_map_tos
-  , (safe ; (clarsimp simp: cpspace_relation_def
-                                carch_state_relation_def Let_def
-                                 update_vcpu_map_to_vcpu
-                                cmachine_state_relation_def
-                                update_tcb_map_tos typ_heap_simps')?)
-  , (erule (1) cmap_relation_updI; fastforce simp: cvcpu_relation_regs_def)
-  \<close>
-
 lemma rf_sr_sched_action_relation:
   "(s, s') \<in> rf_sr
    \<Longrightarrow> cscheduler_action_relation (ksSchedulerAction s) (ksSchedulerAction_' (globals s'))"
   by (clarsimp simp: rf_sr_def cstate_relation_def Let_def)
 
-end
-end
+(* FIXME move and share with other architectures (note: needs locale from C parse) *)
+abbreviation
+  Basic_heap_update ::
+    "(globals myvars \<Rightarrow> ('a::c_type) ptr) \<Rightarrow> (globals myvars \<Rightarrow> 'a) \<Rightarrow> (globals myvars, int, strictc_errortype) com"
+where
+  "Basic_heap_update p f \<equiv>
+    (Basic (\<lambda>s. globals_update (t_hrs_'_update (hrs_mem_update (heap_update (p s) (f s)))) s))"
 
+lemma unat_scast_seL4_VCPUReg_SCTLR_simp[simp]:
+  "unat (SCAST(32 signed \<rightarrow> 32) seL4_VCPUReg_SCTLR) = fromEnum VCPURegSCTLR"
+  by (simp add: vcpureg_eq_use_types[where reg=VCPURegSCTLR, simplified, symmetric])
+
+lemma unat_scast_seL4_VCPUReg_ACTLR_simp[simp]:
+  "unat (SCAST(32 signed \<rightarrow> 32) seL4_VCPUReg_ACTLR) = fromEnum VCPURegACTLR"
+  by (simp add: vcpureg_eq_use_types[where reg=VCPURegACTLR, simplified, symmetric])
+
+end
+end

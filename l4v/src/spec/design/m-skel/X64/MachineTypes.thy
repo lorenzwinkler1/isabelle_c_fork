@@ -12,10 +12,9 @@ chapter "x86-64bit Machine Types"
 
 theory MachineTypes
 imports
-  "../../../lib/Word_Lib/Enumeration"
-  "../../../lib/$L4V_ARCH/WordSetup"
-  "../../../lib/Monad_WP/NonDetMonad"
-  "../../../lib/HaskellLib_H"
+  "Word_Lib.WordSetup"
+  "Lib.OptionMonadND"
+  "Lib.HaskellLib_H"
   Platform
 begin
 
@@ -28,17 +27,8 @@ text {*
 
 section "Types"
 
-#INCLUDE_HASKELL SEL4/Machine/RegisterSet/X64.lhs CONTEXT X64 decls_only
+#INCLUDE_HASKELL SEL4/Machine/RegisterSet/X64.lhs CONTEXT X64 decls_only NOT UserContext UserMonad Word getRegister setRegister newContext
 (*<*)
-
-section "Machine Words"
-
-type_synonym machine_word_len = 64
-
-definition
-  word_size_bits :: "'a :: numeral"
-where
-  "word_size_bits \<equiv> 3"
 
 end
 
@@ -50,7 +40,7 @@ context Arch begin global_naming X64
 
 #INCLUDE_HASKELL SEL4/Machine/RegisterSet/X64.lhs CONTEXT X64 instanceproofs
 (*>*)
-#INCLUDE_HASKELL SEL4/Machine/RegisterSet/X64.lhs CONTEXT X64 bodies_only
+#INCLUDE_HASKELL SEL4/Machine/RegisterSet/X64.lhs CONTEXT X64 bodies_only NOT getRegister setRegister newContext
 
 section "Machine State"
 
@@ -115,10 +105,10 @@ definition
  "init_machine_state \<equiv> \<lparr> irq_masks = init_irq_masks,
                          irq_state = 0,
                          underlying_memory = init_underlying_memory,
-                         device_state = empty,
+                         device_state = Map.empty,
                          machine_state_rest = undefined \<rparr>"
 
-#INCLUDE_HASKELL SEL4/Machine/Hardware/X64.lhs CONTEXT X64 ONLY HardwareASID VMFaultType HypFaultType VMPageSize VMMapType pageBits ptTranslationBits pageBitsForSize
+#INCLUDE_HASKELL SEL4/Machine/Hardware/X64.lhs CONTEXT X64 ONLY VMFaultType HypFaultType VMPageSize VMMapType pageBits ptTranslationBits pageBitsForSize
 
 end
 
@@ -128,7 +118,7 @@ end
 
 context Arch begin global_naming X64
 
-#INCLUDE_HASKELL SEL4/Machine/Hardware/X64.lhs CONTEXT X64 instanceproofs ONLY HardwareASID VMFaultType HypFaultType VMPageSize VMMapType
+#INCLUDE_HASKELL SEL4/Machine/Hardware/X64.lhs CONTEXT X64 instanceproofs ONLY VMFaultType HypFaultType VMPageSize VMMapType
 
 end
 end

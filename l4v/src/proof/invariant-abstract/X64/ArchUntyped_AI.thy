@@ -70,7 +70,7 @@ lemma data_to_obj_type_sp[Untyped_AI_assms]:
   done
 
 lemma dui_inv_wf[wp, Untyped_AI_assms]:
-  "\<lbrace>invs and cte_wp_at (op = (cap.UntypedCap dev w sz idx)) slot
+  "\<lbrace>invs and cte_wp_at ((=) (cap.UntypedCap dev w sz idx)) slot
      and (\<lambda>s. \<forall>cap \<in> set cs. is_cnode_cap cap
                       \<longrightarrow> (\<forall>r\<in>cte_refs cap (interrupt_irq_node s). ex_cte_cap_wp_to is_cnode_cap r s))
     and (\<lambda>s. \<forall>x \<in> set cs. s \<turnstile> x)\<rbrace>
@@ -92,7 +92,7 @@ proof -
      apply (simp add:le_diff_conv2)
     done
   have nasty_strengthen:
-    "\<And>S a f s. (\<forall>x\<in>S. cte_wp_at (op = cap.NullCap) (a, f x) s)
+    "\<And>S a f s. (\<forall>x\<in>S. cte_wp_at ((=) cap.NullCap) (a, f x) s)
     \<Longrightarrow> cte_wp_at (\<lambda>c. c \<noteq> cap.NullCap) slot s
     \<longrightarrow> slot \<notin> (Pair a \<circ> f) ` S"
     by (auto simp:cte_wp_at_caps_of_state)
@@ -255,6 +255,20 @@ lemma init_arch_objects_caps_overlap_reserved[wp,Untyped_AI_assms]:
   apply fastforce
   done
 
+(* FIXME ioportcontrol: move *)
+lemma cap_ioports_not_ioport_cap[simp]:
+  "\<not>is_ioport_cap cap \<Longrightarrow> cap_ioports cap = {}"
+  by (clarsimp simp: is_cap_simps cap_ioports_def split: arch_cap.splits cap.splits)
+
+lemma default_cap_not_ioport:
+  "\<not> is_ioport_cap (default_cap tp oref sz dev)"
+  apply (case_tac tp; clarsimp simp: is_cap_simps)
+  by (case_tac x6; clarsimp simp: arch_default_cap_def)
+
+lemma safe_ioport_insert_not_ioport[simp]:
+  "\<not>is_ioport_cap newcap \<Longrightarrow> safe_ioport_insert newcap oldcap s"
+  by (clarsimp simp: safe_ioport_insert_def)
+
 lemma set_untyped_cap_invs_simple[Untyped_AI_assms]:
   "\<lbrace>\<lambda>s. descendants_range_in {ptr .. ptr+2^sz - 1} cref s \<and> pspace_no_overlap_range_cover ptr sz s \<and> invs s
   \<and> cte_wp_at (\<lambda>c. is_untyped_cap c \<and> cap_bits c = sz \<and> obj_ref_of c = ptr \<and> cap_is_device c = dev) cref s \<and> idx \<le> 2^ sz\<rbrace>
@@ -267,9 +281,9 @@ lemma set_untyped_cap_invs_simple[Untyped_AI_assms]:
     set_cap_idle update_cap_ifunsafe)
   apply (simp add:valid_irq_node_def)
   apply wps
-  apply (wp hoare_vcg_all_lift set_cap_irq_handlers set_cap_vspace_objs set_cap_valid_arch_caps
-    set_cap_valid_global_objs set_cap_irq_handlers cap_table_at_lift_valid set_cap_typ_at
-    set_untyped_cap_refs_respects_device_simple)
+  apply (wp hoare_vcg_all_lift set_cap_irq_handlers set_cap_valid_arch_caps
+    set_cap_irq_handlers cap_table_at_lift_valid set_cap_typ_at
+    set_untyped_cap_refs_respects_device_simple set_cap_ioports_no_new_ioports)
   apply (clarsimp simp:cte_wp_at_caps_of_state is_cap_simps)
   apply (intro conjI,clarsimp)
         apply (rule ext,clarsimp simp:is_cap_simps)
@@ -345,7 +359,7 @@ lemma create_cap_valid_arch_caps[wp, Untyped_AI_assms]:
       and (\<lambda>(s::'state_ext::state_ext state). \<forall>r\<in>obj_refs (default_cap tp oref sz dev).
                 (\<forall>p'. \<not> cte_wp_at (\<lambda>cap. r \<in> obj_refs cap) p' s)
               \<and> \<not> obj_at (nonempty_table (set (second_level_tables (arch_state s)))) r s)
-      and cte_wp_at (op = cap.NullCap) cref
+      and cte_wp_at ((=) cap.NullCap) cref
       and K (tp \<noteq> ArchObject ASIDPoolObj)\<rbrace>
      create_cap tp sz p dev (cref, oref) \<lbrace>\<lambda>rv. valid_arch_caps\<rbrace>"
   apply (simp add: create_cap_def set_cdt_def)
@@ -383,6 +397,11 @@ lemma create_cap_cap_refs_in_kernel_window[wp, Untyped_AI_assms]:
   apply (drule(1) cap_refs_in_kernel_windowD)
   apply blast
   done
+
+lemma create_cap_ioports[wp, Untyped_AI_assms]:
+  "\<lbrace>valid_ioports and cte_wp_at (\<lambda>_. True) cref\<rbrace> create_cap tp sz p dev (cref,oref) \<lbrace>\<lambda>rv. valid_ioports\<rbrace>"
+  by (wpsimp wp: set_cap_ioports' set_cdt_cte_wp_at
+              simp: safe_ioport_insert_not_ioport[OF default_cap_not_ioport] create_cap_def)
 
 crunch irq_node[wp]: store_pde "\<lambda>s. P (interrupt_irq_node s)"
   (wp: crunch_wps)

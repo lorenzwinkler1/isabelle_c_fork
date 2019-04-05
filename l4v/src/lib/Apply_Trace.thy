@@ -235,7 +235,7 @@ fun parse_thm_index name =
  *)
 fun adjust_thm_name ctxt (name,index) term =
 let
-  val possible_names = case index of NONE => distinct (op =) [(name, NONE), parse_thm_index name]
+  val possible_names = case index of NONE => distinct (=) [(name, NONE), parse_thm_index name]
                                    | SOME i => [(name,SOME i)]
 
   fun match (n, i) =
@@ -290,7 +290,7 @@ let
 
   val deps = case query of SOME (raw_query,pos) =>
     let
-      val pos' = perhaps (try (Position.advance_offset 1)) pos;
+      val pos' = perhaps (try (Position.advance_offsets 1)) pos;
       val q = Find_Theorems.read_query pos' raw_query;
       val results = Find_Theorems.find_theorems_cmd ctxt (SOME thm) (SOME 1000000000) false q
                     |> snd

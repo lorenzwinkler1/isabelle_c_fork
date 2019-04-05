@@ -9,8 +9,10 @@
  *)
 
 theory untouched_globals
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
+
+external_file "untouched_globals.c"
 
 declare [[record_globinits=true]]
 install_C_file "untouched_globals.c"

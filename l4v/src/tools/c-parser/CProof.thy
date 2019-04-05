@@ -11,7 +11,7 @@
 theory CProof
 imports
   "umm_heap/SepFrame"
-  "Simpl/Vcg"
+  "Simpl-VCG.Vcg"
   "umm_heap/StructSupport"
   "umm_heap/ArrayAssertion"
 begin
@@ -494,8 +494,8 @@ lemma asm_specE:
 lemmas state_eqE = arg_cong[where f="\<lambda>s. (globals s, state.more s)", elim_format]
 
 lemmas asm_store_eq_helper
-    = arg_cong2[where f="op =" and a="asm_store f v s"]
-      arg_cong2[where f="op =" and c="asm_store f v s"]
+    = arg_cong2[where f="(=)" and a="asm_store f v s"]
+      arg_cong2[where f="(=)" and c="asm_store f v s"]
   for f v s
 
 definition

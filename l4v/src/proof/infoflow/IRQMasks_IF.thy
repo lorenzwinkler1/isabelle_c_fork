@@ -9,7 +9,7 @@
  *)
 
 theory IRQMasks_IF
-imports "../access-control/DomainSepInv"
+imports "Access.DomainSepInv"
 begin
 
 context begin interpretation Arch . (*FIXME: arch_split*)
@@ -53,11 +53,11 @@ crunch irq_masks[wp]: set_extra_badge "\<lambda>s. P (irq_masks_of_state s)"
   (wp: crunch_wps dmo_wp)
 
 crunch irq_masks[wp]: send_ipc "\<lambda>s. P (irq_masks_of_state s)"
-  (wp: crunch_wps simp: crunch_simps ignore: const_on_failure wp: transfer_caps_loop_pres)
+  (wp: crunch_wps simp: crunch_simps ignore: const_on_failure rule: transfer_caps_loop_pres)
 
 lemma invoke_irq_handler_irq_masks:
   shows
-  "\<lbrace>domain_sep_inv False st and (\<lambda>s. (\<exists>ptr'. cte_wp_at (op = (IRQHandlerCap irq)) ptr' s))\<rbrace>
+  "\<lbrace>domain_sep_inv False st and (\<lambda>s. (\<exists>ptr'. cte_wp_at ((=) (IRQHandlerCap irq)) ptr' s))\<rbrace>
     invoke_irq_handler blah
    \<lbrace>\<lambda>_ s. P (irq_masks_of_state s)\<rbrace>"
   apply(clarsimp simp: valid_def domain_sep_inv_def)
@@ -65,7 +65,7 @@ lemma invoke_irq_handler_irq_masks:
 
 
 lemma empty_slot_irq_masks:
-  "\<lbrace>(\<lambda>s. P (irq_masks_of_state s)) and K (irq_opt = None)\<rbrace>
+  "\<lbrace>(\<lambda>s. P (irq_masks_of_state s)) and K (irq_opt = NullCap)\<rbrace>
    empty_slot slot irq_opt
    \<lbrace>\<lambda>_ s. P (irq_masks_of_state s)\<rbrace>"
   apply(rule hoare_gen_asm)
@@ -77,7 +77,7 @@ crunch irq_masks[wp]: do_reply_transfer "\<lambda>s. P (irq_masks_of_state s)"
 
 
 crunch irq_masks[wp]: finalise_cap "\<lambda>s. P (irq_masks_of_state s)"
-  (wp: select_wp crunch_wps dmo_wp no_irq simp: crunch_simps no_irq_setHardwareASID no_irq_setCurrentPD no_irq_invalidateLocalTLB_ASID no_irq_invalidateLocalTLB_VAASID no_irq_cleanByVA_PoU)
+  (wp: select_wp crunch_wps dmo_wp no_irq simp: crunch_simps no_irq_setHardwareASID no_irq_set_current_pd no_irq_invalidateLocalTLB_ASID no_irq_invalidateLocalTLB_VAASID no_irq_cleanByVA_PoU)
 
 crunch irq_masks[wp]: send_signal "\<lambda>s. P (irq_masks_of_state s)"
   (wp: crunch_wps ignore: do_machine_op wp: dmo_wp simp: crunch_simps)
@@ -114,7 +114,7 @@ lemma rec_del_irq_masks':
   shows
   "s \<turnstile> \<lbrace> (\<lambda>s. P (irq_masks_of_state s)) and domain_sep_inv False st\<rbrace>
      (rec_del call)
-   \<lbrace>\<lambda> a s. (case call of (FinaliseSlotCall x y) \<Rightarrow> y \<or> fst a \<longrightarrow> snd a = None | _ \<Rightarrow> True) \<and> domain_sep_inv False st s \<and> P (irq_masks_of_state s)\<rbrace>,\<lbrace>\<lambda>_. domain_sep_inv False st and (\<lambda>s. P (irq_masks_of_state s))\<rbrace>"
+   \<lbrace>\<lambda> a s. (case call of (FinaliseSlotCall x y) \<Rightarrow> y \<or> fst a \<longrightarrow> snd a = NullCap | _ \<Rightarrow> True) \<and> domain_sep_inv False st s \<and> P (irq_masks_of_state s)\<rbrace>,\<lbrace>\<lambda>_. domain_sep_inv False st and (\<lambda>s. P (irq_masks_of_state s))\<rbrace>"
   proof (induct s arbitrary: rule: rec_del.induct, simp_all only: rec_del_fails hoare_fail_any)
   case (1 slot exposed s) show ?case
     apply(simp add: split_def rec_del.simps)
@@ -135,7 +135,7 @@ lemma rec_del_irq_masks':
          apply(rule spec_strengthen_postE)
           apply(rule "2.hyps"[simplified], fastforce+)
          apply(wp  finalise_cap_domain_sep_inv_cap get_cap_wp
-                   finalise_cap_returns_None[where irqs=False, simplified]
+                   finalise_cap_returns_NullCap[where irqs=False, simplified]
                    drop_spec_validE[OF liftE_wp] set_cap_domain_sep_inv
                |simp split del: if_split
                |wp_once hoare_drop_imps)+
@@ -183,12 +183,21 @@ lemma cap_delete_irq_masks:
    \<lbrace>\<lambda>_ s. P (irq_masks_of_state s)\<rbrace>,\<lbrace>\<lambda>_ s. P (irq_masks_of_state s)\<rbrace>"
   by (simp add: cap_delete_def) (wpsimp wp: rec_del_irq_masks)
 
+lemma arch_invoke_irq_control_irq_masks:
+  "\<lbrace>domain_sep_inv False st and arch_irq_control_inv_valid invok\<rbrace>
+   arch_invoke_irq_control invok
+   \<lbrace>\<lambda>_ s. P (irq_masks_of_state s)\<rbrace>"
+  apply(case_tac invok)
+  apply(clarsimp simp: arch_irq_control_inv_valid_def domain_sep_inv_def valid_def)
+  done
+
 lemma invoke_irq_control_irq_masks:
   "\<lbrace>domain_sep_inv False st and irq_control_inv_valid invok\<rbrace>
    invoke_irq_control invok
    \<lbrace>\<lambda>_ s. P (irq_masks_of_state s)\<rbrace>"
   apply(case_tac invok)
-   apply(clarsimp simp: irq_control_inv_valid_def domain_sep_inv_def valid_def)+
+   apply(clarsimp simp: irq_control_inv_valid_def domain_sep_inv_def valid_def)
+  apply (clarsimp simp: arch_invoke_irq_control_irq_masks)
   done
 
 crunch irq_masks[wp]: arch_perform_invocation, bind_notification "\<lambda>s. P (irq_masks_of_state s)"
@@ -339,7 +348,7 @@ fun irq_of_handler_inv where
 crunch irq_masks[wp]: invoke_domain "\<lambda>s. P (irq_masks_of_state s)"
 
 lemma perform_invocation_irq_masks:
-  "\<lbrace>(\<lambda>s. P (irq_masks_of_state s)) and (\<lambda>s. (\<forall> blah. oper = InvokeIRQHandler blah \<longrightarrow>  (\<exists>ptr'. cte_wp_at (op = (IRQHandlerCap (irq_of_handler_inv blah))) ptr' s))) and domain_sep_inv False st and valid_invocation oper\<rbrace>
+  "\<lbrace>(\<lambda>s. P (irq_masks_of_state s)) and (\<lambda>s. (\<forall> blah. oper = InvokeIRQHandler blah \<longrightarrow>  (\<exists>ptr'. cte_wp_at ((=) (IRQHandlerCap (irq_of_handler_inv blah))) ptr' s))) and domain_sep_inv False st and valid_invocation oper\<rbrace>
   perform_invocation blocking calling oper
   \<lbrace>\<lambda>_ s. P (irq_masks_of_state s)\<rbrace>"
   apply(case_tac oper)
@@ -362,7 +371,7 @@ lemma decode_invocation_IRQHandlerCap:
        \<lbrace>\<lambda>rv s.
            (\<forall>x. rv = InvokeIRQHandler x \<longrightarrow>
                 (\<exists>a b. cte_wp_at
-                        (op = (IRQHandlerCap (irq_of_handler_inv x)))
+                        ((=) (IRQHandlerCap (irq_of_handler_inv x)))
                         (a, b) s))\<rbrace>,-"
   apply(simp add: decode_invocation_def split del: if_split)
   apply(rule hoare_pre)
@@ -427,20 +436,18 @@ lemma handle_event_irq_masks:
   "\<lbrace> (\<lambda>s. P (irq_masks_of_state s)) and domain_sep_inv False st and invs\<rbrace>
    handle_event ev
    \<lbrace> \<lambda> rv s. P (irq_masks_of_state s) \<rbrace>"
-  including no_pre
-  apply(case_tac ev)
-      prefer 4
-      apply (rule hoare_pre)
-       apply simp
-       apply (wp handle_interrupt_irq_masks[where st=st] | wpc | simp )+
-       apply (rule_tac Q="\<lambda>rv s. P (irq_masks_of_state s) \<and> domain_sep_inv False st s \<and> (\<forall>x. rv = Some x \<longrightarrow> x \<le> maxIRQ)" in hoare_strengthen_post)
-        apply (wp | clarsimp)+
-     apply (rename_tac syscall)
-     apply (case_tac syscall)
-            apply (simp add: handle_send_def handle_call_def
-                 | wp handle_invocation_irq_masks[where st=st] handle_interrupt_irq_masks[where st=st] hoare_vcg_all_lift
+  apply ((case_tac ev, rename_tac syscall, case_tac syscall);
+    (solves \<open>(simp add: handle_send_def handle_call_def
+                 | wp handle_invocation_irq_masks[where st=st] handle_interrupt_irq_masks[where st=st]
+                      hoare_vcg_all_lift
                  | wpc
-                 | wp_once hoare_drop_imps)+
+                 | wp_once hoare_drop_imps)+\<close>)?)
+  apply (rule hoare_pre)
+  apply simp
+  apply (wp handle_interrupt_irq_masks[where st=st] | wpc | simp )+
+   apply (rule_tac Q="\<lambda>rv s. P (irq_masks_of_state s) \<and> domain_sep_inv False st s
+                        \<and> (\<forall>x. rv = Some x \<longrightarrow> x \<le> maxIRQ)" in hoare_strengthen_post)
+    apply (wp | clarsimp)+
   done
 
 crunch irq_masks[wp]: activate_thread "\<lambda>s. P (irq_masks_of_state s)"

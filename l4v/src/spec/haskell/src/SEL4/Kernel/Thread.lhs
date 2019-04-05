@@ -25,6 +25,7 @@ We use the C preprocessor to select a target architecture.
 % {-# BOOT-IMPORTS: SEL4.Model SEL4.Machine SEL4.Object.Structures SEL4.Object.Instances() SEL4.API.Types #-}
 % {-# BOOT-EXPORTS: setDomain setMCPriority setPriority getThreadState setThreadState setBoundNotification getBoundNotification doIPCTransfer isRunnable restart suspend  doReplyTransfer tcbSchedEnqueue tcbSchedDequeue rescheduleRequired timerTick possibleSwitchTo #-}
 
+> import Prelude hiding (Word)
 > import SEL4.Config
 > import SEL4.API.Types
 > import SEL4.API.Faults
@@ -35,7 +36,7 @@ We use the C preprocessor to select a target architecture.
 > import SEL4.Kernel.VSpace
 > import {-# SOURCE #-} SEL4.Kernel.Init
 
-> import Data.Bits
+> import Data.Bits hiding (countLeadingZeros)
 > import Data.Array
 > import Data.WordLib
 
@@ -466,16 +467,14 @@ Then, the new priority can be set.
 
 >         threadSet (\t -> t { tcbPriority = prio }) tptr
 
-If the thread is runnable, it is enqueued at the new priority.
+If the thread is runnable, it is enqueued at the new priority. Furthermore,
+since the thread may now be the highest priority thread, we run the scheduler
+to choose a new thread.
 
 >         runnable <- isRunnable tptr
->         when runnable $ tcbSchedEnqueue tptr
-
-Finally, if the thread is the current one, we run the scheduler to choose a new thread.
-
->         curThread <- getCurThread
->         when (tptr == curThread) $ rescheduleRequired
-
+>         when runnable $ do
+>             tcbSchedEnqueue tptr
+>             rescheduleRequired
 
 \subsubsection{Switching to Woken Threads}
 

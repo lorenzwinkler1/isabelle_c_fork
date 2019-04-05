@@ -118,7 +118,10 @@ where
                      \<and> (same_vspace_table_cap_type newcap cap')
                      \<and> (cap_asid newcap = None \<or> cap_asid cap' = None)) sl' s \<longrightarrow> sl' = sl))
   (* Don't replace with an ASID pool. *)
-  \<and> \<not>is_ap_cap newcap"
+  \<and> \<not>is_ap_cap newcap
+  (* or an IOPortControlCap *)
+  \<and> \<not>is_ioport_control_cap newcap
+  \<and> (cap_ioports newcap = cap_ioports cap \<or> cap_ioports newcap = {})"
 
 definition
   replaceable_non_final_arch_cap :: "'z::state_ext state \<Rightarrow> cslot_ptr \<Rightarrow> cap \<Rightarrow> cap \<Rightarrow> bool"
@@ -143,7 +146,7 @@ lemma table_cap_ref_vs_cap_ref_Some:
 
 lemma set_cap_valid_vs_lookup:
   "\<lbrace>\<lambda>s. valid_vs_lookup s
-      \<and> (\<forall>vref cap'. cte_wp_at (op = cap') ptr s
+      \<and> (\<forall>vref cap'. cte_wp_at ((=) cap') ptr s
                 \<longrightarrow> vs_cap_ref cap' = Some vref
                 \<longrightarrow> (vs_cap_ref cap = Some vref \<and> obj_refs cap = obj_refs cap')
                  \<or> (\<not> is_final_cap' cap' s \<and> \<not> reachable_pg_cap cap' s)
@@ -165,8 +168,8 @@ lemma set_cap_valid_vs_lookup:
      apply fastforce
     apply clarsimp
     apply (drule (1) not_final_another_caps)
-     apply (erule obj_ref_is_obj_irq_ref)
-    apply (simp, elim exEI, clarsimp simp: obj_irq_refs_eq)
+     apply (erule obj_ref_is_gen_obj_ref)
+    apply (simp, elim exEI, clarsimp simp: gen_obj_refs_eq)
     apply (rule conjI, clarsimp)
     apply (drule(3) unique_table_refsD)
     apply (clarsimp simp: reachable_pg_cap_def is_pg_cap_def)
@@ -248,7 +251,7 @@ lemma set_cap_unique_table_refs:
 
 lemma set_cap_valid_arch_caps:
   "\<lbrace>\<lambda>s. valid_arch_caps s
-      \<and> (\<forall>vref cap'. cte_wp_at (op = cap') ptr s
+      \<and> (\<forall>vref cap'. cte_wp_at ((=) cap') ptr s
                 \<longrightarrow> vs_cap_ref cap' = Some vref
                 \<longrightarrow> (vs_cap_ref cap = Some vref \<and> obj_refs cap = obj_refs cap')
                  \<or> (\<not> is_final_cap' cap' s \<and> \<not> reachable_pg_cap cap' s)
@@ -272,7 +275,7 @@ lemma set_cap_valid_arch_caps:
       clarsimp simp: cte_wp_at_def)
 
 lemma valid_table_capsD:
-  "\<lbrakk> cte_wp_at (op = cap) ptr s; valid_table_caps s;
+  "\<lbrakk> cte_wp_at ((=) cap) ptr s; valid_table_caps s;
         is_vspace_table_cap cap; cap_asid cap = None \<rbrakk>
         \<Longrightarrow> \<forall>r \<in> obj_refs cap. obj_at (empty_table (set (second_level_tables (arch_state s)))) r s"
   apply (clarsimp simp: cte_wp_at_caps_of_state valid_table_caps_def)

@@ -11,8 +11,9 @@
 (*
  * Simple test for skip_heap_abs.
  *)
-theory skip_heap_abs imports "../../AutoCorres" begin
+theory skip_heap_abs imports "AutoCorres.AutoCorres" begin
 
+external_file "skip_heap_abs.c"
 install_C_file "skip_heap_abs.c"
 autocorres [skip_heap_abs] "skip_heap_abs.c"
 

@@ -9,9 +9,10 @@
  *)
 
 theory volatile_asm
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "volatile_asm.c"
 install_C_file "volatile_asm.c"
 
 end

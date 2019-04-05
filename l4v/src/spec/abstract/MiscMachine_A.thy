@@ -15,22 +15,27 @@ Utilities for the machine level which are not machine-dependent.
 chapter "Machine Accessor Functions"
 
 theory MiscMachine_A
-imports "./$L4V_ARCH/Machine_A" "../machine/MachineExports"
+imports "./$L4V_ARCH/Machine_A" "ExecSpec.MachineExports"
 begin
 
 context begin interpretation Arch .
 
 requalify_types
   user_context
+  user_monad
   register
   data
   obj_ref
-  asid_index
-  asid_pool_index
+  asid_high_len
+  asid_high_index
+  asid_low_len
+  asid_low_index
+  asid_len
+  asid_rep_len
+  asid
   cap_ref
   length_type
   vspace_ref
-  data_offset
 
 requalify_consts
   nat_to_cref
@@ -42,7 +47,6 @@ requalify_consts
   gp_registers
   exception_message
   syscall_message
-
   new_context
   slot_bits
   oref_to_data
@@ -53,26 +57,36 @@ requalify_consts
   data_to_nat
   data_to_16
   data_to_cptr
-  data_offset_to_nat
   combine_ntfn_badges
-
 
 end
 
-
-type_synonym 'a user_monad = "(user_context, 'a) nondet_monad"
-
-definition
-  get_register :: "register \<Rightarrow> data user_monad" where
-  "get_register r \<equiv> gets (\<lambda>uc. uc r)"
+(* Needs to be done here after plain type names are exported *)
+translations
+  (type) "'a user_monad" <= (type) "user_context \<Rightarrow> ('a \<times> user_context) set \<times> bool"
 
 definition
-  set_registers :: "(register \<Rightarrow> data) \<Rightarrow> unit user_monad" where
-  "set_registers \<equiv> put"
+  asid_high_bits :: nat
+where
+  "asid_high_bits \<equiv> LENGTH(asid_high_len)"
 
 definition
-  set_register :: "register \<Rightarrow> data \<Rightarrow> unit user_monad" where
-  "set_register r v \<equiv> modify (\<lambda>uc. uc (r := v))"
+  asid_low_bits :: nat
+where
+  "asid_low_bits \<equiv> LENGTH(asid_low_len)"
 
+definition
+  asid_bits :: nat
+where
+  "asid_bits \<equiv> LENGTH(asid_len)"
+
+lemmas asid_bits_defs =
+  asid_bits_def asid_high_bits_def asid_low_bits_def
+
+(* Sanity checks. *)
+lemma asid_bits_len_checks:
+  "asid_bits = asid_high_bits + asid_low_bits"
+  "asid_bits \<le> LENGTH(asid_rep_len)"
+  unfolding asid_bits_defs by auto
 
 end

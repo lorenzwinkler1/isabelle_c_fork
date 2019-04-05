@@ -306,34 +306,89 @@ od"
 
 
 abbreviation
-  "arm_context_switch_hwasid pd hwasid \<equiv>
-              writeContextIDAndPD hwasid (addrFromPPtr pd)"
+  "arm_context_switch_hwasid pd hwasid \<equiv> writeContextIDAndPD hwasid (addrFromPPtr pd)"
 
 definition
   arm_context_switch :: "word32 \<Rightarrow> asid \<Rightarrow> (unit, 'z::state_ext) s_monad"
 where
   "arm_context_switch pd asid \<equiv> do
-      hwasid \<leftarrow> get_hw_asid asid;
-      do_machine_op $ arm_context_switch_hwasid pd hwasid
-    od"
+    hwasid \<leftarrow> get_hw_asid asid;
+    do_machine_op $ arm_context_switch_hwasid pd hwasid
+   od"
 
+text {* Manipulation of VCPU-related state and registers *}
 
-text {* VCPU objects can be associated with and dissociated from TCBs. *}
-(* ARMHYP: maybe these vcpu related definitions can go into a separate file? *)
+definition
+  vcpu_update :: "obj_ref \<Rightarrow> (vcpu \<Rightarrow> vcpu) \<Rightarrow> (unit,'z::state_ext) s_monad"
+where
+  "vcpu_update vr f \<equiv> do
+    vcpu \<leftarrow> get_vcpu vr;
+    set_vcpu vr (f vcpu)
+  od"
+
+definition
+  vgic_update :: "obj_ref \<Rightarrow> (gic_vcpu_interface \<Rightarrow> gic_vcpu_interface) \<Rightarrow> (unit,'z::state_ext) s_monad"
+where
+  "vgic_update vr f \<equiv> vcpu_update vr (\<lambda>vcpu. vcpu \<lparr> vcpu_vgic := f (vcpu_vgic vcpu) \<rparr> )"
+
+definition
+  vgic_update_lr :: "obj_ref \<Rightarrow> nat \<Rightarrow> ARM_A.virq \<Rightarrow> (unit,'z::state_ext) s_monad"
+where
+  "vgic_update_lr vr irq_idx virq \<equiv>
+    vgic_update vr (\<lambda>vgic. vgic \<lparr> vgic_lr := (vgic_lr vgic)(irq_idx := virq) \<rparr>)"
+
+definition
+  vcpu_save_reg :: "obj_ref \<Rightarrow> vcpureg \<Rightarrow> (unit,'z::state_ext) s_monad"
+where
+  "vcpu_save_reg vr reg \<equiv> do
+    rval \<leftarrow> do_machine_op (readVCPUHardwareReg reg);
+    vcpu_update vr (\<lambda>vcpu. vcpu \<lparr> vcpu_regs := (vcpu_regs vcpu)(reg := rval) \<rparr> )
+  od"
+
+definition
+  vcpu_save_reg_range :: "obj_ref \<Rightarrow> vcpureg \<Rightarrow> vcpureg \<Rightarrow> (unit,'z::state_ext) s_monad"
+where
+  "vcpu_save_reg_range vr from to \<equiv> mapM_x (\<lambda>reg. vcpu_save_reg vr reg) [from .e. to]"
+
+definition
+  vcpu_restore_reg :: "obj_ref \<Rightarrow> vcpureg \<Rightarrow> (unit,'z::state_ext) s_monad"
+where
+  "vcpu_restore_reg vr reg \<equiv> do
+    vcpu \<leftarrow> get_vcpu vr;
+    do_machine_op (writeVCPUHardwareReg reg (vcpu_regs vcpu reg))
+  od"
+
+definition
+  vcpu_restore_reg_range :: "obj_ref \<Rightarrow> vcpureg \<Rightarrow> vcpureg \<Rightarrow> (unit,'z::state_ext) s_monad"
+where
+  "vcpu_restore_reg_range vr from to \<equiv> mapM_x (\<lambda>reg. vcpu_restore_reg vr reg) [from .e. to]"
+
+definition
+  vcpu_read_reg :: "obj_ref \<Rightarrow> vcpureg \<Rightarrow> (machine_word, 'z::state_ext) s_monad"
+where
+  "vcpu_read_reg vr reg \<equiv> do
+    vcpu \<leftarrow> get_vcpu vr;
+    return (vcpu_regs vcpu reg)
+  od"
+
+definition
+  vcpu_write_reg :: "obj_ref \<Rightarrow> vcpureg \<Rightarrow> machine_word \<Rightarrow> (unit,'z::state_ext) s_monad"
+where
+  "vcpu_write_reg vr reg val \<equiv>
+    vcpu_update vr (\<lambda>vcpu. vcpu \<lparr> vcpu_regs := (vcpu_regs vcpu)(reg := val) \<rparr> )"
 
 
 text {* Turn VPCU mode off on the hardware level. *}
-definition vcpu_disable :: "obj_ref option \<Rightarrow> (unit,'z::state_ext) s_monad"
+definition
+  vcpu_disable :: "obj_ref option \<Rightarrow> (unit,'z::state_ext) s_monad"
 where
   "vcpu_disable vo \<equiv> do
     do_machine_op dsb;
     (case vo of
       Some vr \<Rightarrow> do
-        vcpu \<leftarrow> get_vcpu vr;
         hcr \<leftarrow> do_machine_op get_gic_vcpu_ctrl_hcr;
-        sctlr \<leftarrow> do_machine_op getSCTLR;
-        regs' \<leftarrow> return $ (vcpu_regs vcpu) (VCPURegSCTLR := sctlr);
-        set_vcpu vr  (vcpu\<lparr> vcpu_vgic := (vcpu_vgic vcpu)\<lparr> vgic_hcr := hcr \<rparr>, vcpu_regs := regs'\<rparr>);
+        vgic_update vr (\<lambda>vgic. vgic\<lparr> vgic_hcr := hcr \<rparr>);
+        vcpu_save_reg vr VCPURegSCTLR;
         do_machine_op isb
       od
     | _ \<Rightarrow> return ());
@@ -347,23 +402,24 @@ where
     od"
 
 text {* Turn VCPU mode on, on the hardware level. *}
-definition vcpu_enable :: "obj_ref \<Rightarrow> (unit,'z::state_ext) s_monad"
+definition
+  vcpu_enable :: "obj_ref \<Rightarrow> (unit,'z::state_ext) s_monad"
 where
   "vcpu_enable vr \<equiv> do
+     vcpu_restore_reg vr VCPURegSCTLR;
      vcpu \<leftarrow> get_vcpu vr;
      do_machine_op $ do
-        setSCTLR (vcpu_regs vcpu VCPURegSCTLR);
         setHCR hcrVCPU;
         isb;
         set_gic_vcpu_ctrl_hcr (vgic_hcr $ vcpu_vgic vcpu)
      od
-  od"
-
+   od"
 
 text {*
   Prepare the current VCPU for removal.
 *}
-definition vcpu_invalidate_active :: "(unit,'z::state_ext) s_monad"
+definition
+  vcpu_invalidate_active :: "(unit,'z::state_ext) s_monad"
 where
   "vcpu_invalidate_active \<equiv> do
     cur_v \<leftarrow> gets (arm_current_vcpu \<circ> arch_state);
@@ -373,6 +429,8 @@ where
     modify (\<lambda>s. s\<lparr> arch_state := (arch_state s)\<lparr> arm_current_vcpu := None \<rparr>\<rparr>)
   od"
 
+text {* VCPU objects can be associated with and dissociated from TCBs. *}
+(* ARMHYP: maybe these vcpu related definitions can go into a separate file? *)
 
 text {* Removing the connection between a TCB and VCPU: *}
 definition dissociate_vcpu_tcb :: "obj_ref \<Rightarrow> obj_ref \<Rightarrow> (unit,'z::state_ext) s_monad"
@@ -408,77 +466,43 @@ od"
 
 text {* Register + context save for VCPUs *}
 
-definition vcpu_update :: "obj_ref \<Rightarrow> (vcpu \<Rightarrow> vcpu) \<Rightarrow> (unit,'z::state_ext) s_monad"
-where "vcpu_update vr f \<equiv> do
-  vcpu \<leftarrow> get_vcpu vr;
-  set_vcpu vr (f vcpu)
-  od"
-
-definition vcpu_save_register :: "obj_ref \<Rightarrow> vcpureg \<Rightarrow> word32 machine_monad \<Rightarrow> (unit,'z::state_ext) s_monad"
-where "vcpu_save_register vr r mop \<equiv> do
-  rval \<leftarrow> do_machine_op mop;
-  vcpu_update vr (\<lambda>vcpu. vcpu \<lparr> vcpu_regs := (vcpu_regs vcpu)(r := rval) \<rparr> )
-  od"
-
 definition
-vgic_update :: "obj_ref \<Rightarrow> (gic_vcpu_interface \<Rightarrow> gic_vcpu_interface) \<Rightarrow> (unit,'z::state_ext) s_monad"
-where "vgic_update vr f \<equiv> vcpu_update vr (\<lambda>vcpu. vcpu \<lparr> vcpu_vgic := f (vcpu_vgic vcpu) \<rparr> )"
-
-definition vcpu_save :: "(obj_ref \<times> bool) option \<Rightarrow> (unit,'z::state_ext) s_monad"
+  vcpu_save :: "(obj_ref \<times> bool) option \<Rightarrow> (unit,'z::state_ext) s_monad"
 where
-  "vcpu_save vb \<equiv> case vb of
-   Some (vr, active) \<Rightarrow>
-     do
-       do_machine_op dsb;
+  "vcpu_save vb \<equiv>
+     case vb
+     of Some (vr, active) \<Rightarrow> do
+          do_machine_op dsb;
 
-       when active $ do
-          vcpu_save_register vr VCPURegSCTLR getSCTLR;
-          hcr \<leftarrow> do_machine_op get_gic_vcpu_ctrl_hcr;
-          vgic_update vr (\<lambda>vgic. vgic\<lparr> vgic_hcr := hcr \<rparr>)
-       od;
+          when active $ do
+            vcpu_save_reg vr VCPURegSCTLR;
+            hcr \<leftarrow> do_machine_op get_gic_vcpu_ctrl_hcr;
+            vgic_update vr (\<lambda>vgic. vgic\<lparr> vgic_hcr := hcr \<rparr>)
+          od;
 
-       actlr \<leftarrow> do_machine_op getACTLR;
-       vcpu_update vr (\<lambda>vcpu. vcpu \<lparr>vcpu_actlr := actlr\<rparr>);
+          vmcr \<leftarrow> do_machine_op get_gic_vcpu_ctrl_vmcr;
+          vgic_update vr (\<lambda>vgic. vgic \<lparr>vgic_vmcr := vmcr\<rparr>);
 
-       vmcr \<leftarrow> do_machine_op get_gic_vcpu_ctrl_vmcr;
-       vgic_update vr (\<lambda>vgic. vgic \<lparr>vgic_vmcr := vmcr\<rparr>);
+          apr \<leftarrow> do_machine_op get_gic_vcpu_ctrl_apr;
+          vgic_update vr (\<lambda>vgic. vgic \<lparr>vgic_apr := apr\<rparr>);
 
-       apr \<leftarrow> do_machine_op get_gic_vcpu_ctrl_apr;
-       vgic_update vr (\<lambda>vgic. vgic \<lparr>vgic_apr := apr\<rparr>);
+          num_list_regs \<leftarrow> gets (arm_gicvcpu_numlistregs \<circ> arch_state);
+          gicIndices \<leftarrow> return [0..<num_list_regs];
 
-       num_list_regs \<leftarrow> gets (arm_gicvcpu_numlistregs \<circ> arch_state);
-       gicIndices \<leftarrow> return [0..<num_list_regs];
-
-       mapM (\<lambda>vreg. do
-                val \<leftarrow> do_machine_op $ get_gic_vcpu_ctrl_lr (of_int vreg);
-                vgic_update vr (\<lambda>vgic. vgic \<lparr> vgic_lr := (vgic_lr vgic)(vreg := val) \<rparr>)
-               od)
+          mapM (\<lambda>vreg. do
+                    val \<leftarrow> do_machine_op $ get_gic_vcpu_ctrl_lr (of_int vreg);
+                    vgic_update_lr vr vreg val
+                  od)
             gicIndices;
 
-       (* save banked registers *)
-       vcpu_save_register vr VCPURegLRsvc get_lr_svc;
-       vcpu_save_register vr VCPURegSPsvc get_sp_svc;
-       vcpu_save_register vr VCPURegLRabt get_lr_abt;
-       vcpu_save_register vr VCPURegSPabt get_sp_abt;
-       vcpu_save_register vr VCPURegLRund get_lr_und;
-       vcpu_save_register vr VCPURegSPund get_sp_und;
-       vcpu_save_register vr VCPURegLRirq get_lr_irq;
-       vcpu_save_register vr VCPURegSPirq get_sp_irq;
-       vcpu_save_register vr VCPURegLRfiq get_lr_fiq;
-       vcpu_save_register vr VCPURegSPfiq get_sp_fiq;
-       vcpu_save_register vr VCPURegR8fiq get_r8_fiq;
-       vcpu_save_register vr VCPURegR9fiq get_r9_fiq;
-       vcpu_save_register vr VCPURegR10fiq get_r10_fiq;
-       vcpu_save_register vr VCPURegR11fiq get_r11_fiq;
-       vcpu_save_register vr VCPURegR12fiq get_r12_fiq;
-
-       do_machine_op isb
-     od
- | _ \<Rightarrow> fail (* vcpu_save: no VCPU to save *)
-"
+          vcpu_save_reg_range vr VCPURegACTLR VCPURegSPSRfiq;
+          do_machine_op isb
+       od
+     | _ \<Rightarrow> fail (* vcpu_save: no VCPU to save *)"
 
 text {* Register + context restore for VCPUs *}
-definition vcpu_restore :: "obj_ref \<Rightarrow> (unit,'z::state_ext) s_monad"
+definition
+  vcpu_restore :: "obj_ref \<Rightarrow> (unit,'z::state_ext) s_monad"
 where
   "vcpu_restore vr \<equiv> do
      do_machine_op $ set_gic_vcpu_ctrl_hcr 0;   (* turn off VGIC *)
@@ -491,25 +515,10 @@ where
          set_gic_vcpu_ctrl_vmcr (vgic_vmcr vgic);
          set_gic_vcpu_ctrl_apr (vgic_apr vgic);
          mapM (\<lambda>p. set_gic_vcpu_ctrl_lr (of_int (fst p)) (snd p))
-              (map (\<lambda>i. (i, (vgic_lr vgic) i)) gicIndices);
-         (* restore banked VCPU registers except SCTLR (that's in VCPUEnable) *)
-         set_lr_svc (vcpu_regs vcpu VCPURegLRsvc);
-         set_sp_svc (vcpu_regs vcpu VCPURegSPsvc);
-         set_lr_abt (vcpu_regs vcpu VCPURegLRabt);
-         set_sp_abt (vcpu_regs vcpu VCPURegSPabt);
-         set_lr_und (vcpu_regs vcpu VCPURegLRund);
-         set_sp_und (vcpu_regs vcpu VCPURegSPund);
-         set_lr_irq (vcpu_regs vcpu VCPURegLRirq);
-         set_sp_irq (vcpu_regs vcpu VCPURegSPirq);
-         set_lr_fiq (vcpu_regs vcpu VCPURegLRfiq);
-         set_sp_fiq (vcpu_regs vcpu VCPURegSPfiq);
-         set_r8_fiq (vcpu_regs vcpu VCPURegR8fiq);
-         set_r9_fiq (vcpu_regs vcpu VCPURegR9fiq);
-         set_r10_fiq (vcpu_regs vcpu VCPURegR10fiq);
-         set_r11_fiq (vcpu_regs vcpu VCPURegR11fiq);
-         set_r12_fiq (vcpu_regs vcpu VCPURegR12fiq);
-         setACTLR (vcpu_actlr vcpu)
+              (map (\<lambda>i. (i, (vgic_lr vgic) i)) gicIndices)
      od;
+     (* restore banked VCPU registers except SCTLR (that's in VCPUEnable) *)
+     vcpu_restore_reg_range vr VCPURegACTLR VCPURegSPSRfiq;
      vcpu_enable vr
   od"
 
@@ -654,8 +663,6 @@ set_vm_root_for_flush :: "word32 \<Rightarrow> asid \<Rightarrow> (bool,'z::stat
     od
     else return False)
 od"
-
-find_consts name: "from"
 
 definition
 do_flush :: "flush_type \<Rightarrow> vspace_ref \<Rightarrow> vspace_ref \<Rightarrow> paddr \<Rightarrow> unit machine_monad" where
@@ -820,52 +827,52 @@ have a virtual ASID and location assigned. This is because page directories
 cannot have multiple current virtual ASIDs and page tables cannot be shared
 between address spaces or virtual locations. *}
 definition
-  arch_derive_cap :: "arch_cap \<Rightarrow> (arch_cap,'z::state_ext) se_monad"
+  arch_derive_cap :: "arch_cap \<Rightarrow> (cap,'z::state_ext) se_monad"
 where
   "arch_derive_cap c \<equiv> case c of
-     PageTableCap _ (Some x) \<Rightarrow> returnOk c
+     PageTableCap _ (Some x) \<Rightarrow> returnOk (ArchObjectCap c)
    | PageTableCap _ None \<Rightarrow> throwError IllegalOperation
-   | PageDirectoryCap _ (Some x) \<Rightarrow> returnOk c
+   | PageDirectoryCap _ (Some x) \<Rightarrow> returnOk (ArchObjectCap c)
    | PageDirectoryCap _ None \<Rightarrow> throwError IllegalOperation
-   | PageCap dev r R pgs x \<Rightarrow> returnOk (PageCap dev r R pgs None)
-   | ASIDControlCap \<Rightarrow> returnOk c
-   | ASIDPoolCap _ _ \<Rightarrow> returnOk c
-   | VCPUCap _ \<Rightarrow> returnOk c"
+   | PageCap dev r R pgs x \<Rightarrow> returnOk (ArchObjectCap (PageCap dev r R pgs None))
+   | ASIDControlCap \<Rightarrow> returnOk (ArchObjectCap c)
+   | ASIDPoolCap _ _ \<Rightarrow> returnOk (ArchObjectCap c)
+   | VCPUCap _ \<Rightarrow> returnOk (ArchObjectCap c)"
 
 text {* No user-modifiable data is stored in ARM-specific capabilities. *}
 definition
-  arch_update_cap_data :: "data \<Rightarrow> arch_cap \<Rightarrow> cap"
+  arch_update_cap_data :: "bool \<Rightarrow> data \<Rightarrow> arch_cap \<Rightarrow> cap"
 where
-  "arch_update_cap_data data c \<equiv> ArchObjectCap c"
+  "arch_update_cap_data preserve data c \<equiv> ArchObjectCap c"
 
 
 text {* Actions that must be taken on finalisation of AR\_MHYP-specific
 capabilities. *}
 definition
-  arch_finalise_cap :: "arch_cap \<Rightarrow> bool \<Rightarrow> (cap,'z::state_ext) s_monad"
+  arch_finalise_cap :: "arch_cap \<Rightarrow> bool \<Rightarrow> (cap \<times> cap,'z::state_ext) s_monad"
 where
   "arch_finalise_cap c x \<equiv> case (c, x) of
     (ASIDPoolCap ptr b, True) \<Rightarrow>  do
     delete_asid_pool b ptr;
-    return NullCap
+    return (NullCap, NullCap)
     od
   | (PageDirectoryCap ptr (Some a), True) \<Rightarrow> do
     delete_asid a ptr;
-    return NullCap
+    return (NullCap, NullCap)
   od
   | (PageTableCap ptr (Some (a, v)), True) \<Rightarrow> do
     unmap_page_table a v ptr;
-    return NullCap
+    return (NullCap, NullCap)
   od
   | (PageCap _ ptr _ s (Some (a, v)), _) \<Rightarrow> do
      unmap_page s a v ptr;
-     return NullCap
+     return (NullCap, NullCap)
   od
   | (VCPUCap vcpu_ref, True) \<Rightarrow> do
      vcpu_finalise vcpu_ref;
-     return NullCap
+     return (NullCap, NullCap)
   od
-  | _ \<Rightarrow> return NullCap"
+  | _ \<Rightarrow> return (NullCap, NullCap)"
 
 definition
   prepare_thread_delete :: "obj_ref \<Rightarrow> (unit,'z::state_ext) s_monad"
@@ -884,44 +891,6 @@ definition
   is_valid_vtable_root :: "cap \<Rightarrow> bool" where
   "is_valid_vtable_root c \<equiv> \<exists>r a. c = ArchObjectCap (PageDirectoryCap r (Some a))"
 
-text {* A thread's IPC buffer capability must be to a page that is capable of
-containing the IPC buffer without the end of the buffer spilling into another
-page. *}
-definition
-  cap_transfer_data_size :: nat where
-  "cap_transfer_data_size \<equiv> 3"
-
-definition
-  msg_max_length :: nat where
- "msg_max_length \<equiv> 120"
-
-definition
-  msg_max_extra_caps :: nat where
- "msg_max_extra_caps \<equiv> 3"
-
-definition
-  msg_align_bits :: nat
-  where
-  "msg_align_bits \<equiv> 2 + (LEAST n. (cap_transfer_data_size + msg_max_length + msg_max_extra_caps + 2) \<le> 2 ^ n)"
-
-lemma msg_align_bits:
-  "msg_align_bits = 9"
-proof -
-  have "(LEAST n. (cap_transfer_data_size + msg_max_length + msg_max_extra_caps + 2) \<le> 2 ^ n) = 7"
-  proof (rule Least_equality)
-    show "(cap_transfer_data_size + msg_max_length + msg_max_extra_caps + 2)  \<le> 2 ^ 7"
-      by (simp add: cap_transfer_data_size_def msg_max_length_def msg_max_extra_caps_def)
-  next
-    fix y
-    assume "(cap_transfer_data_size + msg_max_length + msg_max_extra_caps + 2) \<le> 2 ^ y"
-    hence "(2 :: nat) ^ 7 \<le> 2 ^ y"
-      by (simp add: cap_transfer_data_size_def msg_max_length_def msg_max_extra_caps_def)
-    thus "7 \<le> y"
-      by (rule power_le_imp_le_exp [rotated], simp)
-  qed
-  thus ?thesis unfolding msg_align_bits_def by simp
-qed
-
 definition
 check_valid_ipc_buffer :: "vspace_ref \<Rightarrow> cap \<Rightarrow> (unit,'z::state_ext) se_monad" where
 "check_valid_ipc_buffer vptr c \<equiv> case c of
@@ -930,13 +899,6 @@ check_valid_ipc_buffer :: "vspace_ref \<Rightarrow> cap \<Rightarrow> (unit,'z::
     returnOk ()
   odE
 | _ \<Rightarrow> throwError IllegalOperation"
-
-text {* On the abstract level, capability and VM rights share the same type.
-  Nevertheless, a simple set intersection might lead to an invalid value like
-  @{term "{AllowWrite}"}.  Hence, @{const validate_vm_rights}. *}
-definition
-  mask_vm_rights :: "vm_rights \<Rightarrow> cap_rights \<Rightarrow> vm_rights" where
-  "mask_vm_rights V R \<equiv> validate_vm_rights (V \<inter> R)"
 
 text {* Decode a user argument word describing the kind of VM attributes a
 mapping is to have. *}
@@ -982,6 +944,9 @@ definition
   "in_user_frame p s \<equiv>
    \<exists>sz. kheap s (p && ~~ mask (pageBitsForSize sz)) =
         Some (ArchObj (DataPage False sz))"
+
+text {* Make numeric value of @{const msg_align_bits} visible. *}
+lemmas msg_align_bits = msg_align_bits'[unfolded word_size_bits_def, simplified]
 
 end
 

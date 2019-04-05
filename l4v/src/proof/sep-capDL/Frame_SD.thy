@@ -56,9 +56,10 @@ lemma set_object_wp:
    set_object obj_id obj
    \<lbrace>\<lambda>rv. <obj_id \<mapsto>o obj \<and>* R>\<rbrace>"
   apply (clarsimp simp: set_object_def sep_state_projection_def)
+  apply wp
   apply (clarsimp simp: sep_conj_def)
   apply (simp add:sep_map_o_def sep_map_general_def)
-  apply (rule_tac x = "SepState (object_to_sep_state obj_id obj UNIV) empty" in exI)
+  apply (rule_tac x = "SepState (object_to_sep_state obj_id obj UNIV) Map.empty" in exI)
   apply (rule_tac x=y in exI)
   apply (clarsimp simp: plus_sep_state_def sep_disj_sep_state_def
     sep_state_disj_def sep_any_def map_disj_def
@@ -128,7 +129,7 @@ lemma sep_map_c_conj:
                    split: if_split_asm option.splits)
   apply (clarsimp simp:sep_map_c_def)
   apply (rule_tac x = "SepState [(fst ptr,Slot (snd ptr))\<mapsto> (CDL_Cap (Some (reset_cap_asid cap)))]
-                                empty" in exI)
+                                Map.empty" in exI)
   apply (rule_tac x = "(SepState ((sep_heap s)((fst ptr,Slot (snd ptr)):= None)))
                                  (sep_irq_node s) " in exI)
   apply (clarsimp simp: sep_map_c_def sep_disj_sep_state_def
@@ -167,7 +168,7 @@ lemma sep_map_f_conj:
      object_to_sep_state_def split:if_splits option.splits)
   apply (clarsimp simp:sep_map_c_def)
   apply (rule_tac x = "SepState [(ptr,Fields) \<mapsto> CDL_Object (object_wipe_slots (object_clean obj))]
-                                empty" in exI)
+                                Map.empty" in exI)
   apply (rule_tac x = "SepState ((sep_heap s)((ptr,Fields):= None))
                                 (sep_irq_node s)" in exI)
   apply (clarsimp simp:sep_map_f_def sep_disj_sep_state_def
@@ -209,6 +210,7 @@ lemma set_object_slot_wp_helper:
   set_object obj_id (update_slots (object_slots obj' (slot \<mapsto> cap)) obj')
   \<lbrace>\<lambda>rv. <(obj_id, slot) \<mapsto>c cap \<and>* R>\<rbrace>"
   apply (clarsimp simp: set_object_def sep_any_def)
+  apply wp
   apply (clarsimp simp: sep_map_c_conj sep_conj_exists Let_def)
   apply (clarsimp simp: lift_def sep_state_projection_def
     sep_conj_def object_project_slot object_slots_object_clean)
@@ -221,6 +223,7 @@ lemma set_object_slot_wp_helper:
    apply (clarsimp split: if_splits option.splits)
    apply (clarsimp simp: object_project_def object_wipe_slots_def
                          object_slots_object_clean object_clean_update_slots_single
+                         fun_upd_def[symmetric]
                   split: cdl_component_id.splits if_splits)
   apply (frule object_clean_has_slots)
   apply (clarsimp simp: has_slots_def object_clean_update_slots_single
@@ -276,7 +279,7 @@ lemma sep_map_f_tcb_at:
   done
 
 lemma object_slots_update_slots_empty [simp]:
-  "object_slots (update_slots empty object) = empty"
+  "object_slots (update_slots Map.empty object) = Map.empty"
   by (case_tac "has_slots object", simp_all)
 
 lemma set_object_cdl_field_wp:
@@ -286,10 +289,11 @@ lemma set_object_cdl_field_wp:
             "object_type obj_p = object_type obj"
   and fields: "object_wipe_slots (object_clean obj_np) = object_wipe_slots (object_clean obj_n)"
   shows
-  "\<lbrace>\<lambda>s. <obj_id \<mapsto>f obj_p \<and>* R> s \<and> object_at (op = obj) obj_id s\<rbrace>
+  "\<lbrace>\<lambda>s. <obj_id \<mapsto>f obj_p \<and>* R> s \<and> object_at ((=) obj) obj_id s\<rbrace>
   set_object obj_id obj_n
   \<lbrace>\<lambda>rv. <obj_id \<mapsto>f obj_np \<and>* R>\<rbrace>"
   apply (clarsimp simp: set_object_def)
+  apply wp
   apply (clarsimp simp: sep_state_projection_def sep_map_f_conj)
   apply (rule conjI)
    apply (simp add:object_project_def)
@@ -412,7 +416,7 @@ lemma sep_map_o_conj:
    apply (subst restrict_map_univ_disj_eq)
     apply (fastforce simp:map_disj_def)
    apply simp
-  apply (rule_tac x = "SepState (object_to_sep_state ptr obj UNIV) empty" in exI)
+  apply (rule_tac x = "SepState (object_to_sep_state ptr obj UNIV) Map.empty" in exI)
   apply (rule_tac x = "SepState (sep_heap s |` (UNIV - {ptr}\<times>UNIV))
                                 (sep_irq_node s) " in exI)
   apply (clarsimp simp:sep_map_c_def sep_disj_sep_state_def

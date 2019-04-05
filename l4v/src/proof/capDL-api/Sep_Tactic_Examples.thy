@@ -10,7 +10,7 @@
 
 theory Sep_Tactic_Examples
 imports
-  "../sep-capDL/Sep_Tactic_Helper"
+  "SepDSpec.Sep_Tactic_Helper"
   KHeap_DP
 begin
 
@@ -95,7 +95,7 @@ lemma swap_cap_wp_old:
   apply (clarsimp simp add: swap_cap_def)
   apply (wp swap_parents_wp set_cap_wp)
   apply (rule hoare_chain)
-    apply (wp set_cap_wp)
+    apply (rule set_cap_wp)
     apply (sep_solve)+
 done
 
@@ -108,11 +108,11 @@ lemma move_cap_wp_old:
   apply (simp add: move_cap_def)
   apply (wp swap_parents_wp)
    apply (rule hoare_strengthen_post)
-    apply (wp set_cap_wp)
+    apply (rule set_cap_wp)
    apply (sep_select 2)
    apply (sep_solve)
   apply (rule hoare_chain)
-    apply (wp insert_cap_orphan_wp)
+    apply (rule insert_cap_orphan_wp)
    apply (sep_solve)
   apply (sep_solve)
 done
@@ -185,6 +185,16 @@ thm sep_mp[no_vars] sep_curry[rotated, no_vars]
 
 (* sep_wand approach *)
 
+method_setup debug = {*
+  Attrib.thms >> (fn _ => fn ctxt =>
+   let
+     val wp_pre_tac = SELECT_GOAL (Method.NO_CONTEXT_TACTIC ctxt
+                      (Method_Closure.apply_method ctxt @{method wp_pre} [] [] [] ctxt []))
+   in
+     SIMPLE_METHOD' (CHANGED o wp_pre_tac)
+   end
+)
+*}
 
 lemma move_cap_wp2:
  "\<lbrace><dest \<mapsto>c - \<and>* src \<mapsto>c cap \<and>* R>\<rbrace>

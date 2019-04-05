@@ -10,8 +10,8 @@
 
 theory SysInit_SI
 imports
-  "../proof/capDL-api/Kernel_DP"
-  "../lib/NonDetMonadLemmaBucket"
+  "DSpecProofs.Kernel_DP"
+  "Lib.NonDetMonadLemmaBucket"
 begin
 
 definition
@@ -92,7 +92,7 @@ where
         untyped_index \<leftarrow> inc_when    fail  untyped_index;
         si_caps   \<leftarrow> update_when (\<not> fail) si_caps obj_id free_cptr;
         return (obj_id_index, untyped_index, si_caps)
-     od) (0, 0, empty);
+     od) (0, 0, Map.empty);
      assert (untyped_index \<noteq> length untyped_cptrs);
      return (si_caps, drop (length [obj\<leftarrow>obj_ids. real_object_at obj spec]) free_cptrs)
   od"
@@ -211,7 +211,7 @@ where
     sel4_cspace_root_data \<leftarrow> return $ guard_as_rawdata cdl_cspace_root;
     sel4_vspace_root_data \<leftarrow> return 0;
 
-    fail \<leftarrow> seL4_TCB_Configure sel4_tcb sel4_fault_ep priority
+    fail \<leftarrow> seL4_TCB_Configure sel4_tcb sel4_fault_ep
                                   sel4_cspace_root sel4_cspace_root_data
                                   sel4_vspace_root sel4_vspace_root_data
                                   ipcbuf_addr sel4_ipcbuffer;

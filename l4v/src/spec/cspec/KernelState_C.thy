@@ -10,9 +10,8 @@
 
 theory KernelState_C
 imports
-  "../../lib/$L4V_ARCH/WordSetup"
-  "../../lib/BitFieldProofsLib"
-  "$L4V_ARCH/Kernel_C"
+  "Word_Lib.WordSetup"
+  "CLib.BitFieldProofsLib"
   "Substitute"
 begin
 

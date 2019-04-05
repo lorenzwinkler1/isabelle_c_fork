@@ -9,7 +9,7 @@
  *)
 
 theory ghoststate2
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
 (*
@@ -23,6 +23,7 @@ IsarInstall.install_C_file ((((NONE, NONE), NONE), "ghoststate2.c"),
 *}
 *)
 
+external_file "ghoststate2.c"
 install_C_file "ghoststate2.c" [ghostty="nat"]
 
 context ghoststate2

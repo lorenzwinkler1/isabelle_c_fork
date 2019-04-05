@@ -94,8 +94,10 @@ begin
 
 (* relates fixed adresses *)
 definition
-  "carch_globals s \<equiv>
-    (x64KSGlobalPML4 s = symbol_table ''x64KSGlobalPML4'')"
+  "carch_globals s \<equiv> (x64KSSKIMPML4 s = symbol_table ''x64KSSKIMPML4'')
+                   \<and> (x64KSSKIMPDPTs s = [symbol_table ''x64KSSKIMPDPT''])
+                   \<and> (x64KSSKIMPDs s = [symbol_table ''x64KSSKIMPD''])
+                   \<and> (x64KSSKIMPTs s = [])"
 
 (* FIXME x64: DON'T DELETE!
     keep this for a rainy day, if we find out that leaving the asid map out of the state relation
@@ -108,22 +110,85 @@ where
        Some asidpoolptr \<Rightarrow> case (ksPSpace s) asidpoolptr of None \<Rightarrow> None |
           Some (KOArch (KOASIDPool (ASIDPool pool))) \<Rightarrow> pool (asid && mask asidLowBits)"
 
+(* The C kernel stores and performs operations on the current CR3 as a word.
+   This means that we need to reason about bits which the bitfield generator ignores.
+   We therefore encode an invariant about those extra bits here. *)
 definition
-  ccr3_relation :: "X64_H.cr3 \<Rightarrow> cr3_C \<Rightarrow> bool"
+  ccr3_relation :: "X64_H.cr3 \<Rightarrow> machine_word \<Rightarrow> bool"
 where
-  "ccr3_relation c ccr3 \<equiv>
-     let ccr3' = cr3_lift ccr3 in
-     case c of
-       CR3 pad as \<Rightarrow> pad = (pml4_base_address_CL ccr3') \<and> as = (pcid_CL ccr3')"
+  "ccr3_relation hcr3 ccr3 \<equiv>
+     case hcr3 of
+       CR3 addr pcid \<Rightarrow> addr = ccr3 && (mask 39 << 12)
+                         \<and> pcid = ccr3 && mask 12
+                         \<and> 1 << 63 = ccr3 && (~~ mask 51)"
+
+fun
+  x86_irq_state_to_H :: "x86_irq_state_CL \<Rightarrow> x64irqstate"
+where
+  "x86_irq_state_to_H X86_irq_state_irq_free = X64IRQFree"
+| "x86_irq_state_to_H X86_irq_state_irq_reserved = X64IRQReserved"
+| "x86_irq_state_to_H (X86_irq_state_irq_ioapic irq_ioapic) =
+     X64IRQIOAPIC
+       (ucast (id_CL irq_ioapic))
+       (ucast (pin_CL irq_ioapic))
+       (ucast (level_CL irq_ioapic))
+       (ucast (polarity_low_CL irq_ioapic))
+       (to_bool (masked_CL irq_ioapic))"
+| "x86_irq_state_to_H (X86_irq_state_irq_msi irq_msi) =
+     X64IRQMSI
+       (ucast (bus_CL irq_msi))
+       (ucast (dev_CL irq_msi))
+       (ucast (func_CL irq_msi))
+       (ucast (handle_CL irq_msi))"
+
+definition
+  x64_irq_state_relation :: "x64irqstate \<Rightarrow> x86_irq_state_C \<Rightarrow> bool"
+where
+  "x64_irq_state_relation s s' \<equiv>
+     case x86_irq_state_lift s' of
+       None \<Rightarrow> False (* should never happen *)
+     | Some x \<Rightarrow> s = x86_irq_state_to_H x"
+
+(* This is required for type collision shenanigans, 1024 matches above *)
+lemma ntbs_1024[simp]:
+  "nat_to_bin_string 1024 = ''000000000010''"
+  by (simp add: nat_to_bin_string_simps)
+
+definition
+  cioport_bitmap_to_H :: "ioport_table_C \<Rightarrow> (ioport \<Rightarrow> bool)"
+where
+  "cioport_bitmap_to_H ctable \<equiv>
+    \<lambda>port. ctable.[unat (port >> wordRadix)] !! unat (port && mask wordRadix)"
+
+definition
+  global_ioport_bitmap_relation :: "(ioport_table_C ptr \<Rightarrow> ioport_table_C option) \<Rightarrow>
+                                      (ioport \<Rightarrow> bool) \<Rightarrow> bool"
+where
+  "global_ioport_bitmap_relation ctable_heap htable \<equiv>
+    \<exists>ctable. ctable_heap (Ptr (symbol_table ''x86KSAllocatedIOPorts'')) = Some ctable
+           \<and> cioport_bitmap_to_H ctable = htable
+           \<and> ptr_span (ioport_table_Ptr (symbol_table ''x86KSAllocatedIOPorts'')) \<subseteq> kernel_data_refs"
+
+definition
+  fpu_null_state_relation :: "heap_raw_state \<Rightarrow> bool"
+where
+  "fpu_null_state_relation hrs \<equiv>
+    clift hrs (Ptr (symbol_table ''x86KSnullFpuState''))
+      = Some (user_fpu_state_C (ARRAY i. FPUNullState (finite_index i))) \<and>
+    ptr_span (fpu_state_Ptr (symbol_table ''x86KSnullFpuState'')) \<subseteq> kernel_data_refs"
 
 definition
   carch_state_relation :: "Arch.kernel_state \<Rightarrow> globals \<Rightarrow> bool"
 where
   "carch_state_relation astate cstate \<equiv>
-  x64KSKernelVSpace astate = x64KSKernelVSpace_C \<and>
-  array_relation (op = \<circ> option_to_ptr) (2^asid_high_bits - 1) (x64KSASIDTable astate) (x86KSASIDTable_' cstate) \<and>
-  ccr3_relation (x64KSCurrentCR3 astate) (x64KSCurrentCR3_' cstate) \<and>
-  carch_globals astate"
+    x64KSKernelVSpace astate = x64KSKernelVSpace_C \<and>
+    array_relation ((=) \<circ> option_to_ptr) (2^asid_high_bits - 1) (x64KSASIDTable astate) (x86KSASIDTable_' cstate) \<and>
+    ccr3_relation (x64KSCurrentUserCR3 astate) (x64KSCurrentUserCR3_' cstate) \<and>
+    global_ioport_bitmap_relation (clift (t_hrs_' cstate)) (x64KSAllocatedIOPorts astate) \<and>
+    fpu_null_state_relation (t_hrs_' cstate) \<and>
+    x64KSNumIOAPICs astate = UCAST (32 \<rightarrow> 64) (num_ioapics_' cstate) \<and>
+    array_relation x64_irq_state_relation maxIRQ (x64KSIRQState astate) (x86KSIRQState_' cstate) \<and>
+    carch_globals astate"
 
 end
 
@@ -246,9 +311,20 @@ fun
   | "register_from_H X64.TLS_BASE = scast Kernel_C.TLS_BASE"
 
 definition
-  ccontext_relation :: "(MachineTypes.register \<Rightarrow> machine_word) \<Rightarrow> user_context_C \<Rightarrow> bool"
+  cregs_relation :: "(MachineTypes.register \<Rightarrow> machine_word) \<Rightarrow> machine_word[23] \<Rightarrow> bool"
 where
-  "ccontext_relation regs uc \<equiv>  \<forall>r. regs r = index (registers_C uc) (unat (register_from_H r))"
+  "cregs_relation Hregs Cregs \<equiv>  \<forall>r. Hregs r = Cregs.[unat (register_from_H r)]"
+
+definition
+  fpu_relation :: "fpu_state \<Rightarrow> user_fpu_state_C \<Rightarrow> bool"
+where
+  "fpu_relation fpu_H fpu_C \<equiv> \<forall>r < CARD(fpu_bytes). fpu_H (finite_index r) = (state_C fpu_C).[r]"
+
+definition
+  ccontext_relation :: "user_context \<Rightarrow> user_context_C \<Rightarrow> bool"
+where
+  "ccontext_relation uc_H uc_C \<equiv> cregs_relation (user_regs uc_H) (registers_C uc_C) \<and>
+                                  fpu_relation (fpu_state uc_H) (fpuState_C uc_C)"
 
 primrec
   cthread_state_relation_lifted :: "Structures_H.thread_state \<Rightarrow>
@@ -863,9 +939,8 @@ where
        h_t_valid (hrs_htd (t_hrs_' cstate)) c_guard
          (ptr_coerce (intStateIRQNode_' cstate) :: (cte_C[256]) ptr) \<and>
        {ptr_val (intStateIRQNode_' cstate) ..+ 2 ^ (8 + cte_level_bits)} \<subseteq> kernel_data_refs \<and>
-       h_t_valid (hrs_htd (t_hrs_' cstate)) c_guard
-         (pd_Ptr (symbol_table ''x64KSGlobalPML4'')) \<and>
-       ptr_span (pd_Ptr (symbol_table ''x64KSGlobalPML4'')) \<subseteq> kernel_data_refs \<and>
+       h_t_valid (hrs_htd (t_hrs_' cstate)) c_guard (pml4_Ptr (symbol_table ''x64KSSKIMPML4'')) \<and>
+       ptr_span (pml4_Ptr (symbol_table ''x64KSSKIMPML4'')) \<subseteq> kernel_data_refs \<and>
        htd_safe domain (hrs_htd (t_hrs_' cstate)) \<and>
        kernel_data_refs = (- domain) \<and>
        globals_list_distinct (- kernel_data_refs) symbol_table globals_list \<and>
@@ -1046,5 +1121,10 @@ lemma (in kernel) cmap_relation_cs_atD:
   apply (drule (1) injD)
   apply simp
   done
+
+definition (in kernel)
+  rf_sr :: "(KernelStateData_H.kernel_state \<times> cstate) set"
+  where
+  "rf_sr \<equiv> {(s, s'). cstate_relation s (globals s')}"
 
 end

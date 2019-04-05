@@ -142,11 +142,11 @@ lemma threadGet_obj_at2:
   done
 
 lemma register_from_H_less:
-  "register_from_H hr < 19"
+  "register_from_H hr < 20"
   by (cases hr, simp_all add: "StrictC'_register_defs")
 
 lemma register_from_H_sless:
-  "register_from_H hr <s 19"
+  "register_from_H hr <s 20"
   by (cases hr, simp_all add: "StrictC'_register_defs" word_sless_def word_sle_def)
 
 lemma register_from_H_0_sle[simp]:
@@ -155,7 +155,7 @@ lemma register_from_H_0_sle[simp]:
   by fastforce
 
 lemma getRegister_ccorres [corres]:
-  "ccorres (op =) ret__unsigned_long_' \<top>
+  "ccorres (=) ret__unsigned_long_' \<top>
              ({s. thread_' s = tcb_ptr_to_ctcb_ptr thread} \<inter> {s. reg_' s = register_from_H reg}) []
              (asUser thread (getRegister reg)) (Call getRegister_'proc)"
   apply (unfold asUser_def)
@@ -171,7 +171,7 @@ lemma getRegister_ccorres [corres]:
        apply (clarsimp simp: getRegister_def typ_heap_simps)
        apply (rule_tac x = "((atcbContextGet o tcbArch) ko reg, \<sigma>)" in bexI [rotated])
         apply (simp add: in_monad' asUser_def select_f_def split_def)
-        apply (subst arg_cong2 [where f = "op \<in>"])
+        apply (subst arg_cong2 [where f = "(\<in>)"])
           defer
           apply (rule refl)
          apply (erule threadSet_eq)
@@ -188,7 +188,7 @@ lemma getRegister_ccorres [corres]:
   done
 
 lemma getRestartPC_ccorres [corres]:
-  "ccorres (op =) ret__unsigned_long_' \<top> \<lbrace>\<acute>thread = tcb_ptr_to_ctcb_ptr thread\<rbrace> []
+  "ccorres (=) ret__unsigned_long_' \<top> \<lbrace>\<acute>thread = tcb_ptr_to_ctcb_ptr thread\<rbrace> []
            (asUser thread getRestartPC) (Call getRestartPC_'proc)"
   unfolding getRestartPC_def
   apply (cinit')
@@ -406,7 +406,7 @@ lemma armHSCurVCPU_update_ccorres:
                      cmachine_state_relation_def from_bool_def true_def false_def
                split: bool.split)
 
-lemmas armHSCurVCPU_update_active_ccorres2 = armHSCurVCPU_update_ccorres[where curv="Some (v, b)"]
+lemmas armHSCurVCPU_update_active_ccorres2 = armHSCurVCPU_update_ccorres[where curv="Some (v, b)" for v b]
 
 lemma invs'_HScurVCPU_vcpu_at':
   "\<lbrakk>invs' s; armHSCurVCPU (ksArchState s) = Some (a, b) \<rbrakk> \<Longrightarrow> vcpu_at' a s"

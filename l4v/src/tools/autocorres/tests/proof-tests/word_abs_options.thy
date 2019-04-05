@@ -8,8 +8,9 @@
  * @TAG(NICTA_BSD)
  *)
 
-theory word_abs_options imports "../../AutoCorres" begin
+theory word_abs_options imports "AutoCorres.AutoCorres" begin
 
+external_file "word_abs_options.c"
 install_C_file "word_abs_options.c"
 
 autocorres [

@@ -301,7 +301,7 @@ od"
 
 abbreviation
   "arm_context_switch_hwasid pd hwasid \<equiv> do
-              setCurrentPD $ addrFromPPtr pd;
+              set_current_pd $ addrFromPPtr pd;
               setHardwareASID hwasid
           od"
 
@@ -329,7 +329,7 @@ definition
      | _ \<Rightarrow> throwError InvalidRoot) <catch>
     (\<lambda>_. do
        global_pd \<leftarrow> gets (arm_global_pd \<circ> arch_state);
-       do_machine_op $ setCurrentPD $ addrFromPPtr global_pd
+       do_machine_op $ set_current_pd $ addrFromPPtr global_pd
     od)
 od"
 
@@ -552,47 +552,47 @@ have a virtual ASID and location assigned. This is because page directories
 cannot have multiple current virtual ASIDs and page tables cannot be shared
 between address spaces or virtual locations. *}
 definition
-  arch_derive_cap :: "arch_cap \<Rightarrow> (arch_cap,'z::state_ext) se_monad"
+  arch_derive_cap :: "arch_cap \<Rightarrow> (cap,'z::state_ext) se_monad"
 where
   "arch_derive_cap c \<equiv> case c of
-     PageTableCap _ (Some x) \<Rightarrow> returnOk c
+     PageTableCap _ (Some x) \<Rightarrow> returnOk (ArchObjectCap c)
    | PageTableCap _ None \<Rightarrow> throwError IllegalOperation
-   | PageDirectoryCap _ (Some x) \<Rightarrow> returnOk c
+   | PageDirectoryCap _ (Some x) \<Rightarrow> returnOk (ArchObjectCap c)
    | PageDirectoryCap _ None \<Rightarrow> throwError IllegalOperation
-   | PageCap dev r R pgs x \<Rightarrow> returnOk (PageCap dev r R pgs None)
-   | ASIDControlCap \<Rightarrow> returnOk c
-   | ASIDPoolCap _ _ \<Rightarrow> returnOk c"
+   | PageCap dev r R pgs x \<Rightarrow> returnOk (ArchObjectCap (PageCap dev r R pgs None))
+   | ASIDControlCap \<Rightarrow> returnOk (ArchObjectCap c)
+   | ASIDPoolCap _ _ \<Rightarrow> returnOk (ArchObjectCap c)"
 
 text {* No user-modifiable data is stored in ARM-specific capabilities. *}
 definition
-  arch_update_cap_data :: "data \<Rightarrow> arch_cap \<Rightarrow> cap"
+  arch_update_cap_data :: "bool \<Rightarrow> data \<Rightarrow> arch_cap \<Rightarrow> cap"
 where
-  "arch_update_cap_data data c \<equiv> ArchObjectCap c"
+  "arch_update_cap_data preserve data c \<equiv> ArchObjectCap c"
 
 
 text {* Actions that must be taken on finalisation of ARM-specific
 capabilities. *}
 definition
-  arch_finalise_cap :: "arch_cap \<Rightarrow> bool \<Rightarrow> (cap,'z::state_ext) s_monad"
+  arch_finalise_cap :: "arch_cap \<Rightarrow> bool \<Rightarrow> (cap \<times> cap,'z::state_ext) s_monad"
 where
   "arch_finalise_cap c x \<equiv> case (c, x) of
     (ASIDPoolCap ptr b, True) \<Rightarrow>  do
     delete_asid_pool b ptr;
-    return NullCap
+    return (NullCap, NullCap)
     od
   | (PageDirectoryCap ptr (Some a), True) \<Rightarrow> do
     delete_asid a ptr;
-    return NullCap
+    return (NullCap, NullCap)
   od
   | (PageTableCap ptr (Some (a, v)), True) \<Rightarrow> do
     unmap_page_table a v ptr;
-    return NullCap
+    return (NullCap, NullCap)
   od
   | (PageCap _ ptr _ s (Some (a, v)), _) \<Rightarrow> do
      unmap_page s a v ptr;
-     return NullCap
+     return (NullCap, NullCap)
   od
-  | _ \<Rightarrow> return NullCap"
+  | _ \<Rightarrow> return (NullCap, NullCap)"
 
 
 definition (* prepares a thread for deletion; nothing to do for ARM *)
@@ -607,44 +607,6 @@ definition
   is_valid_vtable_root :: "cap \<Rightarrow> bool" where
   "is_valid_vtable_root c \<equiv> \<exists>r a. c = ArchObjectCap (PageDirectoryCap r (Some a))"
 
-text {* A thread's IPC buffer capability must be to a page that is capable of
-containing the IPC buffer without the end of the buffer spilling into another
-page. *}
-definition
-  cap_transfer_data_size :: nat where
-  "cap_transfer_data_size \<equiv> 3"
-
-definition
-  msg_max_length :: nat where
- "msg_max_length \<equiv> 120"
-
-definition
-  msg_max_extra_caps :: nat where
- "msg_max_extra_caps \<equiv> 3"
-
-definition
-  msg_align_bits :: nat
-  where
-  "msg_align_bits \<equiv> 2 + (LEAST n. (cap_transfer_data_size + msg_max_length + msg_max_extra_caps + 2) \<le> 2 ^ n)"
-
-lemma msg_align_bits:
-  "msg_align_bits = 9"
-proof -
-  have "(LEAST n. (cap_transfer_data_size + msg_max_length + msg_max_extra_caps + 2) \<le> 2 ^ n) = 7"
-  proof (rule Least_equality)
-    show "(cap_transfer_data_size + msg_max_length + msg_max_extra_caps + 2)  \<le> 2 ^ 7"
-      by (simp add: cap_transfer_data_size_def msg_max_length_def msg_max_extra_caps_def)
-  next
-    fix y
-    assume "(cap_transfer_data_size + msg_max_length + msg_max_extra_caps + 2) \<le> 2 ^ y"
-    hence "(2 :: nat) ^ 7 \<le> 2 ^ y"
-      by (simp add: cap_transfer_data_size_def msg_max_length_def msg_max_extra_caps_def)
-    thus "7 \<le> y"
-      by (rule power_le_imp_le_exp [rotated], simp)
-  qed
-  thus ?thesis unfolding msg_align_bits_def by simp
-qed
-
 definition
 check_valid_ipc_buffer :: "vspace_ref \<Rightarrow> cap \<Rightarrow> (unit,'z::state_ext) se_monad" where
 "check_valid_ipc_buffer vptr c \<equiv> case c of
@@ -653,13 +615,6 @@ check_valid_ipc_buffer :: "vspace_ref \<Rightarrow> cap \<Rightarrow> (unit,'z::
     returnOk ()
   odE
 | _ \<Rightarrow> throwError IllegalOperation"
-
-text {* On the abstract level, capability and VM rights share the same type.
-  Nevertheless, a simple set intersection might lead to an invalid value like
-  @{term "{AllowWrite}"}.  Hence, @{const validate_vm_rights}. *}
-definition
-  mask_vm_rights :: "vm_rights \<Rightarrow> cap_rights \<Rightarrow> vm_rights" where
-  "mask_vm_rights V R \<equiv> validate_vm_rights (V \<inter> R)"
 
 text {* Decode a user argument word describing the kind of VM attributes a
 mapping is to have. *}
@@ -706,6 +661,9 @@ definition
   "in_user_frame p s \<equiv>
    \<exists>sz. kheap s (p && ~~ mask (pageBitsForSize sz)) =
         Some (ArchObj (DataPage False sz))"
+
+text {* Make numeric value of @{const msg_align_bits} visible. *}
+lemmas msg_align_bits = msg_align_bits'[unfolded word_size_bits_def, simplified]
 
 end
 end

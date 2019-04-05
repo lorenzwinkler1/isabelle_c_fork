@@ -138,7 +138,7 @@ lemma ccorres_if_cond_throws:
   assumes abs: "\<forall>s s'. (s, s') \<in> sr \<and> Q s \<and> Q' s' \<longrightarrow> P = (s' \<in> P')"
   and     ac: "P \<Longrightarrow> ccorres_underlying sr \<Gamma> r xf arrel axf R R' (SKIP # hs) a c"
   and     bd: "\<not> P \<Longrightarrow> ccorres_underlying sr \<Gamma> r xf arrel axf U U' (SKIP # hs) b d"
-  and cthrows: "\<Gamma> \<turnstile>\<^bsub>/UNIV\<^esub> PT' c {}, UNIV" -- "c always throws"
+  and cthrows: "\<Gamma> \<turnstile>\<^bsub>/UNIV\<^esub> PT' c {}, UNIV" \<comment> \<open>c always throws\<close>
   shows  "ccorres_underlying sr \<Gamma> r xf arrel axf
           (Q and (\<lambda>s. P \<longrightarrow> R s) and (\<lambda>s. \<not> P \<longrightarrow> U s))
           (Collect Q' \<inter> {s. (s \<in> P' \<longrightarrow> s \<in> R' \<inter> PT') \<and> (s \<notin> P' \<longrightarrow> s \<in> U')})
@@ -184,7 +184,7 @@ lemma ccorres_if_cond_throws2:
   assumes abs: "\<forall>s s'. (s, s') \<in> sr \<and> Q s \<and> Q' s' \<longrightarrow> (\<not> P) = (s' \<in> P')"
   and     ac: "\<not> P \<Longrightarrow> ccorres_underlying sr \<Gamma> r xf arrel axf R R' (SKIP # hs) a c"
   and     bd: "P \<Longrightarrow> ccorres_underlying sr \<Gamma> r xf arrel axf U U' (SKIP # hs) b d"
-  and cthrows: "\<Gamma> \<turnstile>\<^bsub>/UNIV\<^esub> PT' c {}, UNIV" -- "c always throws"
+  and cthrows: "\<Gamma> \<turnstile>\<^bsub>/UNIV\<^esub> PT' c {}, UNIV" \<comment> \<open>c always throws\<close>
   shows  "ccorres_underlying sr \<Gamma> r xf arrel axf
           (Q and (\<lambda>s. \<not> P \<longrightarrow> R s) and (\<lambda>s. P \<longrightarrow> U s))
           (Collect Q' \<inter> {s. (s \<in> P' \<longrightarrow> s \<in> R' \<inter> PT') \<and> (s \<notin> P' \<longrightarrow> s \<in> U')})
@@ -245,7 +245,7 @@ lemma ccorres_split_when_throwError_cond:
                         R R' (SKIP # hs) (throwError e) c"
   and     bd: "\<not> P \<Longrightarrow> ccorres_underlying sr \<Gamma> r xf ar axf
                         U U' (SKIP # hs) b d"
-  and cthrows: "\<Gamma> \<turnstile>\<^bsub>/UNIV\<^esub> PT' c {}, UNIV" -- "c always throws"
+  and cthrows: "\<Gamma> \<turnstile>\<^bsub>/UNIV\<^esub> PT' c {}, UNIV" \<comment> \<open>c always throws\<close>
   shows  "ccorres_underlying sr \<Gamma> r xf ar axf
           (Q and (\<lambda>s. P \<longrightarrow> R s) and (\<lambda>s. \<not> P \<longrightarrow> U s))
           (Collect Q' \<inter> {s. (s \<in> P' \<longrightarrow> s \<in> R' \<inter> PT') \<and> (s \<notin> P' \<longrightarrow> s \<in> U')})
@@ -562,6 +562,19 @@ lemma ccorres_if_lhs:
           hs (if P then f else g) conc"
   by (simp split: if_split)
 
+lemma ccorres_if_bindE:
+  "ccorres_underlying sr Gamm r xf arrel axf G G' hs (if a then (b >>=E f) else (c >>=E f)) d
+  \<Longrightarrow> ccorres_underlying sr Gamm r xf arrel axf G G' hs ((if a then b else c) >>=E f) d"
+  by (simp split: if_split_asm)
+
+lemma ccorres_liftE:
+  fixes \<Gamma>
+  assumes cc: "ccorresG sr \<Gamma> (\<lambda> rv. r (Inr rv)) xf P P' hs a c"
+  shows   "ccorresG sr \<Gamma> r xf P P' hs (liftE a) c"
+  using cc
+  by (fastforce split: xstate.splits
+                simp: liftE_def ccorres_underlying_def bind_def' return_def unif_rrel_def)
+
 lemma ccorres_if_bind:
   "ccorres_underlying sr Gamm r xf arrel axf G G' hs (if a then (b >>= f) else (c >>= f)) d
   \<Longrightarrow> ccorres_underlying sr Gamm r xf arrel axf G G' hs ((if a then b else c) >>= f) d"
@@ -613,6 +626,20 @@ lemma ccorres_guard_from_wp_bind:
   apply (drule (2) use_valid)
   apply simp
   done
+
+lemma ccorres_disj_division:
+  "\<lbrakk> P \<or> Q; P \<Longrightarrow> ccorres_underlying sr G r xf ar axf R S hs a c;
+            Q \<Longrightarrow> ccorres_underlying sr G r xf ar axf T U hs a c \<rbrakk>
+     \<Longrightarrow> ccorres_underlying sr G r xf ar axf
+             (\<lambda>s. (P \<longrightarrow> R s) \<and> (Q \<longrightarrow> T s)) {s. (P \<longrightarrow> s \<in> S) \<and> (Q \<longrightarrow> s \<in> U)}
+                hs a c"
+  apply (erule disjE, simp_all)
+   apply (auto elim!: ccorres_guard_imp)
+  done
+
+lemma disj_division_bool: "b \<or> \<not> b" by simp
+
+lemmas ccorres_case_bools2 = ccorres_disj_division [OF disj_division_bool]
 
 lemma ceqv_tuple:
   "\<lbrakk> ceqv \<Gamma> xfa va s s' x y; ceqv \<Gamma> xfb vb s s' y z \<rbrakk>
@@ -683,7 +710,7 @@ lemma ccorres_sequence_while_genQ':
                      (body ;; Basic (\<lambda>s. xf_update (\<lambda>_. xf s + of_nat j) s)))"
   (is "ccorresG rf_sr \<Gamma> ?r' ?xf' ?G (?G' \<inter> _) hs (sequence xs) ?body")
 proof -
-  def init_xs \<equiv> xs
+  define init_xs where "init_xs \<equiv> xs"
 
   have rl: "xs = drop (length init_xs - length xs) init_xs" unfolding init_xs_def
     by fastforce
@@ -925,7 +952,7 @@ lemma ccorres_from_vcg_split_throws:
 
 lemma ccorres_symb_exec_l3:
   "\<lbrakk> \<And>rv. ccorres_underlying sr \<Gamma> r xf arrel axf (Q rv) (Q' rv) hs (f rv) c;
-     \<And>s. \<lbrace>op = s\<rbrace> m \<lbrace>\<lambda>r. op = s\<rbrace>; \<lbrace>G\<rbrace> m \<lbrace>Q\<rbrace>; empty_fail m\<rbrakk>
+     \<And>s. \<lbrace>(=) s\<rbrace> m \<lbrace>\<lambda>r. (=) s\<rbrace>; \<lbrace>G\<rbrace> m \<lbrace>Q\<rbrace>; empty_fail m\<rbrakk>
   \<Longrightarrow> ccorres_underlying sr \<Gamma> r xf arrel axf G {s'. \<forall>rv. s' \<in> Q' rv}
                   hs (m >>= f) c"
   apply (rule ccorres_guard_imp2, erule ccorres_symb_exec_l)

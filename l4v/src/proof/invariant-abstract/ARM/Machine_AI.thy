@@ -29,25 +29,25 @@ wpc_setup "\<lambda>m. no_irq m" wpc_helper_no_irq
 ML {*
 structure CrunchNoIrqInstance : CrunchInstance =
 struct
+  val name = "no_irq";
   type extra = unit;
   val eq_extra = op =;
-  val name = "no_irq";
-  val has_preconds = false;
-  fun mk_term _ body _ =
-    (Syntax.parse_term @{context} "no_irq") $ body;
-  fun get_precond _ = error "crunch no_irq should not be calling get_precond";
-  fun put_precond _ _ = error "crunch no_irq should not be calling put_precond";
-  fun dest_term (Const (@{const_name no_irq}, _) $ body)
-    = SOME (Term.dummy, body, ())
-    | dest_term _ = NONE;
-  val pre_thms = [];
-  val wpc_tactic = wp_cases_tactic_weak;
   fun parse_extra ctxt extra
         = case extra of
             "" => (Syntax.parse_term ctxt "%_. True", ())
           | _ => error "no_irq does not need a precondition";
+  val has_preconds = false;
+  fun mk_term _ body _ =
+    (Syntax.parse_term @{context} "no_irq") $ body;
+  fun dest_term (Const (@{const_name no_irq}, _) $ body)
+    = SOME (Term.dummy, body, ())
+    | dest_term _ = NONE;
+  fun put_precond _ _ = error "crunch no_irq should not be calling put_precond";
+  val pre_thms = [];
+  val wpc_tactic = wp_cases_tactic_weak;
   val magic = Syntax.parse_term @{context}
-    "\<lambda>mapp_lambda_ignore. no_irq mapp_lambda_ignore"
+    "\<lambda>mapp_lambda_ignore. no_irq mapp_lambda_ignore";
+  val get_monad_state_type = get_nondet_monad_state_type;
 end;
 
 structure CrunchNoIrq : CRUNCH = Crunch(CrunchNoIrqInstance);
@@ -58,7 +58,7 @@ setup {*
 *}
 
 crunch_ignore (no_irq) (add:
-  bind return "when" get gets fail
+  NonDetMonad.bind return "when" get gets fail
   assert put modify unless select
   alternative assert_opt gets_the
   returnOk throwError lift bindE
@@ -152,8 +152,8 @@ lemma no_fail_dmb: "no_fail \<top> dmb"
 lemma no_fail_writeTTBR0: "no_fail \<top> (writeTTBR0 w)"
   by (simp add: writeTTBR0_def)
 
-lemma no_fail_setCurrentPD: "no_fail \<top> (setCurrentPD w)"
-  apply (simp add: setCurrentPD_def)
+lemma no_fail_set_current_pd: "no_fail \<top> (set_current_pd w)"
+  apply (simp add: set_current_pd_def)
   apply (rule no_fail_pre, wp no_fail_dsb no_fail_writeTTBR0 no_fail_isb, simp)
   done
 
@@ -461,6 +461,9 @@ context notes no_irq[wp] begin
 lemma no_irq_ackInterrupt: "no_irq (ackInterrupt irq)"
   by (wp | clarsimp simp: no_irq_def ackInterrupt_def)+
 
+lemma no_irq_setIRQTrigger: "no_irq (setIRQTrigger irq bool)"
+  by (wp | clarsimp simp: no_irq_def setIRQTrigger_def)+
+
 lemma no_irq_loadWord: "no_irq (loadWord x)"
   apply (clarsimp simp: no_irq_def)
   apply (rule loadWord_inv)
@@ -531,8 +534,8 @@ lemma no_irq_modify:
   apply (clarsimp simp: in_monad)
   done
 
-lemma no_irq_setCurrentPD: "no_irq (setCurrentPD pd)"
-  apply (clarsimp simp: setCurrentPD_def)
+lemma no_irq_set_current_pd: "no_irq (set_current_pd pd)"
+  apply (clarsimp simp: set_current_pd_def)
   apply (wp no_irq_dsb no_irq_writeTTBR0 no_irq_isb)
   done
 

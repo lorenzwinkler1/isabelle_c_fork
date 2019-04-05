@@ -120,7 +120,7 @@ definition
 where
   "slots_of obj_id \<equiv> \<lambda>s.
   case opt_object obj_id s of
-    None \<Rightarrow> empty
+    None \<Rightarrow> Map.empty
   | Some obj \<Rightarrow> object_slots obj"
 
 (* The cap at the given cap_ref. None if object or cap does not exist *)
@@ -218,7 +218,7 @@ abbreviation
 where
   "s \<turnstile> x cdt_parent_of\<^sup>* y \<equiv> (x, y) \<in> (cdt_parent_rel s)\<^sup>*"
 
--- "descendants of a slot"
+\<comment> \<open>descendants of a slot\<close>
 definition
   descendants_of :: "cdl_cap_ref \<Rightarrow> cdl_state \<Rightarrow> cdl_cap_ref set" where
   "descendants_of p s \<equiv> {q. (p,q) \<in> (cdt_parent_rel s)\<^sup>+}"

@@ -12,7 +12,7 @@ theory ArchInvariants_AI
 imports "../InvariantsPre_AI"
 begin
 
--- ---------------------------------------------------------------------------
+\<comment> \<open>---------------------------------------------------------------------------\<close>
 section "Move this up"
 
 qualify ARM (in Arch)
@@ -24,11 +24,34 @@ axiomatization
 
 end_qualify
 
--- ---------------------------------------------------------------------------
+\<comment> \<open>---------------------------------------------------------------------------\<close>
 section "ARM-specific invariant definitions"
+
+qualify ARM_HYP_A (in Arch)
+record iarch_tcb =
+  itcb_vcpu :: "obj_ref option"
+end_qualify
 
 context Arch begin global_naming ARM
 
+definition
+  arch_tcb_to_iarch_tcb :: "arch_tcb \<Rightarrow> iarch_tcb"
+where
+  "arch_tcb_to_iarch_tcb arch_tcb \<equiv> \<lparr> itcb_vcpu = tcb_vcpu arch_tcb \<rparr>"
+
+(* Need one of these simp rules for each field in 'iarch_tcb' *)
+lemma arch_tcb_to_iarch_tcb_simps[simp]:
+  "itcb_vcpu (arch_tcb_to_iarch_tcb arch_tcb) = tcb_vcpu arch_tcb"
+  by (auto simp: arch_tcb_to_iarch_tcb_def)
+
+lemma iarch_tcb_context_set[simp]:
+  "arch_tcb_to_iarch_tcb (arch_tcb_context_set p tcb) = arch_tcb_to_iarch_tcb tcb"
+  by (auto simp: arch_tcb_to_iarch_tcb_def arch_tcb_context_set_def)
+
+lemma iarch_tcb_set_registers[simp]:
+  "arch_tcb_to_iarch_tcb (arch_tcb_set_registers regs arch_tcb)
+     = arch_tcb_to_iarch_tcb arch_tcb"
+  by (simp add: arch_tcb_set_registers_def)
 
 lemmas vspace_bits_defs = pd_bits_def pde_bits_def pt_bits_def pte_bits_def pageBits_def
 
@@ -242,6 +265,11 @@ definition
   valid_arch_tcb :: "arch_tcb \<Rightarrow> 'z::state_ext state \<Rightarrow> bool"
 where
   "valid_arch_tcb \<equiv> \<lambda>t s. \<forall>v. tcb_vcpu t = Some v \<longrightarrow> vcpu_at v s"
+
+definition
+  valid_arch_idle :: "iarch_tcb \<Rightarrow> bool"
+where
+  "valid_arch_idle t \<equiv> itcb_vcpu t = None"
 
 primrec
   valid_pte :: "pte \<Rightarrow> 'z::state_ext state \<Rightarrow> bool"
@@ -892,7 +920,15 @@ where
        (\<forall>(asid, hwasid, pd) \<in> graph_of (arm_asid_map (arch_state s)).
             vspace_at_asid asid pd s \<and> asid \<noteq> 0)"
 
+definition
+  valid_ioports :: "'z::state_ext state \<Rightarrow> bool"
+where
+  "valid_ioports \<equiv> \<lambda>s. True"
 
+definition
+  "valid_arch_mdb r cs \<equiv> True"
+
+declare valid_ioports_def[simp] valid_arch_mdb_def[simp]
 
 section "Lemmas"
 
@@ -1359,8 +1395,7 @@ lemma page_directory_pde_atI:  (* ARMHYP: x < 2 ^ pageBits? *)
   apply (subgoal_tac "p = (p + (x << pde_bits) && ~~ mask pd_bits)")
    subgoal by (auto simp add: pd_bits_def)
   apply (rule sym, rule add_mask_lower_bits)
-   apply (simp add: pd_bits_def pageBits_def pde_bits_def)
-  apply simp
+   apply (simp add: pd_bits_def pageBits_def pde_bits_def)+
   apply (subst upper_bits_unset_is_l2p_32[unfolded word_bits_conv])
    apply (simp add: pd_bits_def pde_bits_def pageBits_def)
   apply (rule shiftl_less_t2n)
@@ -1378,8 +1413,7 @@ lemma page_table_pte_atI:  (* ARMHYP: x < 2 ^ (pt_bits - 2) *)
   apply (subgoal_tac "p = (p + (x << pte_bits) && ~~ mask pt_bits)")
    subgoal by (auto simp add: pt_bits_def)
   apply (rule sym, rule add_mask_lower_bits)
-   apply (simp add: pt_bits_def pageBits_def pte_bits_def)
-  apply simp
+   apply (simp add: pt_bits_def pageBits_def pte_bits_def)+
   apply (subst upper_bits_unset_is_l2p_32[unfolded word_bits_conv])
    apply (simp add: pt_bits_def pageBits_def pte_bits_def)
   apply (rule shiftl_less_t2n)
@@ -1975,19 +2009,10 @@ lemma valid_pde_lift2:
 lemma valid_vspace_obj_typ2:
   assumes P: "\<And>P p T. \<lbrace>\<lambda>s. Q s \<and> P (typ_at (AArch T) p s)\<rbrace> f \<lbrace>\<lambda>rv s. P (typ_at (AArch T) p s)\<rbrace>"
   shows      "\<lbrace>\<lambda>s. Q s \<and> valid_vspace_obj ob s \<rbrace> f \<lbrace>\<lambda>rv s. valid_vspace_obj ob s\<rbrace>"
-  apply (cases ob, simp_all add: aa_type_def)
-    apply (wp hoare_vcg_const_Ball_lift [OF P], simp)
-   apply (rule hoare_pre, wp hoare_vcg_all_lift valid_pte_lift2 P)
-    apply clarsimp
-    apply assumption
-   apply clarsimp
-  apply (wp hoare_vcg_all_lift valid_pde_lift2 P)
-    apply clarsimp
-    apply assumption
-   apply clarsimp
-  apply wp+
-  done
-
+  by (cases ob; wpsimp wp: hoare_vcg_const_Ball_lift [OF P]
+    hoare_vcg_all_lift valid_pte_lift2[unfolded pred_conj_def, OF P]
+    P valid_pde_lift2[unfolded pred_conj_def, OF P]
+  )
 
 lemma valid_vspace_objsI [intro?]:
   "(\<And>p ao. \<lbrakk> (\<exists>\<rhd> p) s; ko_at (ArchObj ao) p s \<rbrakk> \<Longrightarrow> valid_vspace_obj ao s) \<Longrightarrow> valid_vspace_objs s"
@@ -2406,6 +2431,14 @@ lemma tcb_arch_ref_context_update:
   "tcb_arch_ref (t\<lparr>tcb_arch := (arch_tcb_context_set a (tcb_arch t))\<rparr>) = tcb_arch_ref t"
   by (simp add: tcb_arch_ref_def arch_tcb_context_set_def)
 
+lemma tcb_arch_ref_set_registers:
+  "tcb_arch_ref (tcb\<lparr>tcb_arch := arch_tcb_set_registers regs (tcb_arch tcb)\<rparr>) = tcb_arch_ref tcb"
+  by (simp add: tcb_arch_ref_def arch_tcb_context_set_def arch_tcb_set_registers_def)
+
+lemma valid_arch_arch_tcb_set_registers[simp]:
+  "valid_arch_tcb (arch_tcb_set_registers a t) = valid_arch_tcb t"
+   by (simp add: arch_tcb_set_registers_def)
+
 lemma tcb_arch_ref_ipc_buffer_update: "\<And>tcb.
        tcb_arch_ref (tcb_ipc_buffer_update f tcb) = tcb_arch_ref tcb"
   by (simp add: tcb_arch_ref_def)
@@ -2455,7 +2488,7 @@ lemmas tcb_arch_ref_simps[simp] = tcb_arch_ref_ipc_buffer_update tcb_arch_ref_mc
   tcb_arch_ref_ctable_update tcb_arch_ref_vtable_update tcb_arch_ref_reply_update
   tcb_arch_ref_caller_update tcb_arch_ref_ipcframe_update tcb_arch_ref_state_update
   tcb_arch_ref_fault_handler_update tcb_arch_ref_fault_update tcb_arch_ref_bound_notification_update
-  tcb_arch_ref_context_update
+  tcb_arch_ref_context_update tcb_arch_ref_set_registers
 
 lemma hyp_live_tcb_def: "hyp_live (TCB tcb) = bound (tcb_arch_ref tcb)"
   by (clarsimp simp: hyp_live_def tcb_arch_ref_def)
@@ -2487,6 +2520,39 @@ lemma valid_arch_tcb_lift:
   "(\<And>T p. f \<lbrace>typ_at T p\<rbrace>) \<Longrightarrow> f \<lbrace>valid_arch_tcb t\<rbrace>"
   unfolding valid_arch_tcb_def
   by (wp hoare_vcg_all_lift hoare_vcg_imp_lift; simp)
+
+
+lemma arch_gen_obj_refs_inD:
+  "x \<in> arch_gen_obj_refs cap \<Longrightarrow> arch_gen_obj_refs cap = {x}"
+  by (simp add: arch_gen_obj_refs_def)
+
+lemma obj_ref_not_arch_gen_ref:
+  "x \<in> obj_refs cap \<Longrightarrow> arch_gen_refs cap = {}"
+  by (cases cap; simp add: arch_gen_obj_refs_def)
+
+lemma arch_gen_ref_not_obj_ref:
+  "x \<in> arch_gen_refs cap \<Longrightarrow> obj_refs cap = {}"
+  by (cases cap; simp add: arch_gen_obj_refs_def)
+
+lemma arch_gen_obj_refs_simps[simp]:
+  "arch_gen_obj_refs (ASIDPoolCap a b) = {}"
+  "arch_gen_obj_refs (PageTableCap c d) = {}"
+  "arch_gen_obj_refs (PageDirectoryCap e f) = {}"
+  "arch_gen_obj_refs (ASIDControlCap) = {}"
+  "arch_gen_obj_refs (PageCap x1 x2 x3 x4 x5) = {}"
+  "arch_gen_obj_refs (VCPUCap x6) = {}"
+  by (simp add: arch_gen_obj_refs_def)+
+
+lemma same_aobject_same_arch_gen_refs:
+  "same_aobject_as ac ac' \<Longrightarrow> arch_gen_obj_refs ac = arch_gen_obj_refs ac'"
+  by (clarsimp simp: arch_gen_obj_refs_def split: arch_cap.split_asm)
+
+lemma valid_arch_mdb_eqI:
+  assumes "valid_arch_mdb (is_original_cap s) (caps_of_state s)"
+  assumes "caps_of_state s = caps_of_state s'"
+  assumes "is_original_cap s = is_original_cap s'"
+  shows "valid_arch_mdb (is original_cap s') (caps_of_state s')"
+  by (clarsimp simp: valid_arch_mdb_def)
 
 end
 

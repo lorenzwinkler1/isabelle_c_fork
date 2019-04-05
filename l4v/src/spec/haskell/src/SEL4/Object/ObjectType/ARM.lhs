@@ -20,6 +20,7 @@ This module contains operations on machine-specific object types for the ARM.
 
 \begin{impdetails}
 
+> import Prelude hiding (Word)
 > import SEL4.Machine.RegisterSet
 > import SEL4.Machine.Hardware.ARM
 > import SEL4.Model
@@ -44,34 +45,37 @@ The ARM-specific types and structures are qualified with the "Arch.Types" and "A
 
 \subsection{Copying and Mutating Capabilities}
 
-> deriveCap :: PPtr CTE -> ArchCapability -> KernelF SyscallError ArchCapability
+> deriveCap :: PPtr CTE -> ArchCapability -> KernelF SyscallError Capability
 
 It is not possible to copy a page table or page directory capability unless it has been mapped.
 
-> deriveCap _ (c@PageTableCap { capPTMappedAddress = Just _ }) = return c
+> deriveCap _ (c@PageTableCap { capPTMappedAddress = Just _ }) = return $ ArchObjectCap c
 > deriveCap _ (PageTableCap { capPTMappedAddress = Nothing })
 >     = throw IllegalOperation
-> deriveCap _ (c@PageDirectoryCap { capPDMappedASID = Just _ }) = return c
+> deriveCap _ (c@PageDirectoryCap { capPDMappedASID = Just _ }) = return $ ArchObjectCap c
 > deriveCap _ (PageDirectoryCap { capPDMappedASID = Nothing })
 >     = throw IllegalOperation
 
 Page capabilities are copied without their mapping information, to allow them to be mapped in multiple locations.
 
-> deriveCap _ (c@PageCap {}) = return $ c { capVPMappedAddress = Nothing }
+> deriveCap _ (c@PageCap {}) = return $ ArchObjectCap $ c  { capVPMappedAddress = Nothing }
 
 ASID capabilities can be copied without modification.
 
-> deriveCap _ c@ASIDControlCap = return c
-> deriveCap _ (c@ASIDPoolCap {}) = return c
+> deriveCap _ c@ASIDControlCap = return $ ArchObjectCap c
+> deriveCap _ (c@ASIDPoolCap {}) = return $ ArchObjectCap c
 
 #ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
-> deriveCap _ (c@VCPUCap {}) = return c
+> deriveCap _ (c@VCPUCap {}) = return $ ArchObjectCap c
 #endif /* CONFIG_ARM_HYPERVISOR_SUPPORT */
 
 #ifdef CONFIG_ARM_SMMU
-> deriveCap _ (c@IOSpaceCap {}) = return c
-> deriveCap _ (c@IOPageTableCap {}) = error "FIXME ARMHYP TODO IO"
+> deriveCap _ (c@IOSpaceCap {}) = return $ ArchObjectCap c
+> deriveCap _ (c@IOPageTableCap {}) = error "FIXME ARMHYP_SMMU"
 #endif /* CONFIG_ARM_SMMU */
+
+> isCapRevocable :: Capability -> Capability -> Bool
+> isCapRevocable _ _ = False
 
 None of the ARM-specific capabilities have a user writeable data word.
 
@@ -95,13 +99,16 @@ Page capabilities have read and write permission bits, which are used to restric
 
 \subsection{Deleting Capabilities}
 
-> finaliseCap :: ArchCapability -> Bool -> Kernel Capability
+> postCapDeletion :: ArchCapability -> Kernel ()
+> postCapDeletion _ = return ()
+
+> finaliseCap :: ArchCapability -> Bool -> Kernel (Capability, Capability)
 
 Deletion of a final capability to an ASID pool requires that the pool is removed from the global ASID table.
 
 > finaliseCap (ASIDPoolCap { capASIDBase = b, capASIDPool = ptr }) True = do
 >     deleteASIDPool b ptr
->     return NullCap
+>     return (NullCap, NullCap)
 
 Deletion of a final capability to a page directory with an assigned ASID requires the ASID assignment to be removed, and the ASID flushed from the caches.
 
@@ -109,7 +116,7 @@ Deletion of a final capability to a page directory with an assigned ASID require
 >         capPDMappedASID = Just a,
 >         capPDBasePtr = ptr }) True = do
 >     deleteASID a ptr
->     return NullCap
+>     return (NullCap, NullCap)
 
 Deletion of a final capability to a page table that has been mapped requires that the mapping be removed from the page directory, and the corresponding addresses flushed from the caches.
 
@@ -117,7 +124,7 @@ Deletion of a final capability to a page table that has been mapped requires tha
 >         capPTMappedAddress = Just (a, v),
 >         capPTBasePtr = ptr }) True = do
 >     unmapPageTable a v ptr
->     return NullCap
+>     return (NullCap, NullCap)
 
 Deletion of any mapped frame capability requires the page table slot to be located and cleared, and the unmapped address to be flushed from the caches.
 
@@ -125,27 +132,27 @@ Deletion of any mapped frame capability requires the page table slot to be locat
 >                            capVPSize = s, capVPBasePtr = ptr }) _ =
 #ifdef CONFIG_ARM_SMMU
 >     if capVPisIOSpace cap
->       then error "FIXME ARMHYP TODO IO"
+>       then error "FIXME ARMHYP_SMMU"
 >       else
 #endif
 >            do
 >               unmapPage s a v ptr
->               return NullCap
+>               return (NullCap, NullCap)
 
 #ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
 > finaliseCap (VCPUCap { capVCPUPtr = vcpu }) True = do
 >     vcpuFinalise vcpu
->     return NullCap
+>     return (NullCap, NullCap)
 #endif
 
 #ifdef CONFIG_ARM_SMMU
-> finaliseCap (IOSpaceCap {}) _ = error "FIXME ARMHYP TODO IOSpace"
-> finaliseCap (IOPageTableCap {}) _ = error "FIXME ARMHYP TODO IOSpace" -- IO page directory does not need to be finalised
+> finaliseCap (IOSpaceCap {}) _ = error "FIXME ARMHYP_SMMU"
+> finaliseCap (IOPageTableCap {}) _ = error "FIXME ARMHYP_SMMU" -- IO page directory does not need to be finalised
 #endif
 
 All other capabilities need no finalisation action.
 
-> finaliseCap _ _ = return NullCap
+> finaliseCap _ _ = return (NullCap, NullCap)
 
 
 \subsection{Identifying Capabilities}
@@ -264,7 +271,7 @@ Create an architecture-specific object.
 #ifdef CONFIG_ARM_SMMU
 >         Arch.Types.IOPageTableObject -> do
 >             let ptSize = ioptBits -- see comment at ioptBits
->             error "FIXME ARMHYP TODO IO"
+>             error "FIXME ARMHYP_SMMU"
 #endif
 
 \subsection{Capability Invocation}
@@ -278,8 +285,8 @@ Create an architecture-specific object.
 >        VCPUCap {} -> decodeARMVCPUInvocation label args capIndex slot cap extraCaps
 #endif
 #ifdef CONFIG_ARM_SMMU
->        IOSpaceCap {} -> error "FIXME ARMHYP TODO IOSpace"
->        IOPageTableCap {} -> error "FIXME ARMHYP TODO IO"
+>        IOSpaceCap {} -> error "FIXME ARMHYP_SMMU"
+>        IOPageTableCap {} -> error "FIXME ARMHYP_SMMU"
 #endif
 >        _ -> decodeARMMMUInvocation label args capIndex slot cap extraCaps
 
@@ -292,9 +299,9 @@ Create an architecture-specific object.
 #endif
 #ifdef CONFIG_ARM_SMMU
 >                  ArchInv.InvokeIOSpace _ ->
->                      withoutPreemption $ error "FIXME ARMHYP TODO IOSpace"
+>                      withoutPreemption $ error "FIXME ARMHYP_SMMU"
 >                  ArchInv.InvokeIOPageTable _ ->
->                      withoutPreemption $ error "FIXME ARMHYP TODO IO"
+>                      withoutPreemption $ error "FIXME ARMHYP_SMMU"
 #endif
 >                  _ -> performARMMMUInvocation i
 
@@ -310,7 +317,7 @@ Create an architecture-specific object.
 > capUntypedPtr (VCPUCap { capVCPUPtr = PPtr p }) = PPtr p
 #endif
 #ifdef CONFIG_ARM_SMMU
-> capUntypedPtr (IOSpaceCap {}) = error "FIXME ARMHYP TODO IOSpace"
+> capUntypedPtr (IOSpaceCap {}) = error "FIXME ARMHYP_SMMU"
 > capUntypedPtr (IOPageTableCap { capIOPTBasePtr = PPtr p }) = PPtr p
 #endif
 

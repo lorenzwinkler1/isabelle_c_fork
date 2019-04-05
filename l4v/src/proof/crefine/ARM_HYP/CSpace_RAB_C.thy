@@ -9,7 +9,7 @@
  *)
 
 theory CSpace_RAB_C
-imports CSpaceAcc_C "../../../lib/clib/MonadicRewrite_C"
+imports CSpaceAcc_C "CLib.MonadicRewrite_C"
 begin
 
 context kernel
@@ -105,23 +105,10 @@ lemma valid_cap_cte_at':
   apply (erule spec)
   done
 
-lemma mask_32_max_word [simp]:
-  shows "mask 32 = (max_word :: word32)"
-  unfolding mask_def
-  by (simp add: max_word_def)
 
 declare ucast_id [simp]
 declare resolveAddressBits.simps [simp del]
 
-lemma if_then_1_else_0:
-  "((if P then 1 else 0) = (0 :: word32)) = (\<not> P)"
-  by (simp del:  word_neq_0_conv)
-
-lemma if_then_0_else_1:
-  "((if P then 0 else 1) = (0 :: word32)) = (P)"
-  by (simp del:  word_neq_0_conv)
-
-lemmas if_then_simps = if_then_0_else_1 if_then_1_else_0
 
 lemma rightsFromWord_wordFromRights:
   "rightsFromWord (wordFromRights rghts) = rghts"
@@ -154,12 +141,6 @@ lemma wordFromRights_rightsFromWord:
            intro!: word_eqI)
   done
 
-
-lemma le_32_mask_eq:
-  " (bits::word32) \<le> 32 \<Longrightarrow> bits && mask 6 = bits  "
-  apply (rule less_mask_eq) apply simp
-  apply (erule le_less_trans) apply simp
-done
 
 (* FIXME: move, duplicated in CSpace_C *)
 lemma ccorres_cases:
@@ -214,7 +195,7 @@ proof (cases "isCNodeCap cap'")
   show ?thesis using False
     apply (cinit' lift: nodeCap_' capptr_' n_bits_')
     apply csymbr+
-      -- "Exception stuff"
+      \<comment> \<open>Exception stuff\<close>
     apply (rule ccorres_split_throws)
     apply (simp add: Collect_const cap_get_tag_isCap isCap_simps ccorres_cond_iffs
                      resolveAddressBits.simps scast_id)
@@ -236,8 +217,8 @@ next
   from True show ?thesis
     apply -
     apply (cinit' simp add: whileAnno_def ucast_id)
-    -- "This is done here as init lift usually throws away the relationship between nodeCap_' s and nodeCap.  Normally
-      this OK, but the induction messes with everything :("
+    \<comment> \<open>This is done here as init lift usually throws away the relationship between nodeCap_' s and nodeCap.  Normally
+      this OK, but the induction messes with everything :(\<close>
      apply (rule ccorres_abstract [where xf' = nodeCap_'])
       apply ceqv
      apply (rename_tac "nodeCap")
@@ -266,11 +247,11 @@ next
        apply clarsimp
       apply (rule_tac I = "{s. cap_get_tag (nodeCap_' s) = scast cap_cnode_cap}"
          in HoarePartial.While [unfolded whileAnno_def, OF subset_refl])
-       apply (vcg strip_guards=true) -- "takes a while"
+       apply (vcg strip_guards=true) \<comment> \<open>takes a while\<close>
        apply clarsimp
       apply simp
      apply (clarsimp simp: cap_get_tag_isCap to_bool_def)
-  -- "Main thm"
+  \<comment> \<open>Main thm\<close>
   proof (induct cap' cptr' guard' rule: resolveAddressBits.induct [case_names ind])
     case (ind cap cptr guard)
 
@@ -287,7 +268,7 @@ next
        apply rule
        apply (clarsimp simp: in_getCTE_cte_wp_at' cte_wp_at_ctes_of)
        apply clarsimp
-       apply (subgoal_tac "cte_wp_at' (op = z) p s")
+       apply (subgoal_tac "cte_wp_at' ((=) z) p s")
        apply (clarsimp simp: getCTE_def cte_wp_at'_def)
        apply (simp add: cte_wp_at_ctes_of)
        done
@@ -476,12 +457,12 @@ next
        apply (csymbr | rule iffD2 [OF ccorres_seq_skip])+
        apply (rule ccorres_Guard_Seq)+
        apply csymbr
-       -- "handle the stateAssert in locateSlotCap very carefully"
+       \<comment> \<open>handle the stateAssert in locateSlotCap very carefully\<close>
        apply (simp(no_asm) only: liftE_bindE[where a="locateSlotCap a b" for a b])
        apply (rule ccorres_locateSlotCap_push[rotated])
         apply (simp add: unlessE_def)
         apply (rule hoare_pre, wp, simp)
-       -- "Convert guardBits, radixBits and capGuard to their Haskell versions"
+       \<comment> \<open>Convert guardBits, radixBits and capGuard to their Haskell versions\<close>
        apply (drule (2) cgD, drule (2) rbD, drule (2) gbD)
        apply (elim conjE)
        apply (rule ccorres_gen_asm [where P = "guard \<le> 32"])
@@ -550,9 +531,9 @@ next
         apply (vcg strip_guards=true)
        apply (vcg strip_guards=true)
       apply (rule conjI)
-      -- "Haskell guard"
+      \<comment> \<open>Haskell guard\<close>
        apply (thin_tac "unat n_bits = guard")
-       apply (clarsimp simp del: imp_disjL) -- "take a while"
+       apply (clarsimp simp del: imp_disjL) \<comment> \<open>take a while\<close>
        apply (intro impI conjI allI)
            apply fastforce
           apply clarsimp
@@ -562,7 +543,7 @@ next
         apply (clarsimp simp: isCap_simps valid_cap_simps' cte_level_bits_def objBits_defs
                               real_cte_at')
        apply (clarsimp simp: isCap_simps valid_cap'_def)
-       -- "C guard"
+       \<comment> \<open>C guard\<close>
       apply (frule (1) cgD [OF refl], frule (1) rbD [OF refl], frule (1) gbD [OF refl])
       apply (simp add: Collect_const_mem cap_get_tag_isCap exception_defs lookup_fault_lifts
         n_bits_guard mask6_eqs word_le_nat_alt word_less_nat_alt gm)
@@ -639,22 +620,6 @@ lemma tcb_aligned':
   apply (simp add: objBits_simps)
   done
 
-(* FIXME: FROM ArchAcc.thy *)
-lemma add_mask_lower_bits:
-  "\<lbrakk> len = len_of TYPE('a); is_aligned (x :: 'a :: len word) n; \<forall>n' \<ge> n. n' < len \<longrightarrow> \<not> p !! n' \<rbrakk>
-    \<Longrightarrow> x + p && ~~mask n = x"
-  apply (subst word_plus_and_or_coroll)
-   apply (rule word_eqI)
-   apply (clarsimp simp: word_size is_aligned_nth)
-   apply (erule_tac x=na in allE)+
-   apply simp
-  apply (rule word_eqI)
-  apply (clarsimp simp: word_size is_aligned_nth word_ops_nth_size)
-  apply (erule_tac x=na in allE)+
-  apply (case_tac "na < n")
-   apply simp
-  apply simp
-  done
 
 lemma tcb_ptr_to_ctcb_ptr_mask [simp]:
   assumes tcbat: "tcb_at' thread s"

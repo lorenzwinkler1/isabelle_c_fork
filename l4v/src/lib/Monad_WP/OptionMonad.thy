@@ -14,8 +14,10 @@
  *     Option monad while loop formalisation.
  *)
 
-theory OptionMonad
-imports "../Lib" (* FIXME: reduce dependencies *)
+theory OptionMonad (* FIXME: this is really a Reader_Option_Monad *)
+  imports
+    "../Lib" (* FIXME: reduce dependencies *)
+    "Less_Monad_Syntax"
 begin
 
 type_synonym ('s,'a) lookup = "'s \<Rightarrow> 'a option"
@@ -44,6 +46,10 @@ definition
 where
   "f |>> g \<equiv> \<lambda>s. case f s of None \<Rightarrow> None | Some x \<Rightarrow> g x s"
 
+(* Enable "do { .. }" syntax *)
+adhoc_overloading
+  Monad_Syntax.bind obind
+
 definition
   "ofail = K None"
 
@@ -52,6 +58,10 @@ definition
 
 definition
   "oassert P \<equiv> if P then oreturn () else ofail"
+
+definition oapply :: "'a \<Rightarrow> ('a \<Rightarrow> 'b option) \<Rightarrow> 'b option"
+  where
+  "oapply x \<equiv> \<lambda>s. s x"
 
 text {*
   If the result can be an exception.
@@ -297,7 +307,7 @@ lemma option_while_rule':
   assumes final: "\<And>s. C s \<Longrightarrow> I (Some s) \<Longrightarrow> B s = None \<Longrightarrow> I None"
   shows "I ss' \<and> (case ss' of Some s' \<Rightarrow> \<not> C s' | _ \<Rightarrow> True)"
 proof -
-  def ss \<equiv> "Some s"
+  define ss where "ss \<equiv> Some s"
   obtain ss1' where "(Some s, ss1') \<in> option_while' C B"
     using assms(3,2,4,5) by (rule option_while'_term)
   then have *: "(ss, ss') \<in> option_while' C B" using `option_while C B s = ss'`
@@ -331,7 +341,7 @@ lemma owhile_rule:
   assumes "wf M"
   assumes less: "\<And>r r'. \<lbrakk>I r s; C r s; B r s = Some r'\<rbrakk> \<Longrightarrow> (r',r) \<in> M"
   assumes step: "\<And>r r'. \<lbrakk>I r s; C r s; B r s = Some r'\<rbrakk> \<Longrightarrow> I r' s"
-  assumes fail: "\<And>r r'. \<lbrakk>I r s; C r s; B r s = None\<rbrakk> \<Longrightarrow> Q None"
+  assumes fail: "\<And>r. \<lbrakk>I r s; C r s; B r s = None\<rbrakk> \<Longrightarrow> Q None"
   assumes final: "\<And>r. \<lbrakk>I r s; \<not>C r s\<rbrakk> \<Longrightarrow> Q (Some r)"
   shows "Q (owhile C B r s)"
 proof -

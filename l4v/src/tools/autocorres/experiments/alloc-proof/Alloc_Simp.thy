@@ -11,11 +11,13 @@
 theory Alloc_Simp
 
 imports
-  "../../AutoCorres"
-  "../../../../lib/sep_algebra/Separation_Algebra"
-  "../../../../lib/sep_algebra/Sep_Algebra_L4v"
-  "../../../../lib/Hoare_Sep_Tactics/Hoare_Sep_Tactics"
+  "AutoCorres.AutoCorres"
+  "Sep_Algebra.Separation_Algebra"
+  "Sep_Algebra.Sep_Algebra_L4v"
+  "Hoare_Sep_Tactics.Hoare_Sep_Tactics"
 begin
+
+external_file  "alloc_simp.c"
 
 (* Parse the input file. *)
 install_C_file  "alloc_simp.c"

@@ -18,8 +18,8 @@
 theory CTypesBase
 imports
   "./$L4V_ARCH/Addr_Type"
-  "~~/src/HOL/Library/Prefix_Order"
-  "../../../lib/Word_Lib/Signed_Words"
+  "HOL-Library.Prefix_Order"
+  "Word_Lib.Signed_Words"
 begin
 
 section "Type setup"
@@ -117,7 +117,7 @@ abbreviation
 
 section "dt_pair: a reimplementation of 2 item tuples"
 
-datatype (plugins del: size)
+datatype
     ('a,'b) dt_pair = DTPair 'a 'b
 
 primrec

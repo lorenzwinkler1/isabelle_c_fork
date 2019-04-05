@@ -22,6 +22,7 @@ We use the C preprocessor to select a target architecture.
 
 \begin{impdetails}
 
+> import Prelude hiding (Word)
 > import SEL4.Machine
 > import SEL4.API.Types
 > import SEL4.Object.Structures
@@ -60,8 +61,8 @@ The following data type defines the set of possible TCB invocation operations. T
 >             tcThread :: PPtr TCB,
 >             tcThreadCapSlot :: PPtr CTE,
 >             tcNewFaultEP :: Maybe CPtr,
->             tcNewMCPriority :: Maybe Priority,
->             tcNewPriority :: Maybe Priority,
+>             tcNewMCPriority :: Maybe (Priority, PPtr TCB),
+>             tcNewPriority :: Maybe (Priority, PPtr TCB),
 >             tcNewCRoot, tcNewVRoot :: Maybe (Capability, PPtr CTE),
 >             tcNewIPCBuffer :: Maybe (VPtr, Maybe (Capability, PPtr CTE)) }
 >         | NotificationControl {
@@ -83,6 +84,9 @@ The following data type defines the set of possible TCB invocation operations. T
 >             copyRegsSuspendSource, copyRegsResumeTarget :: Bool,
 >             copyRegsTransferFrame, copyRegsTransferInteger :: Bool,
 >             copyRegsTransferArch :: Arch.CopyRegisterSets }
+>         | SetTLSBase {
+>             setTLSBaseTCB :: PPtr TCB,
+>             setTLSBaseNewBase :: Word }
 >         deriving Show
 
 \subsubsection{CNode Invocations}

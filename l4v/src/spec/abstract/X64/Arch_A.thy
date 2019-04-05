@@ -23,43 +23,36 @@ context Arch begin global_naming X64_A
 definition "page_bits \<equiv> pageBits"
 
 definition
+  updateIRQState :: "irq \<Rightarrow> X64IRQState \<Rightarrow> ('a abstract_state_scheme, unit) nondet_monad" where
+  "updateIRQState irq irqState \<equiv> do
+     irq_states \<leftarrow> gets (x64_irq_state o arch_state);
+     modify (\<lambda>s. s \<lparr>arch_state := (arch_state s) \<lparr>x64_irq_state := irq_states (irq := irqState)\<rparr>\<rparr>)
+  od"
+
+definition
   arch_invoke_irq_control :: "arch_irq_control_invocation \<Rightarrow> (unit,'z::state_ext) p_monad" where
   "arch_invoke_irq_control aic \<equiv> (case aic of
     IssueIRQHandlerIOAPIC irq dest src ioapic pin level polarity vector \<Rightarrow> without_preemption (do
       do_machine_op $ ioapicMapPinToVector ioapic pin level polarity vector;
-      irq_state \<leftarrow> return $ IRQIOAPIC ioapic pin level polarity True;
-      do_machine_op $ updateIRQState irq irq_state;
+      irq_state \<leftarrow> return $ IRQIOAPIC (ioapic && mask 5) (pin && mask 5) (level && 1) (polarity && 1) True;
+      updateIRQState irq irq_state;
       set_irq_state IRQSignal (IRQ irq);
       cap_insert (IRQHandlerCap (IRQ irq)) src dest
     od) |
     IssueIRQHandlerMSI irq dest src bus dev func handle \<Rightarrow> without_preemption (do
-      irq_state \<leftarrow> return $ IRQMSI bus dev func handle;
-      do_machine_op $ updateIRQState irq irq_state;
+      irq_state \<leftarrow> return $ IRQMSI (bus && mask 8) (dev && mask 5) (func && mask 3) (handle && mask 32);
+      updateIRQState irq irq_state;
       set_irq_state IRQSignal (IRQ irq);
       cap_insert (IRQHandlerCap (IRQ irq)) src dest
     od)
    )"
 
+text {* Switch to a thread's virtual address space context. *}
 
-(*FIXME x64: Current C code doesn't work for addresses above 32 bits.
-  This is meant to take a base address and craft a default
-  gdt_data structure. *)
-
-definition
-  base_to_gdt_data_word :: "machine_word \<Rightarrow> machine_word" where
-  "base_to_gdt_data_word = undefined"
-
-text {* Switch to a thread's virtual address space context and write its IPC
-buffer pointer into the globals frame. Clear the load-exclusive monitor. *}
-
-(* FIXME x64: The IPC buffer pointer and TLS_BASE are stored in GS and FS register
-   in restore_user_context, which is invisible to verification.
-   Should these operations be visible? *)
 definition
   arch_switch_to_thread :: "obj_ref \<Rightarrow> (unit,'z::state_ext) s_monad" where
   "arch_switch_to_thread t \<equiv> set_vm_root t"
 
-(* x64 done *)
 definition
    arch_switch_to_idle_thread :: "(unit,'z::state_ext) s_monad" where
    "arch_switch_to_idle_thread \<equiv> do
@@ -67,7 +60,6 @@ definition
      set_vm_root thread
    od"
 
-(* x64 done *)
 definition
   arch_activate_idle_thread :: "obj_ref \<Rightarrow> (unit,'z::state_ext) s_monad" where
   "arch_activate_idle_thread t \<equiv> return ()"
@@ -75,7 +67,7 @@ definition
 definition
   "store_asid_pool_entry pool_ptr asid pml4base \<equiv> do
     pool \<leftarrow> get_asid_pool pool_ptr;
-    pool' \<leftarrow> return (pool(ucast asid := pml4base));
+    pool' \<leftarrow> return (pool(asid_low_bits_of asid := pml4base));
     set_asid_pool pool_ptr pool'
   od"
 
@@ -91,7 +83,7 @@ perform_asid_control_invocation :: "asid_control_invocation \<Rightarrow> (unit,
     set_cap (max_free_index_update pcap) parent;
     retype_region frame 1 0 (ArchObject ASIDPoolObj) False;
     cap_insert (ArchObjectCap $ ASIDPoolCap frame base) parent slot;
-    assert (base && mask asid_low_bits = 0);
+    assert (asid_low_bits_of base = 0);
     asid_table \<leftarrow> gets (x64_asid_table \<circ> arch_state);
     asid_table' \<leftarrow> return (asid_table (asid_high_bits_of base \<mapsto> frame));
     modify (\<lambda>s. s \<lparr>arch_state := (arch_state s) \<lparr>x64_asid_table := asid_table'\<rparr>\<rparr>)
@@ -129,50 +121,63 @@ where
      return (pd \<noteq> InvalidPDE)
   od"
 
+definition
+  perform_page_invocation_unmap :: "arch_cap \<Rightarrow> cslot_ptr \<Rightarrow> (unit,'z::state_ext) s_monad"
+where
+  "perform_page_invocation_unmap cap ct_slot \<equiv>
+      (case cap
+         of PageCap dev base rights map_type sz mapped \<Rightarrow> do
+            case mapped of Some (asid, vaddr) \<Rightarrow> unmap_page sz asid vaddr base
+                          | None \<Rightarrow> return ();
+            cap \<leftarrow> liftM the_arch_cap $ get_cap ct_slot;
+            set_cap (ArchObjectCap $ update_map_data cap None (Some VMNoMap)) ct_slot
+          od
+      | _ \<Rightarrow> fail)"
+
 text {* The Page capability confers the authority to map, unmap and flush the
 memory page. The remap system call is a convenience operation that ensures the
 page is mapped in the same location as this cap was previously used to map it
 in. *}
 definition
 perform_page_invocation :: "page_invocation \<Rightarrow> (unit,'z::state_ext) s_monad" where
-"perform_page_invocation iv \<equiv> (case iv of
+"perform_page_invocation iv \<equiv> case iv of
     PageMap cap ct_slot entries vspace \<Rightarrow> do
       set_cap cap ct_slot;
-      (case entries
-       of (VMPTE pte, slot) \<Rightarrow> store_pte slot pte
+      case entries of
+          (VMPTE pte, slot) \<Rightarrow> store_pte slot pte
         | (VMPDE pde, slot) \<Rightarrow> store_pde slot pde
-        | (VMPDPTE pdpte, slot) \<Rightarrow> store_pdpte slot pdpte);
-      asid <- case cap of ArchObjectCap (PageCap _ _ _ _ _ (Some (as, _))) \<Rightarrow> return as
-              | _ \<Rightarrow> fail;
+        | (VMPDPTE pdpte, slot) \<Rightarrow> store_pdpte slot pdpte;
+      asid \<leftarrow> case cap of
+                  ArchObjectCap (PageCap _ _ _ _ _ (Some (as, _))) \<Rightarrow> return as
+                | _ \<Rightarrow> fail;
       invalidate_page_structure_cache_asid (addrFromPPtr vspace) asid
-      od
+    od
   | PageRemap entries asid vspace \<Rightarrow> do
-      (case entries
-       of (VMPTE pte, slot) \<Rightarrow> store_pte slot pte
+      case entries of
+          (VMPTE pte, slot) \<Rightarrow> store_pte slot pte
         | (VMPDE pde, slot) \<Rightarrow> store_pde slot pde
-        | (VMPDPTE pdpte, slot) \<Rightarrow> store_pdpte slot pdpte);
+        | (VMPDPTE pdpte, slot) \<Rightarrow> store_pdpte slot pdpte;
       invalidate_page_structure_cache_asid (addrFromPPtr vspace) asid
     od
   | PageUnmap cap ct_slot \<Rightarrow>
-      (case cap
-         of PageCap dev base rights map_type sz mapped \<Rightarrow> do
-            case mapped of Some (asid, vaddr) \<Rightarrow> unmap_page sz asid vaddr base
-                          | None \<Rightarrow> return ();
-            cap \<leftarrow> liftM the_arch_cap $ get_cap ct_slot;
-            set_cap (ArchObjectCap $ update_map_data cap None) ct_slot
-          od
+      (case cap of
+        PageCap dev base rights map_type sz mapped \<Rightarrow>
+            (case mapped of
+              Some _ \<Rightarrow> (case map_type of
+                          VMVSpaceMap \<Rightarrow> perform_page_invocation_unmap cap ct_slot
+                        | _ \<Rightarrow> fail)
+            | None \<Rightarrow> return ())
       | _ \<Rightarrow> fail)
-(*  | PageIOMap asid cap ct_slot entries \<Rightarrow> undefined (* FIXME unimplemented *)*)
+(*  | PageIOMap asid cap ct_slot entries \<Rightarrow> undefined *)
   | PageGetAddr ptr \<Rightarrow> do
       paddr \<leftarrow> return $ fromPAddr $ addrFromPPtr ptr;
       ct \<leftarrow> gets cur_thread;
       msg_transferred \<leftarrow> set_mrs ct Nothing [paddr];
       msg_info \<leftarrow> return $ MI msg_transferred 0 0 0;
       set_message_info ct msg_info
-    od)"
+    od"
 
-text {* PageTable capabilities confer the authority to map and unmap page
-tables. *}
+text {* PageTable capabilities confer the authority to map and unmap page tables. *}
 definition
 perform_page_table_invocation :: "page_table_invocation \<Rightarrow> (unit,'z::state_ext) s_monad" where
 "perform_page_table_invocation iv \<equiv>
@@ -191,7 +196,7 @@ case iv of PageTableMap cap ct_slot pde pd_slot vspace \<Rightarrow> do
       mapM_x (swp store_pte InvalidPTE) slots
     od | None \<Rightarrow> return ();
     cap \<leftarrow> liftM the_arch_cap $ get_cap ct_slot;
-    set_cap (ArchObjectCap $ update_map_data cap None) ct_slot
+    set_cap (ArchObjectCap $ update_map_data cap None None) ct_slot
   od
   | _ \<Rightarrow> fail"
 
@@ -215,7 +220,7 @@ case iv of PageDirectoryMap cap ct_slot pdpte pdpt_slot vspace \<Rightarrow> do
       mapM_x (swp store_pde InvalidPDE) slots
     od | None \<Rightarrow> return ();
     cap \<leftarrow> liftM the_arch_cap $ get_cap ct_slot;
-    set_cap (ArchObjectCap $ update_map_data cap None) ct_slot
+    set_cap (ArchObjectCap $ update_map_data cap None None) ct_slot
   od
   | _ \<Rightarrow> fail"
 
@@ -239,30 +244,26 @@ case iv of PDPTMap cap ct_slot pml4e pml4_slot vspace \<Rightarrow> do
       mapM_x (swp store_pdpte InvalidPDPTE) slots
     od | None \<Rightarrow> return ();
     cap \<leftarrow> liftM the_arch_cap $ get_cap ct_slot;
-    set_cap (ArchObjectCap $ update_map_data cap None) ct_slot
+    set_cap (ArchObjectCap $ update_map_data cap None None) ct_slot
   od
   | _ \<Rightarrow> fail"
 
 definition
-  port_out :: "('a word \<Rightarrow> unit machine_monad) \<Rightarrow> ('a word) \<Rightarrow> (unit,'z::state_ext) s_monad" where
+  port_out :: "('a word \<Rightarrow> unit machine_monad) \<Rightarrow> ('a word) \<Rightarrow> (data list,'z::state_ext) s_monad" where
   "port_out f w = do
-    ct \<leftarrow> gets cur_thread;
     do_machine_op $ f w;
-    set_message_info ct $ MI 0 0 0 0
+    return []
   od"
 
 definition
-  port_in :: "(data machine_monad) \<Rightarrow> (unit,'z::state_ext) s_monad" where
+  port_in :: "(data machine_monad) \<Rightarrow> (data list,'z::state_ext) s_monad" where
   "port_in f = do
-    ct \<leftarrow> gets cur_thread;
     res \<leftarrow> do_machine_op f;
-    set_mrs ct None [res];
-    msg_info \<leftarrow> return $ MI 1 0 0 0;
-    set_message_info ct msg_info
+    return [res]
   od"
 
 definition
-  perform_io_port_invocation :: "io_port_invocation \<Rightarrow> (unit,'z::state_ext) s_monad" where
+  perform_io_port_invocation :: "io_port_invocation \<Rightarrow> (data list,'z::state_ext) s_monad" where
   "perform_io_port_invocation i \<equiv> (
     case i of (IOPortInvocation port port_data) \<Rightarrow> (
       case port_data of
@@ -275,20 +276,34 @@ definition
     )
     )"
 
+definition
+  perform_ioport_control_invocation :: "io_port_control_invocation \<Rightarrow> (unit,'z::state_ext) s_monad"
+where
+  "perform_ioport_control_invocation i \<equiv>
+    case i of (IOPortControlInvocation f l dest_slot control_slot) \<Rightarrow> do
+      set_ioport_mask f l True;
+      c \<leftarrow> return $ ArchObjectCap $ IOPortCap f l;
+      cap_insert (ArchObjectCap (IOPortCap f l)) control_slot dest_slot
+    od"
+
+abbreviation
+  arch_no_return :: "(unit, 'z::state_ext) s_monad \<Rightarrow> (data list, 'z::state_ext) s_monad"
+where
+  "arch_no_return oper \<equiv> do oper; return [] od"
+
 text {* Top level system call despatcher for all x64-specific system calls. *}
 definition
   arch_perform_invocation :: "arch_invocation \<Rightarrow> (data list,'z::state_ext) p_monad" where
-  "arch_perform_invocation i \<equiv> liftE $ do
+  "arch_perform_invocation i \<equiv> liftE $
     case i of
-          InvokePageTable oper \<Rightarrow> perform_page_table_invocation oper
-        | InvokePageDirectory oper \<Rightarrow> perform_page_directory_invocation oper
-        | InvokePDPT oper \<Rightarrow> perform_pdpt_invocation oper
-        | InvokePage oper \<Rightarrow> perform_page_invocation oper
-        | InvokeASIDControl oper \<Rightarrow> perform_asid_control_invocation oper
-        | InvokeASIDPool oper \<Rightarrow> perform_asid_pool_invocation oper
-        | InvokeIOPort oper \<Rightarrow> perform_io_port_invocation oper;
-    return $ []
-od"
+          InvokePageTable oper \<Rightarrow> arch_no_return $ perform_page_table_invocation oper
+        | InvokePageDirectory oper \<Rightarrow> arch_no_return $ perform_page_directory_invocation oper
+        | InvokePDPT oper \<Rightarrow> arch_no_return $ perform_pdpt_invocation oper
+        | InvokePage oper \<Rightarrow> arch_no_return $ perform_page_invocation oper
+        | InvokeASIDControl oper \<Rightarrow> arch_no_return $ perform_asid_control_invocation oper
+        | InvokeASIDPool oper \<Rightarrow> arch_no_return $ perform_asid_pool_invocation oper
+        | InvokeIOPort oper \<Rightarrow> perform_io_port_invocation oper
+        | InvokeIOPortControl oper \<Rightarrow> arch_no_return $ perform_ioport_control_invocation oper"
 
 end
 end

@@ -25,6 +25,7 @@ We use the C preprocessor to select a target architecture. Also, this file makes
 
 \begin{impdetails}
 
+> import Prelude hiding (Word)
 > import SEL4.Machine
 
 > import Data.Bits
@@ -157,7 +158,7 @@ The first word of a message contains information about the contents and type of 
 >             (bit msgExtraCapBits - 1),
 >         msgCapsUnwrapped = w `shiftR` (msgLengthBits + msgExtraCapBits) .&.
 >             (bit msgMaxExtraCaps - 1),
->         msgLabel = w `shiftR` otherBits }
+>         msgLabel = w `shiftR` otherBits .&. (bit msgLabelBits - 1) }
 >         where otherBits = msgLengthBits + msgExtraCapBits + msgMaxExtraCaps
 >               msgLen    = w .&. (bit msgLengthBits - 1)
 
@@ -188,6 +189,9 @@ The maximum number of capabilities passed as arguments to a method invocation. T
 
 > msgAlignBits :: Int
 > msgAlignBits = wordSizeCase 9 10
+
+> msgLabelBits :: Int
+> msgLabelBits = wordSizeCase 20 52
 
 \subsection{Capability Transfers}
 

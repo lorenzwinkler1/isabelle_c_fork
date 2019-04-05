@@ -139,16 +139,18 @@ lemma put_empty_fail[wp]:
   "empty_fail (put f)"
   by (simp add: put_def empty_fail_def)
 
-
 crunch_ignore (empty_fail)
-  (add: bind bindE lift liftE liftM "when" whenE unless unlessE return fail assert_opt
-        mapM mapM_x sequence_x catch handleE do_extended_op
+  (add: NonDetMonad.bind bindE lift liftE liftM "when" whenE unless unlessE return fail
+        assert_opt mapM mapM_x sequence_x catch handleE do_extended_op
         cap_insert_ext empty_slot_ext create_cap_ext cap_swap_ext cap_move_ext
         reschedule_required possible_switch_to set_thread_state_ext
-        OR_choice OR_choiceE timer_tick)
+        OR_choice OR_choiceE timer_tick getRegister lookup_error_on_failure
+        mapME_x const_on_failure liftME mapME do_machine_op select
+        empty_on_failure unify_failure zipWithM_x throw_on_false
+        decode_tcb_invocation without_preemption as_user syscall
+        cap_fault_on_failure check_cap_at zipWithM filterM)
 
-
-crunch (empty_fail) empty_fail[wp]: set_object, gets_the, get_register, get_cap
+crunch (empty_fail) empty_fail[wp]: set_object, gets_the, get_cap
   (simp: split_def kernel_object.splits)
 
 lemma check_cap_at_empty_fail[wp]:
@@ -239,10 +241,9 @@ lemmas resolve_address_bits_empty_fail[wp] =
        resolve_address_bits_spec_empty_fail[THEN use_spec_empty_fail]
 
 crunch (empty_fail) empty_fail[wp]:
-  set_register, lookup_slot_for_cnode_op, decode_untyped_invocation, range_check,
+  lookup_slot_for_cnode_op, decode_untyped_invocation, range_check,
   lookup_source_slot, lookup_pivot_slot, cap_swap_for_delete, is_final_cap, set_cap,
   allActiveTCBs
-
 
 locale EmptyFail_AI_load_word =
   fixes state_ext_t :: "'state_ext::state_ext itself"
@@ -307,7 +308,7 @@ locale EmptyFail_AI_rec_del = EmptyFail_AI_derive_cap state_ext_t
   assumes empty_slot_empty_fail[wp]:
     "\<And>slot irq. empty_fail (empty_slot slot irq :: (unit, 'state_ext) s_monad)"
   assumes finalise_cap_empty_fail[wp]:
-    "\<And>cap final. empty_fail (finalise_cap cap final :: (cap \<times> irq option, 'state_ext) s_monad)"
+    "\<And>cap final. empty_fail (finalise_cap cap final :: (cap \<times> cap, 'state_ext) s_monad)"
   assumes preemption_point_empty_fail[wp]:
     "empty_fail (preemption_point :: (unit, 'state_ext) p_monad)"
 
@@ -365,7 +366,7 @@ next
 qed
 
 lemma rec_del_empty_fail[wp]:
-  "empty_fail (rec_del call :: (bool * irq option, 'state_ext) p_monad)"
+  "empty_fail (rec_del call :: (bool * cap, 'state_ext) p_monad)"
   apply (simp add: empty_fail_def)
   apply (rule allI)
   apply (rule rec_del_spec_empty_fail[simplified spec_empty_fail_def])

@@ -11,11 +11,11 @@
 theory ProofHelpers_DP
 imports
   Kernel_DP
-  "../sep-capDL/Frame_SD"
+  "SepDSpec.Frame_SD"
 begin
 
 crunch_ignore (add:
-  bind return "when" get gets fail
+  NonDetMonad.bind return "when" get gets fail
   assert put modify unless select
   alternative assert_opt gets_the
   returnOk throwError lift bindE

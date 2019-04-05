@@ -24,9 +24,10 @@
         <test name="haskell-translator" cwd="design" cpu-timeout="600">make design</test>
     </set>
 
-    <set depends="isabelle">
+    <set depends="isabelle Lib">
         <!-- Various seL4 specifications. -->
         <test name="ASpec" depends="haskell-translator">make ASpec</test>
+        <test name="ASpecDoc" depends="ASpec">make ASpecDoc</test>
         <test name="ExecSpec" depends="haskell-translator">make ExecSpec</test>
         <test name="DSpec" depends="haskell-translator">make DSpec</test>
         <test name="TakeGrant">make TakeGrant</test>
@@ -35,7 +36,7 @@
 
     <set>
         <!-- Build Haskell kernel code. -->
-        <test name="HaskellKernel" cwd="haskell" cpu-timeout="600">./check-newlines.sh &amp;&amp; make</test>
+        <test name="HaskellKernel" cwd="haskell" cpu-timeout="1800">./check-newlines.sh &amp;&amp; make</test>
     </set>
 
 </testsuite>

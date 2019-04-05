@@ -11,9 +11,9 @@
 theory Invariants_H
 imports
   LevityCatch
-  "../../invariant-abstract/Deterministic_AI"
-  "../../invariant-abstract/AInvs"
-  "../../../lib/AddUpdSimps"
+  "AInvs.Deterministic_AI"
+  "AInvs.AInvs"
+  "Lib.AddUpdSimps"
 begin
 
 context Arch begin
@@ -36,7 +36,7 @@ end
 end
 
 context begin interpretation Arch . (*FIXME: arch_split*)
--- ---------------------------------------------------------------------------
+\<comment> \<open>---------------------------------------------------------------------------\<close>
 section "Invariants on Executable Spec"
 
 definition
@@ -1444,7 +1444,7 @@ locale mdb_order = mdb_next +
   assumes no_0: "no_0 m"
   assumes chain: "mdb_chain_0 m"
 
--- ---------------------------------------------------------------------------
+\<comment> \<open>---------------------------------------------------------------------------\<close>
 section "Alternate split rules for preserving subgoal order"
 context begin interpretation Arch . (*FIXME: arch_split*)
 lemma capability_splits[split]:
@@ -1613,7 +1613,7 @@ lemma ntfn_splits[split]:
        (\<exists>x3. ntfn = Structures_H.ntfn.WaitingNtfn x3 \<and>
              \<not> P (f3 x3))))"
   by (case_tac ntfn; simp)+
--- ---------------------------------------------------------------------------
+\<comment> \<open>---------------------------------------------------------------------------\<close>
 
 section "Lemmas"
 
@@ -2259,7 +2259,8 @@ lemma valid_arch_obj'_pspaceI:
              intro: typ_at'_pspaceI[rotated])
   apply (rename_tac vcpu)
   apply (case_tac vcpu, rename_tac tcbref x1 x2 x3)
-  apply (case_tac tcbref; auto simp: valid_vcpu'_def intro: typ_at'_pspaceI[rotated])
+  apply (case_tac tcbref
+         ; auto simp: valid_vcpu'_def intro: typ_at'_pspaceI[rotated] split: option.splits)
   done
 
 lemma valid_obj'_pspaceI:
@@ -3080,11 +3081,11 @@ lemma vdlist_next_src_unique:
   by (drule (2) vdlist_nextD0)+ (clarsimp simp: mdb_prev_def)
 
 lemma cte_at_cte_wp_atD:
-  "cte_at' p s \<Longrightarrow> \<exists>cte. cte_wp_at' (op = cte) p s"
+  "cte_at' p s \<Longrightarrow> \<exists>cte. cte_wp_at' ((=) cte) p s"
   by (clarsimp simp add: cte_wp_at'_def)
 
 lemma cte_at_cte_wp_atE:
-  "\<lbrakk> cte_at' p s;  \<And>cte. cte_wp_at' (op = cte) p s \<Longrightarrow> P \<rbrakk> \<Longrightarrow> P"
+  "\<lbrakk> cte_at' p s;  \<And>cte. cte_wp_at' ((=) cte) p s \<Longrightarrow> P \<rbrakk> \<Longrightarrow> P"
   by (blast dest: cte_at_cte_wp_atD)
 
 lemma valid_pspace_no_0 [elim]:
@@ -3421,7 +3422,7 @@ interpretation gsCNodes_update: P_Arch_Idle_update_eq "gsCNodes_update f"
 interpretation gsUserPages_update: P_Arch_Idle_update_eq "gsUserPages_update f"
   by unfold_locales simp_all
 lemma ko_wp_at_aligned:
-  "ko_wp_at' (op = ko) p s \<Longrightarrow> is_aligned p (objBitsKO ko)"
+  "ko_wp_at' ((=) ko) p s \<Longrightarrow> is_aligned p (objBitsKO ko)"
   by (simp add: ko_wp_at'_def)
 
 interpretation ksCurDomain:
@@ -3445,7 +3446,7 @@ interpretation gsUntypedZeroRanges:
   by unfold_locales auto
 
 lemma ko_wp_at_norm:
-  "ko_wp_at' P p s \<Longrightarrow> \<exists>ko. P ko \<and> ko_wp_at' (op = ko) p s"
+  "ko_wp_at' P p s \<Longrightarrow> \<exists>ko. P ko \<and> ko_wp_at' ((=) ko) p s"
   by (auto simp add: ko_wp_at'_def)
 
 lemma valid_mdb'_queues [iff]:
@@ -3457,7 +3458,7 @@ lemma valid_mdb_machine_state [iff]:
   by (simp add: valid_mdb'_def)
 
 lemma cte_wp_at_norm':
-  "cte_wp_at' P p s \<Longrightarrow> \<exists>cte. cte_wp_at' (op = cte) p s \<and> P cte"
+  "cte_wp_at' P p s \<Longrightarrow> \<exists>cte. cte_wp_at' ((=) cte) p s \<and> P cte"
   by (simp add: cte_wp_at'_def)
 
 lemma pred_tcb_at'_disj:

@@ -10,8 +10,10 @@
 
 (*<*)
 theory Chapter2_HoareHeap
-imports "../../AutoCorres"
+imports "AutoCorres.AutoCorres"
 begin
+
+external_file "mult_by_add.c"
 (*>*)
 
 section  {* More Complex Functions with AutoCorres *}
@@ -36,7 +38,7 @@ text {*
   Our C function \texttt{mult\_by\_add} implements a multiply operation
   by successive additions:
 
-\lstinputlisting[language=C, firstline=5]{../../mult_by_add.c}
+\lstinputlisting[language=C, firstline=15]{../../mult_by_add.c}
 
   We start by translating the program using the C parser and AutoCorres,
   and entering the generated locale \texttt{mult\_by\_add}.
@@ -75,8 +77,9 @@ text {*
   more than one (or possibly zero) results\footnote{Non-determinism
   becomes useful when modelling hardware, for example, where the exact
   results of the hardware cannot be determined ahead of time.}.
-
+*}
   (* FIXME : probably describe below in further detail. *)
+text {*
   The bulk of @{term "mult_by_add'"} is wrapped inside the @{term
   "whileLoop"} \emph{monad combinator}, which is really just a fancy way
   of describing the method used by AutoCorres to encode (potentially

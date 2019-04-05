@@ -52,14 +52,14 @@ lemma init_cdt [simp]:
   by (simp add: state_defs)
 
 lemma mdp_parent_empty [simp]:
-  "\<not>empty \<Turnstile> x \<rightarrow> y"
+  "\<not>Map.empty \<Turnstile> x \<rightarrow> y"
   apply clarsimp
   apply (drule tranclD)
   apply (clarsimp simp: cdt_parent_of_def)
   done
 
 lemma descendants_empty [simp]:
-  "descendants_of x empty = {}"
+  "descendants_of x Map.empty = {}"
   by (clarsimp simp: descendants_of_def)
 
 lemma [simp]: "\<not>is_reply_cap Structures_A.NullCap"
@@ -132,20 +132,20 @@ lemma init_irq_ptrs_eq:
   done
 
 lemma in_kernel_base:
-  "\<lbrakk>m < 0x3FFFFFFF; n \<le> 0x3FFFFFFF\<rbrakk>
+  "\<lbrakk>m < 0x7FFFFFFF; n \<le> 0x7FFFFFFF\<rbrakk>
     \<Longrightarrow> (\<forall>y\<in>{kernel_base + m .. n + kernel_base}.
-           kernel_base \<le> y \<and> y \<le> kernel_base + 0x3FFFFFFF)"
+           kernel_base \<le> y \<and> y \<le> kernel_base + 0x7FFFFFFF)"
   apply (clarsimp)
   apply (intro conjI)
-   apply (rule ccontr,simp add:not_le)
+   apply (rule ccontr, simp add:not_le)
    apply (drule(1) le_less_trans)
-   apply (cut_tac is_aligned_no_wrap'[where ptr=kernel_base and off=m and sz=30, simplified])
+   apply (cut_tac is_aligned_no_wrap'[where ptr=kernel_base and off=m and sz=31, simplified])
      apply (drule less_le_trans[of _ kernel_base kernel_base])
       apply (simp add: pptr_base_def pptrBase_def kernel_base_def)
      apply simp
     apply (simp add:kernel_base_def is_aligned_def)
    apply (rule ccontr, simp add:not_less)
-   apply (drule less_le_trans[where z = "0x40000000"])
+   apply (drule less_le_trans[where z = "0x80000000"])
     apply simp
    apply simp
   apply (erule order_trans)
@@ -156,7 +156,7 @@ lemma in_kernel_base:
   done
 
 lemma in_kernel_base_in_pptr_base:
-  "\<lbrakk>m < 0x3FFFFFFF; n \<le> 0x3FFFFFFF\<rbrakk>
+  "\<lbrakk>m < 0x7FFFFFFF; n \<le> 0x7FFFFFFF\<rbrakk>
     \<Longrightarrow> (\<forall>y\<in>{kernel_base + m .. n + kernel_base}.
            pptr_base \<le> y \<and> y \<le> pptr_base + 0x7FFFFFFFFF)"
   apply (frule (1) in_kernel_base; erule ballEI; clarsimp)
@@ -190,14 +190,14 @@ lemma pspace_distinct_init_A: "pspace_distinct init_A_st"
 lemma caps_of_state_init_A_st_Null:
   "caps_of_state (init_A_st::'z::state_ext state) x
      = (if cte_at x (init_A_st::'z::state_ext state) then Some cap.NullCap else None)"
-  apply (subgoal_tac "\<not> cte_wp_at (op \<noteq> cap.NullCap) x init_A_st")
+  apply (subgoal_tac "\<not> cte_wp_at ((\<noteq>) cap.NullCap) x init_A_st")
    apply (auto simp add: cte_wp_at_caps_of_state)[1]
   apply (clarsimp, erule cte_wp_atE)
    apply (auto simp add: state_defs tcb_cap_cases_def split: if_split_asm)
   done
 
 lemmas cte_wp_at_caps_of_state_eq
-    = cte_wp_at_caps_of_state[where P="op = cap" for cap]
+    = cte_wp_at_caps_of_state[where P="(=) cap" for cap]
 
 declare ptrFormPAddr_addFromPPtr[simp]
 
@@ -268,7 +268,7 @@ lemma invs_A:
                          untyped_inc_def ut_revocable_def
                          irq_revocable_def reply_master_revocable_def
                          reply_mdb_def reply_caps_mdb_def
-                         reply_masters_mdb_def)
+                         reply_masters_mdb_def valid_arch_mdb_def ioport_revocable_def)
    apply (simp add:descendants_inc_def)
   apply (rule conjI)
    apply (simp add: valid_ioc_def init_A_st_def init_ioc_def cte_wp_at_cases2)
@@ -276,11 +276,9 @@ lemma invs_A:
    apply (case_tac obj, simp_all add: cap_of_def)
    apply (clarsimp simp: init_kheap_def split: if_split_asm)
   apply (rule conjI)
-   apply (clarsimp simp: valid_idle_def pred_tcb_at_def obj_at_def state_defs)
-  apply (rule conjI)
-   apply (clarsimp simp: only_idle_def pred_tcb_at_def obj_at_def state_defs)
-  apply (rule conjI)
-   apply (clarsimp simp: if_unsafe_then_cap_def caps_of_state_init_A_st_Null)
+   apply (clarsimp simp: valid_idle_def pred_tcb_at_def obj_at_def state_defs valid_arch_idle_def)
+  apply (rule conjI, clarsimp simp: only_idle_def pred_tcb_at_def obj_at_def state_defs)
+  apply (rule conjI, clarsimp simp: if_unsafe_then_cap_def caps_of_state_init_A_st_Null)
   apply (clarsimp simp: valid_reply_caps_def unique_reply_caps_def
                         has_reply_cap_def pred_tcb_at_def obj_at_def
                         caps_of_state_init_A_st_Null
@@ -292,7 +290,8 @@ lemma invs_A:
    apply (rule conjI)
     apply (clarsimp simp: valid_asid_table_def state_defs)
    apply (simp add: valid_global_pts_def valid_global_pds_def valid_global_pdpts_def
-                    valid_arch_state_def state_defs obj_at_def a_type_def)
+                    valid_arch_state_def state_defs obj_at_def a_type_def
+                    valid_cr3_def valid_x64_irq_state_def asid_wf_0)
   apply (rule conjI)
    apply (clarsimp simp: valid_irq_node_def obj_at_def state_defs
                          is_cap_table_def wf_empty_bits
@@ -307,6 +306,10 @@ lemma invs_A:
   apply (rule conjI)
    apply (clarsimp simp: valid_irq_states_def state_defs init_machine_state_def
                          valid_irq_masks_def init_irq_masks_def)
+  apply (rule conjI)
+   apply (clarsimp simp: valid_ioports_def caps_of_state_init_A_st_Null all_ioports_issued_def ran_def
+                         issued_ioports_def ioports_no_overlap_def
+                   cong: rev_conj_cong)
   apply (rule conjI)
    apply (clarsimp simp: valid_machine_state_def state_defs
                          init_machine_state_def init_underlying_memory_def)

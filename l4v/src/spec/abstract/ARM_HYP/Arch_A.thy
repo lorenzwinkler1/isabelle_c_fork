@@ -23,14 +23,16 @@ context Arch begin global_naming ARM_A
 
 definition "page_bits \<equiv> pageBits"
 
-text {* The ARM architecture does not provide any additional operations on its
-interrupt controller. *}
-definition
-  arch_invoke_irq_control :: "arch_irq_control_invocation \<Rightarrow> (unit,'z::state_ext) p_monad" where
-  "arch_invoke_irq_control aic \<equiv> fail"
+fun
+  arch_invoke_irq_control :: "arch_irq_control_invocation \<Rightarrow> (unit,'z::state_ext) p_monad"
+where
+  "arch_invoke_irq_control (ArchIRQControlIssue irq handler_slot control_slot trigger) = without_preemption (do
+    do_machine_op $ setIRQTrigger irq trigger;
+    set_irq_state IRQSignal (irq);
+    cap_insert (IRQHandlerCap (irq)) control_slot handler_slot
+  od)"
 
-text {* Switch to a thread's virtual address space context and write its IPC
-buffer pointer into the globals frame. Clear the load-exclusive monitor. *}
+text {* Switch to a thread's virtual address space context. Clear the load-exclusive monitor. *}
 definition
   arch_switch_to_thread :: "obj_ref \<Rightarrow> (unit,'z::state_ext) s_monad" where
   "arch_switch_to_thread t \<equiv> do

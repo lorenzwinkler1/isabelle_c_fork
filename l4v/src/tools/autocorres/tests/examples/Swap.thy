@@ -10,9 +10,10 @@
 
 theory Swap
 imports
-  "../../AutoCorres"
-  "../../TypHeapSimple"
+  "AutoCorres.AutoCorres"
 begin
+
+external_file  "swap.c"
 
 (* Parse the input file. *)
 install_C_file  "swap.c"

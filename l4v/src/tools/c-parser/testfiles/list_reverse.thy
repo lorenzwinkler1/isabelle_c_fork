@@ -9,7 +9,7 @@
  *)
 
 theory list_reverse
-imports "../CTranslation" "$L4V_ARCH/imports/MachineWords"
+imports "CParser.CTranslation" "$L4V_ARCH/imports/MachineWords"
 begin
 
 declare hrs_simps [simp add]
@@ -24,11 +24,12 @@ where
 
 lemma list_empty [simp]:
   shows "list xs NULL = (\<lambda>s. xs = [] \<and> \<box> s)"
-  by (cases xs) (auto intro: ext dest!: sep_conj_mapD)
+  by (cases xs) (auto dest!: sep_conj_mapD)
 
 declare sep_conj_com [simp del]
 declare sep_conj_left_com [simp del]
 
+external_file "list_reverse.c"
 install_C_file memsafe "list_reverse.c"
 
 thm list_reverse_global_addresses.reverse_body_def

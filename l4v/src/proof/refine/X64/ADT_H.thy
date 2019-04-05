@@ -12,7 +12,7 @@ chapter {* Abstract datatype for the executable specification *}
 
 theory ADT_H
 imports
-  "../../invariant-abstract/ADT_AI"
+  "AInvs.ADT_AI"
   Syscall_R
 begin
 
@@ -252,7 +252,6 @@ lemma
         apply (erule_tac x=y in allE)
         apply (clarsimp split: if_split_asm)
         apply (rule_tac x="(y && ~~ mask pt_bits)" in exI, simp)
-        apply (simp add: is_aligned_mask mask_AND_NOT_mask)
         apply (simp add: range_composition[symmetric])
         apply (rule_tac x="ucast (y >> 3)" in range_eqI)
         apply (simp add: pt_bits_def pageBits_def bit_simps)
@@ -266,7 +265,6 @@ lemma
        apply (erule_tac x=y in allE)
        apply (clarsimp split: if_split_asm)
        apply (rule_tac x="(y && ~~ mask pd_bits)" in exI, simp)
-       apply (simp add: is_aligned_mask mask_AND_NOT_mask)
        apply (simp add: range_composition[symmetric])
        apply (rule_tac x="ucast (y >> 3)" in range_eqI)
        apply (simp add: pt_bits_def pageBits_def bit_simps)
@@ -280,7 +278,6 @@ lemma
       apply (erule_tac x=y in allE)
       apply (clarsimp split: if_split_asm)
       apply (rule_tac x="(y && ~~ mask pdpt_bits)" in exI, simp)
-      apply (simp add: is_aligned_mask mask_AND_NOT_mask)
       apply (simp add: range_composition[symmetric])
       apply (rule_tac x="ucast (y >> 3)" in range_eqI)
       apply (simp add: pt_bits_def pageBits_def bit_simps)
@@ -294,7 +291,6 @@ lemma
      apply (erule_tac x=y in allE)
      apply (clarsimp split: if_split_asm)
      apply (rule_tac x="(y && ~~ mask pml4_bits)" in exI, simp)
-     apply (simp add: is_aligned_mask mask_AND_NOT_mask)
      apply (simp add: range_composition[symmetric])
      apply (rule_tac x="ucast (y >> 3)" in range_eqI)
      apply (simp add: pt_bits_def pageBits_def bit_simps)
@@ -419,6 +415,8 @@ fun
 | "CapabilityMap (capability.ArchObjectCap
                     (arch_capability.IOPortCap f l)) =
   cap.ArchObjectCap (arch_cap.IOPortCap f l)"
+| "CapabilityMap (capability.ArchObjectCap arch_capability.IOPortControlCap) =
+  cap.ArchObjectCap arch_cap.IOPortControlCap"
 
 lemma cap_relation_CapabilityMap:
   "\<lbrakk>\<forall>ref n L l. c = capability.CNodeCap ref n L l \<longrightarrow>
@@ -1507,7 +1505,7 @@ lemma cte_map_inj_through_cnp:
   by (drule arg_cong[where f=cnp]) metis
 
 lemma ctes_of_cte_wp_atD:
-  "ctes_of s p = Some cte \<Longrightarrow> cte_wp_at' (op = cte) p s"
+  "ctes_of s p = Some cte \<Longrightarrow> cte_wp_at' ((=) cte) p s"
 by (simp add: KHeap_R.cte_wp_at_ctes_of)
 
 
@@ -1696,12 +1694,6 @@ lemmas absCDT_correct = absCDT_correct'(1)
 lemmas cdt_simple_rel =  absCDT_correct'(2)
 
 
-lemma has_parent_cte_at:"valid_mdb s \<Longrightarrow> (cdt s) c = Some p \<Longrightarrow> cte_at c s"
-  apply (rule cte_wp_cte_at)
-  apply (simp add: valid_mdb_def mdb_cte_at_def del: split_paired_All)
-  apply blast
-  done
-
 lemma has_child_cte_at:"valid_mdb s \<Longrightarrow> (cdt s) c = Some p \<Longrightarrow> cte_at p s"
   apply (rule cte_wp_cte_at)
   apply (simp add: valid_mdb_def mdb_cte_at_def del: split_paired_All)
@@ -1805,7 +1797,7 @@ lemma next_slot_cte_at:
   apply force
   done
 
-lemma cte_at_has_cap: "cte_at slot s \<Longrightarrow> \<exists>c. cte_wp_at (op = c) slot s"
+lemma cte_at_has_cap: "cte_at slot s \<Longrightarrow> \<exists>c. cte_wp_at ((=) c) slot s"
   apply (drule cte_at_get_cap_wp)
   apply force
   done
@@ -2054,11 +2046,14 @@ where
 
 definition
   "absArchState s' \<equiv>
-   case s' of X64KernelState asid_tbl gpm gpdpts gpds gpts ccr3 kvspace \<Rightarrow>
+   case s' of X64KernelState asid_tbl gpm gpdpts gpds gpts ccr3 kvspace kports num_ioapics irq_states \<Rightarrow>
      \<lparr>x64_asid_table = asid_tbl \<circ> ucast, x64_global_pml4 = gpm,
       x64_kernel_vspace = kvspace, x64_global_pts = gpts,
       x64_global_pdpts = gpdpts, x64_global_pds = gpds,
-      x64_current_cr3 = absCR3 ccr3\<rparr>"
+      x64_current_cr3 = absCR3 ccr3,
+      x64_allocated_io_ports = kports,
+      x64_num_ioapics = num_ioapics,
+      x64_irq_state = x64irqstate_to_abstract \<circ> irq_states\<rparr>"
 
 lemma cr3_expand_unexpand[simp]: "cr3 (cr3_base_address a) (cr3_pcid a) = a"
   by (cases a, simp)
@@ -2073,7 +2068,7 @@ apply (subgoal_tac "(arch_state s, ksArchState s') \<in> arch_state_relation")
  using rel
  apply (simp add: state_relation_def)
 apply (clarsimp simp add: arch_state_relation_def)
-by (clarsimp simp add: absArchState_def absCR3_def cr3_relation_def
+by (clarsimp simp add: absArchState_def absCR3_def cr3_relation_def x64_irq_relation_def
              split: X64_H.kernel_state.splits cr3.splits)
 
 definition absSchedulerAction where

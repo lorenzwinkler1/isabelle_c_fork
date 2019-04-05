@@ -9,9 +9,7 @@
  *)
 
 theory GraphProof
-
-imports TailrecPre GraphLangLemmas "../../lib/SplitRule"
-
+imports TailrecPre GraphLangLemmas "Lib.SplitRule"
 begin
 
 declare sep_false_def[symmetric, simp del]
@@ -33,7 +31,7 @@ proof -
 qed
 
 lemmas exec_graph_step_deterministic
-    = exec_graph_step_Gamma_deterministic[where adds=empty, simplified]
+    = exec_graph_step_Gamma_deterministic[where adds=Map.empty, simplified]
 
 lemma exec_graph_n_Gamma_deterministic:
   "(stack, stack') \<in> exec_graph_n Gamma n
@@ -47,7 +45,7 @@ lemma exec_graph_n_Gamma_deterministic:
   done
 
 lemmas exec_graph_n_deterministic
-    = exec_graph_n_Gamma_deterministic[where adds=empty, simplified]
+    = exec_graph_n_Gamma_deterministic[where adds=Map.empty, simplified]
 
 lemma step_implies_continuing:
   "(stack, stack') \<in> exec_graph_step Gamma
@@ -74,7 +72,7 @@ lemma exec_trace_Gamma_deterministic:
   done
 
 lemmas exec_trace_deterministic
-    = exec_trace_Gamma_deterministic[where adds=empty, simplified]
+    = exec_trace_Gamma_deterministic[where adds=Map.empty, simplified]
 
 lemma exec_trace_nat_trace:
   "tr \<in> exec_trace Gamma f \<Longrightarrow> tr \<in> nat_trace_rel continuing (exec_graph_step Gamma)"
@@ -248,7 +246,7 @@ where
 
 abbreviation
   "equals v1 expr1 v2 expr2
-    \<equiv> related_pair v1 expr1 v2 expr2 (split (op =))"
+    \<equiv> related_pair v1 expr1 v2 expr2 (split (=))"
 
 abbreviation
   "equals' n1 restrs1 expr1 n2 restrs2 expr2
@@ -1699,7 +1697,7 @@ lemma visit_Call_loop_lemma:
 lemma pred_restrs_list:
   "pred_restrs nn (restrs_list xs)
     = restrs_list (map (\<lambda>(i, ns). (i, if nn = NextNode i
-        then map (\<lambda>x. x - 1) (filter (op \<noteq> 0) ns) else ns)) xs)"
+        then map (\<lambda>x. x - 1) (filter ((\<noteq>) 0) ns) else ns)) xs)"
   apply (clarsimp simp: pred_restrs_def split: next_node.split)
   apply (rule sym)
   apply (induct xs, simp_all)

@@ -9,9 +9,10 @@
  *)
 
 theory basic_char
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "basic_char.c"
 install_C_file "basic_char.c"
 
 context basic_char

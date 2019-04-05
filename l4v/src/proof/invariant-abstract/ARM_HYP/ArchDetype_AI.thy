@@ -17,7 +17,7 @@ context Arch begin global_naming ARM
 named_theorems Detype_AI_asms
 
 lemma valid_globals_irq_node[Detype_AI_asms]:
-    "\<lbrakk> valid_global_refs s; cte_wp_at (op = cap) ptr s \<rbrakk>
+    "\<lbrakk> valid_global_refs s; cte_wp_at ((=) cap) ptr s \<rbrakk>
           \<Longrightarrow> interrupt_irq_node s irq \<notin> cap_range cap"
     apply (erule(1) valid_global_refsD)
     apply (simp add: global_refs_def)
@@ -121,6 +121,10 @@ lemma region_in_kernel_window_delete_objects[wp]:
 lemma state_hyp_refs_of_detype:
   "state_hyp_refs_of (detype S s) = (\<lambda>x. if x \<in> S then {} else state_hyp_refs_of s x)"
   by (rule ext, simp add: state_hyp_refs_of_def detype_def)
+
+lemma valid_ioports_detype[Detype_AI_asms]:
+  "valid_ioports s \<Longrightarrow> valid_ioports (detype (untyped_range cap) s)"
+  by auto
 
 end
 
@@ -635,7 +639,7 @@ interpretation Detype_AI_2
 
 context begin interpretation Arch .
 lemma delete_objects_invs[wp]:
-  "\<lbrace>(\<lambda>s. \<exists>slot. cte_wp_at (op = (cap.UntypedCap dev ptr bits f)) slot s
+  "\<lbrace>(\<lambda>s. \<exists>slot. cte_wp_at ((=) (cap.UntypedCap dev ptr bits f)) slot s
     \<and> descendants_range (cap.UntypedCap dev ptr bits f) slot s) and
     invs and ct_active\<rbrace>
     delete_objects ptr bits \<lbrace>\<lambda>_. invs\<rbrace>"

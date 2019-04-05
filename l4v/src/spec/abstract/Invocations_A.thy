@@ -25,10 +25,6 @@ requalify_types
   arch_irq_control_invocation
   arch_invocation
 
-requalify_consts
-  message_info_to_data
-  data_to_message_info
-
 end
 
 text {* These datatypes encode the arguments to the available system calls. *}
@@ -51,14 +47,15 @@ datatype tcb_invocation =
   | CopyRegisters machine_word machine_word bool bool bool bool arch_copy_register_sets
   | ThreadControl machine_word cslot_ptr
                   (tc_new_fault_ep: "cap_ref option")
-                  (tc_new_mcpriority: "word8 option")
-                  (tc_new_priority: "word8 option")
+                  (tc_new_mcpriority: "(word8 * obj_ref) option")
+                  (tc_new_priority: "(word8 * obj_ref) option")
                   (tc_new_croot: "(cap * cslot_ptr) option")
                   (tc_new_vroot: "(cap * cslot_ptr) option")
                   (tc_new_buffer: "(vspace_ref * (cap * cslot_ptr) option) option")
   | Suspend "obj_ref"
   | Resume "obj_ref"
   | NotificationControl "obj_ref" "obj_ref option"
+  | SetTLSBase obj_ref machine_word
 
 datatype irq_control_invocation =
     IRQControl irq cslot_ptr cslot_ptr

@@ -12,7 +12,7 @@ chapter {* Abstract datatype for the executable specification *}
 
 theory ADT_H
 imports
-  "../../invariant-abstract/ADT_AI"
+  "AInvs.ADT_AI"
   Syscall_R
 begin
 
@@ -208,7 +208,6 @@ lemma
     apply (erule_tac x=y in allE)
     apply (clarsimp split: if_split_asm)
     apply (rule_tac x="(y && ~~ mask pt_bits)" in exI, simp)
-    apply (simp add: is_aligned_mask mask_AND_NOT_mask)
     apply (simp add: range_composition[symmetric])
     apply (rule_tac x="ucast (y >> 2)" in range_eqI)
     apply (simp add: pt_bits_def pageBits_def)
@@ -222,7 +221,6 @@ lemma
    apply (erule_tac x=y in allE)
    apply clarsimp
    apply (rule_tac x="(y && ~~ mask pd_bits)" in exI, simp)
-   apply (simp add: is_aligned_mask mask_AND_NOT_mask)
    apply (simp add: range_composition[symmetric])
    apply (rule_tac x="ucast (y >> 2)" in range_eqI)
    apply (simp add: pd_bits_def pageBits_def)
@@ -1305,7 +1303,7 @@ lemma cte_map_inj_through_cnp:
   by (drule arg_cong[where f=cnp]) metis
 
 lemma ctes_of_cte_wp_atD:
-  "ctes_of s p = Some cte \<Longrightarrow> cte_wp_at' (op = cte) p s"
+  "ctes_of s p = Some cte \<Longrightarrow> cte_wp_at' ((=) cte) p s"
 by (simp add: KHeap_R.cte_wp_at_ctes_of)
 
 
@@ -1494,12 +1492,6 @@ lemmas absCDT_correct = absCDT_correct'(1)
 lemmas cdt_simple_rel =  absCDT_correct'(2)
 
 
-lemma has_parent_cte_at:"valid_mdb s \<Longrightarrow> (cdt s) c = Some p \<Longrightarrow> cte_at c s"
-  apply (rule cte_wp_cte_at)
-  apply (simp add: valid_mdb_def mdb_cte_at_def del: split_paired_All)
-  apply blast
-  done
-
 lemma has_child_cte_at:"valid_mdb s \<Longrightarrow> (cdt s) c = Some p \<Longrightarrow> cte_at p s"
   apply (rule cte_wp_cte_at)
   apply (simp add: valid_mdb_def mdb_cte_at_def del: split_paired_All)
@@ -1603,7 +1595,7 @@ lemma next_slot_cte_at:
   apply force
   done
 
-lemma cte_at_has_cap: "cte_at slot s \<Longrightarrow> \<exists>c. cte_wp_at (op = c) slot s"
+lemma cte_at_has_cap: "cte_at slot s \<Longrightarrow> \<exists>c. cte_wp_at ((=) c) slot s"
   apply (drule cte_at_get_cap_wp)
   apply force
   done

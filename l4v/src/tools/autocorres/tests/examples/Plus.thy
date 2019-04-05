@@ -10,9 +10,10 @@
 
 theory Plus
 imports
-  "../../AutoCorres"
+  "AutoCorres.AutoCorres"
 begin
 
+external_file "plus.c"
 install_C_file "plus.c"
 
 autocorres [ ts_force nondet = plus2 ] "plus.c"

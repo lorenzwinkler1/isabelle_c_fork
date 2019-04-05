@@ -16,7 +16,7 @@
 chapter "A simplified version of the actual capDL specification."
 
 theory Types_D
-imports "~~/src/HOL/Word/Word"
+imports "HOL-Word.Word"
 begin
 
 (*
@@ -199,7 +199,7 @@ where
   "object_slots obj \<equiv> case obj of
     CNode x \<Rightarrow> cdl_cnode_caps x
   | Tcb x \<Rightarrow> cdl_tcb_caps x
-  | _ \<Rightarrow> empty"
+  | _ \<Rightarrow> Map.empty"
 
 definition
   update_slots :: "cdl_cap_map \<Rightarrow> cdl_object \<Rightarrow> cdl_object"
@@ -220,7 +220,7 @@ definition
 where
   "slots_of h \<equiv> \<lambda>obj_id.
   case h obj_id of
-    None \<Rightarrow> empty
+    None \<Rightarrow> Map.empty
   | Some obj \<Rightarrow> object_slots obj"
 
 
@@ -238,6 +238,6 @@ where
   "object_at P p s \<equiv> \<exists>object. s p = Some object \<and> P object"
 
 abbreviation
-  "ko_at k \<equiv> object_at (op = k)"
+  "ko_at k \<equiv> object_at ((=) k)"
 
 end

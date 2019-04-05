@@ -15,9 +15,9 @@
 
 theory Corres_UL_C
 imports
-  "../LemmaBucket_C"
-  "../LemmaBucket"
-  "../SIMPL_Lemmas"
+  "LemmaBucket_C"
+  "Lib.LemmaBucket"
+  "SIMPL_Lemmas"
 begin
 
 declare word_neq_0_conv [simp del]
@@ -1087,7 +1087,7 @@ declare not_snd_bindI2 [intro?]
 
 lemma ccorres_symb_exec_l:
   assumes cc: "\<And>rv. ccorres_underlying sr \<Gamma> r xf arrel axf (Q rv) (Q' rv) hs (f rv) c"
-  and   pres: "\<And>s. \<lbrace>op = s\<rbrace> m \<lbrace>\<lambda>r. op = s\<rbrace>"
+  and   pres: "\<And>s. \<lbrace>(=) s\<rbrace> m \<lbrace>\<lambda>r. (=) s\<rbrace>"
   and    val: "\<lbrace>G\<rbrace> m \<lbrace>Q\<rbrace>"
   and     ef: "empty_fail m"
   shows   "ccorres_underlying sr \<Gamma> r xf arrel axf G {s'. \<forall>rv s. (s, s') \<in> sr \<and> Q rv s \<longrightarrow> s' \<in> Q' rv} hs (m >>= (\<lambda>rv. f rv)) c"
@@ -1112,7 +1112,7 @@ lemma ccorres_symb_exec_l:
 
 lemma ccorres_symb_exec_l':
   assumes cc: "\<And>rv. ccorres_underlying sr \<Gamma> r xf arrel axf (Q rv) G' hs (f rv) c"
-  and     v1: "\<And>s. NonDetMonad.valid (op = s) m (\<lambda>r. op = s)"
+  and     v1: "\<And>s. NonDetMonad.valid ((=) s) m (\<lambda>r. (=) s)"
   and     v2: "NonDetMonad.valid G m Q"
   and     ef: "empty_fail m"
   shows   "ccorres_underlying sr \<Gamma> r xf arrel axf G G' hs (m >>= (\<lambda>rv. f rv)) c"
@@ -1123,7 +1123,7 @@ lemma ccorres_symb_exec_l':
 
 lemma ccorres_symb_exec_l2:
   assumes cc: "\<And>rv. ccorres_underlying sr \<Gamma> r xf arrel axf (Q rv) (Q' rv) hs (f rv) c"
-  and     v1: "\<And>s. G s \<Longrightarrow> exs_valid (op = s) m (\<lambda>r. op = s)"
+  and     v1: "\<And>s. G s \<Longrightarrow> exs_valid ((=) s) m (\<lambda>r. (=) s)"
   and     v2: "NonDetMonad.valid G m Q"
   shows   "ccorres_underlying sr \<Gamma> r xf arrel axf G {s'. \<forall>rv s. (s, s') \<in> sr \<and> Q rv s \<longrightarrow> s' \<in> Q' rv} hs (m >>= (\<lambda>rv. f rv)) c"
   apply (rule ccorresI')
@@ -1166,7 +1166,7 @@ lemma ccorres_trim_redundant_throw':
   apply (erule exec_handlers_Seq_cases')
    apply simp
    apply (erule disjE)
-    -- "Non-abrupt case"
+    \<comment> \<open>Non-abrupt case\<close>
     apply clarsimp
     apply (erule_tac x = "t'" in ccorresE [OF cc])
         apply assumption
@@ -1175,7 +1175,7 @@ lemma ccorres_trim_redundant_throw':
      apply (erule (1) EHOther)
     apply simp
     apply (erule exec_Normal_elim_cases | simp)+
-   -- "Abrupt case"
+   \<comment> \<open>Abrupt case\<close>
    apply clarsimp
    apply (erule_tac x = "t'" in ccorresE [OF cc])
        apply assumption
@@ -1383,7 +1383,7 @@ lemma ccorres_split_nothrow_record_novcg:
   and     bd: "\<And>rv rv'. r' rv rv' \<Longrightarrow> ccorres_underlying sr \<Gamma> r xf arrel axf (Q rv) (Q' rv rv') hs (b rv) (d' (xfru (\<lambda>_. rv') oldv))"
   and  valid: "\<lbrace>R\<rbrace> a \<lbrace>Q\<rbrace>"
   and  novcg: "guard_is_UNIV r' (xfr \<circ> xf') Q'"
-  -- "This might cause problems \<dots> has to be preserved across c in vcg case, but we can't do that"
+  \<comment> \<open>This might cause problems \<dots> has to be preserved across c in vcg case, but we can't do that\<close>
   and xfoldv: "\<And>s. xf' s = xfru (\<lambda>_. (xfr \<circ> xf') s) oldv"
   shows "ccorres_underlying sr \<Gamma> r xf arrel axf (P and R) P' hs (a >>= (\<lambda>rv. b rv)) (c ;; d)"
   apply (rule ccorres_master_split_nohs_UNIV)

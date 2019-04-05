@@ -135,14 +135,14 @@ lemma range_check_ev:
 
 (* FIXME: move *)
 lemma cte_wp_at_caps_of_state:
-  "cte_wp_at (op = c) slot s \<Longrightarrow> caps_of_state s slot = Some c"
+  "cte_wp_at ((=) c) slot s \<Longrightarrow> caps_of_state s slot = Some c"
   by(simp add: caps_of_state_def cte_wp_at_def)
 
 (* FIXME: move *)
 lemma aag_has_auth_to_obj_refs_of_owned_cap:
   "\<lbrakk>pas_refined aag s;
     is_subject aag (fst slot);
-    cte_wp_at (op = cap) slot s;
+    cte_wp_at ((=) cap) slot s;
     a \<in> cap_auth_conferred cap; x \<in> Access.obj_refs cap\<rbrakk> \<Longrightarrow>
    aag_has_auth_to aag a x"
   apply(drule sym, erule ssubst)
@@ -199,21 +199,35 @@ lemma OR_choice_def2: "(\<And>P. \<lbrace>P\<rbrace> (c :: bool det_ext_monad) \
   by (subst no_state_changes[where f=c],simp,fastforce simp: bind_assoc split_def)
 
 lemma check_prio_rev:
-  "reads_respects aag l (is_subject aag \<circ> cur_thread) (check_prio prio)"
-  apply (clarsimp simp: check_prio_def)
-  apply (wp thread_get_reads_respects hoare_drop_imps)
-  by (clarsimp simp: reads_equiv_def)
+  "reads_respects aag l (\<lambda>s. is_subject aag auth) (check_prio prio auth)"
+  by (wpsimp simp: check_prio_def wp: thread_get_reads_respects hoare_drop_imps)
+
 
 lemma decode_set_priority_rev:
-  "reads_respects aag l (is_subject aag \<circ> cur_thread) (decode_set_priority args cap slot)"
-  apply (clarsimp simp: decode_set_priority_def wp_ev)
-  by (wp check_prio_rev)
+  "reads_respects aag l (K(\<forall>x \<in> set excs. pas_cap_cur_auth aag (fst x)) and (pas_refined aag))
+      (decode_set_priority args (ThreadCap t) slot excs)"
+  apply (wpsimp simp: decode_set_priority_def aag_cap_auth_Thread[symmetric]
+                wp: check_prio_rev whenE_throwError_wp)
+  apply (case_tac excs; simp)
+  done
 
 
 lemma decode_set_mcpriority_rev:
-  "reads_respects aag l (is_subject aag \<circ> cur_thread) (decode_set_mcpriority args cap slot)"
-  apply (clarsimp simp: decode_set_mcpriority_def wp_ev)
-  by (wp check_prio_rev)+
+  "reads_respects aag l (K(\<forall>x \<in> set excs. pas_cap_cur_auth aag (fst x)) and (pas_refined aag))
+    (decode_set_mcpriority args cap slot excs)"
+  apply (wpsimp simp: decode_set_mcpriority_def aag_cap_auth_Thread[symmetric]
+                wp: check_prio_rev whenE_throwError_wp)
+  apply (case_tac excs; simp)
+  done
+
+
+lemma decode_set_sched_params_rev:
+  "reads_respects aag l (K(\<forall>x \<in> set excs. pas_cap_cur_auth aag (fst x)) and (pas_refined aag))
+    (decode_set_sched_params args cap slot excs)"
+  apply (wpsimp simp: decode_set_sched_params_def aag_cap_auth_Thread[symmetric]
+                wp: check_prio_rev whenE_throwError_wp)
+  apply (case_tac excs; clarsimp)
+  done
 
 lemma decode_tcb_invocation_reads_respects_f:
   notes respects_f = reads_respects_f[where st=st and Q=\<top>]
@@ -221,12 +235,13 @@ lemma decode_tcb_invocation_reads_respects_f:
   "reads_respects_f aag l (silc_inv aag st and pas_refined aag and is_subject aag \<circ> cur_thread and
                            valid_objs and zombies_final and (K (is_subject aag t \<and>
                            (\<forall>x \<in> set excaps. is_subject aag (fst (snd x))) \<and>
-                           (\<forall>x\<in>set excaps. pas_cap_cur_auth aag (fst x)))))
+                           (\<forall>x \<in> set excaps. pas_cap_cur_auth aag (fst x)))))
                            (decode_tcb_invocation label args (ThreadCap t) slot excaps)"
   unfolding decode_tcb_invocation_def decode_read_registers_def
   decode_write_registers_def decode_copy_registers_def
   decode_tcb_configure_def decode_set_space_def decode_bind_notification_def
   decode_set_ipc_buffer_def fun_app_def decode_unbind_notification_def
+  decode_set_tls_base_def
   apply (simp add: unlessE_def[symmetric] unlessE_whenE
         split del: if_split
              cong: invocation_label.case_cong)
@@ -238,12 +253,13 @@ lemma decode_tcb_invocation_reads_respects_f:
              check_valid_ipc_buffer_inv
              respects_f[OF decode_set_priority_rev]
              respects_f[OF decode_set_mcpriority_rev]
+             respects_f[OF decode_set_sched_params_rev]
              respects_f[OF get_simple_ko_reads_respects]
              respects_f[OF get_bound_notification_reads_respects']
         | wp_once whenE_throwError_wp
         | wp_once hoare_drop_imps
         | wpc
-        | simp add: unlessE_whenE split del: if_split add: o_def split_def)+
+        | simp add: if_apply_def2 split del: if_split add: o_def split_def)+
   unfolding get_tcb_ctable_ptr_def get_tcb_vtable_ptr_def
   apply (subgoal_tac "\<not>length excaps < 3 \<longrightarrow> is_subject aag (fst (snd (excaps ! 2)))")
    prefer 2
@@ -255,6 +271,7 @@ lemma decode_tcb_invocation_reads_respects_f:
   apply (rule reads_ep[where auth="Receive",simplified])
   apply (cases excaps;simp)
   by (fastforce simp: aag_cap_auth_def cap_auth_conferred_def cap_rights_to_auth_def)
+
 
 lemma get_irq_state_rev:
   "reads_equiv_valid_inv A aag (K (is_subject_irq aag irq)) (get_irq_state irq)"
@@ -269,6 +286,29 @@ lemma is_irq_active_rev:
   apply (wp get_irq_state_rev)
   done
 
+lemma arch_decode_irq_control_invocation_rev:
+  "reads_equiv_valid_inv A aag (pas_refined aag and
+   K (is_subject aag (fst slot) \<and>
+      (\<forall>cap\<in>set caps. pas_cap_cur_auth aag cap) \<and>
+      (args \<noteq> [] \<longrightarrow>
+       (pasSubject aag, Control, pasIRQAbs aag (ucast (args ! 0)))
+       \<in> pasPolicy aag))) (arch_decode_irq_control_invocation label args slot caps)"
+  unfolding arch_decode_irq_control_invocation_def arch_check_irq_def
+  apply (wp ensure_empty_rev lookup_slot_for_cnode_op_rev
+            is_irq_active_rev whenE_inv
+        | wp_once hoare_drop_imps
+        | simp add: Let_def)+
+  apply safe
+       apply simp+
+    apply(blast intro: aag_Control_into_owns_irq )
+   apply(drule_tac x="caps ! 0" in bspec)
+    apply(fastforce intro: bang_0_in_set)
+   apply(drule (1) is_cnode_into_is_subject)
+   apply(erule (1) impE)
+   apply(blast dest: prop_of_obj_ref_of_cnode_cap)
+  apply(fastforce dest: is_cnode_into_is_subject intro: bang_0_in_set)
+  done
+
 lemma decode_irq_control_invocation_rev:
   "reads_equiv_valid_inv A aag (pas_refined aag and
    K (is_subject aag (fst slot) \<and>
@@ -278,9 +318,9 @@ lemma decode_irq_control_invocation_rev:
        \<in> pasPolicy aag))) (decode_irq_control_invocation label args slot caps)"
   unfolding decode_irq_control_invocation_def arch_check_irq_def
   apply (wp ensure_empty_rev lookup_slot_for_cnode_op_rev
-            is_irq_active_rev whenE_inv
-        | wp_once hoare_drop_imps
-        | simp add: Let_def arch_decode_irq_control_invocation_def)+
+            is_irq_active_rev whenE_inv arch_decode_irq_control_invocation_rev
+         | wp_once hoare_drop_imps
+         | simp add: Let_def)+
   apply safe
        apply simp+
     apply(blast intro: aag_Control_into_owns_irq )
@@ -398,7 +438,7 @@ lemma pas_cap_cur_auth_ASIDControlCap:
 
 lemma cte_wp_at_diminished_cnode_cap:
   "\<lbrakk>cte_wp_at (diminished cap) slot s; is_cnode_cap cap\<rbrakk> \<Longrightarrow>
-   cte_wp_at (op = cap) slot s"
+   cte_wp_at ((=) cap) slot s"
   apply(case_tac cap, simp_all)
   apply(clarsimp simp: cte_wp_at_def diminished_def mask_cap_def)
   apply(case_tac capa)
@@ -415,7 +455,7 @@ lemma owns_cnode_owns_obj_ref_of_child_cnodes:
 
 lemma cte_wp_at_diminished_PageDirectoryCap:
   "\<lbrakk>cte_wp_at (diminished cap) slot s; cap = ArchObjectCap (PageDirectoryCap x y)\<rbrakk> \<Longrightarrow>
-   cte_wp_at (op = cap) slot s"
+   cte_wp_at ((=) cap) slot s"
   apply(clarsimp simp: cte_wp_at_def diminished_def mask_cap_def)
   apply(case_tac capa)
   apply(clarsimp simp: cap_rights_update_def)+
@@ -425,7 +465,7 @@ lemma cte_wp_at_diminished_PageDirectoryCap:
 
 lemma cte_wp_at_diminished_PageTableCap:
   "\<lbrakk>cte_wp_at (diminished cap) slot s; cap = ArchObjectCap (PageTableCap x y)\<rbrakk> \<Longrightarrow>
-   cte_wp_at (op = cap) slot s"
+   cte_wp_at ((=) cap) slot s"
   apply(clarsimp simp: cte_wp_at_def diminished_def mask_cap_def)
   apply(case_tac capa)
   apply(clarsimp simp: cap_rights_update_def)+
@@ -511,7 +551,7 @@ lemma lookup_pt_slot_no_fail_is_subject:
 
 lemma arch_decode_invocation_reads_respects_f:
   notes reads_respects_f_inv' = reads_respects_f_inv[where st=st]
-
+  notes hoare_whenE_wps[wp_split del]
   shows
   "reads_respects_f aag l (silc_inv aag st and invs and pas_refined aag
         and cte_wp_at (diminished (cap.ArchObjectCap cap)) slot
@@ -691,7 +731,8 @@ lemma decode_invocation_reads_respects_f:
             reads_respects_f[OF decode_irq_handler_invocation_rev, where Q="\<top>"]
             arch_decode_invocation_reads_respects_f
        | wpc
-       | simp)+
+       | simp
+       | (rule hoare_pre, wp_once))+
   apply (clarsimp simp: aag_has_Control_iff_owns split_def aag_cap_auth_def)
   apply (cases cap, simp_all)
   apply ((clarsimp simp: valid_cap_def cte_wp_at_eq_simp
@@ -720,7 +761,7 @@ crunch globals_equiv: decode_invocation "globals_equiv st"
 
 lemmas decode_invocation_reads_respects_f_g =
        reads_respects_f_g[OF decode_invocation_reads_respects_f doesnt_touch_globalsI,
-                          where Q="\<top>", simplified, OF decode_invocation_globals_equiv]
+                          where Q="\<top>", simplified, OF decode_inv_inv]
 
 end
 

@@ -63,7 +63,7 @@ lemma arch_derive_cap_is_derived:
                           cap_asid cap = cap_asid (ArchObjectCap c') \<and>
                           vs_cap_ref cap = vs_cap_ref (ArchObjectCap c')) p s\<rbrace>
      arch_derive_cap c'
-   \<lbrace>\<lambda>rv s. cte_wp_at (is_derived (cdt s) p (ArchObjectCap rv)) p s\<rbrace>, -"
+   \<lbrace>\<lambda>rv s. cte_wp_at (is_derived (cdt s) p rv) p s\<rbrace>, -"
   unfolding arch_derive_cap_def
   apply(cases c', simp_all add: is_cap_simps cap_master_cap_def)
       apply((wp throwError_validE_R
@@ -95,7 +95,6 @@ lemma derive_cap_is_derived [Ipc_AI_assms]:
                     | fold validE_R_def
                     | erule cte_wp_at_weakenE
                     | simp split: cap.split_asm)+)[11]
-  apply(wp, simp add: o_def)
   apply(wp hoare_drop_imps arch_derive_cap_is_derived)
   apply(clarify, drule cte_wp_at_eqD, clarify)
   apply(frule(1) cte_wp_at_valid_objs_valid_cap)
@@ -119,10 +118,8 @@ lemma is_derived_cap_rights [simp, Ipc_AI_assms]:
 
 lemma data_to_message_info_valid [Ipc_AI_assms]:
   "valid_message_info (data_to_message_info w)"
-  apply (simp add: valid_message_info_def data_to_message_info_def)
-  apply (rule conjI)
-  apply (simp add: word_and_le1 msg_max_length_def msg_max_extra_caps_def Let_def not_less)+
-  done
+  by (simp add: valid_message_info_def data_to_message_info_def  word_and_le1 msg_max_length_def
+                msg_max_extra_caps_def Let_def not_less mask_def)
 
 lemma get_extra_cptrs_length[wp, Ipc_AI_assms]:
   "\<lbrace>\<lambda>s . valid_message_info mi\<rbrace>
@@ -181,7 +178,7 @@ lemma derive_cap_idle[wp, Ipc_AI_assms]:
 lemma arch_derive_cap_objrefs_iszombie [Ipc_AI_assms]:
   "\<lbrace>\<lambda>s . P (set_option (aobj_ref cap)) False s\<rbrace>
      arch_derive_cap cap
-   \<lbrace>\<lambda>rv s. P (set_option (aobj_ref rv)) False s\<rbrace>,-"
+   \<lbrace>\<lambda>rv s. rv \<noteq> NullCap \<longrightarrow> P (obj_refs rv) (is_zombie rv) s\<rbrace>,-"
   apply(cases cap, simp_all add: is_zombie_def arch_derive_cap_def)
       apply(rule hoare_pre, wpc?, wp+, simp)+
   done
@@ -257,13 +254,8 @@ lemma copy_mrs_in_user_frame[wp, Ipc_AI_assms]:
   "\<lbrace>in_user_frame p\<rbrace> copy_mrs t buf t' buf' n \<lbrace>\<lambda>rv. in_user_frame p\<rbrace>"
   by (simp add: in_user_frame_def) (wp hoare_vcg_ex_lift)
 
-lemma get_register_eq : "getRegister r = get_register r"
-  apply (simp add: getRegister_def get_register_def)
-  done
-
 lemma as_user_getRestart_invs[wp]: "\<lbrace>P\<rbrace> as_user t getRestartPC \<lbrace>\<lambda>_. P\<rbrace>"
-  apply (simp add: get_register_eq getRestartPC_def ; rule user_getreg_inv)
-  done
+  by (simp add: getRestartPC_def, rule user_getreg_inv)
 
 lemma make_arch_fault_msg_inv[wp]: "\<lbrace>P\<rbrace> make_arch_fault_msg f t \<lbrace>\<lambda>_. P\<rbrace>"
   apply (cases f)
@@ -363,17 +355,17 @@ lemma transfer_caps_tcb_caps:
 
 lemma transfer_caps_non_null_cte_wp_at:
   assumes imp: "\<And>c. P c \<Longrightarrow> \<not> is_untyped_cap c"
-  shows  "\<lbrace>valid_objs and cte_wp_at (P and (op \<noteq> cap.NullCap)) ptr\<rbrace>
+  shows  "\<lbrace>valid_objs and cte_wp_at (P and ((\<noteq>) cap.NullCap)) ptr\<rbrace>
      transfer_caps mi caps ep receiver recv_buf
-   \<lbrace>\<lambda>_. cte_wp_at (P and (op \<noteq> cap.NullCap)) ptr\<rbrace>"
+   \<lbrace>\<lambda>_. cte_wp_at (P and ((\<noteq>) cap.NullCap)) ptr\<rbrace>"
   unfolding transfer_caps_def
   apply simp
   apply (rule hoare_pre)
    apply (wp hoare_vcg_ball_lift transfer_caps_loop_cte_wp_at static_imp_wp
      | wpc | clarsimp simp:imp)+
    apply (rule hoare_strengthen_post
-            [where Q="\<lambda>rv s'. (cte_wp_at (op \<noteq> cap.NullCap) ptr) s'
-                      \<and> (\<forall>x\<in>set rv. cte_wp_at (op = cap.NullCap) x s')",
+            [where Q="\<lambda>rv s'. (cte_wp_at ((\<noteq>) cap.NullCap) ptr) s'
+                      \<and> (\<forall>x\<in>set rv. cte_wp_at ((=) cap.NullCap) x s')",
              rotated])
     apply (clarsimp)
     apply  (rule conjI)
@@ -391,9 +383,9 @@ crunch cte_wp_at[wp,Ipc_AI_assms]: do_fault_transfer "cte_wp_at P p"
 
 lemma do_normal_transfer_non_null_cte_wp_at [Ipc_AI_assms]:
   assumes imp: "\<And>c. P c \<Longrightarrow> \<not> is_untyped_cap c"
-  shows  "\<lbrace>valid_objs and cte_wp_at (P and (op \<noteq> cap.NullCap)) ptr\<rbrace>
+  shows  "\<lbrace>valid_objs and cte_wp_at (P and ((\<noteq>) cap.NullCap)) ptr\<rbrace>
    do_normal_transfer st send_buffer ep b gr rt recv_buffer
-   \<lbrace>\<lambda>_. cte_wp_at (P and (op \<noteq> cap.NullCap)) ptr\<rbrace>"
+   \<lbrace>\<lambda>_. cte_wp_at (P and ((\<noteq>) cap.NullCap)) ptr\<rbrace>"
   unfolding do_normal_transfer_def
   apply simp
   apply (wp transfer_caps_non_null_cte_wp_at
@@ -500,7 +492,7 @@ crunch valid_ioc                 [wp, Ipc_AI_assms]:  make_arch_fault_msg "valid
 crunch pred_tcb                  [wp, Ipc_AI_assms]:  make_arch_fault_msg "pred_tcb_at proj P t"
 crunch cap_to                    [wp, Ipc_AI_assms]:  make_arch_fault_msg "ex_nonz_cap_to p"
 crunch pred_tcb                  [wp, Ipc_AI_assms]:  make_arch_fault_msg "pred_tcb_at proj P t"
-crunch invs                      [wp, Ipc_AI_assms]:  make_arch_fault_msg "invs"
+declare make_arch_fault_msg_inv[Ipc_AI_assms]
 
 crunch obj_at[wp, Ipc_AI_assms]:  make_arch_fault_msg "\<lambda>s. P (obj_at P' pd s)"
   (wp: as_user_inv getRestartPC_inv mapM_wp'  simp: getRegister_def)
@@ -533,7 +525,6 @@ lemma do_ipc_transfer_respects_device_region[Ipc_AI_cont_assms]:
   "\<lbrace>cap_refs_respects_device_region and tcb_at t and  valid_objs and valid_mdb\<rbrace>
    do_ipc_transfer t ep bg grt r
    \<lbrace>\<lambda>rv. cap_refs_respects_device_region\<rbrace>"
-  including no_pre
   apply (wpsimp simp: do_ipc_transfer_def do_normal_transfer_def transfer_caps_def bind_assoc
                   wp: hoare_vcg_all_lift hoare_drop_imps)+
          apply (subst ball_conj_distrib)
@@ -549,6 +540,22 @@ lemma set_mrs_state_hyp_refs_of[wp]:
 
 crunch state_hyp_refs_of[wp, Ipc_AI_cont_assms]: do_ipc_transfer "\<lambda> s. P (state_hyp_refs_of s)"
   (wp: crunch_wps simp: zipWithM_x_mapM)
+
+lemma arch_derive_cap_untyped:
+  "\<lbrace>\<lambda>s. P (untyped_range (ArchObjectCap cap))\<rbrace> arch_derive_cap cap \<lbrace>\<lambda>rv s. rv \<noteq> cap.NullCap \<longrightarrow> P (untyped_range rv)\<rbrace>,-"
+  by (wpsimp simp: arch_derive_cap_def)
+
+lemma valid_arch_mdb_cap_swap:
+  "\<And>s cap capb.
+       \<lbrakk>valid_arch_mdb (is_original_cap s) (caps_of_state s);
+        weak_derived c cap; caps_of_state s a = Some cap;
+        is_untyped_cap cap \<longrightarrow> cap = c; a \<noteq> b;
+        weak_derived c' capb; caps_of_state s b = Some capb\<rbrakk>
+       \<Longrightarrow> valid_arch_mdb
+            ((is_original_cap s)
+             (a := is_original_cap s b, b := is_original_cap s a))
+            (caps_of_state s(a \<mapsto> c', b \<mapsto> c))"
+  by auto
 
 end
 

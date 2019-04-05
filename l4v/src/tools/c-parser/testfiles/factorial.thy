@@ -9,7 +9,7 @@
  *)
 
 theory factorial
-imports "../CTranslation" "$L4V_ARCH/imports/MachineWords"
+imports "CParser.CTranslation" "$L4V_ARCH/imports/MachineWords"
 begin
 
 declare hrs_simps [simp add]
@@ -98,6 +98,7 @@ lemma sep_fac_list_points:
     apply simp+
   done
 
+external_file "factorial.c"
 install_C_file memsafe "factorial.c"
 
 thm factorial_global_addresses.factorial_body_def

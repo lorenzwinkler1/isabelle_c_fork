@@ -31,16 +31,15 @@ text {* A typ_desc wraps a typ_struct with a typ name.
         (for typ_uinfo), or an Aggregate, with a list of typ_desc,
         field name pairs.*}
 
-datatype (plugins del: size)
+datatype
          'a typ_desc   = TypDesc "'a typ_struct" typ_name
     and  'a typ_struct = TypScalar nat nat "'a" |
                          TypAggregate "('a typ_desc,field_name) dt_pair list"
 
-(* FIXME: eliminate eventually *)
 datatype_compat dt_pair
 datatype_compat typ_desc typ_struct
 
-(* FIXME: these recreate the precise order of subgoals of the old datatype package *)
+(* These recreate the precise order of subgoals of the old datatype package *)
 lemma typ_desc_induct:
   "\<lbrakk>\<And>typ_struct list. P2 typ_struct \<Longrightarrow> P1 (TypDesc typ_struct list); \<And>nat1 nat2 a. P2 (TypScalar nat1 nat2 a);
        \<And>list. P3 list \<Longrightarrow> P2 (TypAggregate list); P3 []; \<And>dt_pair list. \<lbrakk>P4 dt_pair; P3 list\<rbrakk> \<Longrightarrow> P3 (dt_pair # list);
@@ -69,12 +68,12 @@ lemma typ_dt_pair_induct:
      \<Longrightarrow> P4 dt_pair"
    by (rule compat_typ_desc_char_list_dt_pair.induct)
 
--- "Declare as default induct rule with old case names"
+\<comment> \<open>Declare as default induct rule with old case names\<close>
 lemmas typ_desc_typ_struct_inducts [case_names
   TypDesc TypScalar TypAggregate Nil_typ_desc Cons_typ_desc DTPair_typ_desc, induct type] =
   typ_desc_induct typ_struct_induct typ_list_induct typ_dt_pair_induct
 
--- "Make sure list induct rule is tried first"
+\<comment> \<open>Make sure list induct rule is tried first\<close>
 declare list.induct [induct type]
 
 type_synonym 'a typ_pair = "('a typ_desc,field_name) dt_pair"
@@ -801,7 +800,7 @@ where
 definition
   tnSum :: "typ_name \<Rightarrow> (nat \<times> field_name) list \<Rightarrow> nat"
 where
-  "tnSum \<equiv> \<lambda>tn ts. foldr (op + o fst) ts 0"
+  "tnSum \<equiv> \<lambda>tn ts. foldr ((+) o fst) ts 0"
 
 definition
   tnMax :: "typ_name \<Rightarrow> (nat \<times> field_name) list \<Rightarrow> nat"
@@ -811,11 +810,11 @@ where
 definition
   wfd :: "typ_name \<Rightarrow> (bool \<times> field_name) list \<Rightarrow> bool"
 where
-  "wfd \<equiv> \<lambda>tn ts. distinct (map snd ts) \<and> foldr (op \<and>) (map fst ts) True"
+  "wfd \<equiv> \<lambda>tn ts. distinct (map snd ts) \<and> foldr (\<and>) (map fst ts) True"
 
 definition
   wfsd :: "typ_name \<Rightarrow> (bool \<times> field_name) list \<Rightarrow> bool"
 where
-  "wfsd \<equiv> \<lambda>tn ts. ts \<noteq> [] \<and> foldr (op \<and>) (map fst ts) True"
+  "wfsd \<equiv> \<lambda>tn ts. ts \<noteq> [] \<and> foldr (\<and>) (map fst ts) True"
 
 end

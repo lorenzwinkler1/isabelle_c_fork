@@ -16,7 +16,7 @@ chapter "System Calls"
 
 theory Syscall_A
 imports
-  "../design/Event_H"
+  "ExecSpec.Event_H"
   Decode_A
   "./$L4V_ARCH/Init_A"
   "./$L4V_ARCH/Hypervisor_A"
@@ -219,7 +219,7 @@ where
     thread \<leftarrow> liftE $ gets cur_thread;
     info \<leftarrow> without_preemption $ get_message_info thread;
     ptr \<leftarrow> without_preemption $ liftM data_to_cptr $
-          as_user thread $ get_register cap_register;
+          as_user thread $ getRegister cap_register;
     syscall
       (doE
          (cap, slot) \<leftarrow> cap_fault_on_failure (of_bl ptr) False $
@@ -279,7 +279,7 @@ definition
      thread \<leftarrow> gets cur_thread;
 
      ep_cptr \<leftarrow> liftM data_to_cptr $ as_user thread $
-                 get_register cap_register;
+                 getRegister cap_register;
 
      (cap_fault_on_failure (of_bl ep_cptr) True $ doE
         ep_cap \<leftarrow> lookup_cap thread ep_cptr;
@@ -348,7 +348,7 @@ where
 
 | "handle_event (UserLevelFault w1 w2) = (without_preemption $ do
     thread \<leftarrow> gets cur_thread;
-    handle_fault thread $ UserException w1 (w2 && mask 29);
+    handle_fault thread $ UserException (w1 && mask 32) (w2 && mask 29);
     return ()
   od)"
 

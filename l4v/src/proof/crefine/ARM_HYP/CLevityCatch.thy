@@ -12,8 +12,8 @@ theory CLevityCatch
 imports
   Include_C
   Move
-  "../../../lib/LemmaBucket_C"
-  "../../../lib/LemmaBucket"
+  "CLib.LemmaBucket_C"
+  "Lib.LemmaBucket"
 begin
 
 context begin interpretation Arch . (*FIXME: arch_split*)
@@ -33,6 +33,7 @@ lemmas ptBits_def' = ptBits_def[simplified pteBits_def, simplified]
 lemmas pdBits_def' = pdBits_def[simplified pdeBits_def, simplified]
 lemmas pt_index_bits_def' = pt_index_bits_def[simplified pt_bits_def pte_bits_def, simplified]
 lemmas vcpuBits_def' = vcpuBits_def[simplified pageBits_def, simplified]
+lemmas vcpu_bits_def' = vcpu_bits_def[simplified pageBits_def, simplified]
 
 lemmas table_bits_defs = pt_bits_def' pte_bits_def pd_bits_def' pde_bits_def
                          pageBits_def page_bits_def'
@@ -41,7 +42,7 @@ lemmas table_bits_defs = pt_bits_def' pte_bits_def pd_bits_def' pde_bits_def
                          ptBits_def' pdBits_def'
 
 lemmas machine_bits_defs = table_bits_defs
-                            vcpuBits_def' vcpu_bits_def
+                            vcpuBits_def' vcpu_bits_def'
 
 declare word_neq_0_conv [simp del]
 
@@ -83,7 +84,8 @@ lemmas C_register_defs =
   Kernel_C.R4_def Kernel_C.R5_def Kernel_C.R6_def Kernel_C.R7_def
   Kernel_C.R8_def Kernel_C.R9_def Kernel_C.R10_def Kernel_C.R11_def
   Kernel_C.R12_def Kernel_C.SP_def Kernel_C.LR_def Kernel_C.LR_svc_def
-  Kernel_C.CPSR_def Kernel_C.TPIDRURW_def Kernel_C.FaultInstruction_def
+  Kernel_C.CPSR_def Kernel_C.TLS_BASE_def Kernel_C.TPIDRURW_def
+  Kernel_C.FaultInstruction_def
 
 (* Levity: moved from Retype_C (20090419 09:44:41) *)
 lemma no_overlap_new_cap_addrs_disjoint:
@@ -145,7 +147,7 @@ lemma asUser_mapM_x:
   apply (rule ext)
   apply (rule bind_apply_cong [OF refl])+
   apply (clarsimp simp: in_monad dest!: fst_stateAssertD)
-  apply (drule use_valid, rule mapM_wp', rule asUser_tcb_at', assumption)
+  apply (drule use_valid, rule mapM_wp', rule asUser_typ_ats, assumption)
   apply (simp add: stateAssert_def get_def NonDetMonad.bind_def)
   done
 
@@ -174,15 +176,6 @@ lemma asUser_get_registers:
                         obj_at'_def)
   done
 
-(* FIXME: should fall through to LemmaBucket or alike *)
-lemma is_aligned_neg_mask2 [simp]:
-  "is_aligned (a && ~~ mask n) n"
-  apply (cases "n < len_of TYPE('a)")
-   apply (simp add: and_not_mask)
-   apply (subst shiftl_t2n)
-   apply (rule is_aligned_mult_triv1)
-  apply (simp add: not_less NOT_mask power_overflow)
-  done
 
 lemma projectKO_user_data_device:
   "(projectKO_opt ko = Some (t :: user_data_device)) = (ko = KOUserDataDevice)"

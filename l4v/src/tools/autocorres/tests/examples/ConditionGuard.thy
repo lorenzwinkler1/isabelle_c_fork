@@ -9,8 +9,11 @@
  *)
 
 (* See comment in condition_guard.c *)
-theory ConditionGuard imports "../../AutoCorres" begin
+theory ConditionGuard
+imports "AutoCorres.AutoCorres"
+begin
 
+external_file "condition_guard.c"
 install_C_file "condition_guard.c"
 autocorres "condition_guard.c"
 

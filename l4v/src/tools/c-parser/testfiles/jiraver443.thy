@@ -9,8 +9,10 @@
  *)
 
 theory jiraver443
-  imports "../CTranslation"
+  imports "CParser.CTranslation"
 begin
+
+  external_file "jiraver443.c"
 
   declare [[allow_underscore_idents=true]]
   (* 3014 lines, with  78 globals:  works ;

@@ -97,8 +97,8 @@ definition
    do
      hardware_mrs \<leftarrow> return $ take (unat n) msg_registers;
      mapM (\<lambda>r. do
-         v \<leftarrow> as_user sender $ get_register r;
-         as_user receiver $ set_register r v
+         v \<leftarrow> as_user sender $ getRegister r;
+         as_user receiver $ setRegister r v
        od) hardware_mrs;
      buf_mrs \<leftarrow> case (sbuf, rbuf) of
        (Some sb_ptr, Some rb_ptr) \<Rightarrow> mapM (\<lambda>x. do
@@ -160,9 +160,9 @@ where
    = doE
     liftE $ option_update_thread target (tcb_fault_handler_update o K) faultep;
     liftE $  case mcp of None \<Rightarrow> return()
-     | Some newmcp \<Rightarrow> set_mcpriority target newmcp;
+     | Some (newmcp, _) \<Rightarrow> set_mcpriority target newmcp;
     liftE $ case priority of None \<Rightarrow> return()
-     | Some prio \<Rightarrow> do_extended_op (set_priority target prio);
+     | Some (prio, _) \<Rightarrow> do_extended_op (set_priority target prio);
     (case croot of None \<Rightarrow> returnOk ()
      | Some (new_cap, src_slot) \<Rightarrow> doE
       cap_delete (target, tcb_cnode_index 0);
@@ -252,6 +252,14 @@ where
     return []
   od)"
 
+| "invoke_tcb (SetTLSBase tcb tls_base) =
+  (liftE $ do
+    as_user tcb $ setRegister tlsBaseRegister tls_base;
+    cur \<leftarrow> gets cur_thread;
+    when (tcb = cur) (do_extended_op reschedule_required);
+    return []
+  od)"
+
 definition
   set_domain :: "obj_ref \<Rightarrow> domain \<Rightarrow> unit det_ext_monad" where
   "set_domain tptr new_dom \<equiv> do
@@ -274,7 +282,7 @@ definition
   get_mrs :: "obj_ref \<Rightarrow> obj_ref option \<Rightarrow> message_info \<Rightarrow>
               (message list,'z::state_ext) s_monad" where
   "get_mrs thread buf info \<equiv> do
-     context \<leftarrow> thread_get (arch_tcb_context_get o tcb_arch) thread;
+     context \<leftarrow> thread_get (arch_tcb_get_registers o tcb_arch) thread;
      cpu_mrs \<leftarrow> return (map context msg_registers);
      buf_mrs \<leftarrow> case buf
        of None      \<Rightarrow> return []

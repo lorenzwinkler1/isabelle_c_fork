@@ -18,8 +18,8 @@ theory ArchDecode_A
 imports
   "../Interrupt_A"
   "../InvocationLabels_A"
-  "../../../lib/Word_Lib/Word_Lib"
-  "../../design/InvocationLabels_H"
+  "Word_Lib.Word_Lib"
+  "ExecSpec.InvocationLabels_H"
 begin
 
 context Arch begin global_naming X64_A
@@ -57,16 +57,17 @@ definition
  "arch_decode_irq_control_invocation label args src_slot cps \<equiv>
   (if invocation_type label = ArchInvocationLabel X64IRQIssueIRQHandlerIOAPIC
     then (if length args \<ge> 7 \<and> length cps \<ge> 1
-      then let x = args ! 6; index = args ! 0; depth = args ! 1;
-               cnode = cps ! 0; irqv = ucast x;
+      then let pre_irq = UCAST (64 \<rightarrow> 8) (args ! 6); index = args ! 0; depth = args ! 1;
+               cnode = cps ! 0;
+               irqv = ucast pre_irq + minUserIRQ;
                ioapic = args ! 2;
                pin = args ! 3;
                level = args ! 4;
                polarity = args ! 5;
-               vector = x + irqIntOffset
+               vector = ucast irqv + irqIntOffset
         in doE
 
-        whenE (x > ucast maxIRQ) $ throwError (RangeError 0 (ucast maxIRQ));
+        whenE (pre_irq > ucast (maxUserIRQ - minUserIRQ)) $ throwError (RangeError 0 (ucast (maxUserIRQ - minUserIRQ)));
         irq_active \<leftarrow> liftE $ is_irq_active irqv;
         whenE irq_active $ throwError RevokeFirst;
         dest_slot \<leftarrow> lookup_target_slot cnode (data_to_cptr index) (unat depth);
@@ -75,6 +76,8 @@ definition
        (* Following should be wrapped in to a funcion like what c did
           since it is pc99 related, problem is where to put this function*)
 
+        numIOAPICs \<leftarrow> liftE $ gets (x64_num_ioapics \<circ> arch_state);
+        whenE (numIOAPICs = 0) $ throwError IllegalOperation;
         whenE (ioapic > numIOAPICs - 1) $ throwError (RangeError 0 (numIOAPICs-1));
         whenE (pin > ioapicIRQLines - 1) $ throwError (RangeError 0 (ioapicIRQLines-1));
         whenE (level > 1) $ throwError (RangeError 0 1);
@@ -86,12 +89,12 @@ definition
     else throwError TruncatedMessage)
   else (if invocation_type label = ArchInvocationLabel X64IRQIssueIRQHandlerMSI
     then (if length args \<ge> 7 \<and> length cps \<ge> 1
-      then let x = args ! 6; index = args ! 0; depth = args ! 1;
-               cnode = cps ! 0; irqv = ucast x;
+      then let pre_irq = UCAST (64 \<rightarrow> 8) (args ! 6); index = args ! 0; depth = args ! 1;
+               cnode = cps ! 0; irqv = ucast pre_irq + minUserIRQ;
                bus = args ! 2; dev = args ! 3; func = args ! 4; handle = args ! 5
         in doE
 
-        whenE (x > ucast maxIRQ) $ throwError (RangeError 0 (ucast maxIRQ));
+        whenE (pre_irq > ucast (maxUserIRQ - minUserIRQ)) $ throwError (RangeError 0 (ucast (maxUserIRQ - minUserIRQ)));
         irq_active \<leftarrow> liftE $ is_irq_active irqv;
         whenE irq_active $ throwError RevokeFirst;
 
@@ -114,14 +117,14 @@ abbreviation (input)
   "args_at_least n args \<equiv>  whenE (n > length args) $ throwError TruncatedMessage"
 
 definition
-  ensure_port_operation_allowed :: "arch_cap \<Rightarrow> io_port \<Rightarrow> nat \<Rightarrow> (unit,'z::state_ext) se_monad"
+  ensure_port_operation_allowed :: "arch_cap \<Rightarrow> 32 word \<Rightarrow> nat \<Rightarrow> (unit,'z::state_ext) se_monad"
 where
   "ensure_port_operation_allowed cap start_port sz \<equiv> case cap of
     IOPortCap first_allowed last_allowed \<Rightarrow> doE
       end_port \<leftarrow> returnOk $ start_port + of_nat sz - 1;
       assertE (first_allowed \<le> last_allowed);
-      whenE (start_port > end_port) $ throwError IllegalOperation;
-      whenE ((start_port < first_allowed) \<or> (end_port > last_allowed)) $ throwError IllegalOperation
+      assertE (start_port \<le> end_port);
+      whenE ((start_port < ucast first_allowed) \<or> (end_port > ucast last_allowed)) $ throwError IllegalOperation
     odE
   | _ \<Rightarrow> fail"
 
@@ -133,43 +136,73 @@ where
     (ArchInvocationLabel X64IOPortIn8) \<Rightarrow> doE
       args_at_least 1 args;
       port \<leftarrow> returnOk $ ucast $ args ! 0;
-      ensure_port_operation_allowed cap port 1;
+      ensure_port_operation_allowed cap (ucast port) 1;
       returnOk $ InvokeIOPort $ IOPortInvocation port $ IOPortIn8
     odE
   | (ArchInvocationLabel X64IOPortIn16) \<Rightarrow> doE
       args_at_least 1 args;
       port \<leftarrow> returnOk $ ucast $ args ! 0;
-      ensure_port_operation_allowed cap port 2;
+      ensure_port_operation_allowed cap (ucast port) 2;
       returnOk $ InvokeIOPort $ IOPortInvocation port $ IOPortIn16
     odE
   | (ArchInvocationLabel X64IOPortIn32) \<Rightarrow> doE
       args_at_least 1 args;
       port \<leftarrow> returnOk $ ucast $ args ! 0;
-      ensure_port_operation_allowed cap port 4;
+      ensure_port_operation_allowed cap (ucast port) 4;
       returnOk $ InvokeIOPort $ IOPortInvocation port $ IOPortIn32
     odE
   | (ArchInvocationLabel X64IOPortOut8) \<Rightarrow> doE
       args_at_least 2 args;
       port \<leftarrow> returnOk $ ucast $ args ! 0;
-      ensure_port_operation_allowed cap port 1;
+      ensure_port_operation_allowed cap (ucast port) 1;
       output_data \<leftarrow> returnOk $ ucast $ args ! 1;
       returnOk $ InvokeIOPort $ IOPortInvocation port $ IOPortOut8 output_data
     odE
   | (ArchInvocationLabel X64IOPortOut16) \<Rightarrow> doE
       args_at_least 2 args;
       port \<leftarrow> returnOk $ ucast $ args ! 0;
-      ensure_port_operation_allowed cap port 2;
+      ensure_port_operation_allowed cap (ucast port) 2;
       output_data \<leftarrow> returnOk $ ucast $ args ! 1;
       returnOk $ InvokeIOPort $ IOPortInvocation port $ IOPortOut16 output_data
     odE
   | (ArchInvocationLabel X64IOPortOut32) \<Rightarrow> doE
       args_at_least 2 args;
       port \<leftarrow> returnOk $ ucast $ args ! 0;
-      ensure_port_operation_allowed cap port 4;
+      ensure_port_operation_allowed cap (ucast port) 4;
       output_data \<leftarrow> returnOk $ ucast $ args ! 1;
       returnOk $ InvokeIOPort $ IOPortInvocation port $ IOPortOut32 output_data
       odE
   | _ \<Rightarrow> throwError IllegalOperation"
+
+definition
+  is_ioport_range_free :: "io_port \<Rightarrow> io_port \<Rightarrow> (bool,'z::state_ext) s_monad"
+where
+  "is_ioport_range_free f l \<equiv> do
+     alloc_ports \<leftarrow> gets (x64_allocated_io_ports \<circ> arch_state);
+     return $ {f..l} \<inter> (Collect alloc_ports) = {}
+  od"
+
+definition
+  decode_ioport_control_invocation :: "data \<Rightarrow> data list \<Rightarrow> cslot_ptr \<Rightarrow> arch_cap \<Rightarrow>
+                                    cap list \<Rightarrow> (arch_invocation,'z::state_ext) se_monad"
+where
+  "decode_ioport_control_invocation label args slot cap extra_caps \<equiv>
+    if invocation_type label = ArchInvocationLabel X64IOPortControlIssue then
+      if length args \<ge> 4 \<and> length extra_caps \<ge> 1 then
+        let first_port = ucast (args ! 0); last_port = ucast (args ! 1);
+            index = args ! 2; depth = args ! 3; cnode = extra_caps ! 0
+        in doE
+          whenE (first_port > last_port) $ throwError $ InvalidArgument 1;
+          check \<leftarrow> liftE $ is_ioport_range_free first_port last_port;
+          whenE (\<not>check) $ throwError RevokeFirst;
+
+          dest_slot \<leftarrow> lookup_target_slot cnode (data_to_cptr index) (unat depth);
+          ensure_empty dest_slot;
+          returnOk $ InvokeIOPortControl $ IOPortControlInvocation first_port last_port dest_slot slot
+        odE
+      else throwError TruncatedMessage
+    else throwError IllegalOperation"
+
 (*X64STUB*)
 definition
   decode_io_unmap_invocation :: "data \<Rightarrow> data list \<Rightarrow> cslot_ptr \<Rightarrow> arch_cap \<Rightarrow>
@@ -301,7 +334,7 @@ where
   PageCap dev p R map_type pgsz mapped_address \<Rightarrow>
     if invocation_type label = ArchInvocationLabel X64PageMap then
     if length args > 2 \<and> length extra_caps > 0
-    then let vaddr = args ! 0 && user_vtop;
+    then let vaddr = args ! 0;
              rights_mask = args ! 1;
              attr = args ! 2;
              vspace_cap = fst (extra_caps ! 0)
@@ -313,15 +346,15 @@ where
                                  | _ \<Rightarrow> throwError $ InvalidCapability 1);
              vspace' \<leftarrow> lookup_error_on_failure False $ find_vspace_for_asid asid;
              whenE (vspace' \<noteq> vspace) $ throwError $ InvalidCapability 1;
-             vtop \<leftarrow> returnOk $ vaddr + mask (pageBitsForSize pgsz);
-             whenE (vtop > user_vtop) $ throwError $ InvalidArgument 0;
+             vtop \<leftarrow> returnOk $ vaddr + bit (pageBitsForSize pgsz);
+             whenE (vaddr > user_vtop \<or> vtop > user_vtop) $ throwError $ InvalidArgument 0;
              vm_rights \<leftarrow> returnOk $ mask_vm_rights R (data_to_rights rights_mask);
              check_vp_alignment pgsz vaddr;
              entries \<leftarrow> create_mapping_entries (addrFromPPtr p) vaddr pgsz vm_rights
                                                (attribs_from_word attr) vspace;
              ensure_safe_mapping entries;
              returnOk $ InvokePage $ PageMap
-                       (ArchObjectCap $ PageCap dev p R map_type pgsz (Some (asid,vaddr))) cte entries vspace
+                       (ArchObjectCap $ PageCap dev p R VMVSpaceMap pgsz (Some (asid,vaddr))) cte entries vspace
           odE
     else throwError TruncatedMessage
     else if invocation_type label = ArchInvocationLabel X64PageRemap then
@@ -330,7 +363,7 @@ where
                   attr = args ! 1;
                   vspace_cap = fst (extra_caps ! 0)
          in doE
-             whenE (map_type = VMIOSpaceMap) $ throwError IllegalOperation;
+             whenE (map_type \<noteq> VMVSpaceMap) $ throwError IllegalOperation;
              (vspace,asid) \<leftarrow> (case vspace_cap of
                                   ArchObjectCap (PML4Cap pm (Some asid)) \<Rightarrow>
                                         returnOk (pm, asid)
@@ -338,12 +371,13 @@ where
              (asid',vaddr) \<leftarrow> (case mapped_address of
                                   Some a \<Rightarrow> returnOk a
                                 | _ \<Rightarrow> throwError $ InvalidCapability 0);
-             vspace' \<leftarrow> lookup_error_on_failure False $ find_vspace_for_asid asid;
+             vspace' \<leftarrow> lookup_error_on_failure False $ find_vspace_for_asid asid';
              whenE (vspace' \<noteq> vspace \<or> asid \<noteq> asid') $ throwError $ InvalidCapability 1;
              vm_rights \<leftarrow> returnOk $ mask_vm_rights R $ data_to_rights rights_mask;
              check_vp_alignment pgsz vaddr;
              entries \<leftarrow> create_mapping_entries (addrFromPPtr p) vaddr pgsz vm_rights
                                                (attribs_from_word attr) vspace;
+             ensure_safe_mapping entries;
              returnOk $ InvokePage $ PageRemap entries asid vspace
          odE
     else throwError TruncatedMessage
@@ -494,7 +528,7 @@ where
                root = fst (extra_caps ! 1)
       in doE
                asid_table \<leftarrow> liftE $ gets (x64_asid_table \<circ> arch_state);
-               free_set \<leftarrow> returnOk (- dom asid_table \<inter> {x. x \<le> 2 ^ asid_high_bits - 1});
+               free_set \<leftarrow> returnOk (- dom asid_table);
                whenE (free_set = {}) $ throwError DeleteFirst;
                free \<leftarrow> liftE $ select_ext (\<lambda>_. free_asid_select asid_table) free_set;
                base \<leftarrow> returnOk (ucast free << asid_low_bits);
@@ -524,8 +558,7 @@ where
                   whenE (pool_ptr = None) $ throwError $ FailedLookup False InvalidRoot;
                   whenE (p \<noteq> the pool_ptr) $ throwError $ InvalidCapability 0;
                   pool \<leftarrow> liftE $ get_asid_pool p;
-                  free_set \<leftarrow> returnOk
-                    (- dom pool \<inter> {x. x \<le> 2 ^ asid_low_bits - 1 \<and> ucast x + base \<noteq> 0});
+                  free_set \<leftarrow> returnOk (- dom pool \<inter> {x. ucast x + base \<noteq> 0});
                   whenE (free_set = {}) $ throwError DeleteFirst;
                   offset \<leftarrow> liftE $ select_ext (\<lambda>_. free_asid_pool_select pool base) free_set;
                   returnOk $ InvokeASIDPool $ Assign (ucast offset + base) p pd_cap_slot
@@ -535,18 +568,19 @@ where
       else throwError IllegalOperation
 
   | IOPortCap f l \<Rightarrow> decode_port_invocation label args (IOPortCap f l)
+  | IOPortControlCap \<Rightarrow> decode_ioport_control_invocation label args cte cap (map fst extra_caps)
   | PML4Cap a b \<Rightarrow> throwError IllegalOperation"
 
 definition
   arch_data_to_obj_type :: "nat \<Rightarrow> aobject_type option" where
  "arch_data_to_obj_type n \<equiv>
-  if      n = 0 then Some SmallPageObj
-  else if n = 1 then Some LargePageObj
+  if      n = 0 then Some PDPTObj
+  else if n = 1 then Some PML4Obj
   else if n = 2 then Some HugePageObj
-  else if n = 3 then Some PageTableObj
-  else if n = 4 then Some PageDirectoryObj
-  else if n = 5 then Some PDPTObj
-  else if n = 6 then Some PML4Obj
+  else if n = 3 then Some SmallPageObj
+  else if n = 4 then Some LargePageObj
+  else if n = 5 then Some PageTableObj
+  else if n = 6 then Some PageDirectoryObj
   else None"
 
 definition

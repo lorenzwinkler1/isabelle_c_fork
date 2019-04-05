@@ -12,8 +12,8 @@ theory CLevityCatch
 imports
   Include_C
   Move
-  "../../../lib/LemmaBucket_C"
-  "../../../lib/LemmaBucket"
+  "CLib.LemmaBucket_C"
+  "Lib.LemmaBucket"
 begin
 
 context begin interpretation Arch . (*FIXME: arch_split*)
@@ -120,14 +120,14 @@ lemma asUser_mapM_x:
   apply (rule ext)
   apply (rule bind_apply_cong [OF refl])+
   apply (clarsimp simp: in_monad dest!: fst_stateAssertD)
-  apply (drule use_valid, rule mapM_wp', rule asUser_tcb_at', assumption)
+  apply (drule use_valid, rule mapM_wp', rule asUser_typ_ats, assumption)
   apply (simp add: stateAssert_def get_def NonDetMonad.bind_def)
   done
 
 lemma asUser_get_registers:
   "\<lbrace>tcb_at' target\<rbrace>
      asUser target (mapM getRegister xs)
-   \<lbrace>\<lambda>rv s. obj_at' (\<lambda>tcb. map ((atcbContextGet o tcbArch) tcb) xs = rv) target s\<rbrace>"
+   \<lbrace>\<lambda>rv s. obj_at' (\<lambda>tcb. map ((user_regs o atcbContextGet o tcbArch) tcb) xs = rv) target s\<rbrace>"
   apply (induct xs)
    apply (simp add: mapM_empty asUser_return)
    apply wp
@@ -147,16 +147,6 @@ lemma asUser_get_registers:
    apply (wp getObject_tcb_wp)
   apply (clarsimp simp: getRegister_def simpler_gets_def
                         obj_at'_def)
-  done
-
-(* FIXME: should fall through to LemmaBucket or alike *)
-lemma is_aligned_neg_mask2 [simp]:
-  "is_aligned (a && ~~ mask n) n"
-  apply (cases "n < len_of TYPE('a)")
-   apply (simp add: and_not_mask)
-   apply (subst shiftl_t2n)
-   apply (rule is_aligned_mult_triv1)
-  apply (simp add: not_less NOT_mask power_overflow)
   done
 
 lemma projectKO_user_data_device:

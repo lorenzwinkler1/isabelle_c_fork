@@ -9,9 +9,10 @@
  *)
 
 theory jiraver105
-imports "../CTranslation"
+imports "CParser.CTranslation"
 begin
 
+external_file "jiraver105.c"
 install_C_file "jiraver105.c"
 
 end

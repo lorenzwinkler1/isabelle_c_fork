@@ -36,7 +36,10 @@ requalify_consts
   fromVPtr
   setTCBIPCBuffer
   postModifyRegisters
+  tlsBaseRegister
 end
+
+abbreviation "mapMaybe \<equiv> option_map"
 
 #INCLUDE_HASKELL SEL4/Object/TCB.lhs Arch= bodies_only NOT liftFnMaybe assertDerived archThreadGet archThreadSet asUser sanitiseRegister getSanitiseRegisterInfo
 

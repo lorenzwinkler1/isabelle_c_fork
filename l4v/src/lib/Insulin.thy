@@ -1,6 +1,14 @@
 (*
- * @TAG(NICTA_BSD)
+ * Copyright 2016, NICTA
  *
+ * This software may be distributed and modified according to the terms of
+ * the BSD 2-Clause license. Note that NO WARRANTY is provided.
+ * See "LICENSE_BSD2.txt" for details.
+ *
+ * @TAG(NICTA_BSD)
+ *)
+
+(*
  * Insulin.thy: regulate sugar in terms, thms and proof goals.
  *
  * Usage:
@@ -49,8 +57,11 @@
  * - Naive algorithm, takes \<approx>quadratic time.
  *)
 
-theory Insulin imports HOL
-  keywords "desugar_term" "desugar_thm" "desugar_goal" :: diag
+theory Insulin
+imports
+  Pure
+keywords
+  "desugar_term" "desugar_thm" "desugar_goal" :: diag
 begin
 
 (*
@@ -223,7 +234,7 @@ fun desugar ctxt (t0: term) (bads: string list): term =
       val _ = if null bads then error "Nothing to desugar" else ()
       fun rewrite t = let
         val counts0 = count t
-        fun improved t' = exists op< (count t' ~~ counts0)
+        fun improved t' = exists (<) (count t' ~~ counts0)
         val t' = rewrite_pass ctxt t improved escape_const
         in if forall (fn c => c = 0) (count t') (* bad strings gone *)
            then t'
