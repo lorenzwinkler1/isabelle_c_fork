@@ -8,7 +8,12 @@ executed as follows:
 isabelle jedit C11-FrontEnd/examples/C1.thy
 isabelle jedit C11-FrontEnd/examples/C2.thy
 isabelle jedit C11-FrontEnd/examples/C3.thy
-isabelle jedit l4v/examples/TestSEL4.thy
+
+isabelle jedit -d l4v/src l4v/examples/TestSEL4.thy
+
+For the last example, a sub-window 'Bad session structure' will be
+opened, but this can be ignored: after a click on 'OK', the
+compilation will correctly start.
 
 As short note, the version of the l4v project used is seL4-10.1.1.
 
