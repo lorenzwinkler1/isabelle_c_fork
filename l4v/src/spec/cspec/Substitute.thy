@@ -178,7 +178,7 @@ fun com_rewrite f t = case fastype_of t of
 
 fun mk_thy_relative' fic thy =
   IsarPreInstall.mk_thy_relative'
-    (IsarPreInstall.parse_files' fic #> single)
+    (IsarPreInstall.parse_files' fic)
     thy
     |> #2
 *}
