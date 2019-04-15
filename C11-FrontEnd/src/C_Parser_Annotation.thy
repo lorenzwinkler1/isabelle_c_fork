@@ -34,8 +34,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-theory C_Annotation
-  imports C_Parser
+theory C_Parser_Annotation
+  imports C_Environment
 begin
 
 section \<open>The Construction of an C-Context (analogously to the standard ML context)\<close>
@@ -129,6 +129,7 @@ end
 \<close>
 
 ML\<open>
+(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
 (*  Title:      Pure/Isar/token.ML
     Author:     Markus Wenzel, TU Muenchen
 
@@ -314,7 +315,7 @@ fun text_of tok =
 
 open Basic_Symbol_Pos;
 
-val err_prefix = "C outer lexical error: ";
+val err_prefix = "Annotation lexical error: ";
 
 fun scan_stack is_stack = Scan.optional (Scan.one is_stack >> content_of') []
 
@@ -356,7 +357,7 @@ fun token k ss =
 fun token_range k (pos1, (ss, pos2)) =
   Token (Symbol_Pos.implode_range (pos1, pos2) ss, (k, ss));
 
-fun scan_token keywords = Scanner.!!! "bad input"
+fun scan_token keywords = C_Scan.!!! "bad input"
   (Symbol_Pos.scan_string_qq err_prefix >> token_range Token.String ||
     scan_cartouche >> token_range Token.Cartouche ||
     scan_comment >> token_range (Token.Comment NONE) ||
@@ -424,7 +425,7 @@ fun read_with_commands' keywords scan syms =
          (Scan.bulk scan)
          (fn msg =>
            Scan.one (not o is_eof)
-           >> (fn tok => [Right
+           >> (fn tok => [C_Scan.Right
                            let
                              val msg = case is_error' tok of SOME msg0 => msg0 ^ " (" ^ msg ^ ")"
                                                            | NONE => msg
@@ -434,7 +435,7 @@ fun read_with_commands' keywords scan syms =
                            end])))
   |> Source.exhaust;
 
-fun read_antiq' keywords scan = read_with_commands' keywords (scan >> Left);
+fun read_antiq' keywords scan = read_with_commands' keywords (scan >> C_Scan.Left);
 end
 
 type 'a c_parser = 'a C_Token.parser;
@@ -442,6 +443,7 @@ type 'a c_context_parser = 'a C_Token.context_parser;
 \<close>
 
 ML\<open>
+(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
 (*  Title:      Pure/Isar/parse.ML
     Author:     Markus Wenzel, TU Muenchen
 
@@ -484,8 +486,8 @@ fun cut kind scan =
             end);
   in Scan.!! err scan end;
 
-fun !!! scan = cut "C outer syntax error" scan;
-fun !!!! scan = cut "Corrupted C outer syntax in presentation" scan;
+fun !!! scan = cut "Annotation syntax error" scan;
+fun !!!! scan = cut "Corrupted annotation syntax in presentation" scan;
 
 (** basic parsers **)
 
@@ -575,8 +577,8 @@ end
 \<close>
 
 ML\<open>
+(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
 (*  Title:      Pure/Isar/outer_syntax.ML
-    Author:     Frederic Tuong, Univ. Paris-Saclay
     Author:     Markus Wenzel, TU Muenchen
 
 Isabelle/Isar outer syntax.
@@ -593,13 +595,13 @@ fun err_command msg name ps =
   error (msg ^ quote (Markup.markup Markup.keyword1 name) ^ Position.here_list ps);
 
 fun err_dup_command name ps =
-  err_command "Duplicate C outer syntax command " name ps;
+  err_command "Duplicate annotation syntax command " name ps;
 
 
 (* command parsers *)
 
 datatype command_parser =
-  Parser of Symbol_Pos.T list * (bool * Symbol_Pos.T list) -> eval_time c_parser;
+  Parser of Symbol_Pos.T list * (bool * Symbol_Pos.T list) -> C_Transition.eval_time c_parser;
 
 datatype command = Command of
  {comment: string,
@@ -705,352 +707,6 @@ fun parse_command thy =
             in msg ^ quote (Markup.markup Markup.keyword1 name) end)
     end)
 end
-\<close>
-
-ML\<open>
-(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
-(*  Title:      Pure/ML/ml_context.ML
-    Author:     Makarius
-
-ML context and antiquotations.
-*)
-
-structure C_Context =
-struct
-
-(** ML antiquotations **)
-
-
-(* names for generated environment *)
-
-structure Names = Proof_Data
-(
-  type T = string * Name.context;
-  val init_names = ML_Syntax.reserved |> Name.declare "ML_context";
-  fun init _ = ("Isabelle0", init_names);
-);
-
-fun struct_name ctxt = #1 (Names.get ctxt);
-val struct_begin = (Names.map o apfst) (fn _ => "Isabelle" ^ serial_string ());
-
-fun variant a ctxt =
-  let
-    val names = #2 (Names.get ctxt);
-    val (b, names') = Name.variant (Name.desymbolize (SOME false) a) names;
-    val ctxt' = (Names.map o apsnd) (K names') ctxt;
-  in (b, ctxt') end;
-
-
-(* decl *)
-
-type decl = Proof.context -> string * string;  (*final context -> ML env, ML body*)
-
-fun value_decl a s ctxt =
-  let
-    val (b, ctxt') = variant a ctxt;
-    val env = "val " ^ b ^ " = " ^ s ^ ";\n";
-    val body = struct_name ctxt ^ "." ^ b;
-    fun decl (_: Proof.context) = (env, body);
-  in (decl, ctxt') end;
-
-
-(* theory data *)
-
-structure Antiquotations = Theory_Data
-(
-  type T = (Token.src -> Proof.context -> decl * Proof.context) Name_Space.table;
-  val empty : T = Name_Space.empty_table Markup.ML_antiquotationN;
-  val extend = I;
-  fun merge data : T = Name_Space.merge_tables data;
-);
-
-val get_antiquotations = Antiquotations.get o Proof_Context.theory_of;
-
-fun check_antiquotation ctxt =
-  #1 o Name_Space.check (Context.Proof ctxt) (get_antiquotations ctxt);
-
-fun add_antiquotation name f thy = thy
-  |> Antiquotations.map (Name_Space.define (Context.Theory thy) true (name, f) #> snd);
-
-fun print_antiquotations verbose ctxt =
-  Pretty.big_list "ML antiquotations:"
-    (map (Pretty.mark_str o #1) (Name_Space.markup_table verbose ctxt (get_antiquotations ctxt)))
-  |> Pretty.writeln;
-
-fun apply_antiquotation src ctxt =
-  let val (src', f) = Token.check_src ctxt get_antiquotations src
-  in f src' ctxt end;
-
-
-(* parsing and evaluation *)
-
-local
-
-val antiq =
-  Parse.!!! ((Parse.token Parse.liberal_name ::: Parse.args) --| Scan.ahead Parse.eof);
-
-fun make_env name visible =
-  (ML_Lex.tokenize
-    ("structure " ^ name ^ " =\nstruct\n\
-     \val ML_context = Context_Position.set_visible " ^ Bool.toString visible ^
-     " (Context.the_local_context ());\n"),
-   ML_Lex.tokenize "end;");
-
-fun reset_env name = ML_Lex.tokenize ("structure " ^ name ^ " = struct end");
-
-fun eval_antiquotes (ants, pos) opt_context =
-  let
-    val visible =
-      (case opt_context of
-        SOME (Context.Proof ctxt) => Context_Position.is_visible ctxt
-      | _ => true);
-    val opt_ctxt = Option.map Context.proof_of opt_context;
-
-    val ((ml_env, ml_body), opt_ctxt') =
-      if forall (fn Antiquote.Text _ => true | _ => false) ants
-      then (([], map (fn Antiquote.Text tok => tok) ants), opt_ctxt)
-      else
-        let
-          fun tokenize range = apply2 (ML_Lex.tokenize #> map (ML_Lex.set_range range));
-
-          fun expand_src range src ctxt =
-            let val (decl, ctxt') = apply_antiquotation src ctxt
-            in (decl #> tokenize range, ctxt') end;
-
-          fun expand (Antiquote.Text tok) ctxt = (K ([], [tok]), ctxt)
-            | expand (Antiquote.Control {name, range, body}) ctxt =
-                expand_src range
-                  (Token.make_src name (if null body then [] else [Token.read_cartouche body])) ctxt
-            | expand (Antiquote.Antiq {range, body, ...}) ctxt =
-                expand_src range
-                  (Token.read_antiq (Thy_Header.get_keywords' ctxt) antiq (body, #1 range)) ctxt;
-
-          val ctxt =
-            (case opt_ctxt of
-              NONE => error ("No context -- cannot expand ML antiquotations" ^ Position.here pos)
-            | SOME ctxt => struct_begin ctxt);
-
-          val (begin_env, end_env) = make_env (struct_name ctxt) visible;
-          val (decls, ctxt') = fold_map expand ants ctxt;
-          val (ml_env, ml_body) =
-            decls |> map (fn decl => decl ctxt') |> split_list |> apply2 flat;
-        in ((begin_env @ ml_env @ end_env, ml_body), SOME ctxt') end;
-  in ((ml_env, ml_body), opt_ctxt') end;
-
-fun scan_antiq context syms =
-  let val keywords = C_Thy_Header.get_keywords' (Context.proof_of context)
-  in ( C_Token.read_antiq'
-         keywords
-         (C_Parse.!!! (Scan.trace (C_Annotation.parse_command (Context.theory_of context))
-                       >> (I #>> Antiq_stack)))
-         syms
-     , C_Token.read_with_commands'0 keywords syms)
-  end
-
-fun print0 s =
-  maps
-    (fn C_Lex.Token (_, (t as C_Lex.Directive d, _)) =>
-        (s ^ @{make_string} t) :: print0 (s ^ "  ") (C_Lex.token_list_of d)
-      | C_Lex.Token (_, t) => 
-        [case t of (C_Lex.Char _, _) => "Text Char"
-                 | (C_Lex.String _, _) => "Text String"
-                 | _ => let val t' = @{make_string} (#2 t)
-                        in
-                          if String.size t' <= 2 then @{make_string} (#1 t)
-                          else
-                            s ^ @{make_string} (#1 t) ^ " "
-                              ^ (String.substring (t', 1, String.size t' - 2)
-                                 |> Markup.markup Markup.intensify)
-                        end])
-
-val print = tracing o cat_lines o print0 ""
-
-in
-
-fun eval flags pos ants =
-  let
-    val non_verbose = ML_Compiler.verbose false flags;
-
-    (*prepare source text*)
-    val ((env, body), env_ctxt) = eval_antiquotes (ants, pos) (Context.get_generic_context ());
-    val _ =
-      (case env_ctxt of
-        SOME ctxt =>
-          if Config.get ctxt ML_Options.source_trace andalso Context_Position.is_visible ctxt
-          then tracing (cat_lines [ML_Lex.flatten env, ML_Lex.flatten body])
-          else ()
-      | NONE => ());
-
-    (*prepare environment*)
-    val _ =
-      Context.setmp_generic_context
-        (Option.map (Context.Proof o Context_Position.set_visible false) env_ctxt)
-        (fn () =>
-          (ML_Compiler.eval non_verbose Position.none env; Context.get_generic_context ())) ()
-      |> (fn NONE => () | SOME context' => Context.>> (ML_Env.inherit context'));
-
-    (*eval body*)
-    val _ = ML_Compiler.eval flags pos body;
-
-    (*clear environment*)
-    val _ =
-      (case (env_ctxt, is_some (Context.get_generic_context ())) of
-        (SOME ctxt, true) =>
-          let
-            val name = struct_name ctxt;
-            val _ = ML_Compiler.eval non_verbose Position.none (reset_env name);
-            val _ = Context.>> (ML_Env.forget_structure name);
-          in () end
-      | _ => ());
-  in () end;
-
-fun eval'0 env err accept ants {context, reports_text} =
-  let val ants =
-        maps (fn Left (pos, antiq as {explicit, body, ...}, cts) =>
-                 let val (res, l_comm) = scan_antiq context body
-                 in 
-                   [ Left
-                       ( antiq
-                       , l_comm
-                       , if forall (fn Right _ => true | _ => false) res then
-                           let val (l_msg, res) = split_list (map_filter (fn Right (msg, l_report, l_tok) => SOME (msg, (l_report, l_tok)) | _ => NONE) res)
-                               val (l_report, l_tok) = split_list res
-                           in [(Antiq_none (C_Lex.Token (pos, ((C_Lex.Comment o Right o SOME) (explicit, cat_lines l_msg, if explicit then flat l_report else []), cts))), l_tok)] end
-                         else
-                           map (fn Left x => x
-                                 | Right (msg, l_report, tok) =>
-                                     (Antiq_none (C_Lex.Token (C_Token.range_of [tok], ((C_Lex.Comment o Right o SOME) (explicit, msg, l_report), C_Token.content_of tok))), [tok]))
-                               res) ]
-                 end
-               | Right tok => [Right tok])
-             ants
-
-      fun map_ants f1 f2 = maps (fn Left x => f1 x | Right tok => f2 tok) ants
-      fun map_ants' f1 = map_ants (fn (_, _, l) => maps f1 l) (K [])
-
-      val ants_stack =
-        map_ants (single o Left o (fn (a, _, l) => (a, maps (single o #1) l)))
-                 (single o Right)
-      val ants_none = map_ants' (fn (Antiq_none x, _) => [x] | _ => [])
-
-      val _ = Position.reports (maps (fn Left (_, _, [(Antiq_none _, _)]) => []
-                                       | Left ({start, stop, range = (pos, _), ...}, _, _) =>
-                                          (case stop of SOME stop => cons (stop, Markup.antiquote)
-                                                      | NONE => I)
-                                            [(start, Markup.antiquote),
-                                             (pos, Markup.language_antiquotation)]
-                                       | _ => [])
-                                     ants);
-      val _ = Position.reports_text (maps C_Lex.token_report ants_none
-                                     @ maps (fn Left (_, _, [(Antiq_none _, _)]) => []
-                                              | Left (_, l, ls) =>
-                                                  maps (fn (Antiq_stack (pos, _), _) => pos | _ => []) ls
-                                                  @ maps (maps (C_Token.reports ())) (l :: map #2 ls)
-                                              | _ => [])
-                                            ants);
-      val _ = C_Lex.check ants_none;
-
-      val ctxt = Context.proof_of context
-      val () = if Config.get ctxt C_Options.lexer_trace andalso Context_Position.is_visible ctxt
-               then print (map_filter (fn Right x => SOME x | _ => NONE) ants_stack)
-               else ()
-  in P.parse env err accept ants_stack {context = context, reports_text = reports_text} end
-
-fun eval' env err accept ants =
-  Context.>> (C_Env_Ext.context_map
-               let val tap_report = tap (Position.reports_text o #reports_text)
-                                    #> (C_Env.empty_env_tree o #context)
-               in eval'0 env
-                         (fn env_lang => fn stack => fn pos => tap_report #> err env_lang stack pos)
-                         (fn env_lang => fn stack => accept env_lang stack #> tap_report)
-                         ants
-               end)
-end;
-
-fun eval_source env err accept source =
-  eval' env err accept (C_Lex.read_source source);
-
-fun eval_source' env err accept source =
-  eval'0 env err accept (C_Lex.read_source source);
-
-end
-\<close>
-
-section \<open>\<close>
-
-ML\<open>
-local
-fun expression range name constraint body ants context = context |>
-  ML_Context.exec let val verbose = Config.get (Context.proof_of context) C_Options.ML_verbose
-                  in fn () =>
-    ML_Context.eval (ML_Compiler.verbose verbose ML_Compiler.flags) (#1 range)
-     (ML_Lex.read "Context.put_generic_context (SOME (let val " @ ML_Lex.read_set_range range name @
-      ML_Lex.read (": " ^ constraint ^ " =") @ ants @
-      ML_Lex.read ("in " ^ body ^ " end (Context.the_generic_context ())));")) end;
-
-structure C_Toplevel =
-struct
-val theory = Context.map_theory
-val generic_theory = I
-end
-
-structure Isar_Cmd0 = 
-struct
-fun ML source =  ML_Context.exec (fn () =>
-                    ML_Context.eval_source (ML_Compiler.verbose true ML_Compiler.flags) source) #>
-                  Local_Theory.propagate_ml_env
-end
-
-structure C_Isar_Cmd = 
-struct
-fun setup src =
- fn NONE =>
-    let val setup = "setup"
-    in expression
-        (Input.range_of src)
-        setup
-        "stack_data -> stack_data_elem -> C_Env.env_lang -> Context.generic -> Context.generic"
-        ("fn context => \
-           \let val (stack, env_lang) = Stack_Data_Lang.get context \
-           \in " ^ setup ^ " stack (stack |> hd) env_lang end context")
-        (ML_Lex.read_source false src) end
-  | SOME rule => 
-    let val hook = "hook"
-    in expression
-        (Input.range_of src)
-        hook
-        ("stack_data -> " ^ MlyValue.type_reduce rule ^ " stack_elem -> C_Env.env_lang -> Context.generic -> Context.generic")
-        ("fn context => \
-           \let val (stack, env_lang) = Stack_Data_Lang.get context \
-           \in " ^ hook ^ " stack (stack |> hd |> map_svalue0 MlyValue.reduce" ^ Int.toString rule ^ ") env_lang end context")
-        (ML_Lex.read_source false src)
-    end
-
-end
-
-fun command0 f dir name =
-  C_Annotation.command' name ""
-    (fn (stack1, (to_delay, stack2)) =>
-      C_Parse.range C_Parse.ML_source >>
-        (fn (src, range) =>
-          Once ((stack1, stack2), (range, dir, to_delay, K (f src)))))
-
-fun command f dir name =
-  C_Annotation.command' name ""
-    (fn (stack1, (to_delay, stack2)) =>
-      C_Parse.range C_Parse.ML_source >>
-        (fn (src, range) =>
-          Once ((stack1, stack2), (range, dir, to_delay, f src))))
-
-in
-val _ = Theory.setup (   command (C_Toplevel.generic_theory oo C_Isar_Cmd.setup) Bottom_up ("\<approx>setup", \<^here>)
-                      #> command (C_Toplevel.generic_theory oo C_Isar_Cmd.setup) Top_down ("\<approx>setup\<Down>", \<^here>)
-                      #> command0 (C_Toplevel.theory o Isar_Cmd.setup) Bottom_up ("setup", \<^here>)
-                      #> command0 (C_Toplevel.theory o Isar_Cmd.setup) Top_down ("setup\<Down>", \<^here>)
-                      #> command0 (C_Toplevel.generic_theory o Isar_Cmd0.ML) Bottom_up ("ML", \<^here>)
-                      #> command0 (C_Toplevel.generic_theory o Isar_Cmd0.ML) Top_down ("ML\<Down>", \<^here>))
-end
-
 \<close>
 
 end

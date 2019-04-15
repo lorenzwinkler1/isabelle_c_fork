@@ -35,7 +35,7 @@
  ******************************************************************************)
 
 theory C1
-  imports "../semantic-backends/AutoCorres/AC_Command"
+  imports "../C_Main"
 begin
 
 declare[[C_lexer_trace]]
@@ -239,19 +239,6 @@ setup \<open>Context.theory_map (Example_Data.put [])\<close>
 declare[[ML_source_trace]]
 declare[[C_parser_trace]]
 
-C \<comment> \<open>Arbitrary interleaving of effects\<close> \<open>
-int x /** OWNED_BY foo */, hh /*@
-  MODIFIES: [*] x
-  \<approx>setup \<open>@{print_stack "evaluation of 2_print_stack"}\<close>
-  +++++@@ \<approx>setup \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "2_print_top"\<close>
-  OWNED_BY bar
-  @\<approx>setup \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "1_print_top"\<close>
-  \<approx>setup \<open>@{print_stack "evaluation of 1_print_stack"}\<close>
-*/, z;
-
-int b = 0;
-\<close>
-
 C \<comment> \<open>Arbitrary interleaving of effects: \<open>\<approx>setup\<close> vs \<open>\<approx>setup\<Down>\<close>\<close> \<open>
 int b,c,d/*@@ \<approx>setup \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "3_print_top"\<close> */,e = 0; /*@@ \<approx>setup \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "4_print_top"\<close> */
 int b,c,d/*@@ \<approx>setup\<Down> \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "6_print_top"\<close> */,e = 0; /*@@ \<approx>setup\<Down> \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "5_print_top"\<close> */
@@ -285,15 +272,13 @@ declare [[C_parser_trace = false]]
 
 ML\<open>
 fun show_env0 make_string f msg context =
-  warning ("(" ^ msg ^ ") "
-           ^ make_string (f (the (Symtab.lookup (#tab (C11_core.Data.get context))
-                                                (Context.theory_name (Context.theory_of context))))))
+  warning ("(" ^ msg ^ ") " ^ make_string (f (C_Module.get_module' context |> #1)))
 
 val show_env = tap o show_env0 @{make_string} length
 
-val C = tap o C_Outer_Syntax.C
-val C' = C_Outer_Syntax.C' (fn _ => fn _ => fn pos =>
-                             tap (fn _ => warning ("Parser: No matching grammar rule " ^ Position.here pos)))
+val C = tap o C_Module.C
+val C' = C_Module.C' (fn _ => fn _ => fn pos =>
+                       tap (fn _ => warning ("Parser: No matching grammar rule " ^ Position.here pos)))
 \<close>
 
 C \<comment> \<open>Nesting C code without propagating the C environment\<close> \<open>
@@ -316,18 +301,13 @@ subsubsection \<open>3\<close>
 
 ML\<open>
 local
-fun command dir f_cmd name =
-  C_Annotation.command' name ""
-    (fn (stack1, (to_delay, stack2)) =>
-      C_Parse.range C_Parse.ML_source >>
-        (fn (src, range) =>
-          (fn f => Once ((stack1, stack2), (range, dir, to_delay, f)))
-            (fn _ => fn context => f_cmd (Stack_Data_Lang.get context |> #2) src context)))
+fun command dir f_cmd =
+  C_Inner_Syntax.command0 
+    (fn src => fn context => f_cmd (C_Stack.Data_Lang.get context |> #2) src context)
+    dir
 in
-val _ = Theory.setup (   command Bottom_up (K C) ("C", \<^here>)
-                      #> command Top_down (K C) ("C_reverse", \<^here>)
-                      #> command Bottom_up C' ("C'", \<^here>)
-                      #> command Top_down C' ("C'_reverse", \<^here>))
+val _ = Theory.setup (   command C_Transition.Bottom_up C' ("C'", \<^here>)
+                      #> command C_Transition.Top_down C' ("C'\<Down>", \<^here>))
 end
 \<close>
 
@@ -352,42 +332,37 @@ int f (int a) {
 
 subsubsection \<open>4\<close>
 
-ML\<open>
-fun command_c' name _ _ _ =
-  Context.map_theory 
-    (C_Annotation.command' name ""
-      (fn (stack1, (to_delay, stack2)) =>
-        C_Parse.range C_Parse.ML_source >>
-          (fn (src, range) =>
-            (fn f => Once ((stack1, stack2), (range, Bottom_up, to_delay, f)))
-              (fn _ => fn context => C' (Stack_Data_Lang.get context |> #2) src context))))
+C \<comment> \<open>Propagation of report environment while manually composing at ML level (with \<open>#>\<close>)\<close>
+  \<comment> \<open>In \<open>c1 #> c2\<close>, \<open>c1\<close> and \<open>c2\<close> should not interfere each other.\<close> \<open>
+//@ ML \<open>fun C_env src _ _ env = C' env src\<close>
+int a;
+int f (int b) {
+int c = 0; /*@ \<approx>setup \<open>fn _ => fn _ => fn env =>
+     C' env \<open>int d = a + b + c + d; //@ \<approx>setup \<open>C_env \<open>int e = a + b + c + d;\<close>\<close>\<close>
+  #> C      \<open>int d = a + b + c + d; //@ \<approx>setup \<open>C_env \<open>int e = a + b + c + d;\<close>\<close>\<close>
+  #> C' env \<open>int d = a + b + c + d; //@ \<approx>setup \<open>C_env \<open>int e = a + b + c + d;\<close>\<close>\<close>
+  #> C      \<open>int d = a + b + c + d; //@ \<approx>setup \<open>C_env \<open>int e = a + b + c + d;\<close>\<close>\<close>
+\<close> */
+int e = a + b + c + d;
+}\<close>
 
-fun fun_decl a v s ctxt =
-  let
-    val (b, ctxt') = ML_Context.variant a ctxt;
-    val env = "fun " ^ b ^ " " ^ v ^ " = " ^ s ^ " " ^ v ^ ";\n";
-    val body = ML_Context.struct_name ctxt ^ "." ^ b;
-    fun decl (_: Proof.context) = (env, body);
-  in (decl, ctxt') end;
-
-val _ = Theory.setup
-  (ML_Antiquotation.declaration (Binding.make ("C_def", \<^here>)) (Scan.lift (Parse.position Parse.name))
-    (fn _ => fn (name, pos) =>
-      tap (fn ctxt => Context_Position.reports ctxt [(pos, Markup.keyword1)]) #>
-      fun_decl "cmd" "x" ("command_c' (\"" ^ name ^ "\", " ^ ML_Syntax.print_position pos ^ ")")))
-
+C \<comment> \<open>Propagation of directive environment (evaluated before parsing)
+      to any other annotations (evaluated at parsing time)\<close> \<open>
+#undef int
+#define int(a,b) int
+#define int int
+int a;
+int f (int b) {
+int c = 0; /*@ \<approx>setup \<open>fn _ => fn _ => fn env =>
+     C' env \<open>int d = a + b + c + d; //@ \<approx>setup \<open>C_env \<open>int e = a + b + c + d;\<close>\<close>\<close>
+  #> C      \<open>int d = a + b + c + d; //@ \<approx>setup \<open>C_env \<open>int e = a + b + c + d;\<close>\<close>\<close>
+  #> C' env \<open>int d = a + b + c + d; //@ \<approx>setup \<open>C_env \<open>int e = a + b + c + d;\<close>\<close>\<close>
+  #> C      \<open>int d = a + b + c + d; //@ \<approx>setup \<open>C_env \<open>int e = a + b + c + d;\<close>\<close>\<close>
+\<close> */
+#undef int
+int e = a + b + c + d;
+}
 \<close>
-
-C \<comment> \<open>Miscellaneous\<close> \<open>
-int f (int a) {
-  int b = 7
-    /*@ @@ C' \<open>int c = 0; //@ C++ \<open>int d = c; //@ \<approx>setup \<open>@{C_def "C#"}\<close> \
-                                                  C++ \<open>int d = c + a;\<close>\<close>
-                          //@ \<approx>setup \<open>fn _ => fn _ => fn _ => \
-                                  C \<open>int b = a; //@ C# \<open>int d = c + a;\<close>\<close>\<close>\<close>
-         @ \<approx>setup \<open>@{C_def "C++"}\<close>
-     */;
-} \<close>
 
 subsubsection \<open>5\<close>
 
@@ -412,6 +387,10 @@ j j = jj;
 
 ML\<open>show_env "POSITION 3" (Context.Theory @{theory})\<close>
 
+subsubsection \<open>6\<close>
+
+declare [[C_propagate_env]]
+
 C \<comment> \<open>Propagation of Updates\<close> \<open>
 int a = 0;
 int b = a * a + 0;
@@ -423,6 +402,12 @@ int main2 () {
   int main () { main2() + main(); }
   return a + jjj + main3() + main(); }
 \<close>
+
+C \<open>
+int main3 () { main2 (); }
+\<close>
+
+declare [[C_propagate_env = false]]
 
 section \<open>Miscellaneous\<close>
 

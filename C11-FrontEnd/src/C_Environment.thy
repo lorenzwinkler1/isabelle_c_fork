@@ -34,7 +34,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-theory C_Env
+theory C_Environment
   imports C_Lexer
 begin
 
@@ -44,30 +44,33 @@ text\<open>The key element of this following structure is the type \verb+eval_ti
 the generic annotation module. \<close>
 
 ML\<open>
-
-structure C_Annot_Result =
+structure C_Transition =
 struct
+
+datatype comment_style = Comment_directive
+                       | Comment_language
 
 datatype env_propagation = Bottom_up (*during parsing*) | Top_down (*after parsing*)
 
+type env_directives = (Position.T list * serial * C_Lex.token list) Symtab.table
+
 type eval_node = Position.range
                  * env_propagation
+                 * env_directives
                  * bool (* true: skip vacuous reduce rules *)
                  * (int (*reduce rule number*) option (* NONE: shift action *)
                     -> Context.generic -> Context.generic)
 
-datatype eval_time = Once of (Symbol_Pos.T list (* length = number of tokens to advance *) 
-                             * Symbol_Pos.T list (* length = number of steps back in stack *)) 
-                             * eval_node
+datatype eval_time = Lexing of Position.range * (comment_style -> Context.generic -> Context.generic)
+                   | Parsing of (Symbol_Pos.T list (* length = number of tokens to advance *) 
+                                 * Symbol_Pos.T list (* length = number of steps back in stack *)) 
+                                 * eval_node
                    | Never (* to be manually treated by the semantic back-end, and analyzed there *)
 
-type reports_text = Position.report_text list
-
-datatype antiq_language = Antiq_stack of reports_text * eval_time
+datatype antiq_language = Antiq_stack of C_Position.reports_text * eval_time
                         | Antiq_none of C_Lex.token
 end;
 
-open C_Annot_Result; (* Temporary hack --- to be removed *)
 \<close>
 
 section \<open>The Lexing-based C Environment\<close>
@@ -78,21 +81,22 @@ ML\<open>
 structure C_Env = struct
 datatype 'a parse_status = Parsed of 'a | Previous_in_stack
 type var_table = { tyidents : (Position.T list * serial) Symtab.table
-                 , idents : (Position.T list * serial * bool (*true: global*) * CDerivedDeclr list 
-                             * CDeclSpec list parse_status) Symtab.table }
+                 , idents : (Position.T list * serial * bool (*true: global*) * C_Ast.CDerivedDeclr list 
+                             * C_Ast.CDeclSpec list parse_status) Symtab.table }
 
-type 'antiq_language_list stream = ('antiq_language_list, C_Lex.token) either list
+type 'antiq_language_list stream = ('antiq_language_list, C_Lex.token) C_Scan.either list
 
 type env_lang = { var_table : var_table
                 , scopes : var_table list
                 , namesupply : int
-                , stream_ignored : C_Antiquote.antiq stream }
+                , stream_ignored : C_Antiquote.antiq stream
+                , env_directives : C_Transition.env_directives }
 (* NOTE: The distinction between type variable or identifier can not be solely made
          during the lexing process.
          Another pass on the parsed tree is required. *)
 
 type env_tree = { context : Context.generic
-                , reports_text : reports_text }
+                , reports_text : C_Position.reports_text }
 
 type rule_static = (env_tree -> env_lang * env_tree) option
 
@@ -101,8 +105,8 @@ type rule_static = (env_tree -> env_lang * env_tree) option
 type ('LrTable_state, 'a, 'Position_T) stack_elem0 = 'LrTable_state * ('a * 'Position_T * 'Position_T)
 type ('LrTable_state, 'a, 'Position_T) stack0 = ('LrTable_state, 'a, 'Position_T) stack_elem0 list
 
-type ('LrTable_state, 'svalue0, 'pos) rule_reduce0 = (('LrTable_state, 'svalue0, 'pos) stack0 * env_lang * eval_node) list
-type ('LrTable_state, 'svalue0, 'pos) rule_reduce = int * ('LrTable_state, 'svalue0, 'pos) stack0 * eval_node list list
+type ('LrTable_state, 'svalue0, 'pos) rule_reduce0 = (('LrTable_state, 'svalue0, 'pos) stack0 * env_lang * C_Transition.eval_node) list
+type ('LrTable_state, 'svalue0, 'pos) rule_reduce = int * ('LrTable_state, 'svalue0, 'pos) stack0 * C_Transition.eval_node list list
 type ('LrTable_state, 'svalue0, 'pos) rule_reduce' = int * bool (*vacuous*) * ('LrTable_state, 'svalue0, 'pos) rule_reduce0
 
 datatype ('LrTable_state, 'svalue0, 'pos) rule_type =
@@ -121,22 +125,30 @@ type 'class_Pos rule_output0' = { output_pos : 'class_Pos option
                                 , output_env : rule_static }
 
 type ('LrTable_state, 'svalue0, 'pos) rule_output0 =
-                                 eval_node list list (* delayed *)
+                                 C_Transition.eval_node list list (* delayed *)
                                * ('LrTable_state, 'svalue0, 'pos) rule_reduce0 (* actual *)
                                * ('pos * 'pos) rule_output0'
 
-type rule_output = class_Pos rule_output0'
+type rule_output = C_Ast.class_Pos rule_output0'
 
 (**)
 
 type T = { env_lang : env_lang
          , env_tree : env_tree
          , rule_output : rule_output
-         , rule_input : class_Pos list * int
-         , stream_hook : (Symbol_Pos.T list * Symbol_Pos.T list * eval_node) list list
-         , stream_lang : (C_Antiquote.antiq * antiq_language list) stream }
+         , rule_input : C_Ast.class_Pos list * int
+         , stream_hook : (Symbol_Pos.T list * Symbol_Pos.T list * C_Transition.eval_node) list list
+         , stream_lang : (C_Antiquote.antiq * C_Transition.antiq_language list) stream }
+
+(**)
 
 datatype 'a tree = Tree of 'a * 'a tree list
+
+type ('LrTable_state, 'a, 'Position_T) stack' =
+     ('LrTable_state, 'a, 'Position_T) stack0
+   * C_Transition.eval_node list list
+   * ('Position_T * 'Position_T) list
+   * ('LrTable_state, 'a, 'Position_T) rule_ml tree list
 
 (**)
 
@@ -185,21 +197,25 @@ fun map_idents f {tyidents, idents} =
 
 (**)
 
-fun map_var_table f {var_table, scopes, namesupply, stream_ignored} =
+fun map_var_table f {var_table, scopes, namesupply, stream_ignored, env_directives} =
                     {var_table = f var_table, scopes = scopes, namesupply = namesupply, 
-                     stream_ignored = stream_ignored}
+                     stream_ignored = stream_ignored, env_directives = env_directives}
 
-fun map_scopes f {var_table, scopes, namesupply, stream_ignored} =
+fun map_scopes f {var_table, scopes, namesupply, stream_ignored, env_directives} =
                      {var_table = var_table, scopes = f scopes, namesupply = namesupply, 
-                      stream_ignored = stream_ignored}
+                      stream_ignored = stream_ignored, env_directives = env_directives}
 
-fun map_namesupply f {var_table, scopes, namesupply, stream_ignored} =
+fun map_namesupply f {var_table, scopes, namesupply, stream_ignored, env_directives} =
                      {var_table = var_table, scopes = scopes, namesupply = f namesupply, 
-                      stream_ignored = stream_ignored}
+                      stream_ignored = stream_ignored, env_directives = env_directives}
 
-fun map_stream_ignored f {var_table, scopes, namesupply, stream_ignored} =
+fun map_stream_ignored f {var_table, scopes, namesupply, stream_ignored, env_directives} =
                      {var_table = var_table, scopes = scopes, namesupply = namesupply, 
-                      stream_ignored = f stream_ignored}
+                      stream_ignored = f stream_ignored, env_directives = env_directives}
+
+fun map_env_directives f {var_table, scopes, namesupply, stream_ignored, env_directives} =
+                     {var_table = var_table, scopes = scopes, namesupply = namesupply, 
+                      stream_ignored = stream_ignored, env_directives = f env_directives}
 
 (**)
 
@@ -213,7 +229,8 @@ fun map_reports_text f {context, reports_text} =
 
 val empty_env_lang : env_lang = 
         {var_table = {tyidents = Symtab.make [], idents = Symtab.make []}, 
-         scopes = [], namesupply = 0(*"mlyacc_of_happy"*), stream_ignored = []}
+         scopes = [], namesupply = 0(*"mlyacc_of_happy"*), stream_ignored = [],
+         env_directives = Symtab.empty}
 fun empty_env_tree context =
         {context = context, reports_text = []}
 val empty_rule_output : rule_output = 
@@ -224,10 +241,10 @@ fun make env_lang stream_lang env_tree =
          , rule_output = empty_rule_output
          , rule_input = ([], 0)
          , stream_hook = []
-         , stream_lang = map_filter (fn Right (C_Lex.Token (_, (C_Lex.Space, _))) => NONE
-                                      | Right (C_Lex.Token (_, (C_Lex.Comment _, _))) => NONE
-                                      | Right tok => SOME (Right tok)
-                                      | Left antiq => SOME (Left antiq))
+         , stream_lang = map_filter (fn C_Scan.Right (C_Lex.Token (_, (C_Lex.Space, _))) => NONE
+                                      | C_Scan.Right (C_Lex.Token (_, (C_Lex.Comment _, _))) => NONE
+                                      | C_Scan.Right tok => SOME (C_Scan.Right tok)
+                                      | C_Scan.Left antiq => SOME (C_Scan.Left antiq))
                                     stream_lang }
 fun string_of (env_lang : env_lang) = 
   let fun dest0 x = x |> Symtab.dest |> map #1
@@ -253,7 +270,9 @@ val decode_positions =
           #> Position.make)
 
 end
+\<close>
 
+ML\<open>
 structure C_Env_Ext =
 struct
 
@@ -298,6 +317,13 @@ fun get_reports_text (t : C_Env.T) = #env_tree t |> #reports_text
 
 (**)
 
+fun map_env_directives' f {var_table, scopes, namesupply, stream_ignored, env_directives} =
+  let val (res, env_directives) = f env_directives
+  in (res, {var_table = var_table, scopes = scopes, namesupply = namesupply, 
+                      stream_ignored = stream_ignored, env_directives = env_directives}) end
+
+(**)
+
 fun map_stream_lang' f {env_lang, env_tree, rule_output, rule_input, stream_hook, stream_lang} =
   let val (res, stream_lang) = f stream_lang
   in (res, {env_lang = env_lang, env_tree = env_tree, rule_output = rule_output, 
@@ -310,85 +336,6 @@ fun context_map (f : C_Env.env_tree -> C_Env.env_tree) =
 
 
 end 
-
-\<close>
-
-
-section \<open>Old C11 Env - deprecated?\<close>
-
-ML\<open>
-structure C11_core = 
-struct
-  datatype id_kind = cpp_id        of Position.T * serial
-                   | cpp_macro     of Position.T * serial
-                   | builtin_id  
-                   | builtin_func 
-                   | imported_id   of Position.T * serial
-                   | imported_func of Position.T * serial 
-                   | global_id     of Position.T * serial
-                   | local_id      of Position.T * serial
-                   | global_func   of Position.T * serial
-
-
-  type new_env_type  = { 
-                        cpp_id       :  unit Name_Space.table,
-                        cpp_macro    :  unit Name_Space.table,
-                        builtin_id   : unit Name_Space.table,
-                        builtin_func : unit Name_Space.table,
-                        global_var   : (NodeInfo C_ast_simple.cTypeSpecifier) Name_Space.table,
-                        local_var    : (NodeInfo C_ast_simple.cTypeSpecifier) Name_Space.table,
-                        global_func  : (NodeInfo C_ast_simple.cTypeSpecifier) Name_Space.table
-  }
-
-  val mt_env = {cpp_id       = Name_Space.empty_table "cpp_id",
-                cpp_macro    = Name_Space.empty_table "cpp_macro", 
-                builtin_id   = Name_Space.empty_table "builtin_id",
-                builtin_func = Name_Space.empty_table "builtin_func",
-                global_var   = Name_Space.empty_table "global_var",
-                local_var    = Name_Space.empty_table "local_var",
-                global_func  = Name_Space.empty_table "global_func"
-  }
-
-
-  type c_file_name      = string
-  type C11_struct       = { tab  : (CTranslUnit * C_Antiquote.antiq C_Env.stream) list Symtab.table,
-                            env  : id_kind list Symtab.table }
-  val  C11_struct_empty = { tab  = Symtab.empty, env = Symtab.empty}
-
-  fun map_tab f {tab, env} = {tab = f tab, env=env}
-  fun map_env f {tab, env} = {tab = tab, env=f env}
-
-  (* registrating data of the Isa_DOF component *)
-  structure Data = Generic_Data
-  (
-    type T =     C11_struct
-    val empty = C11_struct_empty
-    val extend =  I
-    fun merge(t1,t2) = { tab = Symtab.merge (op =) (#tab t1, #tab t2),
-                         env = Symtab.merge (op =) (#env t1, #env t2)}
-  );
-
-  val get_global      = Data.get o Context.Theory
-  fun put_global x    = Data.put x;
-  val map_data        = Context.theory_map o Data.map;
-  val map_data_global = Context.theory_map o Data.map
-  
-  val trans_tab_of    = #tab o get_global
-  val dest_list       = Symtab.dest_list o trans_tab_of
-
-  fun push_env(k,a) tab = case Symtab.lookup tab k of
-                        NONE => Symtab.update(k,[a])(tab)
-                     |  SOME S => Symtab.update(k,a::S)(tab)
-  fun pop_env(k) tab = case Symtab.lookup tab k of
-                       SOME (a::S) => Symtab.update(k,S)(tab)
-                     | _ => error("internal error - illegal break of scoping rules")
-  
-  fun push_global (k,a) =  (map_data_global o map_env) (push_env (k,a)) 
-  fun push (k,a)        =  (map_data        o map_env) (push_env (k,a)) 
-  fun pop_global (k)    =  (map_data_global o map_env) (pop_env k) 
-  fun pop (k)           =  (map_data        o map_env) (pop_env k) 
-
-end
 
 \<close>
 

@@ -1,9 +1,7 @@
 (******************************************************************************
- * A Meta-Model for the Language.C Haskell Library
+ * Generation of Language.C Grammar with ML Interface Binding
  *
- * Copyright (c) 2016-2017 Nanyang Technological University, Singapore
- *               2017-2018 Virginia Tech, USA
- *               2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
  * All rights reserved.
  *
@@ -36,25 +34,36 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-theory C_Model_init
-  imports "FOCL.Printer_init"
-          "FOCL.Old_Datatype"
+theory C_autocorres
+  imports "../semantic-backends/AutoCorres/AC_Command"
 begin
 
-type_synonym int = integer
-type_synonym string = abr_string
-notation Some ("Just")
-notation None ("Nothing")
+ML\<open>
+structure Example_Data = Generic_Data (type T = string list
+                                      val empty = [] val extend = I val merge = #2)
+fun add_ex s1 s2 =
+  Example_Data.map (cons s2)
+  #> (fn context => let val () = warning (s1 ^ s2)
+                        val () = app (fn s => writeln ("  Data content: " ^ s)) (Example_Data.get context)
+                    in context end)
+\<close>
 
-old_datatype 'a option = None | Some 'a
-old_datatype ('a, 'b) Either = Left 'a | Right 'b
+setup \<open>Context.theory_map (Example_Data.put [])\<close>
 
-hide_type (open) option
-hide_const (open) None Some
+declare[[ML_source_trace]]
+declare[[C_parser_trace]]
 
-hide_type (open) Either
-hide_const (open) Left Right
+C \<comment> \<open>Arbitrary interleaving of effects\<close> \<open>
+int x /** OWNED_BY foo */, hh /*@
+  MODIFIES: [*] x
+  \<approx>setup \<open>@{print_stack "evaluation of 2_print_stack"}\<close>
+  +++++@@ \<approx>setup \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "2_print_top"\<close>
+  OWNED_BY bar
+  @\<approx>setup \<open>fn s => fn x => fn env => @{print_top} s x env #> add_ex "evaluation of " "1_print_top"\<close>
+  \<approx>setup \<open>@{print_stack "evaluation of 1_print_stack"}\<close>
+*/, z;
 
-declare [[cartouche_type' = "abr_string"]]
+int b = 0;
+\<close>
 
 end

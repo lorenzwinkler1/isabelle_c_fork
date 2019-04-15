@@ -34,26 +34,86 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-theory C_Parser
-  imports C_Env
+theory C_Parser_Language
+  imports C_Environment
 begin
 
 section \<open>Instantiation of the Parser with the Lexer\<close>
 
 ML\<open>
-signature HSK_C_PARSER =
+signature C_GRAMMAR_RULE_LIB =
 sig
   type arg = C_Env.T
-  type 'a p (* name of the monad, similar as the one declared in Parser.y *) = arg -> 'a * arg
+  type 'a monad = arg -> 'a * arg
 
-  (**)
-  val return : 'a -> 'a p
-  val bind : 'a p -> ('a -> 'b p) -> 'b p
-  val bind' : 'b p -> ('b -> unit p) -> 'b p
-  val >> : unit p * 'a p -> 'a p
+  (* type aliases *)
+  type class_Pos = C_Ast.class_Pos
+    (**)
+  type NodeInfo = C_Ast.nodeInfo
+  type CStorageSpec = NodeInfo C_Ast.cStorageSpecifier
+  type CFunSpec = NodeInfo C_Ast.cFunctionSpecifier
+  type CConst = NodeInfo C_Ast.cConstant
+  type 'a CInitializerList = ('a C_Ast.cPartDesignator List.list * 'a C_Ast.cInitializer) List.list
+  type CTranslUnit = NodeInfo C_Ast.cTranslationUnit
+  type CExtDecl = NodeInfo C_Ast.cExternalDeclaration
+  type CFunDef = NodeInfo C_Ast.cFunctionDef
+  type CDecl = NodeInfo C_Ast.cDeclaration
+  type CDeclr = NodeInfo C_Ast.cDeclarator
+  type CDerivedDeclr = NodeInfo C_Ast.cDerivedDeclarator
+  type CArrSize = NodeInfo C_Ast.cArraySize
+  type CStat = NodeInfo C_Ast.cStatement
+  type CAsmStmt = NodeInfo C_Ast.cAssemblyStatement
+  type CAsmOperand = NodeInfo C_Ast.cAssemblyOperand
+  type CBlockItem = NodeInfo C_Ast.cCompoundBlockItem
+  type CDeclSpec = NodeInfo C_Ast.cDeclarationSpecifier
+  type CTypeSpec = NodeInfo C_Ast.cTypeSpecifier
+  type CTypeQual = NodeInfo C_Ast.cTypeQualifier
+  type CAlignSpec = NodeInfo C_Ast.cAlignmentSpecifier
+  type CStructUnion = NodeInfo C_Ast.cStructureUnion
+  type CEnum = NodeInfo C_Ast.cEnumeration
+  type CInit = NodeInfo C_Ast.cInitializer
+  type CInitList = NodeInfo CInitializerList
+  type CDesignator = NodeInfo C_Ast.cPartDesignator
+  type CAttr = NodeInfo C_Ast.cAttribute
+  type CExpr = NodeInfo C_Ast.cExpression
+  type CBuiltin = NodeInfo C_Ast.cBuiltinThing
+  type CStrLit = NodeInfo C_Ast.cStringLiteral
+    (**)
+  type ClangCVersion = C_Ast.clangCVersion
+  type Ident = C_Ast.ident
+  type Position = C_Ast.position
+  type PosLength = Position * int
+  type Name = C_Ast.name
+  type Bool = bool
+  type CString = C_Ast.cString
+  type CChar = C_Ast.cChar
+  type CInteger = C_Ast.cInteger
+  type CFloat = C_Ast.cFloat
+  type CStructTag = C_Ast.cStructTag
+  type CUnaryOp = C_Ast.cUnaryOp
+  type 'a CStringLiteral = 'a C_Ast.cStringLiteral
+  type 'a CConstant = 'a C_Ast.cConstant
+  type ('a, 'b) Either = ('a, 'b) C_Ast.either
+  type CIntRepr = C_Ast.cIntRepr
+  type CIntFlag = C_Ast.cIntFlag
+  type CAssignOp = C_Ast.cAssignOp
+  type Comment = C_Ast.comment
+    (**)
+  type 'a Reversed = 'a C_Ast.Reversed
+  type CDeclrR = C_Ast.CDeclrR
+  type 'a Maybe = 'a C_Ast.optiona
+  type 'a Located = 'a C_Ast.Located
+    (**)
+  structure List : sig val reverse : 'a list -> 'a list end
 
-  (**)
-  val report : Position.T list -> ('a -> Markup.T list) -> 'a -> reports_text -> reports_text
+  (* monadic operations *)
+  val return : 'a -> 'a monad
+  val bind : 'a monad -> ('a -> 'b monad) -> 'b monad
+  val bind' : 'b monad -> ('b -> unit monad) -> 'b monad
+  val >> : unit monad * 'a monad -> 'a monad
+
+  (* position reports *)
+  val report : Position.T list -> ('a -> Markup.T list) -> 'a -> C_Position.reports_text -> C_Position.reports_text
   val markup_tvar : bool -> Position.T list -> string * serial -> Markup.T list
   val markup_var : bool -> bool -> Position.T list -> string * serial -> Markup.T list
 
@@ -86,11 +146,11 @@ sig
   val concatCStrings : CString list -> CString
 
   (* Language.C.Parser.ParserMonad *)
-  val getNewName : Name p
+  val getNewName : Name monad
   val isTypeIdent : string -> arg -> bool
-  val enterScope : unit p
-  val leaveScope : unit p
-  val getCurrentPosition : Position p
+  val enterScope : unit monad
+  val leaveScope : unit monad
+  val getCurrentPosition : Position monad
 
   (* Language.C.Parser.Tokens *)
   val CTokCLit : CChar -> (CChar -> 'a) -> 'a
@@ -100,17 +160,17 @@ sig
 
   (* Language.C.Parser.Parser *)
   val reverseList : 'a list -> 'a list Reversed
-  val L : 'a -> int -> 'a Located p
+  val L : 'a -> int -> 'a Located monad
   val unL : 'a Located -> 'a
-  val withNodeInfo : int -> (NodeInfo -> 'a) -> 'a p
-  val withNodeInfo_CExtDecl : CExtDecl -> (NodeInfo -> 'a) -> 'a p
-  val withNodeInfo_CExpr : CExpr list Reversed -> (NodeInfo -> 'a) -> 'a p
-  val withLength : NodeInfo -> (NodeInfo -> 'a) -> 'a p
+  val withNodeInfo : int -> (NodeInfo -> 'a) -> 'a monad
+  val withNodeInfo_CExtDecl : CExtDecl -> (NodeInfo -> 'a) -> 'a monad
+  val withNodeInfo_CExpr : CExpr list Reversed -> (NodeInfo -> 'a) -> 'a monad
+  val withLength : NodeInfo -> (NodeInfo -> 'a) -> 'a monad
   val reverseDeclr : CDeclrR -> CDeclr
-  val withAttribute : int -> CAttr list -> (NodeInfo -> CDeclrR) -> CDeclrR p
-  val withAttributePF : int -> CAttr list -> (NodeInfo -> CDeclrR -> CDeclrR) -> (CDeclrR -> CDeclrR) p
+  val withAttribute : int -> CAttr list -> (NodeInfo -> CDeclrR) -> CDeclrR monad
+  val withAttributePF : int -> CAttr list -> (NodeInfo -> CDeclrR -> CDeclrR) -> (CDeclrR -> CDeclrR) monad
   val appendObjAttrs : CAttr list -> CDeclr -> CDeclr
-  val withAsmNameAttrs : CStrLit Maybe * CAttr list -> CDeclrR -> CDeclrR p
+  val withAsmNameAttrs : CStrLit Maybe * CAttr list -> CDeclrR -> CDeclrR monad
   val appendDeclrAttrs : CAttr list -> CDeclrR -> CDeclrR
   val ptrDeclr : CDeclrR -> CTypeQual list -> NodeInfo -> CDeclrR
   val funDeclr : CDeclrR -> (Ident list, (CDecl list * Bool)) Either -> CAttr list -> NodeInfo -> CDeclrR
@@ -120,16 +180,17 @@ sig
   val addTrailingAttrs : CDeclSpec list Reversed -> CAttr list -> CDeclSpec list Reversed
   val emptyDeclr : CDeclrR
   val mkVarDeclr : Ident -> NodeInfo -> CDeclrR
-  val doDeclIdent : CDeclSpec list -> CDeclrR -> unit p
-  val doFuncParamDeclIdent : CDeclr -> unit p
+  val doDeclIdent : CDeclSpec list -> CDeclrR -> unit monad
+  val doFuncParamDeclIdent : CDeclr -> unit monad
 end
 
-\<close>
-ML\<open>
-
-structure Hsk_c_parser : HSK_C_PARSER =
+structure C_Grammar_Rule_Lib : C_GRAMMAR_RULE_LIB =
 struct
-(******************************************************************************
+(*
+ * Modified by Frédéric Tuong, Université Paris-Saclay
+ *
+ *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *  *
+ *
  * Language.C
  * https://hackage.haskell.org/package/language-c
  *
@@ -144,10 +205,10 @@ struct
  * https://hackage.haskell.org/package/language-c-comments
  *
  * Copyright (c) 2010-2014 Geoff Hulette
-*)
-  open C_ast_simple
+ *)
+  open C_Ast
   type arg = C_Env.T
-  type 'a p = arg -> 'a * arg
+  type 'a monad = arg -> 'a * arg
 
   (**)
   val To_string0 = String.implode o to_list
@@ -431,25 +492,10 @@ struct
                   | _ => [])
                 params)
      | _ => return ()
-end
 
-structure List = struct
-  open List
-  val reverse = rev
+  (**)
+  structure List = struct val reverse = rev end
 end
-
-type ('LrTable_state, 'a, 'Position_T) stack' =
-     ('LrTable_state, 'a, 'Position_T) C_Env.stack0
-   * eval_node list list
-   * ('Position_T * 'Position_T) list
-   * ('LrTable_state, 'a, 'Position_T) C_Env.rule_ml C_Env.tree list
-type cString = CString
-type cChar = CChar
-type cInteger = CInteger
-type cFloat = CFloat
-type ident = Ident
-type 'a monad = 'a Hsk_c_parser.p
-val return = Hsk_c_parser.return
 \<close>
 
 section \<open>Loading of Generated Grammar\<close>
@@ -458,26 +504,25 @@ ML_file "../copied_from_git/mlton/lib/mlyacc-lib/base.sig"
 ML_file "../copied_from_git/mlton/lib/mlyacc-lib/join.sml"
 ML_file "../copied_from_git/mlton/lib/mlyacc-lib/lrtable.sml"
 ML_file "../copied_from_git/mlton/lib/mlyacc-lib/stream.sml"
-(*ML\<open>val foldl = List.foldl val foldr = List.foldr\<close>
-  ML_file "../copied_from_git/mlton/lib/mlyacc-lib/parser2.sml"*)
 ML_file "../copied_from_git/mlton/lib/mlyacc-lib/parser1.sml"
-ML_file "../generated/language_c.grm.sig"
+
+ML_file "../generated/c_grammar_fun.grm.sig"
 
 ML\<open>
-structure MlyValueM' = struct
-open Hsk_c_parser
-val To_string0 = String.implode o C_ast_simple.to_list
+structure C_Grammar_Rule_Wrap_Overloading = struct
+open C_Grammar_Rule_Lib
+val To_string0 = String.implode o C_Ast.to_list
 
 val update_env =
- fn Bottom_up => (fn f => fn x => fn arg => ((), C_Env.map_env_tree (f x (#env_lang arg) #> #2) arg))
-  | Top_down => fn f => fn x => pair () ##> (fn arg => C_Env_Ext.map_output_env (K (SOME (f x (#env_lang arg)))) arg)
+ fn C_Transition.Bottom_up => (fn f => fn x => fn arg => ((), C_Env.map_env_tree (f x (#env_lang arg) #> #2) arg))
+  | C_Transition.Top_down => fn f => fn x => pair () ##> (fn arg => C_Env_Ext.map_output_env (K (SOME (f x (#env_lang arg)))) arg)
 
 (*type variable definition*)
 
-val specifier3 : (CDeclSpec list) -> unit monad = update_env Bottom_up (fn l => fn env_lang => fn env_tree =>
+val specifier3 : (CDeclSpec list) -> unit monad = update_env C_Transition.Bottom_up (fn l => fn env_lang => fn env_tree =>
   ( env_lang
   , fold
-      let open C_ast_simple
+      let open C_Ast
       in fn CTypeSpec0 (CTypeDef0 (Ident0 (i, _, node), _)) =>
             let val name = To_string0 i
                 val pos1 = [decode_error' node |> #1]
@@ -494,9 +539,9 @@ val type_specifier3 : (CDeclSpec list) -> unit monad = specifier3
 
 (*basic variable definition*)
 
-val primary_expression1 : (CExpr) -> unit monad = update_env Bottom_up (fn e => fn env_lang => fn env_tree =>
+val primary_expression1 : (CExpr) -> unit monad = update_env C_Transition.Bottom_up (fn e => fn env_lang => fn env_tree =>
   ( env_lang
-  , let open C_ast_simple
+  , let open C_Ast
     in fn CVar0 (Ident0 (i, _, node), _) =>
           let val name = To_string0 i
               val pos1 = decode_error' node |> #1
@@ -509,20 +554,22 @@ val primary_expression1 : (CExpr) -> unit monad = update_env Bottom_up (fn e => 
       env_tree))
 end
 
-structure MlyValueM = struct
-  open MlyValueM
-  open MlyValueM'
+structure C_Grammar_Rule_Wrap = struct
+  open C_Grammar_Rule_Wrap
+  open C_Grammar_Rule_Wrap_Overloading
 end
 \<close>
 
-ML_file "../generated/language_c.grm.sml"
+ML_file "../generated/c_grammar_fun.grm.sml"
 
 ML\<open>
-structure StrictCLrVals = StrictCLrValsFun(structure Token = LrParser1.Token)
+structure C_Grammar = C_Grammar_Fun (structure Token = LALR_Parser_Eval.Token)
 \<close>
 
 ML\<open>
-local open StrictCLrVals.Tokens in
+structure C_Grammar_Tokens =
+struct
+local open C_Grammar.Tokens in
   fun token_of_string error ty_ClangCVersion ty_cChar ty_cFloat ty_cInteger ty_cString ty_ident ty_string a1 a2 = fn
      "(" => x28 (ty_string, a1, a2)
     | ")" => x29 (ty_string, a1, a2)
@@ -718,265 +765,6 @@ local open StrictCLrVals.Tokens in
     | _ => error
     end
 end
-\<close>
-
-section \<open>\<close>
-
-text\<open>The parser consists of a generic module @{file "../copied_from_git/mlton/lib/mlyacc-lib/base.sig"}, 
-which interprets a automata-like format generated from smlyacc.\<close>
-
-ML\<open>
-type 'a stack_elem = (LrTable.state, 'a, Position.T) C_Env.stack_elem0
-type stack_data = (LrTable.state, StrictCLrVals.Tokens.svalue0, Position.T) C_Env.stack0
-type stack_data_elem = (LrTable.state, StrictCLrVals.Tokens.svalue0, Position.T) C_Env.stack_elem0
-
-fun map_svalue0 f (st, (v, pos1, pos2)) = (st, (f v, pos1, pos2))
-
-structure Stack_Data_Lang = Generic_Data
-  (type T = stack_data * C_Env.env_lang
-   val empty = ([], C_Env.empty_env_lang)
-   val extend = I
-   val merge = #2)
-
-structure Stack_Data_Tree = Generic_Data
-  (type T = reports_text
-   val empty = []
-   val extend = I
-   val merge = #2)
-
-fun setmp_tree f context =
-  let val x = Stack_Data_Tree.get context
-      val context = f context
-  in (Stack_Data_Tree.get context, Stack_Data_Tree.put x context) end
-
-fun stack_exec data_put f {context, reports_text} =
-  let val (r, context) = setmp_tree (Stack_Data_Lang.put data_put #> f) context
-  in {context = context, reports_text = append r reports_text} end
-
-structure StrictCLex : ARG_LEXER1 =
-struct
-structure Tokens = StrictCLrVals.Tokens
-structure UserDeclarations =
-struct
-  type ('a,'b) token = ('a, 'b) Tokens.token
-  type pos = Position.T
-  type arg = Tokens.arg
-  type svalue0 = Tokens.svalue0
-  type svalue = arg -> svalue0 * arg
-  type state = StrictCLrVals.ParserData.LrTable.state
-end
-
-type stack = (UserDeclarations.state, UserDeclarations.svalue0, UserDeclarations.pos) stack'
-
-fun advance_hook stack = (fn f => fn (arg, stack_ml) => f (#stream_hook arg) (arg, stack_ml))
- (fn [] => I | l :: ls =>
-  I
-  #> fold_rev 
-    (fn (_, syms, ml_exec) =>
-      let
-        val len = length syms
-      in 
-        if len = 0 then
-          I #>>
-          (case ml_exec of
-             (_, Bottom_up, _, exec) =>
-              (fn arg => C_Env.map_env_tree (stack_exec (stack, #env_lang arg) (exec NONE))
-                                            arg)
-           | ((pos, _), _, _, _) =>
-              C_Env_Ext.map_context (fn _ => error ("Style of evaluation not yet implemented" ^ Position.here pos)))
-        else
-          I ##>
-          let
-            val len = len - 1
-          in
-            tap (fn stack_ml =>
-              if length stack_ml = 1 orelse length stack_ml - len = 1 then
-                warning ("Unevaluated code as the hook is pointing to an internal initial value" ^ Position.here (ml_exec |> #1 |> Position.range_position))
-              else ())
-            #>
-            tap (fn stack_ml =>
-              if length stack_ml - len <= 0 then
-                error ("Maximum depth reached (" ^ Int.toString (len - length stack_ml + 1) ^ " in excess)" ^ Position.here (Symbol_Pos.range syms |> Position.range_position))
-              else ())
-            #>
-            nth_map len (cons ml_exec)
-          end
-      end)
-    l
-  #>> C_Env.map_stream_hook (K ls))
-
-fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
-  let val (token, arg) = C_Env_Ext.map_stream_lang' (fn [] => (NONE, []) | x :: xs => (SOME x, xs)) arg
-      fun return0' f x =
-        let val (arg, stack_ml) = f stack (arg, stack_ml)
-        in (x, ((stack, stack_ml, stack_pos, stack_tree), arg)) end
-      val return0 = return0' advance_hook
-  in
-    case token
-    of NONE => 
-        return0'
-          (fn stack => 
-            advance_hook stack
-            #> tap (fn (arg, _) => 
-              fold (uncurry
-                     (fn pos => 
-                       fold_rev (fn (syms, _, _) => fn () =>
-                                  let val () = error ("Maximum depth reached (" ^ Int.toString (pos + 1) ^ " in excess)" ^ Position.here (Symbol_Pos.range syms |> Position.range_position))
-                                  in () end)))
-                   (map_index I (#stream_hook arg))
-                   ()))
-          (Tokens.x25_eof (Position.none, Position.none))
-     | SOME (Left (antiq_raw, l_antiq)) =>
-        makeLexer
-          ( (stack, stack_ml, stack_pos, stack_tree)
-          , (arg, false)
-             |> fold (fn Antiq_stack (_, Once ((syms_shift, syms), ml_exec)) =>
-                         I #>>
-                           (C_Env.map_stream_hook
-                             (fn stream_hook => 
-                              case
-                                 fold (fn _ => fn (eval1, eval2) =>
-                                     (case eval2 of e2 :: eval2 => (e2, eval2)
-                                                  | [] => ([], []))
-                                     |>> (fn e1 => e1 :: eval1))
-                                   syms_shift
-                                   ([], stream_hook)
-                              of (eval1, eval2) => fold cons
-                                                        eval1
-                                                        (case eval2 of e :: es => ((syms_shift, syms, ml_exec) :: e) :: es
-                                                                     | [] => [[(syms_shift, syms, ml_exec)]])))
-                       | Antiq_stack (_, Never) => I ##> K true
-                       | _ => I)
-                     l_antiq
-             |> (fn (arg, false) => arg
-                  | (arg, true) => C_Env_Ext.map_stream_ignored (cons (Left antiq_raw)) arg))
-     | SOME (Right (tok as C_Lex.Token (_, (C_Lex.Directive _, _)))) =>
-        makeLexer ((stack, stack_ml, stack_pos, stack_tree), C_Env_Ext.map_stream_ignored (cons (Right tok)) arg)
-     | SOME (Right (C_Lex.Token ((pos1, pos2), (tok, src)))) =>
-       case tok of
-         C_Lex.Char (b, [c]) =>
-          return0 (StrictCLrVals.Tokens.cchar (CChar (String.sub (c,0)) b, pos1, pos2))
-       | C_Lex.String (b, s) =>
-          return0 (StrictCLrVals.Tokens.cstr (C_ast_simple.CString0 (From_string (implode s), b), pos1, pos2))
-       | C_Lex.Integer (i, repr, flag) =>
-          return0 (StrictCLrVals.Tokens.cint
-                    ( CInteger i repr
-                        (C_Lex.read_bin (fold (fn flag => map (fn (bit, flag0) => (if flag = flag0 then "1" else bit, flag0)))
-                                              flag
-                                              ([FlagUnsigned, FlagLong, FlagLongLong, FlagImag] |> rev |> map (pair "0"))
-                                         |> map #1)
-                         |> Flags)
-                    , pos1
-                    , pos2))
-       | C_Lex.Ident => 
-          let val (name, arg) = Hsk_c_parser.getNewName arg
-              val ident0 = Hsk_c_parser.mkIdent (Hsk_c_parser.posOf' false (pos1, pos2)) src name
-          in return0
-               (if Hsk_c_parser.isTypeIdent src arg then
-                  StrictCLrVals.Tokens.tyident (ident0, pos1, pos2)
-                else
-                  StrictCLrVals.Tokens.ident (ident0, pos1, pos2))
-          end
-       | _ => 
-          token_of_string (Tokens.error (pos1, pos2))
-                          (C_ast_simple.ClangCVersion0 (From_string src))
-                          (CChar #"0" false)
-                          (CFloat (From_string src))
-                          (CInteger 0 DecRepr (Flags 0))
-                          (C_ast_simple.CString0 (From_string src, false))
-                          (C_ast_simple.Ident (From_string src, 0, OnlyPos NoPosition (NoPosition, 0)))
-                          src
-                          pos1
-                          pos2
-                          src
-          |> return0
-  end
-end
-\<close>
-text\<open>This is where the instatiation of the Parser Functor with the Lexer actually happens ...\<close>
-ML\<open>
-structure StrictCParser =
-  JoinWithArg1(structure LrParser = LrParser1
-               structure ParserData = StrictCLrVals.ParserData
-               structure Lex = StrictCLex)
-
-structure P = struct
-
-open C_Env
-
-fun exec_tree write msg (Tree ({rule_pos, rule_type}, l_tree)) =
-  case rule_type of
-    Void => write msg rule_pos "VOID" NONE
-  | Shift => write msg rule_pos "SHIFT" NONE
-  | Reduce (rule_static, (rule0, vacuous, rule_antiq)) =>
-      write msg rule_pos ("REDUCE " ^ Int.toString rule0 ^ " " ^ (if vacuous then "X" else "O")) (SOME (MlyValue.string_reduce rule0 ^ " " ^ MlyValue.type_reduce rule0))
-      #> (case rule_static of SOME rule_static => rule_static #>> SOME | NONE => pair NONE)
-      #-> (fn env_lang =>
-            fold (fn (stack0, env_lang0, (_, Top_down, _, exec)) =>
-                     stack_exec (stack0, Option.getOpt (env_lang, env_lang0)) (exec (SOME rule0))
-                   | _ => I)
-                 rule_antiq)
-      #> fold (exec_tree write (msg ^ " ")) l_tree
-
-fun exec_tree' l env_tree = env_tree
-  |> fold (exec_tree let val ctxt = Context.proof_of (#context env_tree)
-                         val write =
-                           if Config.get ctxt C_Options.parser_trace andalso Context_Position.is_visible ctxt
-                              then fn f => tap (tracing o f) else K I
-                     in fn msg => fn (p1, p2) => fn s1 => fn s2 =>
-                       write (fn _ => msg ^ s1 ^ " " ^ Position.here p1 ^ " " ^ Position.here p2 ^ (case s2 of SOME s2 => " " ^ s2 | NONE => ""))
-                     end
-                     "")
-          l
-
-fun uncurry_context f pos = uncurry (fn x => fn arg => map_env_tree (f pos x (#env_lang arg)) arg)
-
-fun parse env_lang err accept stream_lang =
- make env_lang stream_lang
- #> StrictCParser.makeLexer
- #> StrictCParser.parse
-      ( 0
-      , uncurry_context (fn (next_pos1, next_pos2) => fn (stack, _, _, stack_tree) => fn env_lang =>
-          C_Env.map_reports_text
-            (cons ( ( Position.range_position (case hd stack of (_, (_, pos1, pos2)) => (pos1, pos2))
-                    , Markup.bad ())
-                  , "")
-            #> (case rev (tl stack) of
-                  _ :: _ :: stack =>
-                 append
-                   (map_filter (fn (pos1, pos2) =>
-                                if Position.offset_of pos1 = Position.offset_of pos2
-                                then NONE
-                                else SOME ((Position.range_position (pos1, pos2), Markup.intensify), ""))
-                              ((next_pos1, next_pos2) :: map (fn (_, (_, pos1, pos2)) => (pos1, pos2)) stack))
-                | _ => I))
-          #> exec_tree' (rev stack_tree)
-          #> err env_lang stack (Position.range_position (case hd stack_tree of Tree ({rule_pos = (rule_pos1, _), ...}, _) => (rule_pos1, next_pos2))))
-      , Position.none
-      , uncurry_context (fn _ => fn (stack, _, _, stack_tree) => fn env_lang =>
-          exec_tree' stack_tree
-          #> accept env_lang (stack |> hd |> map_svalue0 MlyValue.reduce0))
-      , fn (stack, arg) => arg |> map_rule_input (K stack)
-                               |> map_rule_output (K empty_rule_output)
-      , fn (rule0, stack0, pre_ml) => fn arg =>
-          let val rule_output = #rule_output arg
-              val env_lang = #env_lang arg
-              val (delayed, actual) =
-                if #output_vacuous rule_output
-                then let fun f (_, _, to_delay, _) = to_delay
-                     in (map (filter f) pre_ml, map (filter_out f) pre_ml) end
-                else ([], pre_ml)
-              val actual = flat (map rev actual)
-          in
-            ( (delayed, map (fn x => (stack0, env_lang, x)) actual, rule_output)
-            , fold (fn (_, Bottom_up, _, exec) =>
-                       C_Env.map_env_tree (stack_exec (stack0, env_lang) (exec (SOME rule0)))
-                     | _ => I)
-                   actual
-                   arg)
-          end)
- #> snd
- #> #env_tree
 end
 \<close>
 

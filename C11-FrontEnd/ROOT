@@ -1,9 +1,7 @@
 (******************************************************************************
- * A Meta-Model for the Language.C Haskell Library
+ * Generation of Language.C Grammar with ML Interface Binding
  *
- * Copyright (c) 2016-2017 Nanyang Technological University, Singapore
- *               2017-2018 Virginia Tech, USA
- *               2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
  * All rights reserved.
  *
@@ -36,25 +34,21 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-theory C_Model_init
-  imports "FOCL.Printer_init"
-          "FOCL.Old_Datatype"
-begin
+session C_examples = HOL +
+  sessions
+    "HOL-Eisbach"
+  theories
+    "examples/C_autocorres"
 
-type_synonym int = integer
-type_synonym string = abr_string
-notation Some ("Just")
-notation None ("Nothing")
-
-old_datatype 'a option = None | Some 'a
-old_datatype ('a, 'b) Either = Left 'a | Right 'b
-
-hide_type (open) option
-hide_const (open) None Some
-
-hide_type (open) Either
-hide_const (open) Left Right
-
-declare [[cartouche_type' = "abr_string"]]
-
-end
+session C = HOL +
+  description {* C *}
+  options [document = pdf, document_output = generated]
+  theories
+    "examples/C1"
+    "examples/C2"
+    "examples/C3"
+    "examples/C_paper"
+    "document/Rail"
+  document_files
+    "root.tex"
+    "root.bib"

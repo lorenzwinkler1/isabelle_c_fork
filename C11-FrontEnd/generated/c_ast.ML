@@ -1,6 +1,6 @@
 (* Generated from Run.thy; DO NOT EDIT! *)
 
-structure C_ast : sig
+structure C_Ast : sig
   datatype inta = Int_of_integer of int
   datatype num = One | Bit0 of num | Bit1 of num
   val one_inta : inta
@@ -8196,4 +8196,4 @@ fun rec_Unsynchronized_ref f (Unsynchronized_ref x) = f x;
 fun rec_literalconstant_node f1 f2 (NUMCONST (x11, x12, x13)) = f1 x11 x12 x13
   | rec_literalconstant_node f1 f2 (STRING_LIT x2) = f2 x2;
 
-end; (*struct C_ast*)
+end; (*struct C_Ast*)
