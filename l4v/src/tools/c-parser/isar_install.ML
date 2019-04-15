@@ -16,7 +16,7 @@ sig
   type additional_options
   val GhostState : string -> additional_options
   val get_Csyntax : bool option -> bool option -> bool option -> int option -> theory -> Token.file * string -> Absyn.ext_decl list * theory
-  val gen_umm_types_file : bool option -> bool option -> bool option -> int option -> Token.file * string -> string -> theory -> theory
+  val gen_umm_types_file : string -> string -> theory -> theory
   val do_cpp : {error_detail : int, cpp_path : string option} ->
                {includes : string list, filename : string} -> string
   val install_C_file : (((((((bool option * bool option) * bool option) * int option) * bool option) * bool option) * bool option) * (theory -> Token.file list)) *
@@ -304,13 +304,10 @@ in
   recurse (Binaryset.empty String.compare) slist
 end
 
-fun relative_name files thy =
-  let
-    val [file as {src_path, lines, digest, pos}: Token.file] = files thy
-  in (file, Position.file_of pos |> the |> Path.explode |> File.full_path Path.current |> Path.implode) end
+fun mk_thy_relative' files = IsarPreInstall.mk_thy_relative' (files #> hd)
 
 fun install_C_file0 ((((((((maybe_c11,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),files),statetylist_opt) thy = let
-  val (file, s) = relative_name files thy
+  val (file, s) = mk_thy_relative' files thy
 
   val {base = localename,...} = OS.Path.splitBaseExt (OS.Path.file s)
   val _ = parse_stop <> NONE orelse
@@ -514,7 +511,7 @@ fun interactive_install s thy =
 
 fun install_C_types ((((maybe_c11, no_cpp), parse_stop), sub_decl), files) thy = let
   open CalculateState ProgramAnalysis
-  val (ast, thy) = get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy (relative_name files thy)
+  val (ast, thy) = get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy (mk_thy_relative' files thy)
   val (_, cse) =
       process_decls {
         anon_vars = Config.get_global thy use_anon_vars,
@@ -526,9 +523,9 @@ in
   thy
 end
 
-fun gen_umm_types_file maybe_c11 no_cpp parse_stop sub_decl inputfile outputfile thy = let
+fun gen_umm_types_file inputfile outputfile thy = let
   open ProgramAnalysis
-  val (ast, thy) = get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy inputfile
+  val (ast, thy) = get_Csyntax NONE NONE NONE NONE thy (IsarPreInstall.parse_files' inputfile thy, inputfile)
   val (_, cse) =
       process_decls {
         anon_vars = Config.get_global thy use_anon_vars,
@@ -572,7 +569,7 @@ in
     (parsing_option --
      (Scan.option (P.$$$ memsafeN)) --
      (Scan.option (P.$$$ typesN)) --
-     (Scan.option (P.$$$ defsN)) -- Resources.parse_files "file_inclusion" --
+     (Scan.option (P.$$$ defsN)) -- Resources.parse_files "install_C_file" --
      (Scan.option
           (P.$$$ "[" |-- P.enum1 "," typoptions --| P.$$$ "]"))) >>
     (Toplevel.theory o install_C_file)

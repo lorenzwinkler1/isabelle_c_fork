@@ -19,10 +19,12 @@ imports
   "IndirectCalls"
   "ModifiesProofs"
 keywords
-  "cond_sorry_modifies_proofs"
+  "cond_sorry_modifies_proofs" :: thy_decl (* not 'thy_load' because the input file may not exist *)
+and
+  "new_C_include_dir" :: thy_decl
+and
   "install_C_file"
-  "install_C_types"
-  "new_C_include_dir":: thy_load % "ML"
+  "install_C_types" :: thy_load % "ML"
 and
   "all_parsing"
   "no_C11_parsing"

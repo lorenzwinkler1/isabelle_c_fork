@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -699,7 +700,9 @@ structure csenvData = Theory_Data(
 
 fun store_csenv (s,cse) =
     csenvData.map (Symtab.update(s,cse))
-val get_csenv = Symtab.lookup o csenvData.get
+fun get_csenv thy file = 
+  Symtab.lookup (csenvData.get thy)
+                (IsarPreInstall.mk_thy_relative' (IsarPreInstall.parse_files' file) thy |> #2)
 
 structure ghostData = Theory_Data(
   type T = typ Symtab.table

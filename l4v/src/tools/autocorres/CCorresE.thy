@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -257,7 +258,7 @@ lemma ccorresE_termination':
   shows "\<Gamma>\<turnstile> While C' B' \<down> Normal s'"
   apply (insert not_snd_loop_terminatesE[OF no_fail] s_match)
   apply (insert no_fail)
-  apply (induct arbitrary: s' rule: whileLoop_terminatesE_induct [where C=CC and B=BB])
+  apply (induct arbitrary: s' rule: whileLoop_terminatesE_induct [where' "C"=CC and B=BB])
    apply clarsimp
    apply (rule terminates.WhileFalse)
    apply (clarsimp simp: cond_match)

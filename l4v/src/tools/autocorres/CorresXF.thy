@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -478,7 +479,7 @@ proof (clarsimp simp: corresXF_simple_def, rule conjI, clarsimp)
     by (auto intro: pred_init P)
 
   have "\<not> snd (whileLoop C B x s)"
-    apply (rule corresXF_simple_snd_whileLoop [where B=B and C=C and P=P,
+    apply (rule corresXF_simple_snd_whileLoop [where' B=B and "C"="C" and P=P,
         OF body_corres cond_match pred_inv pred_init])
     apply (simp | fact)+
     done

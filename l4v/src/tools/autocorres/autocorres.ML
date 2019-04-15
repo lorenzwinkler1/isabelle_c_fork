@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -269,7 +270,7 @@ fun default_opts _ = {
   } : autocorres_options
 
 (* Combined parser. *)
-val autocorres_parser : (autocorres_options * string) parser =
+val autocorres_parser : (autocorres_options * (theory -> Token.file list)) parser =
 let
   val option_parser =
     (no_heap_abs_parser ||
@@ -303,7 +304,47 @@ in
   (Scan.optional (Parse.$$$ "[" |-- options_parser --| Parse.$$$ "]") I
       >> (fn f => f (default_opts ()))) --
   (* Filename *)
-  Parse.text
+  Resources.parse_files "autocorres"
+end
+
+val autocorres_parser' : (autocorres_options * (theory -> Token.file list)) parser =
+let
+  val option_parser =
+    (no_heap_abs_parser ||
+     force_heap_abs_parser ||
+     skip_heap_abs_parser ||
+     ts_rules_parser ||
+     ts_force_parser ||
+     unsigned_word_abs_parser ||
+     no_signed_word_abs_parser ||
+     skip_word_abs_parser ||
+     heap_abs_syntax_parser ||
+     scope_parser ||
+     scope_depth_parser ||
+     c_locale_parser ||
+     no_c_termination_parser ||
+     trace_heap_lift_parser ||
+     trace_word_abs_parser ||
+     no_opt_parser ||
+     trace_opt_parser ||
+     gen_word_heaps_parser ||
+     keep_going_parser ||
+     lifted_globals_field_prefix_parser ||
+     lifted_globals_field_suffix_parser ||
+     function_name_prefix_parser ||
+     function_name_suffix_parser)
+    |> !! (fn xs => K ("autocorres: unknown option " ^ quote (Parse.text (fst xs) |> #1)))
+
+  val options_parser = Parse.list option_parser >> (fn opt_fns => fold I opt_fns)
+in
+  (* Filename ('Filename' is first parsed before 'Options'
+               because the command is declared as 'thy_load' and
+               'thy_load' can only affect the first argument of a command in Isabelle2018.) *)
+  Resources.parse_files "autocorres'" --
+  (* Options *)
+  (Scan.optional (Parse.$$$ "[" |-- options_parser --| Parse.$$$ "]") I
+      >> (fn f => f (default_opts ())))
+  >> swap
 end
 
 

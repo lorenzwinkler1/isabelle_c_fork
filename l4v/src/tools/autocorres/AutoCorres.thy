@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -29,7 +30,8 @@ imports
   "Lib.Apply_Trace"
   AutoCorresSimpset
   "Lib.TermPatternAntiquote"
-  keywords "autocorres" :: thy_decl
+  keywords "autocorres"
+           "autocorres'" :: thy_load % "ML"
 begin
 
 (* Remove various rules from the default simpset that don't really help. *)
@@ -166,10 +168,18 @@ ML_file "autocorres.ML"
 
 (* Setup "autocorres" keyword. *)
 ML {*
+val do_autocorres = 
+  Toplevel.theory
+  o (fn (opt, filename) => fn thy =>
+      AutoCorres.do_autocorres opt (IsarPreInstall.mk_thy_relative' (filename #> hd) thy |> #2) thy)
+val _ =
   Outer_Syntax.command @{command_keyword "autocorres"}
     "Abstract the output of the C parser into a monadic representation."
-    (AutoCorres.autocorres_parser >>
-      (Toplevel.theory o (fn (opt, filename) => AutoCorres.do_autocorres opt filename)))
+    (AutoCorres.autocorres_parser >> do_autocorres)
+val _ =
+  Outer_Syntax.command @{command_keyword "autocorres'"}
+    "Abstract the output of the C parser into a monadic representation."
+    (AutoCorres.autocorres_parser' >> do_autocorres)
 *}
 
 end

@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -257,7 +258,7 @@ lemma L2corres_while:
   apply (clarsimp simp: L2corres_def L2_while_def L1_while_def)
   apply (rule corresXF_guard_imp)
   apply (rule corresXF_while [
-         where P="\<lambda>r s. P (ret s) s" and C'=c and C="\<lambda>_. c'" and A=A and B="\<lambda>_. B"
+         where' P="\<lambda>r s. P (ret s) s" and C'=c and "C"="\<lambda>_. c'" and A=A and B="\<lambda>_. B"
          and ret="\<lambda>r s. ret s" and ex="\<lambda>r s. ex s" and st=st and y=x and x="()" and P'="\<lambda>r s. Q x s"])
        apply (rule corresXF_guard_imp)
         apply (rule body_corres [unfolded L2corres_def])
@@ -308,7 +309,7 @@ lemma L2corres_returncall:
      \<And>t s. P s \<Longrightarrow> ret (return_xf t (scope_teardown s t)) = F (ret' t) (st t) \<rbrakk> \<Longrightarrow>
      L2corres st ret ex P (L2_returncall (measure_call Z) F) (L1_call scope_setup (measure_call dest_fn) scope_teardown return_xf)"
   unfolding L1_call_def L2_returncall_def L2_call_def L2corres_def L2_defs
-  apply (drule_tac A = Z and C = dest_fn in corresXF_measure_call, assumption)
+  apply (drule_tac A = Z and "C" = dest_fn in corresXF_measure_call, assumption)
   apply (rule corresXF_I)
     apply monad_eq
     apply (erule allE)
@@ -379,7 +380,7 @@ lemma L2corres_modifycall:
                           (L1_call scope_setup (measure_call dest_fn) scope_teardown return_xf)"
   apply (clarsimp simp: L1_call_def L2_call_def L2_defs L2corres_def)
   apply (clarsimp simp: liftE_bindE_handle liftE_bindE handleE'_fail handleE_fail)
-  apply (drule_tac A = Z and C = dest_fn in corresXF_measure_call, assumption)
+  apply (drule_tac A = Z and "C" = dest_fn in corresXF_measure_call, assumption)
   apply (rule corresXF_I)
     apply monad_eq
     apply (erule allE)
@@ -605,10 +606,10 @@ lemmas L2_split_fixups =
   L2_split_fixup_g [where P="\<lambda>a b. L2_throw (P a b) n" for P n]
 
   L2_split_fixup_g [where P="\<lambda>a b. L2_seq (L a b) (R a b)" for L R]
-  L2_split_fixup_g [where P="\<lambda>a b. L2_while (C a b) (B a b) (I a b) n" for C B I n]
+  L2_split_fixup_g [where P="\<lambda>a b. L2_while (C a b) (B a b) (I a b) n" for "C" B I n]
   L2_split_fixup_g [where P="\<lambda>a b. L2_unknown n" for n]
   L2_split_fixup_g [where P="\<lambda>a b. L2_catch (L a b) (R a b)" for L R]
-  L2_split_fixup_g [where P="\<lambda>a b. L2_condition (C a b) (L a b) (R a b)" for C L R]
+  L2_split_fixup_g [where P="\<lambda>a b. L2_condition (C a b) (L a b) (R a b)" for "C" L R]
   L2_split_fixup_g [where P="\<lambda>a b. L2_call (M a b)" for M]
 
 lemmas L2_split_fixups_congs =

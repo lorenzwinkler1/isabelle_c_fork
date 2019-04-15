@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -14,7 +15,7 @@ begin
 
 ML {*
 val csenv = let
-    val the_csenv = CalculateState.get_csenv @{theory} "../c/build/$L4V_ARCH/kernel_all.c_pp" |> the
+    val the_csenv = CalculateState.get_csenv @{theory} "../../spec/cspec/c/build/$L4V_ARCH/kernel_all.c_pp" |> the
   in fn () => the_csenv end
 *}
 

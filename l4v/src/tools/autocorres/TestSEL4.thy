@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -17,6 +18,7 @@ begin
 (*
  * Test to see if we can parse all of seL4.
  *)
-autocorres [skip_heap_abs, ts_rules = nondet] "../c/build/$L4V_ARCH/kernel_all.c_pp"
+autocorres' "../../spec/cspec/c/build/$L4V_ARCH/kernel_all.c_pp"
+            [skip_heap_abs, ts_rules = nondet]
 
 end

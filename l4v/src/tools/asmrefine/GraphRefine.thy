@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -623,7 +624,7 @@ lemma simpl_to_graph_Cond:
         simpl_to_graph SGamma GGamma gf r (add_cont d con) (Suc n) Q (P \<inter> - C) I eqs3 out_eqs \<rbrakk>
     \<Longrightarrow> simpl_to_graph SGamma GGamma gf nn (add_cont (com.Cond C c d) con) n Q P I eqs out_eqs"
   apply clarsimp
-  apply (rule_tac S=C in simpl_to_graph_cases)
+  apply (rule_tac S="C" in simpl_to_graph_cases)
    apply (erule_tac nn'=l in simpl_to_graph_step[rotated])
    apply (simp add: exec_graph_step_image_node)
    apply (fastforce dest: eq_implD intro: step.intros add_cont_step)[1]
@@ -659,7 +660,7 @@ lemma simpl_to_graph_While_lemma:
   shows "simpl_to_graph SGamma GGamma f nn (add_cont (com.While C c) con) n tS P I eqs out_eqs"
   apply (rule simpl_to_graph_induct)
   apply (simp add: ps)
-  apply (rule_tac S=C in simpl_to_graph_cases)
+  apply (rule_tac S="C" in simpl_to_graph_cases)
    apply (rule simpl_to_graph_step[rotated])
     apply (rule loop)
     apply (simp add: ps)

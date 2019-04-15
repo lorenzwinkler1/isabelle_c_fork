@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -223,7 +224,7 @@ lemma expand_oguard_conj [polish]:
 
 lemma owhile_infinite_loop [simp, polish]:
     "owhile (\<lambda>r s. C) B x = (oguard (\<lambda>s. \<not> C) |>> (\<lambda>_. oreturn x))"
-  apply (case_tac C)
+  apply (case_tac "C")
    apply (rule ext)
    apply (clarsimp simp: owhile_def option_while_def obind_def split: option.splits)
    apply (metis infinite_option_while' None_not_eq option_while'_THE)
