@@ -70,11 +70,11 @@ fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (file, fname
     fun parse_with_c11 thy =
       docpp {includes=includes,filename=fname}
         (fn cpped_fname =>
-          let val thy = Context.theory_map (C_File.command0 file) thy
-              val thy = Context.theory_map (C_File.command0 (read_file_node' (Path.explode cpped_fname))) thy
-              val (_, (res, l_comm)) = hd (C11_core.dest_list thy)
-          in (C_ast.main (res, (map_filter (fn Left {body_begin, body, body_end, range, ...} =>
-                                               SOME (Hsk_c_parser.make_comment body_begin body body_end range)
+          let val thy = Context.theory_map (C_Outer_File.command0 file) thy
+              val thy = Context.theory_map (C_Outer_File.command0 (read_file_node' (Path.explode cpped_fname))) thy
+              val (res, l_comm) = hd (C_Module.get_module thy |> #1)
+          in (C_Ast.main (res, (map_filter (fn C_Scan.Left {body_begin, body, body_end, range, ...} =>
+                                               SOME (C_Grammar_Rule_Lib.make_comment body_begin body body_end range)
                                              | _ => NONE) l_comm, [])), thy) end)
       |>> (fn x => (IsarPreInstall.of_c_ast x, 0))
   in

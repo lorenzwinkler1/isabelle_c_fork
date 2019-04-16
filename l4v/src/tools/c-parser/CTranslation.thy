@@ -12,12 +12,12 @@
 
 theory CTranslation
 imports
-  "../../../../C11-FrontEnd/semantic-backends/AutoCorres/AC_Command"
   "PackedTypes"
   "PrettyProgs"
   "StaticFun"
   "IndirectCalls"
   "ModifiesProofs"
+  "../../../../C11-FrontEnd/semantic-backends/AutoCorres/AC_Command"
 keywords
   "cond_sorry_modifies_proofs" :: thy_decl (* not 'thy_load' because the input file may not exist *)
 and

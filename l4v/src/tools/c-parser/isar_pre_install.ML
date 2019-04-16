@@ -13,14 +13,14 @@
 
 signature ISAR_PRE_INSTALL =
 sig
-  val of_c_ast : C_ast.ext_decl list -> StmtDecl.ext_decl list
+  val of_c_ast : C_Ast.ext_decl list -> StmtDecl.ext_decl list
   val mk_thy_relative' : (theory -> Token.file) -> theory -> Token.file * string
   val parse_files' : string -> theory -> Token.file
 end
 
 structure IsarPreInstall : ISAR_PRE_INSTALL =
 struct
-  structure M = C_ast
+  structure M = C_Ast
   val To_string0 = String.implode o M.to_list
   val of_StringCvt_radix = M.rec_StringCvt_radix StringCvt.BIN StringCvt.OCT StringCvt.DEC StringCvt.HEX
   fun of_Unsynchronized_ref f x = Unsynchronized.ref (M.rec_Unsynchronized_ref f x)
