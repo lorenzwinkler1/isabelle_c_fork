@@ -15,6 +15,13 @@ For the last example, a sub-window 'Bad session structure' will be
 opened, but this can be ignored: after a click on 'OK', the
 compilation will correctly start.
 
+Additionally, `run_tests` can be executed in `l4v/src/`, and
+interrupted once the success of CBaseRefine obtained. Then, to test
+the interactive version of autocorres, it would suffice to run the
+following command:
+isabelle build -d l4v/src -b -v AutoCorresSEL4
+
+
 As short note, the version of the l4v project used is seL4-10.1.1.
 
 ## Authors
