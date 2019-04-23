@@ -38,86 +38,88 @@ theory C1
   imports "../C_Main"
 begin
 
+text \<open> The remainder of the theory assumes a familiarity with the ability to recursively nest
+ML code in ML as described in \<^file>\<open>~~/src/HOL/ex/ML.thy\<close>, as well as the concept of
+ML antiquotations (\<^file>\<open>~~/src/Doc/Implementation/ML.thy\<close>). \<close>
+
+section \<open>ML-Antiquotations for Debugging\<close>
+
+ML\<open>
+fun print_top make_string f _ (_, (value, pos1, pos2)) _ thy =
+  let
+    val () = writeln (make_string value)
+    val () = Position.reports_text [((Position.range (pos1, pos2) 
+                                      |> Position.range_position, Markup.intensify), "")]
+  in f thy end
+
+fun print_top' _ f _ (_, (_, pos1, pos2)) env thy =
+  let
+    val () = Position.reports_text [((Position.range (pos1, pos2) 
+                                      |> Position.range_position, Markup.intensify), "")]
+    val () = writeln ("ENV " ^ C_Env.string_of env)
+  in f thy end
+
+fun print_stack s make_string stack _ _ thy =
+  let
+    val () = warning ("SHIFT  " ^ (case s of NONE => "" | SOME s => "\"" ^ s ^ "\" ") ^ Int.toString (length stack - 1) ^ "    +1 ")
+    val () = stack
+          |> split_list
+          |> #2
+          |> map_index I
+          |> app (fn (i, (value, pos1, pos2)) => writeln ("   " ^ Int.toString (length stack - i) ^ " " ^ make_string value ^ " " ^ Position.here pos1 ^ " " ^ Position.here pos2))
+  in thy end
+
+fun print_stack' s _ stack _ env thy =
+  let
+    val () = warning ("SHIFT  " ^ (case s of NONE => "" | SOME s => "\"" ^ s ^ "\" ") ^ Int.toString (length stack - 1) ^ "    +1 ")
+    val () = writeln ("ENV " ^ C_Env.string_of env)
+  in thy end
+\<close>
+
+setup \<open>ML_Antiquotation.inline @{binding print_top}
+                               (Args.context >> K ("print_top " ^ ML_Pretty.make_string_fn ^ " I"))\<close>
+setup \<open>ML_Antiquotation.inline @{binding print_top'}
+                               (Args.context >> K ("print_top' " ^ ML_Pretty.make_string_fn ^ " I"))\<close>
+setup \<open>ML_Antiquotation.inline @{binding print_stack}
+                               (Scan.peek (fn _ => Scan.option Args.text) >> (fn name => ("print_stack " ^ (case name of NONE => "NONE" | SOME s => "(SOME \"" ^ s ^ "\")") ^ " " ^ ML_Pretty.make_string_fn)))\<close>
+setup \<open>ML_Antiquotation.inline @{binding print_stack'}
+                               (Scan.peek (fn _ => Scan.option Args.text) >> (fn name => ("print_stack' " ^ (case name of NONE => "NONE" | SOME s => "(SOME \"" ^ s ^ "\")") ^ " " ^ ML_Pretty.make_string_fn)))\<close>
+
 declare[[C_lexer_trace]]
-
-section \<open>Regular C Code\<close>
-
-C \<comment> \<open>Nesting of comments \<^url>\<open>https://gcc.gnu.org/onlinedocs/cpp/Initial-processing.html\<close>\<close> \<open>
-/* inside /* inside */ int a = "outside";
-// inside // inside until end of line
-int a = "outside";
-/* inside
-  // inside
-inside
-*/ int a = "outside";
-// inside /* inside until end of line
-int a = "outside";
-\<close>
-
-C \<comment> \<open>Backslash newline\<close> \<open>
-i\    
-n\                
-t a = "/* //  /\ 
-*\
-fff */\
-";
-\<close>
-
-C \<comment> \<open>Backslash newline, Directive \<^url>\<open>https://gcc.gnu.org/onlinedocs/cpp/Initial-processing.html\<close>\<close> \<open>
-/\
-*
-*/ # /*
-*/ defi\
-ne FO\
-O 10\
-20\<close>
-
-C \<comment> \<open>Directive: conditional\<close> \<open>
-#ifdef a
-#elif
-#else
-#if
-#endif
-#endif
-\<close>
-(*
-C \<comment> \<open>Directive: pragma\<close> \<open># f # "/**/"
-/**/
-#     /**/ //  #
-
-_Pragma /\
-**/("a")
-\<close>
-*)
-C \<comment> \<open>Directive: macro\<close> \<open>
-#define a zz
-#define a(x1,x2) z erz(( zz
-#define a (x1,x2) z erz(( zz
-#undef z
-#if
-#define a zz
-#define a(x1,x2) z erz(( zz
-#define a (x1,x2) z erz(( zz
-#endif
-\<close>
 
 section \<open>C Annotations\<close>
 
 subsection \<open>Actions on the Parsing Stack\<close>
+
+text \<open> The \<^theory_text>\<open>C\<close> command resembles to
+\<^theory_text>\<open>ML\<close> except that the syntax of the code written inside
+\<^theory_text>\<open>C\<close> is the syntax of C11 (at the time of writing). Additionally, it is
+possible to write commands in C comments, called annotation commands, such as
+\<^theory_text>\<open>\<approx>setup\<close>. \<close>
 
 C \<comment> \<open>Nesting ML code in C comments\<close> \<open>
 int a = (((0))); /*@ \<approx>setup \<open>@{print_stack}\<close> */
                  /*@ \<approx>setup \<open>@{print_top}\<close> */
 \<close>
 
-text \<open>In terms of execution order, nested ML code are not pre-filtered out of the C code, but
-executed when the C parser is in an intermediate parsing state of having already read all previous
-tokens, constructed for each read token a respective temporary parsed subtree
-(to be included in the final value), and about to read the ML code.
+text \<open> In terms of execution order, nested annotation commands are not pre-filtered out of the
+C code, but executed when the C code is still being parsed. Since the parser implemented is a LALR
+parser \<^footnote>\<open>\<^url>\<open>https://en.wikipedia.org/wiki/LALR\<close>\<close>, C tokens
+are uniquely read and treated from left to right. Thus, each nested command is (supposed by default
+to be) executed when the parser has already read all C tokens before the comment associated to the
+nested command, so when the parser is in a particular intermediate parsing step (not necessarily
+final)
+\<^footnote>\<open>\<^url>\<open>https://en.wikipedia.org/wiki/Shift-reduce_parser\<close>\<close>. \<close>
 
-Moreover, the ML code can get access to the current parsing state (represented as a stack of parsed
-values). Because values in the state are changing depending on where the ML code is situated,
-we can conveniently use ML antiquotations for printing and reporting actions.\<close>
+text \<open>The command \<^theory_text>\<open>\<approx>setup\<close> is similar to the command
+\<^theory_text>\<open>setup\<close> except that it takes a function with additional arguments. These
+arguments are precisely depending on the current parsing state. To better examine these arguments,
+it is convenient to use ML antiquotations (be it for printing, or for doing any regular ML actions
+like PIDE reporting).
+
+Ultimately, in contrast with \<^theory_text>\<open>setup\<close>, the return type of the
+\<^theory_text>\<open>\<approx>setup\<close> function is not \<open>theory -> theory\<close> but
+\<open>Context.generic -> Context.generic\<close>. \<close>
 
 C \<comment> \<open>Positional navigation: referring to any previous parsed sub-tree in the stack\<close> \<open>
 int a = (((0
@@ -125,7 +127,7 @@ int a = (((0
                           let
                             val () = writeln (@{make_string} value)
                             val () = Position.reports_text [((Position.range (pos1, pos2) 
-                                                            |> Position.range_position, Markup.intensify), "")]
+                                                              |> Position.range_position, Markup.intensify), "")]
                           in context end\<close>
                */
       * 4; 

@@ -34,19 +34,71 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-theory README imports Main begin text \<open>
+theory C0
+  imports "../C_Main"
+begin
 
-\<^dir>\<open>generated\<close> contains only generated files from FronEnd-Generators.
+declare[[C_lexer_trace]]
 
-In particular, these are:
+section \<open>Regular C Code\<close>
 
-  \<^item> \<^file>\<open>generated/language_c.grm\<close> SML grm file generated from Haskell grm file.
-                     To be compiled with (modified) mlyacc. 
-                     iCF \<^url>\<open>https://gitlri.lri.fr/ftuong/mlton\<close>,
-                     which includes and buils mlyacc.)
-  
-  \<^item> \<^file>\<open>generated/language_c.grm.sig\<close> 
-     and
-     \<^file>\<open>generated/language_c.grm.sml\<close>, generated sml files from mlyacc above.
+C \<comment> \<open>Nesting of comments \<^url>\<open>https://gcc.gnu.org/onlinedocs/cpp/Initial-processing.html\<close>\<close> \<open>
+/* inside /* inside */ int a = "outside";
+// inside // inside until end of line
+int a = "outside";
+/* inside
+  // inside
+inside
+*/ int a = "outside";
+// inside /* inside until end of line
+int a = "outside";
+\<close>
 
-\<close> end
+C \<comment> \<open>Backslash newline\<close> \<open>
+i\    
+n\                
+t a = "/* //  /\ 
+*\
+fff */\
+";
+\<close>
+
+C \<comment> \<open>Backslash newline, Directive \<^url>\<open>https://gcc.gnu.org/onlinedocs/cpp/Initial-processing.html\<close>\<close> \<open>
+/\
+*
+*/ # /*
+*/ defi\
+ne FO\
+O 10\
+20\<close>
+
+C \<comment> \<open>Directive: conditional\<close> \<open>
+#ifdef a
+#elif
+#else
+#if
+#endif
+#endif
+\<close>
+(*
+C \<comment> \<open>Directive: pragma\<close> \<open># f # "/**/"
+/**/
+#     /**/ //  #
+
+_Pragma /\
+**/("a")
+\<close>
+*)
+C \<comment> \<open>Directive: macro\<close> \<open>
+#define a zz
+#define a(x1,x2) z erz(( zz
+#define a (x1,x2) z erz(( zz
+#undef z
+#if
+#define a zz
+#define a(x1,x2) z erz(( zz
+#define a (x1,x2) z erz(( zz
+#endif
+\<close>
+
+end

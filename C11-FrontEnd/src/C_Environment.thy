@@ -80,14 +80,18 @@ text\<open>It comes in two parts: a basic core tstructure and a (thin) layer of 
 ML\<open>
 structure C_Env = struct
 datatype 'a parse_status = Parsed of 'a | Previous_in_stack
+
+type markup_ident = { global : bool (*true: global*)
+                    , params : C_Ast.CDerivedDeclr list
+                    , ret : C_Ast.CDeclSpec list parse_status }
+
 type var_table = { tyidents : (Position.T list * serial) Symtab.table
-                 , idents : (Position.T list * serial * bool (*true: global*) * C_Ast.CDerivedDeclr list 
-                             * C_Ast.CDeclSpec list parse_status) Symtab.table }
+                 , idents : (Position.T list * serial * markup_ident) Symtab.table }
 
 type 'antiq_language_list stream = ('antiq_language_list, C_Lex.token) C_Scan.either list
 
 type env_lang = { var_table : var_table
-                , scopes : var_table list
+                , scopes : (C_Ast.ident option * var_table) list
                 , namesupply : int
                 , stream_ignored : C_Antiquote.antiq stream
                 , env_directives : C_Transition.env_directives }
@@ -158,7 +162,7 @@ fun map_env_lang f {env_lang, env_tree, rule_output, rule_input, stream_hook, st
 
 fun map_env_tree f {env_lang, env_tree, rule_output, rule_input, stream_hook, stream_lang} =
                    {env_lang = env_lang, env_tree = f env_tree, rule_output = rule_output, 
-                   rule_input = rule_input, stream_hook = stream_hook, stream_lang = stream_lang}
+                    rule_input = rule_input, stream_hook = stream_hook, stream_lang = stream_lang}
 
 fun map_rule_output f {env_lang, env_tree, rule_output, rule_input, stream_hook, stream_lang} =
                    {env_lang = env_lang, env_tree = env_tree, rule_output = f rule_output, 
@@ -173,8 +177,8 @@ fun map_stream_hook f {env_lang, env_tree, rule_output, rule_input, stream_hook,
                     rule_input = rule_input, stream_hook = f stream_hook, stream_lang = stream_lang}
 
 fun map_stream_lang f {env_lang, env_tree, rule_output, rule_input, stream_hook, stream_lang} =
-                    {env_lang = env_lang, env_tree = env_tree, rule_output = rule_output, 
-                     rule_input = rule_input, stream_hook = stream_hook, stream_lang = f stream_lang}
+                   {env_lang = env_lang, env_tree = env_tree, rule_output = rule_output, 
+                    rule_input = rule_input, stream_hook = stream_hook, stream_lang = f stream_lang}
 
 (**)
 
@@ -202,20 +206,20 @@ fun map_var_table f {var_table, scopes, namesupply, stream_ignored, env_directiv
                      stream_ignored = stream_ignored, env_directives = env_directives}
 
 fun map_scopes f {var_table, scopes, namesupply, stream_ignored, env_directives} =
-                     {var_table = var_table, scopes = f scopes, namesupply = namesupply, 
-                      stream_ignored = stream_ignored, env_directives = env_directives}
+                    {var_table = var_table, scopes = f scopes, namesupply = namesupply, 
+                     stream_ignored = stream_ignored, env_directives = env_directives}
 
 fun map_namesupply f {var_table, scopes, namesupply, stream_ignored, env_directives} =
-                     {var_table = var_table, scopes = scopes, namesupply = f namesupply, 
-                      stream_ignored = stream_ignored, env_directives = env_directives}
+                    {var_table = var_table, scopes = scopes, namesupply = f namesupply, 
+                     stream_ignored = stream_ignored, env_directives = env_directives}
 
 fun map_stream_ignored f {var_table, scopes, namesupply, stream_ignored, env_directives} =
-                     {var_table = var_table, scopes = scopes, namesupply = namesupply, 
-                      stream_ignored = f stream_ignored, env_directives = env_directives}
+                    {var_table = var_table, scopes = scopes, namesupply = namesupply, 
+                     stream_ignored = f stream_ignored, env_directives = env_directives}
 
 fun map_env_directives f {var_table, scopes, namesupply, stream_ignored, env_directives} =
-                     {var_table = var_table, scopes = scopes, namesupply = namesupply, 
-                      stream_ignored = stream_ignored, env_directives = f env_directives}
+                    {var_table = var_table, scopes = scopes, namesupply = namesupply, 
+                     stream_ignored = stream_ignored, env_directives = f env_directives}
 
 (**)
 
@@ -247,10 +251,10 @@ fun make env_lang stream_lang env_tree =
                                       | C_Scan.Left antiq => SOME (C_Scan.Left antiq))
                                     stream_lang }
 fun string_of (env_lang : env_lang) = 
-  let fun dest0 x = x |> Symtab.dest |> map #1
-      fun dest {tyidents, idents} = (dest0 tyidents, dest0 idents)
+  let fun dest0 x f = x |> Symtab.dest |> map f
+      fun dest {tyidents, idents} = (dest0 tyidents #1, dest0 idents (fn (i, (_,_,v)) => (i, if #global v then "global" else "local")))
   in @{make_string} ( ("var_table", dest (#var_table env_lang))
-                    , ("scopes", map dest (#scopes env_lang))
+                    , ("scopes", map (fn (id, i) => (Option.map (fn C_Ast.Ident0 (i, _, _) => (String.implode o C_Ast.to_list) i) id, dest i)) (#scopes env_lang))
                     , ("namesupply", #namesupply env_lang)
                     , ("stream_ignored", #stream_ignored env_lang)) end
 

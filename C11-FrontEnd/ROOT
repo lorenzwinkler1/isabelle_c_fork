@@ -44,11 +44,13 @@ session C = HOL +
   description {* C *}
   options [document = pdf, document_output = generated]
   theories
+    "examples/C0"
     "examples/C1"
     "examples/C2"
     "examples/C3"
     "examples/C_paper"
     "document/Rail"
+    "document/README"
   document_files
     "root.tex"
     "root.bib"
