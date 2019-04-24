@@ -509,7 +509,7 @@ fun interactive_install s thy =
           thy);
 
 
-fun install_C_types ((((maybe_c11, no_cpp), parse_stop), sub_decl), files) thy = let
+fun install_C_file_types ((((maybe_c11, no_cpp), parse_stop), sub_decl), files) thy = let
   open CalculateState ProgramAnalysis
   val (ast, thy) = get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy (mk_thy_relative' files thy)
   val (_, cse) =
@@ -583,9 +583,9 @@ val _ =
 
 val _ =
     Outer_Syntax.command
-      @{command_keyword "install_C_types"}
+      @{command_keyword "install_C_file_types"}
       "install types from a C file"
-      (parsing_option -- Resources.parse_files "install_C_types" >> (Toplevel.theory o install_C_types))
+      (parsing_option -- Resources.parse_files "install_C_file_types" >> (Toplevel.theory o install_C_file_types))
 
 end
 

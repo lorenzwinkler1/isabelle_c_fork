@@ -24,7 +24,7 @@ and
   "new_C_include_dir" :: thy_decl
 and
   "install_C_file"
-  "install_C_types" :: thy_load % "ML"
+  "install_C_file_types" :: thy_load % "ML"
 and
   "all_parsing"
   "no_C11_parsing"
