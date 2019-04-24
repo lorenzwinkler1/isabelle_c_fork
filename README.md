@@ -10,8 +10,9 @@ isabelle jedit C11-FrontEnd/examples/C2.thy
 isabelle jedit C11-FrontEnd/examples/C3.thy
 
 isabelle jedit -d l4v/src l4v/examples/TestSEL4.thy
+isabelle jedit -d l4v/src l4v/examples/IsPrime_source.thy
 
-For the last example, a sub-window 'Bad session structure' will be
+For the last examples, a sub-window 'Bad session structure' will be
 opened, but this can be ignored: after a click on 'OK', the
 compilation will correctly start.
 
