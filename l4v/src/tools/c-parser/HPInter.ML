@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -32,7 +33,7 @@ sig
   val mk_fninfo : theory -> csenv -> (string -> bool) ->
                   Absyn.ext_decl list -> fninfo list
   val make_function_definitions :
-      string ->                  (* name of locale where definitions will live *)
+      binding ->                 (* name of locale where definitions will live *)
       csenv ->                   (* result of ProgramAnalysis over declarations *)
       typ list ->                (* type arguments to state type operator *)
       thm list ->                (* theorems defining names of functions *)
@@ -381,7 +382,7 @@ fun asm_to_string tmw e =
 
 (* The following is modelled on the code in HoarePackage.procedures_definition
 *)
-fun make_function_definitions localename
+fun make_function_definitions localename_b
                               (cse : ProgramAnalysis.csenv)
                               (styargs : typ list)
                               (nmdefs : thm list)
@@ -392,7 +393,6 @@ fun make_function_definitions localename
                               thy =
 let
   open HoarePackage
-  val localename_b = Binding.name localename
   val thy = thy |> Context.theory_map (HoarePackage.set_default_state_kind
                                        HoarePackage.Record)
   val name_pars =

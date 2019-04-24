@@ -14,15 +14,15 @@ signature ISAR_INSTALL =
 sig
 
   type additional_options
+  type install_C = (((((((bool option * string option) * string option) * int option) * string option) * string option) * string option) * (theory -> Token.file list, binding * Input.source) C_Scan.either) *
+                       additional_options list option
   val GhostState : string -> additional_options
   val get_Csyntax : bool option -> bool option -> bool option -> int option -> theory -> StrictCParser.input -> Absyn.ext_decl list * theory
   val gen_umm_types_file : string -> string -> theory -> theory
   val do_cpp : {error_detail : int, cpp_path : string option} ->
                {includes : string list, input : StrictCParser.input} -> string option
-  val install_C_file : (((((((bool option * bool option) * bool option) * int option) * bool option) * bool option) * bool option) * (theory -> Token.file list, Input.source) C_Scan.either) *
-                       additional_options list option ->
-                       theory -> theory
-  val interactive_install : (theory -> Token.file list, Input.source) C_Scan.either -> theory -> theory
+  val install_C_file : install_C -> theory -> (binding * string) * theory
+  val interactive_install : (theory -> Token.file list, binding * Input.source) C_Scan.either -> theory -> theory
   val mk_thy_relative : theory -> string -> string
 
   val extra_trace_filename : string Config.T
@@ -31,6 +31,9 @@ sig
     -> {c_filename : string, locale_names : string list,
         options: (bool * bool * bool),
         additional_options: additional_options list} list
+
+  val install_C_parser : (theory -> Token.file list, binding * Input.source) C_Scan.either parser
+    -> install_C parser
 end
 
 structure IsarInstall : ISAR_INSTALL =
@@ -77,6 +80,8 @@ structure C_Includes = Theory_Data
 end);
 
 datatype additional_options = MachineState of string | GhostState of string | CRoots of string list
+type install_C = (((((((bool option * string option) * string option) * int option) * string option) * string option) * string option) * (theory -> Token.file list, binding * Input.source) C_Scan.either) *
+                     additional_options list option
 
 type install_data = {c_filename : string, locale_names : string list,
         options: (bool * bool * bool),
@@ -322,19 +327,20 @@ fun mk_thy_relative' files = IsarPreInstall.mk_thy_relative' (files #> hd)
 fun install_C_file00 files thy =
   case files of C_Scan.Left files => 
                   let val p = mk_thy_relative' files thy in (StrictCParser.File p, C_Scan.Left (#2 p)) end
-              | C_Scan.Right src => (StrictCParser.Source src, C_Scan.Right ("source_position" ^ serial_string ()))
+              | C_Scan.Right (binding, src) => (StrictCParser.Source src, C_Scan.Right binding)
 
 fun install_C_file0 ((((((((maybe_c11,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),files),statetylist_opt) thy = let
   val (file, s) = install_C_file00 files thy
-  val (localename, s) = case s of C_Scan.Left s => (#base (OS.Path.splitBaseExt (OS.Path.file s)), s)
-                                | C_Scan.Right s => (s, s)
-  val _ = parse_stop <> NONE orelse
-          not (Long_Name.is_qualified localename) orelse
-            raise Fail ("Base of filename looks like qualified Isabelle ID: "^
-                        localename)
-  val _ = localename <> "" orelse
-          raise Fail ("Filename (>'" ^ s ^
-                      "'<) gives \"\" as locale name, which is illegal")
+  val (localename, s) = case s of C_Scan.Left s => ( Binding.name (#base (OS.Path.splitBaseExt (OS.Path.file s))
+                                                                   |> tap (fn localename => parse_stop <> NONE orelse
+                                                                             not (Long_Name.is_qualified localename) orelse
+                                                                               raise Fail ("Base of filename looks like qualified Isabelle ID: "^
+                                                                                           localename))
+                                                                   |> tap (fn localename => localename <> "" orelse
+                                                                             raise Fail ("Filename (>'" ^ s ^
+                                                                                         "'<) gives \"\" as locale name, which is illegal")))
+                                                   , s)
+                                | C_Scan.Right binding => (binding, Name_Space.base_name binding)
   val statetylist = case statetylist_opt of NONE => [] | SOME l => List.rev l
   val mstate_ty =
       case get_first (fn (MachineState s) => SOME s | _ => NONE) statetylist of
@@ -356,7 +362,7 @@ fun install_C_file0 ((((((((maybe_c11,no_cpp),parse_stop),sub_decl),memsafe),cty
   val install_defs = not (o2b ctyps) orelse (o2b cdefs)
   val ms = o2b memsafe
   val (ast, thy) = get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy file
-in case parse_stop of SOME _ => thy | _ => let
+in pair (localename, s) (case parse_stop of SOME _ => thy | _ => let
   open ProgramAnalysis CalculateState Feedback
   val owners =
       (* non-null if there are any globals that have owned_by annotations *)
@@ -395,7 +401,7 @@ in
       val (thy, vdecls, globs) =
           mk_thy_decls
             state {owners=owners,gstate_ty=gstate_ty,mstate_ty=mstate_ty} thy
-      val loc_b = Binding.name (suffix HPInter.globalsN localename)
+      val loc_b = Binding.name (suffix HPInter.globalsN (Name_Space.base_name localename))
       val (globloc, ctxt) =
           Expression.add_locale loc_b loc_b ([], []) globs thy
       val thy = Local_Theory.exit_global ctxt
@@ -494,7 +500,7 @@ in
         {c_filename = s, locale_names = [],
           options = (ms, install_typs, install_defs),
           additional_options = statetylist} :: ss) thy
-end handle e as TYPE (s,tys,tms) =>
+end) handle e as TYPE (s,tys,tms) =>
          (Feedback.informStr (0, s ^ "\n" ^
                    Int.toString (length tms) ^ " term(s): " ^
                    String.concatWith
@@ -509,11 +515,11 @@ end
 
 fun install_C_file args thy =
     thy |> install_C_file0 args
-        |> Config.put_global CalculateState.current_C_filename ""
+        ||> Config.put_global CalculateState.current_C_filename ""
 
 (* for interactive debugging/testing *)
 fun interactive_install s thy =
-  install_C_file ((((((((NONE, NONE), NONE), NONE), NONE), NONE), NONE), s), NONE) thy
+  install_C_file ((((((((NONE, NONE), NONE), NONE), NONE), NONE), NONE), s), NONE) thy |> #2
   handle TYPE (s,tys,tms) =>
          (Feedback.informStr (0, s ^ "\n" ^
                    Int.toString (length tms) ^ " term(s): " ^
@@ -578,20 +584,22 @@ val _ = Outer_Syntax.command @{command_keyword "new_C_include_dir"}
                             "add a directory to the include path"
                             (P.text >> (Toplevel.theory o new_include))
 
-fun file_inclusion resources_parse = let
+fun install_C_parser resources_parse = let
   val typoptions =
       P.reserved mtypN |-- (P.$$$ "=" |-- P.text >> MachineState) ||
       P.reserved ghosttypN |-- (P.$$$ "=" |-- P.text >> GhostState) ||
       P.reserved rootsN |-- (P.$$$ "=" |-- (P.$$$ "[" |-- P.enum1 "," P.text --| P.$$$ "]") >> CRoots)
 in
-    (parsing_option --
+    parsing_option --
      (Scan.option (P.$$$ memsafeN)) --
      (Scan.option (P.$$$ typesN)) --
      (Scan.option (P.$$$ defsN)) -- resources_parse --
      (Scan.option
-          (P.$$$ "[" |-- P.enum1 "," typoptions --| P.$$$ "]"))) >>
-    (Toplevel.theory o install_C_file)
+          (P.$$$ "[" |-- P.enum1 "," typoptions --| P.$$$ "]"))
 end
+
+fun file_inclusion resources_parse =
+  install_C_parser resources_parse >> (Toplevel.theory o (#2 oo install_C_file))
 
 val _ =
     Outer_Syntax.command
@@ -603,7 +611,7 @@ val _ =
     Outer_Syntax.command
       @{command_keyword "install_C"}
       "import a C code"
-      (file_inclusion (C_Outer_Parse.C_source >> C_Scan.Right))
+      (file_inclusion (Parse.binding -- C_Outer_Parse.C_source >> C_Scan.Right))
 
 val _ =
     Outer_Syntax.command
@@ -616,7 +624,7 @@ val _ =
     Outer_Syntax.command
       @{command_keyword "install_C_types"}
       "install types from a C code"
-      (parsing_option -- (C_Outer_Parse.C_source >> C_Scan.Right)
+      (parsing_option -- (Parse.binding -- C_Outer_Parse.C_source >> C_Scan.Right)
        >> (Toplevel.theory o install_C_file_types))
 
 end

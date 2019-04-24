@@ -27,7 +27,7 @@ install_C_file all_parsing no_cpp parse_then_stop
                \<comment> \<open>The following file can be meanwhile CTRL-clicked on it:\<close>
                \<open>../generated/spec/cspec/c/build/ARM/kernel_all.c_pp\<close>
 
-install_C no_cpp \<open>
+install_C no_cpp kernel_not_all \<open>
 # 1 "kernel_all_copy.c"
 # 1 "<built-in>"
 # 1 "<command-line>"
@@ -243,5 +243,9 @@ seL4_MessageInfo_get_extraCaps(seL4_MessageInfo_t seL4_MessageInfo) {
     return ret;
 }
 \<close>
+
+context \<comment> \<open>The following binding can be meanwhile CTRL-clicked on it:\<close>
+        kernel_not_all
+        begin end
 
 end
