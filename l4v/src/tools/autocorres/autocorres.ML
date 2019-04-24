@@ -347,22 +347,61 @@ in
   >> swap
 end
 
+fun autocorres_parser'' resources_parse =
+let
+  val option_parser =
+    (no_heap_abs_parser ||
+     force_heap_abs_parser ||
+     skip_heap_abs_parser ||
+     ts_rules_parser ||
+     ts_force_parser ||
+     unsigned_word_abs_parser ||
+     no_signed_word_abs_parser ||
+     skip_word_abs_parser ||
+     heap_abs_syntax_parser ||
+     scope_parser ||
+     scope_depth_parser ||
+     c_locale_parser ||
+     no_c_termination_parser ||
+     trace_heap_lift_parser ||
+     trace_word_abs_parser ||
+     no_opt_parser ||
+     trace_opt_parser ||
+     gen_word_heaps_parser ||
+     keep_going_parser ||
+     lifted_globals_field_prefix_parser ||
+     lifted_globals_field_suffix_parser ||
+     function_name_prefix_parser ||
+     function_name_suffix_parser)
+    |> !! (fn xs => K ("autocorres: unknown option " ^ quote (Parse.text (fst xs) |> #1)))
+
+  val options_parser = Parse.list option_parser >> (fn opt_fns => fold I opt_fns)
+in
+  (* Filename ('Filename' is first parsed before 'Options'
+               because the command is declared as 'thy_load' and
+               'thy_load' can only affect the first argument of a command in Isabelle2018.) *)
+  IsarInstall.install_C_parser resources_parse --
+  (* Options *)
+  (Scan.optional (Parse.$$$ "[" |-- options_parser --| Parse.$$$ "]") I
+      >> (fn f => f (default_opts ())))
+  >> swap
+end
 
 
 (*
  * Worker for the autocorres command.
  *)
-fun do_autocorres (opt : autocorres_options) filename thy =
+fun do_autocorres (opt : autocorres_options) (locale_name, filename) thy =
 let
   (* Ensure that the filename has already been parsed by the C parser. *)
-  val csenv = case CalculateState.get_csenv thy filename of
+  val csenv = case CalculateState.get_csenv' thy filename of
       NONE => error ("Filename '" ^ filename ^ "' has not been parsed by the C parser yet.")
     | SOME x => x
 
   (* Enter into the correct context. *)
-  val {base = locale_name,...} = OS.Path.splitBaseExt (OS.Path.file filename)
-  val locale_name = case !(#c_locale opt) of NONE => locale_name
+  val locale_name = case !(#c_locale opt) of NONE => Name_Space.base_name locale_name
                                            | SOME l => l
+
   val lthy = case try (Named_Target.begin (locale_name, Position.none)) thy of
                  SOME lthy => lthy
                | NONE => error ("autocorres: no such locale: " ^ locale_name)

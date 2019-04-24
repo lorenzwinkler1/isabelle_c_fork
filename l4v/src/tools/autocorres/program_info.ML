@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -143,7 +144,7 @@ val _ = assert (demangle_name "StrictC'__reserved___int" = "StrictC'__reserved")
 fun get_prog_info ctxt filename : prog_info =
   let
     val thy = Proof_Context.theory_of ctxt
-    val csenv = CalculateState.get_csenv thy filename |> the;
+    val csenv = CalculateState.get_csenv' thy filename |> the;
 
     (* Get the type of the state record and the globals record. *)
     fun expand_type_abbrevs t = Thm.typ_of (Thm.ctyp_of ctxt t)

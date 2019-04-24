@@ -31,7 +31,9 @@ imports
   AutoCorresSimpset
   "Lib.TermPatternAntiquote"
   keywords "autocorres"
-           "autocorres'" :: thy_load % "ML"
+           "autocorres'"
+           "install_autocorres_file" :: thy_load % "ML"
+  and      "install_autocorres" :: thy_decl % "ML"
 begin
 
 (* Remove various rules from the default simpset that don't really help. *)
@@ -171,7 +173,14 @@ ML {*
 val do_autocorres = 
   Toplevel.theory
   o (fn (opt, filename) => fn thy =>
-      AutoCorres.do_autocorres opt (IsarPreInstall.mk_thy_relative' (filename #> hd) thy |> #2) thy)
+      AutoCorres.do_autocorres opt (IsarPreInstall.mk_thy_relative' (filename #> hd) thy
+                                    |> (fn (_, s) =>
+                                         (Binding.make (#base (OS.Path.splitBaseExt (OS.Path.file s)), Position.none), s))) thy)
+
+val do_install_autocorres =
+  Toplevel.theory
+    o (fn (opt, input) => IsarInstall.install_C_file input #-> AutoCorres.do_autocorres opt)
+
 val _ =
   Outer_Syntax.command @{command_keyword "autocorres"}
     "Abstract the output of the C parser into a monadic representation."
@@ -180,6 +189,14 @@ val _ =
   Outer_Syntax.command @{command_keyword "autocorres'"}
     "Abstract the output of the C parser into a monadic representation."
     (AutoCorres.autocorres_parser' >> do_autocorres)
+val _ =
+  Outer_Syntax.command @{command_keyword "install_autocorres"}
+    "Install the C code, and abstract the output of the C parser into a monadic representation."
+    (AutoCorres.autocorres_parser'' (Parse.binding -- C_Outer_Parse.C_source >> C_Scan.Right) >> do_install_autocorres)
+val _ =
+  Outer_Syntax.command @{command_keyword "install_autocorres_file"}
+    "Install the C file, and abstract the output of the C parser into a monadic representation."
+    (AutoCorres.autocorres_parser'' (Resources.parse_files "install_autocorres_file" >> C_Scan.Left) >> do_install_autocorres)
 *}
 
 end
