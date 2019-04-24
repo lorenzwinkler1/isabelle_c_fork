@@ -23,6 +23,9 @@ keywords
 and
   "new_C_include_dir" :: thy_decl
 and
+  "install_C"
+  "install_C_types" :: thy_decl % "ML"
+and
   "install_C_file"
   "install_C_file_types" :: thy_load % "ML"
 and

@@ -15,14 +15,14 @@ sig
 
   type additional_options
   val GhostState : string -> additional_options
-  val get_Csyntax : bool option -> bool option -> bool option -> int option -> theory -> Token.file * string -> Absyn.ext_decl list * theory
+  val get_Csyntax : bool option -> bool option -> bool option -> int option -> theory -> StrictCParser.input -> Absyn.ext_decl list * theory
   val gen_umm_types_file : string -> string -> theory -> theory
   val do_cpp : {error_detail : int, cpp_path : string option} ->
-               {includes : string list, filename : string} -> string
-  val install_C_file : (((((((bool option * bool option) * bool option) * int option) * bool option) * bool option) * bool option) * (theory -> Token.file list)) *
+               {includes : string list, input : StrictCParser.input} -> string option
+  val install_C_file : (((((((bool option * bool option) * bool option) * int option) * bool option) * bool option) * bool option) * (theory -> Token.file list, Input.source) C_Scan.either) *
                        additional_options list option ->
                        theory -> theory
-  val interactive_install : (theory -> Token.file list) -> theory -> theory
+  val interactive_install : (theory -> Token.file list, Input.source) C_Scan.either -> theory -> theory
   val mk_thy_relative : theory -> string -> string
 
   val extra_trace_filename : string Config.T
@@ -122,10 +122,22 @@ in
   report_cpp_errors_config
 end
 
-fun do_cpp {error_detail, cpp_path} {includes, filename} =
+fun get_filename f =
+ fn StrictCParser.Source src =>
+      let val filename = File.tmp_path (Path.basic ("source_to_be_cpped" ^ serial_string ()))
+          val _ = File.write filename (Input.source_content src)
+          val res = f (Path.implode filename)
+          val _ = File.rm filename
+      in res end
+  | StrictCParser.Filename filename => f filename
+  | StrictCParser.File (_, filename) => f filename
+
+fun do_cpp {error_detail, cpp_path} {includes, input} =
   case cpp_path of
-      NONE => filename
+      NONE => NONE
     | SOME p =>
+  get_filename
+    (fn filename =>
       let
         open OS.FileSys OS.Process
         val tmpname = tmpName()
@@ -135,7 +147,7 @@ fun do_cpp {error_detail, cpp_path} {includes, filename} =
         val cmdline =
             p ^ " " ^ includes_string ^ " -CC \"" ^ filename ^ "\" > " ^ tmpname ^ " 2> " ^ err_tmpname
       in
-        if isSuccess (system cmdline) then (OS.FileSys.remove err_tmpname; tmpname)
+        if isSuccess (system cmdline) then (OS.FileSys.remove err_tmpname; SOME tmpname)
         else let val _ = OS.FileSys.remove tmpname
                  val (msg, rest) = File.read_lines (Path.explode err_tmpname) |> chop error_detail
                  val _ = OS.FileSys.remove err_tmpname
@@ -145,7 +157,8 @@ fun do_cpp {error_detail, cpp_path} {includes, filename} =
                                                     ["(... " ^ string_of_int (length rest) ^
                                                      " more line" ^ plural (length rest) ^ ")"])))
              in raise Feedback.WantToExit ("cpp failed on " ^ filename) end
-      end
+      end)
+    input
 
 fun get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy file = let
   val _ = setup_feedback_thy thy
@@ -306,10 +319,15 @@ end
 
 fun mk_thy_relative' files = IsarPreInstall.mk_thy_relative' (files #> hd)
 
-fun install_C_file0 ((((((((maybe_c11,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),files),statetylist_opt) thy = let
-  val (file, s) = mk_thy_relative' files thy
+fun install_C_file00 files thy =
+  case files of C_Scan.Left files => 
+                  let val p = mk_thy_relative' files thy in (StrictCParser.File p, C_Scan.Left (#2 p)) end
+              | C_Scan.Right src => (StrictCParser.Source src, C_Scan.Right ("source_position" ^ serial_string ()))
 
-  val {base = localename,...} = OS.Path.splitBaseExt (OS.Path.file s)
+fun install_C_file0 ((((((((maybe_c11,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),files),statetylist_opt) thy = let
+  val (file, s) = install_C_file00 files thy
+  val (localename, s) = case s of C_Scan.Left s => (#base (OS.Path.splitBaseExt (OS.Path.file s)), s)
+                                | C_Scan.Right s => (s, s)
   val _ = parse_stop <> NONE orelse
           not (Long_Name.is_qualified localename) orelse
             raise Fail ("Base of filename looks like qualified Isabelle ID: "^
@@ -337,7 +355,7 @@ fun install_C_file0 ((((((((maybe_c11,no_cpp),parse_stop),sub_decl),memsafe),cty
   val install_typs = not (o2b cdefs) orelse (o2b ctyps)
   val install_defs = not (o2b ctyps) orelse (o2b cdefs)
   val ms = o2b memsafe
-  val (ast, thy) = get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy (file, s)
+  val (ast, thy) = get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy file
 in case parse_stop of SOME _ => thy | _ => let
   open ProgramAnalysis CalculateState Feedback
   val owners =
@@ -511,7 +529,7 @@ fun interactive_install s thy =
 
 fun install_C_file_types ((((maybe_c11, no_cpp), parse_stop), sub_decl), files) thy = let
   open CalculateState ProgramAnalysis
-  val (ast, thy) = get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy (mk_thy_relative' files thy)
+  val (ast, thy) = get_Csyntax maybe_c11 no_cpp parse_stop sub_decl thy (#1 (install_C_file00 files thy))
   val (_, cse) =
       process_decls {
         anon_vars = Config.get_global thy use_anon_vars,
@@ -525,7 +543,7 @@ end
 
 fun gen_umm_types_file inputfile outputfile thy = let
   open ProgramAnalysis
-  val (ast, thy) = get_Csyntax NONE NONE NONE NONE thy (IsarPreInstall.parse_files' inputfile thy, inputfile)
+  val (ast, thy) = get_Csyntax NONE NONE NONE NONE thy (StrictCParser.Filename inputfile)
   val (_, cse) =
       process_decls {
         anon_vars = Config.get_global thy use_anon_vars,
@@ -560,7 +578,7 @@ val _ = Outer_Syntax.command @{command_keyword "new_C_include_dir"}
                             "add a directory to the include path"
                             (P.text >> (Toplevel.theory o new_include))
 
-val file_inclusion = let
+fun file_inclusion resources_parse = let
   val typoptions =
       P.reserved mtypN |-- (P.$$$ "=" |-- P.text >> MachineState) ||
       P.reserved ghosttypN |-- (P.$$$ "=" |-- P.text >> GhostState) ||
@@ -569,7 +587,7 @@ in
     (parsing_option --
      (Scan.option (P.$$$ memsafeN)) --
      (Scan.option (P.$$$ typesN)) --
-     (Scan.option (P.$$$ defsN)) -- Resources.parse_files "install_C_file" --
+     (Scan.option (P.$$$ defsN)) -- resources_parse --
      (Scan.option
           (P.$$$ "[" |-- P.enum1 "," typoptions --| P.$$$ "]"))) >>
     (Toplevel.theory o install_C_file)
@@ -579,13 +597,27 @@ val _ =
     Outer_Syntax.command
       @{command_keyword "install_C_file"}
       "import a C file"
-      file_inclusion
+      (file_inclusion (Resources.parse_files "install_C_file" >> C_Scan.Left))
+
+val _ =
+    Outer_Syntax.command
+      @{command_keyword "install_C"}
+      "import a C code"
+      (file_inclusion (C_Outer_Parse.C_source >> C_Scan.Right))
 
 val _ =
     Outer_Syntax.command
       @{command_keyword "install_C_file_types"}
       "install types from a C file"
-      (parsing_option -- Resources.parse_files "install_C_file_types" >> (Toplevel.theory o install_C_file_types))
+      (parsing_option -- (Resources.parse_files "install_C_file_types" >> C_Scan.Left)
+       >> (Toplevel.theory o install_C_file_types))
+
+val _ =
+    Outer_Syntax.command
+      @{command_keyword "install_C_types"}
+      "install types from a C code"
+      (parsing_option -- (C_Outer_Parse.C_source >> C_Scan.Right)
+       >> (Toplevel.theory o install_C_file_types))
 
 end
 

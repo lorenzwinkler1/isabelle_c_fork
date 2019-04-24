@@ -30,32 +30,48 @@ end
 
 val last_parsed = Synchronized.var "last parsed" ("", [])
 
-fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (file, fname) thy =
+datatype input = File of Token.file * string (* filename *)
+               | Filename of string (* filename *)
+               | Source of Input.source
+
+fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (input : input) thy =
   let
-    fun docpp files f =
-      let val cpped_fname = docpp0 files
-          val res = f cpped_fname
-          val _ = if cpped_fname <> fname then
-                    OS.FileSys.remove cpped_fname
-                  else ()
+    fun docpp f =
+      let val cpped_input = docpp0 { includes = includes, input = input }
+          val res = f (case cpped_input of NONE => (NONE, input) | SOME fname => (SOME input, Filename fname))
+          val _ = case cpped_input of
+                    SOME cpped_fname => OS.FileSys.remove cpped_fname
+                  | _ => ()
       in res end
-  
-    fun open_close f fic =
-      let val istream = TextIO.openIn fic
-          val res = f istream
-          val _ = TextIO.closeIn istream
-      in res end
-  
+
+    fun drain lines =
+      let val lines = ref lines
+      in fn _ => case !lines of [] => ""
+                              | x :: xs => (lines := xs; x)
+      end
+
+    fun open_close f =
+      fn (_, File (file, fname)) =>
+          f (drain (map (fn x => x ^ "\n") (#lines file)))
+            fname
+       | (_, Filename fic) =>
+          let val istream = TextIO.openIn fic
+              val res = f (fn _ => inputLine istream) fic
+              val _ = TextIO.closeIn istream
+          in res end
+       | (_, Source src) =>
+          f (drain [Input.source_content src]) (C_Env.encode_positions [Input.pos_of src])
+
     fun parse_without_c11 thy = 
-      docpp {includes=includes,filename=fname}
-        (open_close (fn istream =>
+      docpp
+        (open_close (fn istream => fn fname =>
           let
             val _ = Feedback.numErrors := 0 (* FIXME - global reference *)
             val lexarg = StrictCLex.UserDeclarations.new_state fname
-            val lexer = StrictCParser.makeLexer (fn _ => inputLine istream) lexarg
+            val lexer = StrictCParser.makeLexer istream lexarg
             val pos = #source lexarg
-          in invoke error_lookahead pos lexer end))
-      |>> (fn v => Synchronized.change_result last_parsed (K (v, (fname, v))))
+          in invoke error_lookahead pos lexer |>> pair fname end))
+      |>> (fn (fname, v) => Synchronized.change_result last_parsed (K (v, (fname, v))))
       |> curry swap thy
 
     (* Command.read_file_node' *)
@@ -68,10 +84,15 @@ fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (file, fname
       in {src_path = src_path, lines = lines, digest = digest, pos = Path.position full_path} end
 
     fun parse_with_c11 thy =
-      docpp {includes=includes,filename=fname}
-        (fn cpped_fname =>
-          let val thy = Context.theory_map (C_Outer_File.command0 file) thy
-              val thy = Context.theory_map (C_Outer_File.command0 (read_file_node' (Path.explode cpped_fname))) thy
+      docpp
+        (fn (input, cpped_input) =>
+          let val C_exec =
+                Context.theory_map o (fn Filename cpped_fname =>
+                                           C_Outer_File.command0 (read_file_node' (Path.explode cpped_fname))
+                                       | File (file, _) => C_Outer_File.command0 file
+                                       | Source src => C_Module.C src)
+              val thy = (case input of SOME input => C_exec input | NONE => I) thy
+              val thy = C_exec cpped_input thy
               val (res, l_comm) = hd (C_Module.get_module thy |> #1)
           in (C_Ast.main (res, (map_filter (fn C_Scan.Left {body_begin, body, body_end, range, ...} =>
                                                SOME (C_Grammar_Rule_Lib.make_comment body_begin body body_end range)

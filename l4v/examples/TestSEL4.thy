@@ -23,8 +23,11 @@ declare [[ML_print_depth = 500]] \<comment> \<open>Any number large enough for @
  * Test to see if all C parsed values are equal without considering positions.
  *)
 
-install_C_file all_parsing parse_then_stop
+install_C_file all_parsing no_cpp parse_then_stop
                \<comment> \<open>The following file can be meanwhile CTRL-clicked on it:\<close>
                \<open>../generated/spec/cspec/c/build/ARM/kernel_all.c_pp\<close>
+
+install_C no_cpp \<open>
+\<close>
 
 end
