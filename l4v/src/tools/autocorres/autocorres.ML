@@ -269,8 +269,7 @@ fun default_opts _ = {
     function_name_suffix = ref NONE
   } : autocorres_options
 
-(* Combined parser. *)
-val autocorres_parser : (autocorres_options * (theory -> Token.file list)) parser =
+val options_parser =
 let
   val option_parser =
     (no_heap_abs_parser ||
@@ -298,94 +297,30 @@ let
      function_name_suffix_parser)
     |> !! (fn xs => K ("autocorres: unknown option " ^ quote (Parse.text (fst xs) |> #1)))
 
-  val options_parser = Parse.list option_parser >> (fn opt_fns => fold I opt_fns)
+  val options_parser = Parse.list option_parser >> fold I
 in
-  (* Options *)
-  (Scan.optional (Parse.$$$ "[" |-- options_parser --| Parse.$$$ "]") I
-      >> (fn f => f (default_opts ()))) --
-  (* Filename *)
-  Resources.parse_files "autocorres"
+  Scan.optional (Parse.$$$ "[" |-- options_parser --| Parse.$$$ "]") I
+     >> (fn f => f (default_opts ()))
 end
 
-val autocorres_parser' : (autocorres_options * (theory -> Token.file list)) parser =
-let
-  val option_parser =
-    (no_heap_abs_parser ||
-     force_heap_abs_parser ||
-     skip_heap_abs_parser ||
-     ts_rules_parser ||
-     ts_force_parser ||
-     unsigned_word_abs_parser ||
-     no_signed_word_abs_parser ||
-     skip_word_abs_parser ||
-     heap_abs_syntax_parser ||
-     scope_parser ||
-     scope_depth_parser ||
-     c_locale_parser ||
-     no_c_termination_parser ||
-     trace_heap_lift_parser ||
-     trace_word_abs_parser ||
-     no_opt_parser ||
-     trace_opt_parser ||
-     gen_word_heaps_parser ||
-     keep_going_parser ||
-     lifted_globals_field_prefix_parser ||
-     lifted_globals_field_suffix_parser ||
-     function_name_prefix_parser ||
-     function_name_suffix_parser)
-    |> !! (fn xs => K ("autocorres: unknown option " ^ quote (Parse.text (fst xs) |> #1)))
-
-  val options_parser = Parse.list option_parser >> (fn opt_fns => fold I opt_fns)
-in
+val autocorres_parser = options_parser -- Resources.parse_files "autocorres"
+val autocorres_parser' =
   (* Filename ('Filename' is first parsed before 'Options'
                because the command is declared as 'thy_load' and
                'thy_load' can only affect the first argument of a command in Isabelle2018.) *)
   Resources.parse_files "autocorres'" --
   (* Options *)
-  (Scan.optional (Parse.$$$ "[" |-- options_parser --| Parse.$$$ "]") I
-      >> (fn f => f (default_opts ())))
+  options_parser
   >> swap
-end
 
 fun autocorres_parser'' resources_parse =
-let
-  val option_parser =
-    (no_heap_abs_parser ||
-     force_heap_abs_parser ||
-     skip_heap_abs_parser ||
-     ts_rules_parser ||
-     ts_force_parser ||
-     unsigned_word_abs_parser ||
-     no_signed_word_abs_parser ||
-     skip_word_abs_parser ||
-     heap_abs_syntax_parser ||
-     scope_parser ||
-     scope_depth_parser ||
-     c_locale_parser ||
-     no_c_termination_parser ||
-     trace_heap_lift_parser ||
-     trace_word_abs_parser ||
-     no_opt_parser ||
-     trace_opt_parser ||
-     gen_word_heaps_parser ||
-     keep_going_parser ||
-     lifted_globals_field_prefix_parser ||
-     lifted_globals_field_suffix_parser ||
-     function_name_prefix_parser ||
-     function_name_suffix_parser)
-    |> !! (fn xs => K ("autocorres: unknown option " ^ quote (Parse.text (fst xs) |> #1)))
-
-  val options_parser = Parse.list option_parser >> (fn opt_fns => fold I opt_fns)
-in
   (* Filename ('Filename' is first parsed before 'Options'
                because the command is declared as 'thy_load' and
                'thy_load' can only affect the first argument of a command in Isabelle2018.) *)
   IsarInstall.install_C_parser resources_parse --
   (* Options *)
-  (Scan.optional (Parse.$$$ "[" |-- options_parser --| Parse.$$$ "]") I
-      >> (fn f => f (default_opts ())))
+  options_parser
   >> swap
-end
 
 
 (*
