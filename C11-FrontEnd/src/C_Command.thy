@@ -45,49 +45,45 @@ begin
 
 section \<open>The Global C11-Module State\<close>
 
-ML\<open>
+ML \<comment> \<open>\<^theory>\<open>C.C_Eval\<close>\<close> \<open>
 structure C_Module =
 struct
 
-structure Data_In = Generic_Data
+structure Data_In_Source = Generic_Data
   (type T = Input.source list
    val empty = []
    val extend = K empty
    val merge = K empty)
 
-structure Data_Out = Generic_Data
-  (type T = ((C_Ast.CTranslUnit * C_Antiquote.antiq C_Env.stream) list * C_Env.env_lang) Symtab.table
-   val empty = Symtab.empty
-   val extend = I
-   val merge = Symtab.merge (K false))
+structure Data_In_Env = Generic_Data
+  (type T = C_Env.env_lang
+   val empty = C_Env.empty_env_lang
+   val extend = K empty
+   val merge = K empty)
 
-val get_global = Data_Out.get o Context.Theory
-val dest_list = Symtab.dest o get_global
-fun get_module thy = the (Symtab.lookup (get_global thy) (Context.theory_name thy))
-fun get_module'' context = Symtab.lookup (Data_Out.get context)
-                                         (Context.theory_name (Context.theory_of context))
-val get_module' = the o get_module''
+structure Data_Accept = Generic_Data
+  (type T = C_Ast.CTranslUnit -> C_Env.env_lang -> Context.generic -> Context.generic
+   fun empty _ _ = I
+   val extend = I
+   val merge = #2)
 
 fun accept env_lang (_, (res, _, _)) =
   C_Env.map_context
-    (fn context =>
-      Data_Out.map (Symtab.map_default
-                     (Context.theory_name (Context.theory_of context), ([], env_lang))
-                     (fn (xs, _) => (cons (res, #stream_ignored env_lang |> rev) xs, C_Env.map_stream_ignored (K []) env_lang)))
-                   context)
+    (Data_In_Env.put env_lang
+     #> (fn context => Data_Accept.get context res env_lang context))
 
 val eval_source =
   C_Context.eval_source
-    (fn context => case (Config.get (Context.proof_of context) C_Options.propagate_env, get_module'' context)
-                     of (true, SOME (_, env_lang)) => env_lang
-                      | _ => C_Env.empty_env_lang)
+    (fn context => if Config.get (Context.proof_of context) C_Options.propagate_env
+                   then Data_In_Env.get context
+                   else C_Env.empty_env_lang)
     (fn _ => fn _ => fn pos => fn _ =>
       error ("Parser: No matching grammar rule" ^ Position.here pos))
     accept
 
 fun exec_eval source =
   ML_Context.exec (fn () => eval_source source)
-  #> Data_In.map (cons source)
+  #> Data_In_Source.map (cons source)
 
 fun C_prf source =
   Proof.map_context (Context.proof_map (exec_eval source))
@@ -111,13 +107,13 @@ fun C' err env_lang src =
        err
        accept
        src
-  #> (fn {context, reports_text} => C_Stack.Data_Tree.map (append reports_text) context)
+  #> (fn {context, reports_text} => C_Stack.Data_Tree.map (curry C_Stack.Data_Tree_Args.merge reports_text) context)
 end
 \<close>
 
 section \<open>Definitions of Inner Directive Commands\<close>
 
-ML\<open>
+ML \<comment> \<open>\<^theory>\<open>Pure\<close>\<close> \<open>
 local
 val _ =
   Theory.setup
@@ -163,7 +159,7 @@ in end
 section \<open>Definitions of Inner Annotation Commands\<close>
 subsection \<open>\<close>
 
-ML\<open>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/toplevel.ML\<close>\<close> \<open>
 structure C_Inner_Toplevel =
 struct
 val theory = Context.map_theory
@@ -171,7 +167,7 @@ val generic_theory = I
 end
 \<close>
 
-ML\<open>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/isar_cmd.ML\<close>\<close> \<open>
 structure C_Inner_Isar_Cmd = 
 struct
 fun setup0 f_typ f_val src =
@@ -203,7 +199,7 @@ val setup' = setup0 (K I) K
 end
 \<close>
 
-ML\<open>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/outer_syntax.ML\<close>\<close> \<open>
 structure C_Inner_Syntax =
 struct
 fun command f dir name =
@@ -219,7 +215,7 @@ end
 
 subsection \<open>\<close>
 
-ML\<open>
+ML \<comment> \<open>\<^theory>\<open>Pure\<close>\<close> \<open>
 local
 structure C_Isar_Cmd = 
 struct
@@ -247,14 +243,14 @@ subsection \<open>\<close>
 The Pure theory, with definitions of Isar commands and some lemmas.
 *)
 
-ML\<open>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/parse.ML\<close>\<close> \<open>
 structure C_Outer_Parse =
 struct
   val C_source = Parse.input (Parse.group (fn () => "C source") Parse.text)
 end
 \<close>
 
-ML\<open>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/outer_syntax.ML\<close>\<close> \<open>
 structure C_Outer_Syntax =
 struct
 val _ =
@@ -263,7 +259,7 @@ val _ =
 end
 \<close>
 
-ML\<open>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/isar_cmd.ML\<close>\<close> \<open>
 structure C_Outer_Isar_Cmd =
 struct
 (* diagnostic ML evaluation *)
@@ -294,7 +290,7 @@ val _ = Theory.setup
 end
 \<close>
 
-ML\<open>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_file.ML\<close>\<close> \<open>
 structure C_Outer_File =
 struct
 
@@ -314,7 +310,7 @@ end;
 
 subsection \<open>Reading and Writing C-Files\<close>
 
-ML\<open>
+ML \<comment> \<open>\<^theory>\<open>Pure\<close>\<close> \<open>
 local
 
 val semi = Scan.option \<^keyword>\<open>;\<close>;
@@ -344,7 +340,7 @@ val _ =
           (Toplevel.generic_theory_of
            #>
             (fn context => context
-            |> C_Module.Data_In.get
+            |> C_Module.Data_In_Source.get
             |> rev
             |> map Input.source_content
             |>  let val thy = Context.theory_of context

@@ -39,12 +39,12 @@ theory C_Eval
           C_Parser_Annotation
 begin
 
-section \<open>\<close>
+section \<open>\<close> \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/thy_info.ML\<close>: \<^theory>\<open>C.C_Parser_Language\<close>\<close>
 
 text\<open>The parser consists of a generic module @{file "../copied_from_git/mlton/lib/mlyacc-lib/base.sig"}, 
 which interprets a automata-like format generated from smlyacc.\<close>
 
-ML\<open>
+ML \<comment> \<open>\<^theory>\<open>C.C_Environment\<close>\<close> \<open>
 structure C_Stack =
 struct
 type 'a stack_elem = (LALR_Table.state, 'a, Position.T) C_Env.stack_elem0
@@ -56,20 +56,18 @@ fun map_svalue0 f (st, (v, pos1, pos2)) = (st, (f v, pos1, pos2))
 structure Data_Lang = Generic_Data
   (type T = stack_data * C_Env.env_lang
    val empty = ([], C_Env.empty_env_lang)
-   val extend = I
-   val merge = #2)
+   val extend = K empty
+   val merge = K empty)
 
-structure Data_Tree = Generic_Data
-  (type T = C_Position.reports_text
-   val empty = []
-   val extend = I
-   val merge = #2)
+structure Data_Tree_Args =
+struct
+  type T = C_Position.reports_text
+  val empty = []
+  val extend = I
+  val merge = op @
+end
 
-structure Data_Tree' = Generic_Data
-  (type T = C_Lex.token Symtab.table
-   val empty = Symtab.empty
-   val extend = I
-   val merge = #2)
+structure Data_Tree = Generic_Data (Data_Tree_Args)
 
 fun setmp_tree f context =
   let val x = Data_Tree.get context
@@ -85,7 +83,7 @@ fun stack_exec env_dir data_put f =
 end
 \<close>
 
-ML\<open>
+ML \<comment> \<open>\<^theory>\<open>C.C_Lexer\<close>\<close> \<open>
 structure C_Grammar_Lexer : ARG_LEXER1 =
 struct
 structure LALR_Lex_Instance =
@@ -231,14 +229,14 @@ end
 
 text\<open>This is where the instatiation of the Parser Functor with the Lexer actually happens ...\<close>
 
-ML\<open>
+ML \<comment> \<open>\<^theory>\<open>C.C_Parser_Language\<close>\<close> \<open>
 structure C_Grammar_Parser =
   LALR_Parser_Join (structure LrParser = LALR_Parser_Eval
                     structure ParserData = C_Grammar.ParserData
                     structure Lex = C_Grammar_Lexer)
 \<close>
 
-ML\<open>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_compiler.ML\<close>\<close> \<open>
 structure C_Language = struct
 
 open C_Env
@@ -319,9 +317,9 @@ fun eval env_lang err accept stream_lang =
 end
 \<close>
 
-section \<open>\<close>
+section \<open>\<close> \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/thy_info.ML\<close>: \<^theory>\<open>C.C_Parser_Language\<close>, \<^theory>\<open>C.C_Parser_Annotation\<close>\<close>
 
-ML\<open>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_context.ML\<close>\<close> \<open>
 (*  Author:     Frédéric Tuong, Université Paris-Saclay *)
 (*  Title:      Pure/ML/ml_context.ML
     Author:     Makarius
@@ -354,7 +352,7 @@ structure Directives = Generic_Data
             Symtab.table
    val empty = Symtab.empty
    val extend = I
-   val merge = #2);
+   val merge = Symtab.join (K #2));
 
 
 (* parsing and evaluation *)
