@@ -6,14 +6,14 @@ The code requires Isabelle2018, and the C examples loading can be executed as
 follows:
 
 ```console
-isabelle jedit C11-FrontEnd/examples/C1.thy
-isabelle jedit C11-FrontEnd/examples/C2.thy
-isabelle jedit C11-FrontEnd/examples/C3.thy
+isabelle jedit -d C11-FrontEnd C11-FrontEnd/examples/C1.thy
+isabelle jedit -d C11-FrontEnd C11-FrontEnd/examples/C2.thy
+isabelle jedit -d C11-FrontEnd C11-FrontEnd/examples/C3.thy
 ```
 
 ```console
-isabelle jedit -d l4v/src l4v/examples/TestSEL4.thy
-isabelle jedit -d l4v/src l4v/examples/IsPrime_source.thy
+isabelle jedit -d . l4v/examples/TestSEL4.thy
+isabelle jedit -d . l4v/examples/IsPrime_source.thy
 ```
 
 For the last examples, a sub-window ``Bad session structure`` will be opened,
