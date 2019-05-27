@@ -112,6 +112,38 @@ fun none_to_some ref_field new_value error_msg opt =
 (* Parsing expectations. *)
 fun expect x y = !! (K (K ("autocorres: expected " ^ y ^ " after " ^ x)))
 
+(*
+ * Blank set of options.
+ *
+ * Because we are using references, we need to construct a new set every
+ * time; hence the dummy parameter.
+ *)
+fun default_opts _ = {
+    no_heap_abs = ref NONE,
+    force_heap_abs = ref NONE,
+    skip_heap_abs = ref NONE,
+    unsigned_word_abs = ref NONE,
+    no_signed_word_abs = ref NONE,
+    skip_word_abs = ref NONE,
+    ts_rules = ref NONE,
+    ts_force = ref Symtab.empty,
+    heap_abs_syntax = ref NONE,
+    scope = ref NONE,
+    scope_depth = ref NONE,
+    c_locale = ref NONE,
+    no_c_termination = ref NONE,
+    trace_heap_lift = ref NONE,
+    trace_word_abs = ref NONE,
+    no_opt = ref NONE,
+    trace_opt = ref NONE,
+    gen_word_heaps = ref NONE,
+    keep_going = ref NONE,
+    lifted_globals_field_prefix = ref NONE,
+    lifted_globals_field_suffix = ref NONE,
+    function_name_prefix = ref NONE,
+    function_name_suffix = ref NONE
+  } : autocorres_options
+
 (* Generic parser for "NAME = THING" *)
 fun named_option parser name elem_desc=
   Parse.reserved name |--
@@ -236,38 +268,6 @@ val function_name_suffix_parser =
   named_option Parse.text "function_name_suffix" "string" >>
   (fn funcs => none_to_some (#function_name_suffix) funcs
                  "autocorres: function_name_suffix option specified multiple times")
-
-(*
- * Blank set of options.
- *
- * Because we are using references, we need to construct a new set every
- * time; hence the dummy parameter.
- *)
-fun default_opts _ = {
-    no_heap_abs = ref NONE,
-    force_heap_abs = ref NONE,
-    skip_heap_abs = ref NONE,
-    unsigned_word_abs = ref NONE,
-    no_signed_word_abs = ref NONE,
-    skip_word_abs = ref NONE,
-    ts_rules = ref NONE,
-    ts_force = ref Symtab.empty,
-    heap_abs_syntax = ref NONE,
-    scope = ref NONE,
-    scope_depth = ref NONE,
-    c_locale = ref NONE,
-    no_c_termination = ref NONE,
-    trace_heap_lift = ref NONE,
-    trace_word_abs = ref NONE,
-    no_opt = ref NONE,
-    trace_opt = ref NONE,
-    gen_word_heaps = ref NONE,
-    keep_going = ref NONE,
-    lifted_globals_field_prefix = ref NONE,
-    lifted_globals_field_suffix = ref NONE,
-    function_name_prefix = ref NONE,
-    function_name_suffix = ref NONE
-  } : autocorres_options
 
 val options_parser =
 let
