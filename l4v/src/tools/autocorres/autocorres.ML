@@ -349,7 +349,7 @@ structure Parser_Outer =
 
 structure Parser_Inner =
   Options_Parser (structure Parse = C_Parse
-                  structure Resources = struct fun parse_files _ _ = error "Not yet implemented" end
+                  structure Resources = C_Resources
                   structure IsarInstall = struct
                                             open IsarInstall
                                             val install_C_parser = install_C_parser_inner
