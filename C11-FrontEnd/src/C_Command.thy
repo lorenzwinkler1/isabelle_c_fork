@@ -89,7 +89,7 @@ fun C_prf source =
   Proof.map_context (Context.proof_map (exec_eval source))
   #> Proof.propagate_ml_env
 
-fun C_export source context =
+fun C_export_boot source context =
   context
   |> ML_Env.set_bootstrap true
   |> exec_eval source
@@ -108,6 +108,22 @@ fun C' err env_lang src =
        accept
        src
   #> (fn {context, reports_text} => C_Stack.Data_Tree.map (curry C_Stack.Data_Tree_Args.merge reports_text) context)
+
+fun C_export_file context =
+  context
+  |> Data_In_Source.get
+  |> rev
+  |> map Input.source_content
+  |>  let val thy = Context.theory_of context
+          fun check_file_not path =
+            if File.exists path andalso not (File.is_dir path)
+            then error ("Existing file: " ^ Path.print (Path.expand path))
+            else path;
+      in
+        File.write_list
+          (check_file_not (File.full_path (Resources.master_directory thy)
+                                          (thy |> Context.theory_name |> Path.explode |> Path.ext "c")))
+      end
 end
 \<close>
 
@@ -209,8 +225,18 @@ fun command00 f kind scan dir name =
         (fn (src, range) =>
           C_Transition.Parsing ((stack1, stack2), (range, dir, Symtab.empty, to_delay, f src))))
 
+fun command00_no_range f kind dir name =
+  C_Annotation.command'' kind name ""
+    (fn (stack1, (to_delay, stack2)) =>
+      Scan.succeed () >>
+        K (C_Transition.Parsing ((stack1, stack2), (Position.no_range, dir, Symtab.empty, to_delay, f))))
+
 fun command f = command00 f Keyword.thy_decl
+fun command_no_range f = command00_no_range f Keyword.thy_decl
+
 fun command0 f = command (K o f)
+val command0_no_range = command_no_range o K
+
 fun command0' f = command00 (K o f)
 end
 \<close>
@@ -250,8 +276,10 @@ val _ = Theory.setup (   C_Inner_Syntax.command (C_Inner_Toplevel.generic_theory
                       #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Module.C) C_Parse.C_source C_Transition.Top_down ("C\<Down>", \<^here>)
                       #> C_Inner_Syntax.command0' (C_Inner_Toplevel.generic_theory o C_Inner_File.command) Keyword.thy_load (C_Resources.parse_files "C_file" --| semi) C_Transition.Bottom_up ("C_file", \<^here>)
                       #> C_Inner_Syntax.command0' (C_Inner_Toplevel.generic_theory o C_Inner_File.command) Keyword.thy_load (C_Resources.parse_files "C_file\<Down>" --| semi) C_Transition.Top_down ("C_file\<Down>", \<^here>)
-                      #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Module.C_export) C_Parse.C_source C_Transition.Bottom_up ("C_export_boot", \<^here>)
-                      #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Module.C_export) C_Parse.C_source C_Transition.Top_down ("C_export_boot\<Down>", \<^here>))
+                      #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Module.C_export_boot) C_Parse.C_source C_Transition.Bottom_up ("C_export_boot", \<^here>)
+                      #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Module.C_export_boot) C_Parse.C_source C_Transition.Top_down ("C_export_boot\<Down>", \<^here>)
+                      #> C_Inner_Syntax.command0_no_range (C_Inner_Toplevel.generic_theory o tap C_Module.C_export_file) C_Transition.Bottom_up ("C_export_file", \<^here>)
+                      #> C_Inner_Syntax.command0_no_range (C_Inner_Toplevel.generic_theory o tap C_Module.C_export_file) C_Transition.Top_down ("C_export_file\<Down>", \<^here>))
 in end
 \<close>
 
@@ -343,7 +371,7 @@ val _ =
 val _ =
   Outer_Syntax.command \<^command_keyword>\<open>C_export_boot\<close>
     "C text within theory or local theory, and export to bootstrap environment"
-    (C_Outer_Parse.C_source >> (Toplevel.generic_theory o C_Module.C_export));
+    (C_Outer_Parse.C_source >> (Toplevel.generic_theory o C_Module.C_export_boot));
 
 val _ =
   Outer_Syntax.command \<^command_keyword>\<open>C_prf\<close> "C text within proof"
@@ -355,25 +383,7 @@ val _ =
 
 val _ =
   Outer_Syntax.command \<^command_keyword>\<open>C_export_file\<close> "diagnostic C text"
-    (Scan.succeed () >>
-      (fn _ =>
-        Toplevel.keep
-          (Toplevel.generic_theory_of
-           #>
-            (fn context => context
-            |> C_Module.Data_In_Source.get
-            |> rev
-            |> map Input.source_content
-            |>  let val thy = Context.theory_of context
-                    fun check_file_not path =
-                      if File.exists path andalso not (File.is_dir path)
-                      then error ("Existing file: " ^ Path.print (Path.expand path))
-                      else path;
-                in
-                  File.write_list
-                    (check_file_not (File.full_path (Resources.master_directory thy)
-                                                    (thy |> Context.theory_name |> Path.explode |> Path.ext "c")))
-                end))));
+    (Scan.succeed () >> K (Toplevel.keep (Toplevel.generic_theory_of #> C_Module.C_export_file)));
 in end\<close>
 
 end
