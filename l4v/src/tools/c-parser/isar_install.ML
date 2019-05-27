@@ -629,7 +629,7 @@ structure IsarInstall : ISAR_INSTALL =
 struct
 open IsarInstall
 
-structure Outer = Isar_Install_Parse (structure P = struct open Token open Parse fun C_source _ = error "Not yet implemented" end
+structure Outer = Isar_Install_Parse (structure P = struct open Token open Parse fun C_source _ = error "Not yet implemented" fun star _ = error "Not yet implemented" end
                                       structure Resources = Resources
                                       structure C_Outer_Parse = C_Outer_Parse)
 
