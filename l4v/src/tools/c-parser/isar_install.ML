@@ -16,7 +16,8 @@ sig
   type additional_options
   type 'a install_C0 = (((((((bool option * string option) * string option) * int option) * string option) * string option) * string option) * 'a) *
                        additional_options list option
-  type install_C = (theory -> Token.file list, binding * Input.source) C_Scan.either install_C0
+  type C_source = (theory -> Token.file list, binding * Input.source) C_Scan.either
+  type install_C = C_source install_C0
   val GhostState : string -> additional_options
   val get_Csyntax : bool option -> bool option -> bool option -> int option -> theory -> StrictCParser.input -> Absyn.ext_decl list * theory
   val gen_umm_types_file : string -> string -> theory -> theory
@@ -35,6 +36,7 @@ sig
 
   val install_C_parser_outer : 'a parser -> 'a install_C0 parser
   val install_C_parser_inner : 'a c_parser -> 'a install_C0 c_parser
+  val make_install_C : C_source -> unit install_C0 -> install_C
 end
 
 structure IsarInstall =
@@ -83,7 +85,11 @@ end);
 datatype additional_options = MachineState of string | GhostState of string | CRoots of string list
 type 'a install_C0 = (((((((bool option * string option) * string option) * int option) * string option) * string option) * string option) * 'a) *
                      additional_options list option
-type install_C = (theory -> Token.file list, binding * Input.source) C_Scan.either install_C0
+type C_source = (theory -> Token.file list, binding * Input.source) C_Scan.either
+type install_C = C_source install_C0
+
+fun make_install_C files ((((((((maybe_c11,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),()),statetylist_opt) =
+  ((((((((maybe_c11,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),files),statetylist_opt)
 
 type install_data = {c_filename : string, locale_names : string list,
         options: (bool * bool * bool),

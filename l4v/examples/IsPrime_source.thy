@@ -16,7 +16,9 @@ imports
 begin
 
 (* Parse and Abstract the input file. *)
-install_autocorres is_prime \<open>
+C \<open>
+//@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime_linear is_prime ]
+
 /*
  * Copyright 2014, NICTA
  *
@@ -74,7 +76,7 @@ unsigned int is_prime(unsigned int n)
     /* No factors. */
     return 1;
 }
-\<close> [ ts_rules = nondet, unsigned_word_abs = is_prime_linear is_prime ]
+\<close>
 
 context is_prime begin
 
