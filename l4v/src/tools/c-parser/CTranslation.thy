@@ -36,8 +36,18 @@ and
   "sub_decl"
   "memsafe"
   "c_types"
-  "c_defs"
-begin
+  "c_defs" begin setup \<open>
+  [ ("all_parsing", \<^here>)
+  , ("no_C11_parsing", \<^here>)
+  , ("no_cpp", \<^here>)
+  , ("parse_then_stop", \<^here>)
+  , ("sub_decl", \<^here>)
+  , ("memsafe", \<^here>)
+  , ("c_types", \<^here>)
+  , ("c_defs", \<^here>) ]
+  |> map (fn cmd => (cmd, (("", []), [])))
+  |> C_Thy_Header.add_keywords
+\<close>
 
 lemma TWO: "Suc (Suc 0) = 2"
 by arith
