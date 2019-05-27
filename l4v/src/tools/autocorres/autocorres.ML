@@ -143,6 +143,17 @@ fun default_opts _ = {
     function_name_prefix = ref NONE,
     function_name_suffix = ref NONE
   } : autocorres_options
+end
+
+functor Options_Parser
+ (structure Parse : C_PARSE
+  structure Resources : sig val parse_files: string -> (theory -> Token.file list) Parse.parser end
+  structure IsarInstall : sig
+                            type 'a install_C0
+                            val install_C_parser : 'a Parse.parser -> 'a install_C0 Parse.parser
+                          end) =
+struct
+open AutoCorres
 
 (* Generic parser for "NAME = THING" *)
 fun named_option parser name elem_desc=
@@ -322,6 +333,27 @@ fun autocorres_parser'' resources_parse =
   options_parser
   >> swap
 
+end
+
+structure AutoCorres =
+struct
+open AutoCorres
+
+structure Parser_Outer =
+  Options_Parser (structure Parse = struct open Token open Parse fun C_source _ = error "Not yet implemented" end
+                  structure Resources = Resources
+                  structure IsarInstall = struct
+                                            open IsarInstall
+                                            val install_C_parser = install_C_parser_outer
+                                          end)
+
+structure Parser_Inner =
+  Options_Parser (structure Parse = C_Parse
+                  structure Resources = struct fun parse_files _ _ = error "Not yet implemented" end
+                  structure IsarInstall = struct
+                                            open IsarInstall
+                                            val install_C_parser = install_C_parser_inner
+                                          end)
 
 (*
  * Worker for the autocorres command.

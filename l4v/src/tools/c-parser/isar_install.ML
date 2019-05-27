@@ -14,8 +14,9 @@ signature ISAR_INSTALL =
 sig
 
   type additional_options
-  type install_C = (((((((bool option * string option) * string option) * int option) * string option) * string option) * string option) * (theory -> Token.file list, binding * Input.source) C_Scan.either) *
+  type 'a install_C0 = (((((((bool option * string option) * string option) * int option) * string option) * string option) * string option) * 'a) *
                        additional_options list option
+  type install_C = (theory -> Token.file list, binding * Input.source) C_Scan.either install_C0
   val GhostState : string -> additional_options
   val get_Csyntax : bool option -> bool option -> bool option -> int option -> theory -> StrictCParser.input -> Absyn.ext_decl list * theory
   val gen_umm_types_file : string -> string -> theory -> theory
@@ -32,11 +33,11 @@ sig
         options: (bool * bool * bool),
         additional_options: additional_options list} list
 
-  val install_C_parser : (theory -> Token.file list, binding * Input.source) C_Scan.either parser
-    -> install_C parser
+  val install_C_parser_outer : 'a parser -> 'a install_C0 parser
+  val install_C_parser_inner : 'a c_parser -> 'a install_C0 c_parser
 end
 
-structure IsarInstall : ISAR_INSTALL =
+structure IsarInstall =
 struct
 
 type 'a wrap = 'a Region.Wrap.t
@@ -80,8 +81,9 @@ structure C_Includes = Theory_Data
 end);
 
 datatype additional_options = MachineState of string | GhostState of string | CRoots of string list
-type install_C = (((((((bool option * string option) * string option) * int option) * string option) * string option) * string option) * (theory -> Token.file list, binding * Input.source) C_Scan.either) *
+type 'a install_C0 = (((((((bool option * string option) * string option) * int option) * string option) * string option) * string option) * 'a) *
                      additional_options list option
+type install_C = (theory -> Token.file list, binding * Input.source) C_Scan.either install_C0
 
 type install_data = {c_filename : string, locale_names : string list,
         options: (bool * bool * bool),
@@ -561,6 +563,14 @@ in
   thy
 end
 
+end
+
+functor Isar_Install_Parse
+ (structure P : C_PARSE
+  structure Resources : sig val parse_files: string -> (theory -> Token.file list) P.parser end
+  structure C_Outer_Parse : sig val C_source : Input.source P.parser end) =
+struct
+open IsarInstall
 val memsafeN = "memsafe"
 val typesN = "c_types"
 val defsN = "c_defs"
@@ -569,20 +579,12 @@ val ghosttypN = "ghostty"
 val rootsN = "roots"
 
 val parsing_option =
-   Scan.option (@{keyword "all_parsing"} >> K true || @{keyword "no_C11_parsing"} >> K false) --
-   (Scan.option @{keyword "no_cpp"}) --
-   (Scan.option @{keyword "parse_then_stop"}) --
-   (Scan.option (@{keyword "sub_decl"} |-- Parse.nat))
+   Scan.option (P.$$$ "all_parsing" >> K true || P.$$$ "no_C11_parsing" >> K false) --
+   (Scan.option (P.$$$ "no_cpp")) --
+   (Scan.option (P.$$$ "parse_then_stop")) --
+   (Scan.option (P.$$$ "sub_decl" |-- P.nat))
 
-local
-  structure P = Parse
-  structure K = Keyword
-in
-fun new_include s thy = C_Includes.map (fn sl => mk_thy_relative thy s::sl) thy
-
-val _ = Outer_Syntax.command @{command_keyword "new_C_include_dir"}
-                            "add a directory to the include path"
-                            (P.text >> (Toplevel.theory o new_include))
+fun new_include s thy = C_Includes.map (cons (mk_thy_relative thy s)) thy
 
 fun install_C_parser resources_parse = let
   val typoptions =
@@ -598,35 +600,71 @@ in
           (P.$$$ "[" |-- P.enum1 "," typoptions --| P.$$$ "]"))
 end
 
-fun file_inclusion resources_parse =
-  install_C_parser resources_parse >> (Toplevel.theory o (#2 oo install_C_file))
+fun file_inclusion resources_parse toplevel_theory =
+  install_C_parser resources_parse >> (toplevel_theory o (#2 oo install_C_file))
+
+fun new_C_include_dir toplevel_theory = P.text >> (toplevel_theory o new_include)
+
+fun install_C_file toplevel_theory = file_inclusion (Resources.parse_files "install_C_file" >> C_Scan.Left) toplevel_theory
+
+fun install_C toplevel_theory = file_inclusion (P.binding -- C_Outer_Parse.C_source >> C_Scan.Right) toplevel_theory
+
+fun install_C_file_types0 toplevel_theory =
+  parsing_option -- (Resources.parse_files "install_C_file_types" >> C_Scan.Left)
+  >> (toplevel_theory o install_C_file_types)
+
+fun install_C_types toplevel_theory =
+  parsing_option -- (P.binding -- C_Outer_Parse.C_source >> C_Scan.Right)
+  >> (toplevel_theory o install_C_file_types)
+
+end
+
+structure IsarInstall : ISAR_INSTALL =
+struct
+open IsarInstall
+
+structure Outer = Isar_Install_Parse (structure P = struct open Token open Parse fun C_source _ = error "Not yet implemented" end
+                                      structure Resources = Resources
+                                      structure C_Outer_Parse = C_Outer_Parse)
+
+val install_C_parser_outer = Outer.install_C_parser
+
+structure Inner = Isar_Install_Parse (structure P = C_Parse
+                                      structure Resources = struct fun parse_files _ _ = error "Not yet implemented" end
+                                      structure C_Outer_Parse = struct val C_source = C_Parse.C_source end)
+
+val install_C_parser_inner = Inner.install_C_parser
+
+local
+val _ =
+    Outer_Syntax.command
+      @{command_keyword "new_C_include_dir"}
+      "add a directory to the include path"
+      (Outer.new_C_include_dir Toplevel.theory)
 
 val _ =
     Outer_Syntax.command
       @{command_keyword "install_C_file"}
       "import a C file"
-      (file_inclusion (Resources.parse_files "install_C_file" >> C_Scan.Left))
+      (Outer.install_C_file Toplevel.theory)
 
 val _ =
     Outer_Syntax.command
       @{command_keyword "install_C"}
       "import a C code"
-      (file_inclusion (Parse.binding -- C_Outer_Parse.C_source >> C_Scan.Right))
+      (Outer.install_C Toplevel.theory)
 
 val _ =
     Outer_Syntax.command
       @{command_keyword "install_C_file_types"}
       "install types from a C file"
-      (parsing_option -- (Resources.parse_files "install_C_file_types" >> C_Scan.Left)
-       >> (Toplevel.theory o install_C_file_types))
+      (Outer.install_C_file_types0 Toplevel.theory)
 
 val _ =
     Outer_Syntax.command
       @{command_keyword "install_C_types"}
       "install types from a C code"
-      (parsing_option -- (Parse.binding -- C_Outer_Parse.C_source >> C_Scan.Right)
-       >> (Toplevel.theory o install_C_file_types))
-
-end
+      (Outer.install_C_types Toplevel.theory)
+in end
 
 end; (* struct *)
