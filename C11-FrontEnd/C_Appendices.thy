@@ -243,7 +243,7 @@ last state of the parsing environment. \<close>
 text \<open> Generally, semantic back-ends can be written in full ML starting from
 \<open>C_Ast.CTranslUnit\<close>, but to additionally support formalizing tasks requiring to start
 from an AST defined in Isabelle/HOL, we provide an equivalent AST in HOL in the project, such as the
-one obtained after loading \<^file>\<open>../Featherweight-OCL/doc/Meta_C_generated.thy\<close>
+one obtained after loading \<^file>\<open>../Citadelle/doc/Meta_C_generated.thy\<close>
 \<^footnote>\<open>from the Citadelle project
 \<^url>\<open>gitlri.lri.fr/ftuong/citadelle-devel\<close>\<close> (In fact, the ML AST is just
 generated from the HOL one.) \<close>
