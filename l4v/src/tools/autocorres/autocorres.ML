@@ -340,7 +340,7 @@ struct
 open AutoCorres
 
 structure Parser_Outer =
-  Options_Parser (structure Parse = struct open Token open Parse fun C_source _ = error "Not yet implemented" fun star _ = error "Not yet implemented" end
+  Options_Parser (structure Parse = C_Parse_Native
                   structure Resources = Resources
                   structure IsarInstall = struct
                                             open IsarInstall

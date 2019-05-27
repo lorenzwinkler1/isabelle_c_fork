@@ -629,7 +629,7 @@ structure IsarInstall : ISAR_INSTALL =
 struct
 open IsarInstall
 
-structure Outer = Isar_Install_Parse (structure P = struct open Token open Parse fun C_source _ = error "Not yet implemented" fun star _ = error "Not yet implemented" end
+structure Outer = Isar_Install_Parse (structure P = C_Parse_Native
                                       structure Resources = Resources
                                       structure C_Outer_Parse = C_Outer_Parse)
 
@@ -637,7 +637,7 @@ val install_C_parser_outer = Outer.install_C_parser
 
 structure Inner = Isar_Install_Parse (structure P = C_Parse
                                       structure Resources = struct fun parse_files _ _ = error "Not yet implemented" end
-                                      structure C_Outer_Parse = struct val C_source = C_Parse.C_source end)
+                                      structure C_Outer_Parse = C_Parse)
 
 val install_C_parser_inner = Inner.install_C_parser
 
