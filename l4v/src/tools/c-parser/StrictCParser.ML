@@ -29,6 +29,7 @@ in
 end
 
 val last_parsed = Synchronized.var "last parsed" ("", [])
+val last_parsed' = Synchronized.var "last parsed'" []
 
 datatype input = File of Token.file * string (* filename *)
                | Filename of string (* filename *)
@@ -92,11 +93,23 @@ fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (input : inp
                                        | File (file, _) => C_Outer_File.command0 file
                                        | Source src => C_Module.C src)
               val thy = (case input of SOME input => C_exec input | NONE => I) thy
-              val thy = C_exec cpped_input thy
-              val (res, l_comm) = hd (C_Module.get_module thy |> #1)
-          in (C_Ast.main (res, (map_filter (fn C_Scan.Left {body_begin, body, body_end, range, ...} =>
-                                               SOME (C_Grammar_Rule_Lib.make_comment body_begin body body_end range)
-                                             | _ => NONE) l_comm, [])), thy) end)
+              val f_accept = C_Module.Data_Accept.get (Context.Theory thy)
+          in thy
+             |> Context.theory_map
+                  (C_Module.Data_Accept.map
+                    (fn f => fn ast => fn env_lang =>
+                      f ast env_lang
+                      #> tap (fn _ =>
+                              Synchronized.change
+                                last_parsed'
+                                (K (C_Ast.main (ast, ( map_filter (fn C_Scan.Left {body_begin, body, body_end, range, ...} =>
+                                                                      SOME (C_Grammar_Rule_Lib.make_comment body_begin body body_end range)
+                                                                    | _ => NONE)
+                                                                  (#stream_ignored env_lang |> rev)
+                                                     , [])))))))
+              |> C_exec cpped_input
+              |> pair (Synchronized.value last_parsed') o Context.theory_map (C_Module.Data_Accept.put f_accept)
+          end)
       |>> (fn x => (IsarPreInstall.of_c_ast x, 0))
   in
     case maybe_c11 of
