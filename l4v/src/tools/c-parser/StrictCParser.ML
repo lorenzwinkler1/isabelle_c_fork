@@ -89,8 +89,8 @@ fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (input : inp
         (fn (input, cpped_input) =>
           let val C_exec =
                 Context.theory_map o (fn Filename cpped_fname =>
-                                           C_Outer_File.command0 (read_file_node' (Path.explode cpped_fname))
-                                       | File (file, _) => C_Outer_File.command0 file
+                                           C_Outer_File.command_c (read_file_node' (Path.explode cpped_fname))
+                                       | File (file, _) => C_Outer_File.command_c file
                                        | Source src => C_Module.C src)
               val thy = (case input of SOME input => C_exec input | NONE => I) thy
               val f_accept = C_Module.Data_Accept.get (Context.Theory thy)
