@@ -34,6 +34,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+section \<open>Command Interface Definition\<close>
+
 theory C_Command
   imports C_Eval
   keywords "C" :: thy_decl % "ML"
@@ -43,7 +45,7 @@ theory C_Command
        and "C_val" "C_export_file" :: diag % "ML"
 begin
 
-section \<open>The Global C11-Module State\<close>
+subsection \<open>Main Module Interface of Commands\<close>
 
 ML \<comment> \<open>\<^theory>\<open>C.C_Eval\<close>\<close> \<open>
 structure C_Module =
@@ -67,19 +69,22 @@ structure Data_Accept = Generic_Data
    val extend = I
    val merge = #2)
 
+fun env context =
+  if Config.get (Context.proof_of context) C_Options.propagate_env
+  then Data_In_Env.get context
+  else C_Env.empty_env_lang
+
+fun err _ _ pos _ =
+  error ("Parser: No matching grammar rule" ^ Position.here pos)
+
 fun accept env_lang (_, (res, _, _)) =
   C_Env.map_context
     (Data_In_Env.put env_lang
      #> (fn context => Data_Accept.get context res env_lang context))
 
-val eval_source =
-  C_Context.eval_source
-    (fn context => if Config.get (Context.proof_of context) C_Options.propagate_env
-                   then Data_In_Env.get context
-                   else C_Env.empty_env_lang)
-    (fn _ => fn _ => fn pos => fn _ =>
-      error ("Parser: No matching grammar rule" ^ Position.here pos))
-    accept
+val eval_source = C_Context.eval_source env err accept
+
+fun eval_in ctxt = C_Context.eval_in ctxt env err accept
 
 fun exec_eval source =
   Data_In_Source.map (cons source)
@@ -127,7 +132,9 @@ fun C_export_file context =
 end
 \<close>
 
-section \<open>Definitions of Inner Directive Commands\<close>
+subsection \<open>Definitions of Inner Directive Commands\<close>
+
+subsubsection \<open>Initialization\<close>
 
 ML \<comment> \<open>\<^theory>\<open>Pure\<close>\<close> \<open>
 local
@@ -172,8 +179,8 @@ val _ =
 in end
 \<close>
 
-section \<open>Definitions of Inner Annotation Commands\<close>
-subsection \<open>\<close>
+subsection \<open>Definitions of Inner Annotation Commands\<close>
+subsubsection \<open>Library\<close>
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/toplevel.ML\<close>\<close> \<open>
 structure C_Inner_Toplevel =
@@ -245,16 +252,34 @@ ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_file.ML\<close>\<close> \<
 structure C_Inner_File =
 struct
 
-fun command0 ({lines, pos, ...}: Token.file) =
+fun command_c ({lines, pos, ...}: Token.file) =
   C_Module.C (Input.source true (cat_lines lines) (pos, pos));
 
-fun command files gthy =
-  command0 (hd (files (Context.theory_of gthy))) gthy;
+fun C files gthy =
+  command_c (hd (files (Context.theory_of gthy))) gthy;
 
+fun command_ml SML debug files gthy =
+  let
+    val {lines, pos, ...}: Token.file = hd (files (Context.theory_of gthy));
+    val source = Input.source true (cat_lines lines) (pos, pos);
+
+    val _ = Thy_Output.check_comments (Context.proof_of gthy) (Input.source_explode source);
+
+    val flags =
+      {SML = SML, exchange = false, redirect = true, verbose = true,
+        debug = debug, writeln = writeln, warning = warning};
+  in
+    gthy
+    |> ML_Context.exec (fn () => ML_Context.eval_source flags source)
+    |> Local_Theory.propagate_ml_env
+  end;
+
+val ML = command_ml false;
+val SML = command_ml true;
 end;
 \<close>
 
-subsection \<open>\<close>
+subsubsection \<open>Initialization\<close>
 
 ML \<comment> \<open>\<^theory>\<open>Pure\<close>\<close> \<open>
 local
@@ -274,8 +299,10 @@ val _ = Theory.setup (   C_Inner_Syntax.command (C_Inner_Toplevel.generic_theory
                       #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Isar_Cmd.ML) C_Parse.ML_source C_Transition.Top_down ("ML\<Down>", \<^here>)
                       #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Module.C) C_Parse.C_source C_Transition.Bottom_up ("C", \<^here>)
                       #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Module.C) C_Parse.C_source C_Transition.Top_down ("C\<Down>", \<^here>)
-                      #> C_Inner_Syntax.command0' (C_Inner_Toplevel.generic_theory o C_Inner_File.command) Keyword.thy_load (C_Resources.parse_files "C_file" --| semi) C_Transition.Bottom_up ("C_file", \<^here>)
-                      #> C_Inner_Syntax.command0' (C_Inner_Toplevel.generic_theory o C_Inner_File.command) Keyword.thy_load (C_Resources.parse_files "C_file\<Down>" --| semi) C_Transition.Top_down ("C_file\<Down>", \<^here>)
+                      #> C_Inner_Syntax.command0' (C_Inner_Toplevel.generic_theory o C_Inner_File.ML NONE) Keyword.thy_load (C_Resources.parse_files "ML_file" --| semi) C_Transition.Bottom_up ("ML_file", \<^here>)
+                      #> C_Inner_Syntax.command0' (C_Inner_Toplevel.generic_theory o C_Inner_File.ML NONE) Keyword.thy_load (C_Resources.parse_files "ML_file\<Down>" --| semi) C_Transition.Top_down ("ML_file\<Down>", \<^here>)
+                      #> C_Inner_Syntax.command0' (C_Inner_Toplevel.generic_theory o C_Inner_File.C) Keyword.thy_load (C_Resources.parse_files "C_file" --| semi) C_Transition.Bottom_up ("C_file", \<^here>)
+                      #> C_Inner_Syntax.command0' (C_Inner_Toplevel.generic_theory o C_Inner_File.C) Keyword.thy_load (C_Resources.parse_files "C_file\<Down>" --| semi) C_Transition.Top_down ("C_file\<Down>", \<^here>)
                       #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Module.C_export_boot) C_Parse.C_source C_Transition.Bottom_up ("C_export_boot", \<^here>)
                       #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Module.C_export_boot) C_Parse.C_source C_Transition.Top_down ("C_export_boot\<Down>", \<^here>)
                       #> C_Inner_Syntax.command0_no_range (C_Inner_Toplevel.generic_theory o tap C_Module.C_export_file) C_Transition.Bottom_up ("C_export_file", \<^here>)
@@ -283,8 +310,8 @@ val _ = Theory.setup (   C_Inner_Syntax.command (C_Inner_Toplevel.generic_theory
 in end
 \<close>
 
-section \<open>Definitions of Outer Commands\<close>
-subsection \<open>\<close>
+subsection \<open>Definitions of Outer Commands\<close>
+subsubsection \<open>Library\<close>
 (*  Author:     Frédéric Tuong, Université Paris-Saclay *)
 (*  Title:      Pure/Pure.thy
     Author:     Makarius
@@ -343,7 +370,7 @@ ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_file.ML\<close>\<close> \<
 structure C_Outer_File =
 struct
 
-fun command0 ({src_path, lines, digest, pos}: Token.file) =
+fun command_c ({src_path, lines, digest, pos}: Token.file) =
   let
     val provide = Resources.provide (src_path, digest);
   in I
@@ -351,13 +378,13 @@ fun command0 ({src_path, lines, digest, pos}: Token.file) =
     #> Context.mapping provide (Local_Theory.background_theory provide)
   end;
 
-fun command files gthy =
-  command0 (hd (files (Context.theory_of gthy))) gthy;
+fun C files gthy =
+  command_c (hd (files (Context.theory_of gthy))) gthy;
 
 end;
 \<close>
 
-subsection \<open>Reading and Writing C-Files\<close>
+subsubsection \<open>Initialization\<close>
 
 ML \<comment> \<open>\<^theory>\<open>Pure\<close>\<close> \<open>
 local
@@ -366,7 +393,7 @@ val semi = Scan.option \<^keyword>\<open>;\<close>;
 
 val _ =
   Outer_Syntax.command \<^command_keyword>\<open>C_file\<close> "read and evaluate Isabelle/C file"
-    (Resources.parse_files "C_file" --| semi >> (Toplevel.generic_theory o C_Outer_File.command));
+    (Resources.parse_files "C_file" --| semi >> (Toplevel.generic_theory o C_Outer_File.C));
 
 val _ =
   Outer_Syntax.command \<^command_keyword>\<open>C_export_boot\<close>

@@ -34,12 +34,101 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+chapter \<open>Appendices\<close>
+
 (*<*)
 theory C_Appendices
   imports C_examples.C1
           C_Conclusion
           "~~/src/Doc/Isar_Ref/Base"
 begin
+
+ML \<comment> \<open>\<^file>\<open>~~/src/Doc/antiquote_setup.ML\<close>\<close>
+(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Title:      Doc/antiquote_setup.ML
+    Author:     Makarius
+
+Auxiliary antiquotations for the Isabelle manuals.
+*)
+\<open>
+structure C_Antiquote_Setup =
+struct
+
+(* misc utils *)
+
+fun translate f = Symbol.explode #> map f #> implode;
+
+val clean_string = translate
+  (fn "_" => "\\_"
+    | "#" => "\\#"
+    | "$" => "\\$"
+    | "%" => "\\%"
+    | "<" => "$<$"
+    | ">" => "$>$"
+    | "{" => "\\{"
+    | "|" => "$\\mid$"
+    | "}" => "\\}"
+    | "\<hyphen>" => "-"
+    | c => c);
+
+fun clean_name "\<dots>" = "dots"
+  | clean_name ".." = "ddot"
+  | clean_name "." = "dot"
+  | clean_name "_" = "underscore"
+  | clean_name "{" = "braceleft"
+  | clean_name "}" = "braceright"
+  | clean_name s = s |> translate (fn "_" => "-" | "\<hyphen>" => "-" | "\<approx>" => "symbol-lower-approx" | "\<Down>" => "symbol-upper-down" | c => c);
+
+
+(* Isabelle/Isar entities (with index) *)
+
+local
+
+val arg = enclose "{" "}" o clean_string;
+
+fun entity check markup binding index =
+  Thy_Output.antiquotation_raw
+    (binding |> Binding.map_name (fn name => name ^
+      (case index of NONE => "" | SOME true => "_def" | SOME false => "_ref")))
+    (Scan.lift (Scan.optional (Args.parens Args.name) "" -- Parse.position Args.name))
+    (fn ctxt => fn (logic, (name, pos)) =>
+      let
+        val kind = translate (fn "_" => " " | c => c) (Binding.name_of binding);
+        val hyper_name =
+          "{" ^ Long_Name.append kind (Long_Name.append logic (clean_name name)) ^ "}";
+        val hyper =
+          enclose ("\\hyperlink" ^ hyper_name ^ "{") "}" #>
+          index = SOME true ? enclose ("\\hypertarget" ^ hyper_name ^ "{") "}";
+        val idx =
+          (case index of
+            NONE => ""
+          | SOME is_def =>
+              "\\index" ^ (if is_def then "def" else "ref") ^ arg logic ^ arg kind ^ arg name);
+        val _ =
+          if Context_Position.is_reported ctxt pos then ignore (check ctxt (name, pos)) else ();
+        val latex =
+          idx ^
+          (Output.output name
+            |> (if markup = "" then I else enclose ("\\" ^ markup ^ "{") "}")
+            |> hyper o enclose "\\mbox{\\isa{" "}}");
+      in Latex.string latex end);
+
+fun entity_antiqs check markup kind =
+  entity check markup kind NONE #>
+  entity check markup kind (SOME true) #>
+  entity check markup kind (SOME false);
+
+in
+
+val _ =
+  Theory.setup
+   (entity_antiqs C_Annotation.check_command "isacommand" @{binding annotation});
+
+end;
+
+end;
+
+\<close>
 (*>*)
 
 section \<open>Architecture of Isabelle/C\<close>
@@ -91,7 +180,7 @@ static generation was undertaken. In more detail:
 
 \<close>
 
-section \<open>Case study: mapping on the parsed AST\<close>
+section \<open>Case Study: Mapping on the Parsed AST\<close>
 
 text \<open> In this section, we give a concrete example of a situation where one is interested to
 do some automated transformations on the parsed AST, such as changing the type of every encountered
@@ -117,8 +206,8 @@ parsing part (\<^theory>\<open>C.C_Parser_Language\<close>).
 This is why in the remaining part, we will at least assume a mandatory familiarity with Happy (e.g.,
 the reading of ML-Yacc's manual can happen later if wished
 \<^footnote>\<open>\<^url>\<open>https://www.cs.princeton.edu/~appel/modern/ml/ml-yacc/manual.html\<close>\<close>). In
-particular, we will use \<^emph>\<open>rule code\<close> to designate \<^emph>\<open>a Haskell
-expression enclosed in braces\<close>
+particular, we will use the term \<^emph>\<open>rule code\<close> to designate \<^emph>\<open>a
+Haskell expression enclosed in braces\<close>
 \<^footnote>\<open>\<^url>\<open>https://www.haskell.org/happy/doc/html/sec-grammar.html\<close>\<close>.
 \<close>
 
@@ -252,38 +341,72 @@ generated from the HOL one.) \<close>
 
 text \<open>
 Based on the above information, there are now several \<^emph>\<open>equivalent\<close> ways to
-proceed for the purpose of having an AST node be mapped from \<open>T1\<close> to \<open>T2\<close>:
-\<^item> For example, we can modify
+proceed for the purpose of having an AST node be mapped from \<open>T1\<close> to
+\<open>T2\<close>. The next bullets providing several possible solutions to follow are particularly
+sorted in increasing action time.
+
+\<^item> \<^emph>\<open>Before even starting the Isabelle system.\<close> A first approach would be
+to modify the C code in input, by adding a directive \<open>#define\<close> performing the necessary
+rewrite.
+
+\<^item> \<^emph>\<open>Before even starting the Isabelle system.\<close> As an alternative of changing the C
+code, one can modify
 \<^url>\<open>https://github.com/visq/language-c/blob/master/src/Language/C/Parser/Parser.y\<close>
 by hand, by explicitly writing \<open>T2\<close> at the specific position of the rule code
 generating \<open>T1\<close>. However, this solution implies to re-generate
 \<^file>\<open>generated/c_grammar_fun.grm.sml\<close>.
 
-\<^item> Instead of modifying the grammar, it should be possible to first locate which rule code is
-building \<open>T1\<close>. Then it would remain to retrieve and modify the respective function of
-\<open>C_Grammar_Rule_Wrap\<close> executed after that rule code, by providing a replacement
-function to be put in \<open>C_Grammar_Rule_Wrap_Overloading\<close>. However, as a design decision,
-wrapping functions generated in \<^file>\<open>generated/c_grammar_fun.grm.sml\<close> have only
-been generated to affect monadic states, not AST values. This is to prevent an erroneous replacement
-of an end-user while parsing C code. (It is currently left open about whether or not this feature
-will be implemented in future versions of the parser...)
+\<^item> \<^emph>\<open>At grammar loading time, while the source of Isabelle/C is still being
+processed.\<close> Instead of modifying the grammar, it should be possible to first locate which
+rule code is building \<open>T1\<close>. Then it would remain to retrieve and modify the respective
+function of \<open>C_Grammar_Rule_Wrap\<close> executed after that rule code, by providing a
+replacement function to be put in \<open>C_Grammar_Rule_Wrap_Overloading\<close>. However, as a
+design decision, wrapping functions generated in
+\<^file>\<open>generated/c_grammar_fun.grm.sml\<close> have only been generated to affect monadic
+states, not AST values. This is to prevent an erroneous replacement of an end-user while parsing C
+code. (It is currently left open about whether this feature will be implemented in future versions
+of the parser...)
 
-\<^item> Another solution consists in directly writing a mapping function acting on the full AST, so
-writing a ML function of type \<open>C_Ast.CTranslUnit -> C_Ast.CTranslUnit\<close> (or a respective
-HOL function) which has to act on every constructor of the AST (so in the worst case about hundred
-of constructors for the considered AST, i.e., whenever a node has to be not identically
-returned). However, as we have already implemented a conversion function from
-\<open>C_Ast.CTranslUnit\<close> (subset of C11) to a subset AST of C99, it might be useful to save
-some effort by starting from this conversion function, locate where \<open>T1\<close> is
-pattern-matched by the conversion function, and generate \<open>T2\<close> instead.
+\<^item> \<^emph>\<open>At directive setup time, before executing any
+\<^theory_text>\<open>C\<close> command of interest.\<close> Since the behavior of directives can be
+dynamically modified, this solution amounts to change the semantics of any wished directive,
+appearing enough earlier in the code. (But for the overall code be in the end mostly compatible with
+any other C preprocessors, the implementation change has to be somehow at least consistent with how
+a preprocessor is already expected to treat an initial C un(pre)processed code.)
+
+\<^item> \<^emph>\<open>After parsing and obtaining a constructive value.\<close> Another solution
+consists in directly writing a mapping function acting on the full AST, so writing a ML function of
+type \<open>C_Ast.CTranslUnit -> C_Ast.CTranslUnit\<close> (or a respective HOL function) which has
+to act on every constructor of the AST (so in the worst case about hundred of constructors for the
+considered AST, i.e., whenever a node has to be not identically returned). However, as we have
+already implemented a conversion function from \<open>C_Ast.CTranslUnit\<close> (subset of C11) to a
+subset AST of C99, it might be useful to save some effort by starting from this conversion function,
+locate where \<open>T1\<close> is pattern-matched by the conversion function, and generate
+\<open>T2\<close> instead.
 
 As example, the conversion function \<open>C_Ast.main\<close> is particularly used to connect the
 C11 front-end to the entry-point of AutoCorres in
 \<^verbatim>\<open>l4v/src/tools/c-parser/StrictCParser.ML\<close>.
 
-\<^item> If it is allowed to modify the C code in input, then one can add a directive
-\<open>#define\<close> performing the necessary rewrite.
+\<^item> \<^emph>\<open>At semantic back-ends execution time.\<close> The above points were dealing
+with the cases where modification actions were all occurring before getting a final
+\<open>C_Ast.CTranslUnit\<close> value. But this does not mean it is forbidden to make some slight
+adjustments once that resulting \<open>C_Ast.CTranslUnit\<close> value obtained. In particular, it
+is the tasks of semantic back-ends to precisely work with \<open>C_Ast.CTranslUnit\<close> as
+starting point, and possibly translate it to another different type. So letting a semantic back-end
+implement the mapping from \<open>T1\<close> to \<open>T2\<close> would mean here to first
+understand the back-end of interest's architecture, to see where the necessary minimal modifications
+must be made.
 
+By taking l4v as a back-end example, its integration with Isabelle/C first starts with translating
+\<open>C_Ast.CTranslUnit\<close> to l4v's default C99 AST. Then various analyses on the obtained AST
+are performed in \<^url>\<open>https://github.com/seL4/l4v/tree/master/tools/c-parser\<close> (the
+reader interested in the details can start by further exploring the ML files loaded by
+\<^url>\<open>https://github.com/seL4/l4v/blob/master/tools/c-parser/CTranslation.thy\<close>). In
+short, to implement the mapping from \<open>T1\<close> to \<open>T2\<close> in the back-end part,
+one can either:
+  \<^item> modify the translation from \<open>C_Ast.CTranslUnit\<close> to C99,
+  \<^item> or modify the necessary ML files of interests in the l4v project.
 \<close>
 
 text \<open> More generally, to better inspect the list of rule code really executed when a C code
@@ -294,9 +417,9 @@ interest.
 \<close> 
 
 
-section \<open>Outer Syntax Commands for Isabelle/C\<close>
+section \<open>Syntax Commands for Isabelle/C\<close>
 
-section \<open>Incorporating C code\<close>
+subsection \<open>Outer Syntax Commands\<close>
 
 text \<open>
   \begin{matharray}{rcl}
@@ -382,14 +505,62 @@ text \<open>
   the previous C command if existing.
 \<close>
 
-section \<open>Inner Annotation Commands for Isabelle/C\<close>
+subsection \<open>Inner Syntax Commands\<close>
 
-section \<open>A Guide to Writing Semantic Back-Ends for Isabelle/C\<close>
-subsection\<open>General Principles\<close>
+text \<open>
+  @{rail \<open>
+    (@@{annotation ML_file} | @@{annotation "ML_file\<Down>"} |
+      @@{annotation C_file} | @@{annotation "C_file\<Down>"}) @{syntax name} ';'?
+    ;
+    (@@{annotation ML} | @@{annotation "ML\<Down>"} |
+      @@{annotation setup} | @@{annotation "setup\<Down>"} |
+      @@{annotation "\<approx>setup"} | @@{annotation "\<approx>setup\<Down>"} |
+      @@{annotation C} | @@{annotation "C\<Down>"} |
+      @@{annotation C_export_boot} | @@{annotation "C_export_boot\<Down>"} |
+      @@{annotation C_export_file} | @@{annotation "C_export_file\<Down>"}) @{syntax text}
+    ;
+  \<close>}
 
-subsection\<open>Example: CLEAN\<close>
+  \<^descr> \<^C_theory_text>\<open>ML_file\<close>, \<^C_theory_text>\<open>C_file\<close>,
+  \<^C_theory_text>\<open>ML\<close>, \<^C_theory_text>\<open>setup\<close>,
+  \<^C_theory_text>\<open>C\<close>, \<^C_theory_text>\<open>C_export_boot\<close>, and
+  \<^C_theory_text>\<open>C_export_file\<close> behave similarly as the respective outer commands
+  \<^theory_text>\<open>ML_file\<close>, \<^theory_text>\<open>C_file\<close>,
+  \<^theory_text>\<open>ML\<close>, \<^theory_text>\<open>setup\<close>,
+  \<^theory_text>\<open>C\<close>, \<^theory_text>\<open>C_export_boot\<close>,
+  \<^theory_text>\<open>C_export_file\<close>.
 
-subsection\<open>Example: AutoCorres\<close>
+  \<^descr> \<^C_theory_text>\<open>\<approx>setup \<open>f'\<close>\<close> has the same semantics
+  as \<^C_theory_text>\<open>setup \<open>f\<close>\<close> whenever \<^term>\<open>\<And> stack top
+  env. f' stack top env = f\<close>. In particular, depending on where the annotation
+  \<^C_theory_text>\<open>\<approx>setup \<open>f'\<close>\<close> is located in the C code, the
+  additional values \<open>stack\<close>, \<open>top\<close> and \<open>env\<close> can drastically
+  vary, and then can be possibly used in the body of \<open>f'\<close> for implementing new
+  interactive features (e.g., in contrast to \<open>f\<close>, which by default does not have the
+  possibility to directly use the information provided by \<open>stack\<close>, \<open>top\<close>
+  and \<open>env\<close>).
+
+  \<^descr> \<^C_theory_text>\<open>ML_file\<Down>\<close>,
+  \<^C_theory_text>\<open>C_file\<Down>\<close>, \<^C_theory_text>\<open>ML\<Down>\<close>,
+  \<^C_theory_text>\<open>setup\<Down>\<close>,
+  \<^C_theory_text>\<open>\<approx>setup\<Down>\<close>, \<^C_theory_text>\<open>C\<Down>\<close>,
+  \<^C_theory_text>\<open>C_export_boot\<Down>\<close>, and
+  \<^C_theory_text>\<open>C_export_file\<Down>\<close>
+  behave similarly as the respective (above inner) commands
+  \<^C_theory_text>\<open>ML_file\<close>, \<^C_theory_text>\<open>C_file\<close>,
+  \<^C_theory_text>\<open>ML\<close>, \<^C_theory_text>\<open>setup\<close>,
+  \<^C_theory_text>\<open>\<approx>setup\<close>, \<^C_theory_text>\<open>C\<close>,
+  \<^C_theory_text>\<open>C_export_boot\<close>, and \<^C_theory_text>\<open>C_export_file\<close>
+  except that their evaluations happen later.
+\<close>
+
+section \<open>A Guide to Implement Semantic Back-Ends for Isabelle/C\<close>
+
+subsection \<open>General Principles\<close>
+
+subsection \<open>Example: CLEAN\<close>
+
+subsection \<open>Example: AutoCorres\<close>
 
 (*<*)
 end

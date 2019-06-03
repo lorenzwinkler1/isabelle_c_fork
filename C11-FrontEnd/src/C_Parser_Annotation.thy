@@ -34,20 +34,20 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+section \<open>Parsing Support for the Annotation Language (Generic Annotation Format)\<close>
+
 theory C_Parser_Annotation
   imports C_Environment
 begin
 
-section \<open>The Construction of an C-Context (analogously to the standard ML context)\<close>
-
-ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/keyword.ML\<close>\<close> \<open>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/keyword.ML\<close>\<close>
 (*  Author:     Frédéric Tuong, Université Paris-Saclay *)
 (*  Title:      Pure/Isar/keyword.ML
     Author:     Makarius
 
 Isar keyword classification.
 *)
-
+\<open>
 structure C_Keyword =
 struct
 
@@ -134,6 +134,7 @@ val add_keywords =
 (* keyword status *)
 
 fun is_command (Keywords {commands, ...}) = Symtab.defined commands;
+fun dest_commands (Keywords {commands, ...}) = Symtab.keys commands;
 
 
 (* command keywords *)
@@ -186,14 +187,14 @@ val is_improper = command_category [Keyword.qed_script, Keyword.prf_script, Keyw
 end;
 \<close>
 
-ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/token.ML\<close>\<close> \<open>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/token.ML\<close>\<close>
 (*  Author:     Frédéric Tuong, Université Paris-Saclay *)
 (*  Title:      Pure/Isar/token.ML
     Author:     Markus Wenzel, TU Muenchen
 
 Outer token syntax for Isabelle/Isar.
 *)
-
+\<open>
 structure C_Token =
 struct
 
@@ -704,14 +705,14 @@ type 'a c_parser = 'a C_Token.parser;
 type 'a c_context_parser = 'a C_Token.context_parser;
 \<close>
 
-ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/parse.ML\<close>\<close> \<open>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/parse.ML\<close>\<close>
 (*  Author:     Frédéric Tuong, Université Paris-Saclay *)
 (*  Title:      Pure/Isar/parse.ML
     Author:     Markus Wenzel, TU Muenchen
 
 Generic parsers for Isabelle/Isar outer syntax.
 *)
-
+\<open>
 signature C_PARSE =
 sig
   type T
@@ -1238,14 +1239,14 @@ val star = sym_ident :-- (fn "*" => Scan.succeed () | _ => Scan.fail) >> #1;
 end;
 \<close>
 
-ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/thy_header.ML\<close>\<close> \<open>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/thy_header.ML\<close>\<close>
 (*  Author:     Frédéric Tuong, Université Paris-Saclay *)
 (*  Title:      Pure/Thy/thy_header.ML
     Author:     Makarius
 
 Static theory header information.
 *)
-
+\<open>
 structure C_Thy_Header =
 struct
 val bootstrap_keywords =
@@ -1269,14 +1270,14 @@ val get_keywords' = get_keywords o Proof_Context.theory_of;
 end
 \<close>
 
-ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/outer_syntax.ML\<close>\<close> \<open>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/outer_syntax.ML\<close>\<close>
 (*  Author:     Frédéric Tuong, Université Paris-Saclay *)
 (*  Title:      Pure/Isar/outer_syntax.ML
     Author:     Markus Wenzel, TU Muenchen
 
 Isabelle/Isar outer syntax.
 *)
-
+\<open>
 structure C_Annotation  =
 struct
 
@@ -1408,17 +1409,58 @@ fun parse_command thy =
               val msg = "undefined command ";
             in msg ^ quote (Markup.markup Markup.keyword1 name) end)
     end)
+
+(* parse spans *)
+
+
+
+(* check commands *)
+
+fun command_reports thy tok =
+  if C_Token.is_command tok then
+    let val name = C_Token.content_of tok in
+      (case lookup_commands thy name of
+        NONE => []
+      | SOME cmd => [((C_Token.pos_of tok, command_markup false (name, cmd)), "")])
+    end
+  else [];
+
+fun check_command ctxt (name, pos) =
+  let
+    val thy = Proof_Context.theory_of ctxt;
+    val keywords = C_Thy_Header.get_keywords thy;
+  in
+    if C_Keyword.is_command keywords name then
+      let
+        val markup =
+          C_Token.explode0 keywords name
+          |> maps (command_reports thy)
+          |> map (#2 o #1);
+        val _ = Context_Position.reports ctxt (map (pair pos) markup);
+      in name end
+    else
+      let
+        val completion =
+          Completion.make (name, pos)
+            (fn completed =>
+              C_Keyword.dest_commands keywords
+              |> filter completed
+              |> sort_strings
+              |> map (fn a => (a, (Markup.commandN, a))));
+        val report = Markup.markup_report (Completion.reported_text completion);
+      in error ("Bad command " ^ quote name ^ Position.here pos ^ report) end
+  end;
 end
 \<close>
 
-ML \<comment> \<open>\<^file>\<open>~~/src/Pure/PIDE/resources.ML\<close>\<close> \<open>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/PIDE/resources.ML\<close>\<close>
 (*  Author:     Frédéric Tuong, Université Paris-Saclay *)
 (*  Title:      Pure/PIDE/resources.ML
     Author:     Makarius
 
 Resources for theories and auxiliary files.
 *)
-
+\<open>
 structure C_Resources =
 struct
 (* load files *)
