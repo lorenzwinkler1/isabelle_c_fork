@@ -78,8 +78,6 @@ unsigned int is_prime(unsigned int n)
 }
 \<close>
 
-context is_prime begin
-
 definition
   "partial_prime p (n :: nat) \<equiv>
         (1 < p \<and> (\<forall>i \<in> {2 ..< min p n}. \<not> i dvd p))"
@@ -123,7 +121,7 @@ lemma partial_prime_2 [simp]: "(partial_prime a 2) = (a > 1)"
 definition [simp]:
   "is_prime_linear_inv n i s \<equiv> (1 < i \<and> 1 < n \<and> i \<le> n \<and> partial_prime n i)"
 
-theorem is_prime_correct:
+theorem (in is_prime) is_prime_correct:
     "\<lbrace> \<lambda>s. n \<le> UINT_MAX \<rbrace> is_prime_linear' n \<lbrace> \<lambda>r s. (r \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
   apply (rule validNF_assume_pre)
   apply (case_tac "n = 0")
@@ -204,9 +202,9 @@ declare mult_le_mono [intro]
 
 lemma sqr_le_sqr_minus_1 [simp]:
     "\<lbrakk> b \<noteq> 0 \<rbrakk> \<Longrightarrow> (a * a \<le> b * b - Suc 0) = (a < b)"
-  by (metis gr0I is_prime.sqr_less_mono nat_0_less_mult_iff nat_le_Suc_less)
+  by (metis gr0I sqr_less_mono nat_0_less_mult_iff nat_le_Suc_less)
 
-theorem is_prime_faster_correct:
+theorem (in is_prime) is_prime_faster_correct:
   notes times_nat.simps(2) [simp del] mult_Suc_right [simp del]
   shows "\<lbrace> \<lambda>s. n \<le> UINT_MAX \<rbrace> is_prime' n \<lbrace> \<lambda>r s. (r \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
   apply (rule validNF_assume_pre)
@@ -224,7 +222,5 @@ theorem is_prime_faster_correct:
    apply (fastforce elim: nat_leE simp: partial_prime_sqr)
   apply (clarsimp simp: SQRT_UINT_MAX_def)
   done
-
-end
 
 end
