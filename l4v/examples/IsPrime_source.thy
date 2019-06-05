@@ -15,8 +15,8 @@ imports
   "HOL-Computational_Algebra.Primes"
 begin
 
-(* Parse and Abstract the input file. *)
 C \<open>
+//  Parse and Abstract the input file.
 //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime_linear is_prime ]
 
 /*
@@ -30,62 +30,13 @@ C \<open>
  */
 
 #define SQRT_UINT_MAX 65536
-
 /*@
-*/
 
-/*
- * Determine if the given number 'n' is prime.
- *
- * We return 0 if 'n' is composite, or non-zero if 'n' is prime.
- */
-unsigned is_prime_linear(unsigned n)
-{
-    /* Numbers less than 2 are not prime. */
-    if (n < 2)
-        return 0;
+definition "SQRT_UINT_MAX \<equiv> 65536 :: nat"
 
-    /* Find the first non-trivial factor of 'n'. */
-    for (unsigned i = 2; i < n; i++) {
-        if (n % i == 0)
-            return 0;
-    }
-
-    /* No factors. */
-    return 1;
-}
-
-/*@
-*/
-
-/*
- * Determine if the given number 'n' is prime.
- *
- * We return 0 if 'n' is composite, or non-zero if 'n' is prime.
- *
- * Faster version that 'is_prime'; runs in O(sqrt(n)).
- */
-unsigned int is_prime(unsigned int n)
-{
-    /* Numbers less than 2 are not primes. */
-    if (n < 2)
-        return 0;
-
-    /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX), whichever
-     * comes first. */
-    /* Find the first non-trivial factor of 'n' less than sqrt(n). */
-    for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++) {
-        if (n % i == 0)
-            return 0;
-    }
-
-    /* No factors. */
-    return 1;
-}
-
-/*@
-*/
-\<close>
+lemma uint_max_factor [simp]:
+  "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
+  by (clarsimp simp: UINT_MAX_def SQRT_UINT_MAX_def)
 
 definition
   "partial_prime p (n :: nat) \<equiv>
@@ -129,6 +80,28 @@ lemma partial_prime_2 [simp]: "(partial_prime a 2) = (a > 1)"
 
 definition [simp]:
   "is_prime_linear_inv n i s \<equiv> (1 < i \<and> 1 < n \<and> i \<le> n \<and> partial_prime n i)"
+
+ */
+/*
+ * Determine if the given number 'n' is prime.
+ *
+ * We return 0 if 'n' is composite, or non-zero if 'n' is prime.
+ */
+unsigned is_prime_linear(unsigned n)
+{
+    /* Numbers less than 2 are not prime. */
+    if (n < 2)
+        return 0;
+
+    /* Find the first non-trivial factor of 'n'. */
+    for (unsigned i = 2; i < n; i++) {
+        if (n % i == 0)
+            return 0;
+    }
+
+    /* No factors. */
+    return 1;
+}/*@
 
 theorem (in is_prime) is_prime_correct:
     "\<lbrace> \<lambda>s. n \<le> UINT_MAX \<rbrace> is_prime_linear' n \<lbrace> \<lambda>r s. (r \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
@@ -181,12 +154,6 @@ lemma partial_prime_sqr:
   apply (auto simp: not_le partial_prime_def min_def prime_nat_iff')
   done
 
-definition "SQRT_UINT_MAX \<equiv> 65536 :: nat"
-
-lemma uint_max_factor [simp]:
-  "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
-  by (clarsimp simp: UINT_MAX_def SQRT_UINT_MAX_def)
-
 lemma prime_dvd:
     "\<lbrakk> prime (p::nat) \<rbrakk> \<Longrightarrow> (r dvd p) = (r = 1 \<or> r = p)"
   by (fastforce simp: prime_nat_iff)
@@ -213,6 +180,32 @@ lemma sqr_le_sqr_minus_1 [simp]:
     "\<lbrakk> b \<noteq> 0 \<rbrakk> \<Longrightarrow> (a * a \<le> b * b - Suc 0) = (a < b)"
   by (metis gr0I sqr_less_mono nat_0_less_mult_iff nat_le_Suc_less)
 
+ */
+/*
+ * Determine if the given number 'n' is prime.
+ *
+ * We return 0 if 'n' is composite, or non-zero if 'n' is prime.
+ *
+ * Faster version that 'is_prime'; runs in O(sqrt(n)).
+ */
+unsigned int is_prime(unsigned int n)
+{
+    /* Numbers less than 2 are not primes. */
+    if (n < 2)
+        return 0;
+
+    /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX), whichever
+     * comes first. */
+    /* Find the first non-trivial factor of 'n' less than sqrt(n). */
+    for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++) {
+        if (n % i == 0)
+            return 0;
+    }
+
+    /* No factors. */
+    return 1;
+}/*@
+
 theorem (in is_prime) is_prime_faster_correct:
   notes times_nat.simps(2) [simp del] mult_Suc_right [simp del]
   shows "\<lbrace> \<lambda>s. n \<le> UINT_MAX \<rbrace> is_prime' n \<lbrace> \<lambda>r s. (r \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
@@ -231,5 +224,7 @@ theorem (in is_prime) is_prime_faster_correct:
    apply (fastforce elim: nat_leE simp: partial_prime_sqr)
   apply (clarsimp simp: SQRT_UINT_MAX_def)
   done
+
+*/\<close>
 
 end
