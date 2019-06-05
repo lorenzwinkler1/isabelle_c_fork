@@ -31,6 +31,9 @@ C \<open>
 
 #define SQRT_UINT_MAX 65536
 
+/*@
+*/
+
 /*
  * Determine if the given number 'n' is prime.
  *
@@ -51,6 +54,9 @@ unsigned is_prime_linear(unsigned n)
     /* No factors. */
     return 1;
 }
+
+/*@
+*/
 
 /*
  * Determine if the given number 'n' is prime.
@@ -76,6 +82,9 @@ unsigned int is_prime(unsigned int n)
     /* No factors. */
     return 1;
 }
+
+/*@
+*/
 \<close>
 
 definition
