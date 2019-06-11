@@ -6,6 +6,7 @@ The code requires Isabelle2018, and the C examples loading can be executed as
 follows:
 
 ```console
+export L4V_ARCH=ARM
 isabelle jedit -d C11-FrontEnd C11-FrontEnd/examples/C1.thy
 isabelle jedit -d C11-FrontEnd C11-FrontEnd/examples/C2.thy
 isabelle jedit -d C11-FrontEnd C11-FrontEnd/examples/C3.thy
