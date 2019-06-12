@@ -34,7 +34,7 @@ C\<open>
  */
 
 //  Activating the AutoCorres backend of Isabe;lle/C.
-//@ install_autocorres parse_for_loop [ ts_rules = nondet, unsigned_word_abs = f g h f2 ]
+//@  install_autocorres parse_for_loop [ ts_rules = nondet, unsigned_word_abs = f g h f2 ]
 
 
 /* also tests
@@ -51,9 +51,9 @@ int *f(int *i, int c)
 }
 
 int g(int c)
-{
+{ /** +@ INVARIANT: "\<lbrace> 0 <= \<acute>j \<and> \<acute>j <= 10 \<rbrace>" */
   for (unsigned int j = 10; 0 < j; j--)
-    /** INVARIANT: "\<lbrace> 0 <= \<acute>j & \<acute>j <= 10 \<rbrace>" */
+    /** INVARIANT: "\<lbrace> 0 <= \<acute>j \<and> \<acute>j <= 10 \<rbrace>" */
     {
       c = c + j;
     }
@@ -80,5 +80,6 @@ int f2(int *a)
 find_theorems name:"parse_for_loop"
 
 thm parse_for_loop.g'_def[simp]
+thm parse_for_loop_global_addresses.g_body_def  (* Invariant has been transmitted to AutoCorres *)
 
 end

@@ -51,15 +51,13 @@ lemma partial_prime_2 [simp]: "(partial_prime a 2) = (a > 1)"
 
 
 
-definition [simp]:
-  "is_prime_linear_inv n i s \<equiv> (1 < i \<and> 1 < n \<and> i \<le> n \<and> partial_prime n i)"
+definition [simp]: "is_prime_linear_inv n i s \<equiv> (1 < i \<and> 1 < n \<and> i \<le> n \<and> partial_prime n i)"
 
 
 section\<open>The Gory C Code --- pure without annutations\<close>
 text\<open>... except just one : the invocation of autocorres.\<close>
 
 C \<open>
-
 /*
  * Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
@@ -70,10 +68,8 @@ C \<open>
  *
  * @TAG(NICTA_BSD)
  */
-
 //  Setup of autocorres for parsing and semantically representing this C element.
 //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime_linear  ]
-
 
 #define SQRT_UINT_MAX 65536
 
@@ -99,6 +95,7 @@ unsigned is_prime_linear(unsigned n)
 }
 \<close>
 
+C_export_file  (* this exports the C-code into a C - file ready to be co;piled by gcc. *)
 
 text\<open>Autocorres produced internally the following definitions of this input:\<close>
 find_theorems name:is_prime
@@ -106,11 +103,7 @@ find_theorems name:is_prime
 text\<open>Of key importance:\<close>
 thm is_prime_global_addresses.is_prime_linear_body_def
 thm is_prime.is_prime_linear'_def 
-
-
-section\<open>The Correctness-Proof of @{const "is_prime.is_prime_linear'"}\<close>
-
-definition "SQRT_UINT_MAX \<equiv> 65536 :: nat"   (* a generer automatiquement *) 
+thm SQRT_UINT_MAX_def
 
 lemma uint_max_factor [simp]: "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
   by (clarsimp simp: UINT_MAX_def SQRT_UINT_MAX_def)
@@ -118,7 +111,9 @@ lemma uint_max_factor [simp]: "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
 
 
 
-
+section\<open>The Correctness-Proof of @{const "is_prime.is_prime_linear'"}\<close>
+text\<open>Note that the proof \<^emph>\<open>injects\<close> at the loop-invariant at the point where the proof 
+     treats the loop.\<close>
 
 (* imperative "red" style proof *)
 theorem (in is_prime) is_prime_correct:
@@ -129,9 +124,10 @@ theorem (in is_prime) is_prime_correct:
   apply (case_tac "n = 1")
    apply (clarsimp simp: is_prime_linear'_def, wp, simp)[1]
   apply (unfold is_prime_linear'_def)
+  text\<open>... and here it happens ... \<close>
   apply (subst whileLoopE_add_inv [  where I="\<lambda>r s. is_prime_linear_inv n r s"
                                        and M="(\<lambda>(r, s). n - r)"])
-  apply (wp, auto simp: mod_to_dvd [simplified])
+  apply (wp, auto)
   done
 
 
@@ -153,9 +149,10 @@ next
          then show ?thesis
            apply (unfold is_prime_linear'_def)
            apply (rule validNF_assume_pre)
+           text\<open>... and here it happens ... \<close>
            apply (subst whileLoopE_add_inv [ where I="\<lambda>r s. is_prime_linear_inv n r s"
                                                and M="(\<lambda>(r, s). n - r)"])
-           apply (wp, auto simp: mod_to_dvd [simplified])
+           apply (wp, auto)
            using less_2_cases prime_gt_0_nat by blast
        qed
 qed
