@@ -19,6 +19,7 @@ imports
   "AutoCorres.AutoCorres"
   "HOL-Computational_Algebra.Primes"
 begin
+\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
 section\<open>The Theory of the O(sqrt(n)) Primality Test Algorithm\<close>
 text\<open>This theory part develops the concepts of the invariant. This bit presented before

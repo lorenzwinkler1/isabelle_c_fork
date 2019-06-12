@@ -24,6 +24,7 @@ imports
   "AutoCorres.AutoCorres"
   "HOL-Computational_Algebra.Primes"
 begin
+\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
 C \<open>
 //  Activating the AutoCorres backend of Isabe;lle/C.
