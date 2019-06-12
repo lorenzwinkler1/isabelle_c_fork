@@ -21,9 +21,9 @@ imports
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
-section\<open>The Theory of the O(sqrt(n)) Primality Test Algorithm\<close>
-text\<open>This theory part develops the concepts of the invariant. This bit presented before
-the actual code, but could also be after or even inside (* as annotation *) of the source.\<close>
+section\<open>The Theory of the \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
+text\<open>This theory part develops the concepts of the invariant. This bit is presented before
+the actual code, but could also be after or even inside \<^C>\<open>/* as C annotation */\<close> of the source.\<close>
 
 definition
   "partial_prime p (n :: nat) \<equiv>  (1 < p \<and> (\<forall>i \<in> {2 ..< min p n}. \<not> i dvd p))"
@@ -102,7 +102,7 @@ lemma prime_dvd:
     "\<lbrakk> prime (p::nat) \<rbrakk> \<Longrightarrow> (r dvd p) = (r = 1 \<or> r = p)"
   by (fastforce simp: prime_nat_iff)
 
-section\<open>The C-code for O(sqrt(n)) Primality Test Algorithm\<close>
+section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
 
 
 C \<open>
@@ -118,7 +118,7 @@ C \<open>
  * @TAG(NICTA_BSD)
  */
 
-//  Setup of autocorres for parsing and semantically representing this C element.
+//  Setup of AutoCorres for parsing and semantically representing this C element.
 //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs =  is_prime ]
 
 
@@ -150,14 +150,14 @@ unsigned int is_prime(unsigned int n)
     return 1;
 }\<close>
 
-section\<open>The Results of the AutoCorres-Evaluation and some Consequences\<close>
+section\<open>The Results of the AutoCorres Evaluation and some Consequences\<close>
 
-C_export_file  (* this exports the C-code into a C - file ready to be co;piled by gcc. *)
+C_export_file  (* This exports the C code into a C file ready to be compiled by gcc. *)
 
-text\<open>Autocorres produced internally the following definitions of this input:\<close>
+text\<open>AutoCorres produced internally the following definitions of this input:\<close>
 find_theorems name:is_prime
 
-text\<open>Of key importance:\<close>
+text\<open>of key importance:\<close>
 thm is_prime_global_addresses.is_prime_body_def
 thm is_prime.is_prime'_def   
 thm SQRT_UINT_MAX_def
@@ -190,9 +190,9 @@ lemma sqr_le_sqr_minus_1 [simp]:
 
 
 
-section\<open>The Correctness-Proof \<close>
+section\<open>The Correctness Proof \<close>
 
-text\<open>Note that the proof \<^emph>\<open>injects\<close> at the loop-invariant at the point where the proof 
+text\<open>Note that the proof \<^emph>\<open>injects\<close> the loop invariant at the point where the proof
      treats the loop.\<close>
 
 theorem (in is_prime) is_prime_faster_correct:

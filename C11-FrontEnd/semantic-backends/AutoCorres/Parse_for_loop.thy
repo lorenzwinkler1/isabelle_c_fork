@@ -11,10 +11,11 @@
 
 chapter\<open>Example \<close>
 
-text\<open>This example is used to demonstrate Isabelle/C/Autocorres in a version that uses 
-AutoCorres Annotations addressed to AutoCorres. The example annotation is found in (C)-function g.
-Note that this proceeding is not necessarily recommended - since AutoCorres does not support
-semantic PIDE support, editing feedback is limited and the workflow somewhat clumpsy.\<close>
+text \<open> This example is used to demonstrate Isabelle/C/AutoCorres in a version that uses
+AutoCorres Annotations addressed to AutoCorres. The example annotation is found in the C function
+\<open>g\<close>. Note that this proceeding is not necessarily recommended --- since AutoCorres does
+not support semantic PIDE support, editing feedback is limited and the workflow somewhat
+clumpsy. \<close>
 
 theory Parse_for_loop
 imports
@@ -33,12 +34,12 @@ C\<open>
  * @TAG(NICTA_BSD)
  */
 
-//  Activating the AutoCorres backend of Isabe;lle/C.
+//  Setup of AutoCorres for parsing and semantically representing this C element.
 //@  install_autocorres parse_for_loop [ ts_rules = nondet, unsigned_word_abs = f g h f2 ]
 
 
-/* also tests
-   - post-increment and decrement (which are common in for loops)
+/* It also tests
+   - post-increment and decrement (which are common for loops)
    - arrays on the heap and stack (treated differently in VCG-land)
 */
 
@@ -54,6 +55,7 @@ int g(int c)
 { /** +@ INVARIANT: "\<lbrace> 0 <= \<acute>j \<and> \<acute>j <= 10 \<rbrace>"
       +@ highlight */
   for (unsigned int j = 10; 0 < j; j--)
+    // This is where the above invariant gets ultimately attached:
     // /** INVARIANT: "\<lbrace> 0 <= \<acute>j \<and> \<acute>j <= 10 \<rbrace>" */
     {
       c = c + j;
@@ -81,6 +83,6 @@ int f2(int *a)
 find_theorems name:"parse_for_loop"
 
 thm parse_for_loop.g'_def[simp]
-thm parse_for_loop_global_addresses.g_body_def  (* Invariant has been transmitted to AutoCorres *)
+thm parse_for_loop_global_addresses.g_body_def  (* The invariant has been transmitted to AutoCorres *)
 
 end
