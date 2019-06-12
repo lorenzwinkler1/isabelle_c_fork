@@ -32,8 +32,6 @@ C \<open>
 #define SQRT_UINT_MAX 65536
 /*@
 
-definition "SQRT_UINT_MAX \<equiv> 65536 :: nat"
-
 lemma uint_max_factor [simp]:
   "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
   by (clarsimp simp: UINT_MAX_def SQRT_UINT_MAX_def)
