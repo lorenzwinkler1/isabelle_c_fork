@@ -103,6 +103,7 @@ lemma prime_dvd:
 
 section\<open>The C-code for O(sqrt(n)) Primality Test Algorithm\<close>
 
+
 C \<open>
 
 /*
