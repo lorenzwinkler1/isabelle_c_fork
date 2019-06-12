@@ -51,9 +51,10 @@ int *f(int *i, int c)
 }
 
 int g(int c)
-{ /** +@ INVARIANT: "\<lbrace> 0 <= \<acute>j \<and> \<acute>j <= 10 \<rbrace>" */
+{ /** +@ INVARIANT: "\<lbrace> 0 <= \<acute>j \<and> \<acute>j <= 10 \<rbrace>"
+      +@ highlight */
   for (unsigned int j = 10; 0 < j; j--)
-    /** INVARIANT: "\<lbrace> 0 <= \<acute>j \<and> \<acute>j <= 10 \<rbrace>" */
+    // /** INVARIANT: "\<lbrace> 0 <= \<acute>j \<and> \<acute>j <= 10 \<rbrace>" */
     {
       c = c + j;
     }
