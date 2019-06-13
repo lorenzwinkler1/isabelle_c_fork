@@ -20,7 +20,14 @@ text\<open>The state is just a record; and the global variables correspond to fi
 
 text\<open> The state of the square-root program looks like this : \<close>
 
-global_vars ('a)state
+typ "Clean.control_state"
+
+ML\<open>
+val Type(s,t) = StateMgt_core.get_state_type_global @{theory}
+val Type(u,v) = @{typ unit}
+\<close>
+
+global_vars state
    tm    :: int
    i     :: int
    sqsum :: int

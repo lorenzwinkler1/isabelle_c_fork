@@ -63,31 +63,45 @@ funct quicksort(lo::int, hi::int) returns unit
 
 *)
 
-global_vars 'a state  
+record ZXZZ = control_state + 
     A :: "int list "
     tmp :: int
 
+global_vars state  
+    A :: "int list "
+
+ML\<open>val Type(s,t) = StateMgt_core.get_state_type_global @{theory}\<close>
+
 find_theorems name:state
 
+local_vars state2  
+   tmp    :: "int"
+   result :: "unit list"
+
 (*
-local_vars for partition :
+local_vars swap : (where swap has the return unit type )
+   tmp    :: "int "
+   result :: "unit list"  
 *)
-record  local_state_swap = "unit QuickSort.state" +
-    tmp  :: "int list"
+record  local_state_swap = "QuickSort.state" +
+    tmp    :: "int list"
+    result :: "unit list"
 
 definition push_local_state_swap :: "(unit,local_state_swap) MON\<^sub>S\<^sub>E"
-  where "push_local_state_swap \<sigma> = Some((),
-                                   \<sigma>\<lparr>local_state_swap.tmp:= undefined # local_state_swap.tmp \<sigma> \<rparr>)"
+  where   "push_local_state_swap \<sigma> = Some((),
+                                          \<sigma>\<lparr>local_state_swap.tmp := 
+                                               undefined # local_state_swap.tmp \<sigma> \<rparr>)"
 
 definition pop_local_state_swap :: "(unit,local_state_swap) MON\<^sub>S\<^sub>E"
-  where "pop_local_state_swap \<sigma> = Some((), \<comment> \<open> recall : returns unit \<close>
-                                   \<sigma>\<lparr>local_state_swap.tmp:= tl( local_state_swap.tmp \<sigma>) \<rparr>)"
-
-
+  where   "pop_local_state_swap \<sigma> = Some(hd(local_state_swap.result \<sigma>), \<comment> \<open> recall : returns unit \<close>
+                                        \<sigma>\<lparr>local_state_swap.tmp:= tl( local_state_swap.tmp \<sigma>) \<rparr>)"
+term "Clean.syntax_assign"
+term "B[x:=(B!j)]"
+term assign
 definition swap :: "int => int =>  (unit,local_state_swap) MON\<^sub>S\<^sub>E"
    where  "swap i j \<equiv> (\<open>tmp := A!i\<close>       ;-
-                       \<open>A := A[i:=(A!j)]\<close> ;-   
-                       \<open>A := A[j:=tmp]\<close>)"
+                       \<open>A := (A[i:=(A!j)])\<close> ;-   
+                       \<open>A := (A[j:=tmp])\<close>)"
 
 
 

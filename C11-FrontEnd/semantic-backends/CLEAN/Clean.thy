@@ -1,8 +1,7 @@
 (*****************************************************************************
- * MonadicPrograms.thy --- a base testing theory for programs.
+ * MonadicPrograms.thy --- a basic testing theory for programs.
  * Burkhart Wolff and Chantal Keller, LRI, Univ. Paris-Sud, France
  ******************************************************************************)
-
 
 chapter {* The Clean Language *}
 
@@ -40,11 +39,11 @@ chapter {* Proof of concept for a monadic symbolic execution calculus for WHILE 
 
 section\<open> Control-States  \<close>
   
-record 'a control_state = 
-          break_val :: bool
-          return_val :: "'a option"
+record  control_state = 
+          break_val  :: bool
+          return_val :: bool
           
-typ "('a, 'b) control_state_ext"
+typ "('a) control_state_ext"
 
 ML\<open> 
 fun typ_2_string_raw (Type(s,S)) = 
@@ -53,45 +52,44 @@ fun typ_2_string_raw (Type(s,S)) =
    |typ_2_string_raw (TFree(s,_))  = s 
    |typ_2_string_raw (TVar((s,n),_))  = s^(Int.toString n) ;
 
-typ_2_string_raw @{ typ "('a, 'b) control_state_ext"}
+typ_2_string_raw @{ typ "('a) control_state_ext"}
 \<close>
 
-record 'a mmm = "'a control_state" +
+
+record  mmm = "control_state" +
        df :: "int"
 
-record 'a mmk = "'a mmm" + dsf :: int 
+record mmk = "mmm" + dsf :: int 
 
 (* break quites innermost while or for, return quits an entire execution sequence. *)  
-definition break :: "(unit, ('\<alpha>, '\<sigma>) control_state_ext) MON\<^sub>S\<^sub>E"
+definition break :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"
   where   "break \<equiv> (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> break_val := True \<rparr>))"
   
-definition unset_break :: "(unit, ('\<alpha>, '\<sigma>) control_state_ext) MON\<^sub>S\<^sub>E"
+definition unset_break :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"
   where   "unset_break \<equiv> (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> break_val := False \<rparr>))"
 
-definition return :: "'\<alpha> \<Rightarrow> (unit, ('\<alpha>, '\<sigma>) control_state_ext) MON\<^sub>S\<^sub>E"    
-  where   "return x = (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> return_val := Some x \<rparr>))"
+definition return :: "'\<alpha> \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"    
+  where   "return x = (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> return_val := True \<rparr>))"
     
-definition unset_return_val :: "('\<alpha>, ('\<alpha>, '\<sigma>) control_state_ext) MON\<^sub>S\<^sub>E"    
-  where   "unset_return_val  = (\<lambda> \<sigma>. Some(the (return_val \<sigma>), \<sigma> \<lparr> return_val := None \<rparr>))"
+definition unset_return_val :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"    
+  where   "unset_return_val  = (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> return_val := False \<rparr>))"
     
-definition exec_stop :: "('\<alpha>, '\<sigma>) control_state_ext \<Rightarrow> bool"
-  where   "exec_stop = (\<lambda> \<sigma>. break_val \<sigma> \<or> return_val \<sigma> \<noteq> None)"
+definition exec_stop :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool"
+  where   "exec_stop = (\<lambda> \<sigma>. break_val \<sigma> \<or> return_val \<sigma> )"
 
 text\<open> A "lifter" that embeds a state transformer into the state-exception monad. \<close>
 
 consts syntax_assign :: "('\<alpha>  \<Rightarrow> int) \<Rightarrow> int \<Rightarrow> term" (infix ":=" 60)
 
-definition assign :: "(('\<alpha>, '\<sigma>) control_state_scheme  \<Rightarrow> 
-                       ('\<alpha>, '\<sigma>) control_state_scheme) \<Rightarrow> 
-                       (unit,('\<alpha>, '\<sigma>) control_state_scheme)MON\<^sub>S\<^sub>E"
-where     "assign f = (\<lambda>\<sigma>. if exec_stop \<sigma> 
-                              then Some((), \<sigma>)  
-                              else Some((), f \<sigma>))"
+definition assign :: "(('\<sigma>_ext) control_state_scheme  \<Rightarrow> 
+                       ('\<sigma>_ext) control_state_scheme) \<Rightarrow> 
+                       (unit,('\<sigma>_ext) control_state_scheme)MON\<^sub>S\<^sub>E"
+where     "assign f = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>) else Some((), f \<sigma>))"
 
     
-definition if_C :: "[('\<alpha>, '\<sigma>) control_state_ext \<Rightarrow> bool, 
-                      ('\<beta>, ('\<alpha>, '\<sigma>) control_state_ext)MON\<^sub>S\<^sub>E, 
-                      ('\<beta>, ('\<alpha>, '\<sigma>) control_state_ext)MON\<^sub>S\<^sub>E] \<Rightarrow> ('\<beta>, ('\<alpha>, '\<sigma>) control_state_ext)MON\<^sub>S\<^sub>E"
+definition if_C :: "[('\<sigma>_ext) control_state_ext \<Rightarrow> bool, 
+                      ('\<beta>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E, 
+                      ('\<beta>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E] \<Rightarrow> ('\<beta>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
   where   "if_C c E F = (\<lambda>\<sigma>. if exec_stop \<sigma> 
                               then Some(undefined, \<sigma>)  (* state unchanged, return arbitrary *)
                               else if c \<sigma> then E \<sigma> else F \<sigma>)"     
@@ -104,9 +102,9 @@ translations
 
           
           
-definition while_C :: "(('\<alpha>, '\<sigma>) control_state_ext \<Rightarrow> bool) 
-                        \<Rightarrow> (unit, ('\<alpha>, '\<sigma>) control_state_ext)MON\<^sub>S\<^sub>E 
-                        \<Rightarrow> (unit, ('\<alpha>, '\<sigma>) control_state_ext)MON\<^sub>S\<^sub>E"
+definition while_C :: "(('\<sigma>_ext) control_state_ext \<Rightarrow> bool) 
+                        \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E 
+                        \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
   where     "while_C c B \<equiv> (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>)
                                  else ((MonadSE.while_SE (\<lambda> \<sigma>. \<not>exec_stop \<sigma> \<and> c \<sigma>) B) ;- 
                                        unset_break) \<sigma>)"
@@ -117,10 +115,10 @@ syntax    (xsymbols)
 translations 
           "while\<^sub>C c do b od" == "CONST Clean.while_C c b"
 
-definition body\<^sub>C :: "   (unit, ('\<alpha>, '\<sigma>) control_state_ext)MON\<^sub>S\<^sub>E
-                     \<Rightarrow> ('\<alpha>, ('\<alpha>, '\<sigma>) control_state_ext)MON\<^sub>S\<^sub>E
-                     \<Rightarrow> (unit, ('\<alpha>, '\<sigma>) control_state_ext)MON\<^sub>S\<^sub>E  
-                     \<Rightarrow> ('\<alpha>,   ('\<alpha>, '\<sigma>) control_state_ext)MON\<^sub>S\<^sub>E"
+definition body\<^sub>C :: "   (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E
+                     \<Rightarrow> ('\<alpha>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E
+                     \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E  
+                     \<Rightarrow> ('\<alpha>,   ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
   where   "body\<^sub>C push pop X \<equiv> (push ;- X ;- unset_break ;- (x \<leftarrow> pop; unset_return_val;- unit\<^sub>S\<^sub>E(x)))"     
     
 (* a "function m (x1:T1; ... ;xn : Tn) : T = {locvar-decl; X}" is then
@@ -143,10 +141,11 @@ ML{*
 structure StateMgt_core = 
 struct
 
-val control_stateT = @{typ "('a) control_state"};
+val control_stateT = @{typ "control_state"};
+val control_stateTE = @{typ "('\<sigma>_ext)control_state_ext"};
 
-fun merge_control_stateT (@{typ "('a) control_state"},t) = t
-   |merge_control_stateT (t, @{typ "('a) control_state"}) = t
+fun merge_control_stateT (@{typ "control_state"},t) = t
+   |merge_control_stateT (t, @{typ "control_state"}) = t
    |merge_control_stateT (t, t') = if (t = t') then t else error"can not merge CLEAN state"
 
 datatype var_kind = global_var of typ | local_var of typ
@@ -244,7 +243,8 @@ fun add_record_cmd overloaded is_global_kind (raw_params, binding) raw_parent ra
     val params' = map (Proof_Context.check_tfree ctxt3) params;
     val declare = StateMgt_core.declare_state_variable_global
     fun insert_var ((f,_,_), thy') = 
-            if is_global_kind then declare StateMgt_core.global_var (Binding.name_of f) thy'
+            if is_global_kind 
+            then declare StateMgt_core.global_var (Binding.name_of f) thy'
             else declare StateMgt_core.local_var (Binding.name_of f) thy'
     val _ = (SPY := fields)
   in thy |> Record.add_record overloaded (params', binding) parent fields 
@@ -252,25 +252,38 @@ fun add_record_cmd overloaded is_global_kind (raw_params, binding) raw_parent ra
   end;
 
 fun typ_2_string_raw (Type(s,S)) = 
-        let  val h = if null S then "" else enclose "(" ")" (commas (map typ_2_string_raw ( S))) ;
+        let val front = fst o split_last
+            val h = if null S  orelse S = [@{typ unit}]
+                     then "" 
+                     else enclose "(" ")" (commas (map typ_2_string_raw (front S))) ;
         in h ^ s end
    |typ_2_string_raw (TFree(s,_))  = s 
    |typ_2_string_raw (TVar((s,n),_))  = s^(Int.toString n) ;
 
 fun typ_2_string_raw (Type(s,S)) = 
         let val front = fst o split_last
-            val h = if null S then "" else enclose "(" ")" (commas (map typ_2_string_raw (front S))) ;
+            val h = if null S orelse S = [@{typ unit}] 
+                    then "" else enclose "(" ")" (commas (map typ_2_string_raw (front S))) ;
         in h ^ (Long_Name.qualifier s) end
    |typ_2_string_raw (TFree(s,_))  = s 
    |typ_2_string_raw (TVar((s,n),_))  = s^(Int.toString n) ;
 
 
-
 fun new_state_record  is_global_kind (raw_params, binding)  raw_fields thy =
-    let val _ = writeln (typ_2_string_raw (StateMgt_core.get_state_type_global thy))
+    let val _ = writeln ("Z" ^ (typ_2_string_raw (StateMgt_core.get_state_type_global thy)))
         val raw_parent = SOME(typ_2_string_raw (StateMgt_core.get_state_type_global thy))
-    in  add_record_cmd {overloaded = false} is_global_kind (raw_params, binding) raw_parent raw_fields thy
+        val (upd_typ,ctxt_of) = (StateMgt_core.upd_state_type_global,Proof_Context.init_global)
+        fun upd_state_typ thy = upd_typ(K(Syntax.parse_typ(ctxt_of thy)
+                                       (Binding.name_of binding))) 
+                                       (thy)
+    in  thy |> add_record_cmd {overloaded = false} is_global_kind 
+                   (raw_params, binding) raw_parent raw_fields 
+            |> upd_state_typ
     end
+
+val _ = new_state_record : bool ->
+      (string * string option) list * binding ->
+        (binding * string * mixfix) list -> theory -> theory
 
 val _ =
   Outer_Syntax.command @{command_keyword global_vars} "define global state record"
@@ -416,9 +429,9 @@ val _ =
 
 txt\<open> Various tactics for various coverage criteria \<close>
 
-definition while_k :: "nat \<Rightarrow> (('\<alpha>, '\<sigma>) control_state_ext \<Rightarrow> bool) 
-                        \<Rightarrow> (unit, ('\<alpha>, '\<sigma>) control_state_ext)MON\<^sub>S\<^sub>E 
-                        \<Rightarrow> (unit, ('\<alpha>, '\<sigma>) control_state_ext)MON\<^sub>S\<^sub>E"
+definition while_k :: "nat \<Rightarrow> (('\<sigma>_ext) control_state_ext \<Rightarrow> bool) 
+                        \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E 
+                        \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
 where     "while_k _ \<equiv> while_C"
 
 lemma while_k_SE : "while_C = while_k k"
