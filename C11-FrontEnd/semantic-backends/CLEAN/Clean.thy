@@ -141,7 +141,7 @@ ML{*
 structure StateMgt_core = 
 struct
 
-val control_stateT = @{typ "control_state"};
+val control_stateT = Syntax.parse_typ @{context} "control_state"
 val control_stateTE = @{typ "('\<sigma>_ext)control_state_ext"};
 
 fun merge_control_stateT (@{typ "control_state"},t) = t
@@ -206,6 +206,8 @@ end
 
 *}
 
+ML\<open> Syntax.string_of_typ ; open Term\<close>
+
 ML{* 
 local open StateMgt_core in
 
@@ -242,42 +244,31 @@ fun add_record_cmd overloaded is_global_kind (raw_params, binding) raw_parent ra
     val (fields, ctxt3) = read_fields raw_fields ctxt2;
     val params' = map (Proof_Context.check_tfree ctxt3) params;
     val declare = StateMgt_core.declare_state_variable_global
-    fun insert_var ((f,_,_), thy') = 
+    fun insert_var ((f,_,_), thy') =           
             if is_global_kind 
             then declare StateMgt_core.global_var (Binding.name_of f) thy'
-            else declare StateMgt_core.local_var (Binding.name_of f) thy'
+            else declare StateMgt_core.local_var  (Binding.name_of f) thy'
     val _ = (SPY := fields)
   in thy |> Record.add_record overloaded (params', binding) parent fields 
-         |> (fn thy =>  List.foldr insert_var (thy) (fields))
+         |> (fn thy =>  List.foldr insert_var (thy) (fields)) 
   end;
 
-fun typ_2_string_raw (Type(s,S)) = 
-        let val front = fst o split_last
-            val h = if null S  orelse S = [@{typ unit}]
-                     then "" 
-                     else enclose "(" ")" (commas (map typ_2_string_raw (front S))) ;
-        in h ^ s end
-   |typ_2_string_raw (TFree(s,_))  = s 
-   |typ_2_string_raw (TVar((s,n),_))  = s^(Int.toString n) ;
 
-fun typ_2_string_raw (Type(s,S)) = 
-        let val front = fst o split_last
-            val h = if null S orelse S = [@{typ unit}] 
-                    then "" else enclose "(" ")" (commas (map typ_2_string_raw (front S))) ;
-        in h ^ (Long_Name.qualifier s) end
-   |typ_2_string_raw (TFree(s,_))  = s 
-   |typ_2_string_raw (TVar((s,n),_))  = s^(Int.toString n) ;
-
+fun typ_2_string_raw (Type(s,[])) = s
+   |typ_2_string_raw (Type(s,_)) = error ("Illegal parameterized state type - not allowed in CLEAN:" 
+                                          ^ s) 
+   |typ_2_string_raw _ = error "Illegal parameterized state type - not allowed in CLEAN." 
+                                  
 
 fun new_state_record  is_global_kind (raw_params, binding)  raw_fields thy =
-    let val _ = writeln ("Z" ^ (typ_2_string_raw (StateMgt_core.get_state_type_global thy)))
+    let val _ = writeln ("<Z " ^ (typ_2_string_raw (StateMgt_core.get_state_type_global thy)))
         val raw_parent = SOME(typ_2_string_raw (StateMgt_core.get_state_type_global thy))
-        val (upd_typ,ctxt_of) = (StateMgt_core.upd_state_type_global,Proof_Context.init_global)
-        fun upd_state_typ thy = upd_typ(K(Syntax.parse_typ(ctxt_of thy)
-                                       (Binding.name_of binding))) 
-                                       (thy)
+        fun upd_state_typ thy = let val t = Syntax.parse_typ(Proof_Context.init_global thy) 
+                                                            (Binding.name_of binding)
+                                    val _ = writeln ("Z> "^(typ_2_string_raw t))
+                                in  StateMgt_core.upd_state_type_global(K t)(thy) end
     in  thy |> add_record_cmd {overloaded = false} is_global_kind 
-                   (raw_params, binding) raw_parent raw_fields 
+                              (raw_params, binding) raw_parent raw_fields 
             |> upd_state_typ
     end
 
@@ -304,7 +295,6 @@ section\<open>Monadic Presentation of Assignments (based on Records) \<close>
 
 
 text\<open> ... and we provide syntactic sugar via cartouches \<close>
-
 text\<open> Basic Symbolic execution rules. As they are equalities, they can also
 be used as program optimization rules. \<close>
 

@@ -133,29 +133,31 @@ theorem (in is_prime) is_prime_correct:
 
 
 (* declarative "blue" style proof *)
+
 theorem (in is_prime) is_prime_correct':
-    "\<lbrace> \<lambda>s. n \<le> UINT_MAX \<rbrace> is_prime_linear' n \<lbrace> \<lambda>r s. (r \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
-proof (rule validNF_assume_pre, cases "n = 0")
-  case True
-  then show ?thesis by (clarsimp simp: is_prime_linear'_def, wp, simp)[1] 
-next
-  case False
-  then show ?thesis 
-       proof(cases "n = 1")
-         case True
-         then show ?thesis by (clarsimp simp: is_prime_linear'_def, wp, simp)[1] 
-       next
-         case False
-         then show ?thesis
-           apply (unfold is_prime_linear'_def)
-           apply (rule validNF_assume_pre)
-           text\<open>... and here it happens ... \<close>
+    "\<lbrace> \<lambda>\<sigma>. n \<le> UINT_MAX \<rbrace> is_prime_linear' n \<lbrace> \<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
+proof (rule validNF_assume_pre)
+  assume 1 : "n \<le> UINT_MAX"
+  have   2 : "n=0 \<or> n=1 \<or> n > 1" by linarith
+  show ?thesis
+  proof (insert 2, elim disjE)
+    assume  "n=0" 
+    then show ?thesis  by (clarsimp simp:  is_prime_linear'_def, wp, auto) 
+  next
+    assume  "n=1" 
+    then show ?thesis  by (clarsimp simp:  is_prime_linear'_def, wp, auto) 
+  next
+    assume  "1 < n" 
+    then show ?thesis
+           apply (unfold is_prime_linear'_def, insert 1)
+           text\<open>... and here happens the annotation with the invariant:
+                as instantiation @{thm whileLoopE_add_inv}-rule ...
+                One can say that the while-loop is spiced-up with the
+                invariant and the measure by a rewrite step. \<close>
            apply (subst whileLoopE_add_inv [ where I="\<lambda>r s. is_prime_linear_inv n r s"
-                                               and M="(\<lambda>(r, s). n - r)"])
-           apply (wp, auto)
-           using less_2_cases prime_gt_0_nat by blast
-       qed
+                                               and M="(\<lambda>(r, _). n - r)"])
+           by (wp, auto)
+  qed
 qed
- 
 
 end
