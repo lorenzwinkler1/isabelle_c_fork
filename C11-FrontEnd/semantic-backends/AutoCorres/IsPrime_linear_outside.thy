@@ -11,19 +11,19 @@
 
 chapter\<open>Linear Prime Sample Proof\<close>
 
-text\<open>This example is used to demonstrate Isabelle/C/Autocorres in a version that keeps
+text\<open>This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
 annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
 
-theory IsPrime_linear_ouside
+theory IsPrime_linear_outside
 imports
   "AutoCorres.AutoCorres"
   "HOL-Computational_Algebra.Primes"
 begin
-
+\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
 section\<open>The Theory of the linear Primality Test Algorithm\<close>
-text\<open>This theory part develops the concepts of the invariant. This bit presented before
-the actual code, but could also be after or even inside (* as annotation *) of the source.\<close>
+text\<open>This theory part develops the concepts of the invariant. This bit is presented before
+the actual code, but could also be after or even inside \<^C>\<open>/* as C annotation */\<close> of the source.\<close>
 
 definition  "partial_prime p (n :: nat) \<equiv> (1 < p \<and> (\<forall>i \<in> {2 ..< min p n}. \<not> i dvd p))"
 
@@ -54,8 +54,8 @@ lemma partial_prime_2 [simp]: "(partial_prime a 2) = (a > 1)"
 definition [simp]: "is_prime_linear_inv n i s \<equiv> (1 < i \<and> 1 < n \<and> i \<le> n \<and> partial_prime n i)"
 
 
-section\<open>The Gory C Code --- pure without annutations\<close>
-text\<open>... except just one : the invocation of autocorres.\<close>
+section\<open>The Gory C Code --- pure without annotations\<close>
+text\<open>... except just one : the invocation of AutoCorres.\<close>
 
 C \<open>
 /*
@@ -68,7 +68,7 @@ C \<open>
  *
  * @TAG(NICTA_BSD)
  */
-//  Setup of autocorres for parsing and semantically representing this C element.
+//  Setup of AutoCorres for parsing and semantically representing this C element.
 //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime_linear  ]
 
 #define SQRT_UINT_MAX 65536
@@ -95,9 +95,9 @@ unsigned is_prime_linear(unsigned n)
 }
 \<close>
 
-C_export_file  (* this exports the C-code into a C - file ready to be co;piled by gcc. *)
+C_export_file  (* This exports the C code into a C file ready to be compiled by gcc. *)
 
-text\<open>Autocorres produced internally the following definitions of this input:\<close>
+text\<open>AutoCorres produced internally the following definitions of this input:\<close>
 find_theorems name:is_prime
 
 text\<open>Of key importance:\<close>
@@ -111,8 +111,8 @@ lemma uint_max_factor [simp]: "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
 
 
 
-section\<open>The Correctness-Proof of @{const "is_prime.is_prime_linear'"}\<close>
-text\<open>Note that the proof \<^emph>\<open>injects\<close> at the loop-invariant at the point where the proof 
+section\<open>The Correctness Proof of \<^const>\<open>is_prime.is_prime_linear'\<close>\<close>
+text\<open>Note that the proof \<^emph>\<open>injects\<close> the loop invariant at the point where the proof
      treats the loop.\<close>
 
 (* imperative "red" style proof *)

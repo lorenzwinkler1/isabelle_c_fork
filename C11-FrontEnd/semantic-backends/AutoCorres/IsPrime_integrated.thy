@@ -8,25 +8,27 @@
  *
  * @TAG(NICTA_BSD)
  *)
+
 chapter\<open>Integrated Prime Sample Proof\<close>
 
-text\<open>This example is used to demonstrate Isabelle/C/Autocorres in a version that keeps
-annotations completely \<^emph>\<open>inside\<close> the C source. As such, this is an exercise of style; 
-annotating \<^emph>\<open>everything\<close> inside the C source makes the parsing process slow, since it must
-be intertwined with the generation of global contexts and local proofs. 
-However, this has useful applications, for example, since for some cpp macro immediately
-some consequent properties can be directly attached. Methodologically, it is relevant to
-express semantic dependencies locally in order to ensure fast feedback in as a consequence
-of changes of the source. \<close>
+text \<open> This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
+annotations completely \<^emph>\<open>inside\<close> the C source. As such, this is an exercise of
+style; annotating \<^emph>\<open>everything\<close> inside the C source makes the overall command
+execution slow, since the execution not only includes parsing, but also AutoCorres' default
+generation of intermediate theorems and proofs. However, this has useful applications, when for
+example directly attaching some properties next to where a particular cpp macro is actually
+defined. Methodologically, it is relevant to express semantic dependencies locally in order to
+ensure fast feedback as a consequence of changes of the source. \<close>
 
 theory IsPrime_integrated
 imports
   "AutoCorres.AutoCorres"
   "HOL-Computational_Algebra.Primes"
 begin
+\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
 C \<open>
-//  Activating the AutoCorres backend of Isabe;lle/C.
+//  Setup of AutoCorres for parsing and semantically representing this C element.
 //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime_linear is_prime ]
 
 /*
@@ -239,11 +241,11 @@ theorem (in is_prime) is_prime_faster_correct:
   done
 
 */\<close>
+
 find_theorems name:is_prime
 
 thm is_prime_linear_inv_def
 thm is_prime.is_prime_linear'_def
 thm is_prime.is_prime_faster_correct
-
 
 end
