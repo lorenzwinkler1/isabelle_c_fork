@@ -100,24 +100,24 @@ definition swap :: "int => int =>  (unit,local_swap_state) MON\<^sub>S\<^sub>E"
 
 
 
-record  local_state_partition = "unit QuickSort.state" + (* local_state_swap ? *)
+local_vars  local_partition_state
     pivot  :: "int list"
     i      :: "int list" 
-    result :: "int list"
+    res   :: "int list"
 
 
 (* this implies the definitions : *)
-definition push_local_state :: "(unit,local_state_partition) MON\<^sub>S\<^sub>E"
-  where "push_local_state \<sigma> = Some((),
-                                   \<sigma>\<lparr>local_state_partition.pivot:= undefined # local_state_partition.pivot \<sigma>, 
-                                     local_state_partition.i:=undefined # local_state_partition.i \<sigma>, 
-                                     local_state_partition.result := undefined # local_state_partition.result \<sigma> \<rparr>)"
+definition push_local_partition_state :: "(unit,local_partition_state) MON\<^sub>S\<^sub>E"
+  where "push_local_partition_state \<sigma> = Some((),
+                                   \<sigma>\<lparr>local_partition_state.pivot:= undefined # local_partition_state.pivot \<sigma>, 
+                                     local_partition_state.i:=undefined # local_partition_state.i \<sigma>, 
+                                     local_partition_state.res := undefined # local_partition_state.res \<sigma> \<rparr>)"
 
-definition pop_local_state :: "(int,local_state_partition) MON\<^sub>S\<^sub>E" 
-  where "pop_local_state \<sigma> = Some(hd(local_state_partition.result \<sigma>),
-                                  \<sigma>\<lparr>local_state_partition.pivot:= tl( local_state_partition.pivot \<sigma>), 
-                                    local_state_partition.i:=tl( local_state_partition.i \<sigma>), 
-                                    local_state_partition.result :=tl( local_state_partition.result \<sigma>) \<rparr>)"
+definition pop_local_partition_state :: "(int,local_partition_state) MON\<^sub>S\<^sub>E" 
+  where "pop_local_partition_state \<sigma> = Some(hd(local_partition_state.res \<sigma>),
+                                  \<sigma>\<lparr>local_partition_state.pivot:= tl( local_partition_state.pivot \<sigma>), 
+                                    local_partition_state.i:=tl( local_partition_state.i \<sigma>), 
+                                    local_partition_state.res :=tl( local_partition_state.res \<sigma>) \<rparr>)"
 
 term "B[k:=(B!j)]"
 
