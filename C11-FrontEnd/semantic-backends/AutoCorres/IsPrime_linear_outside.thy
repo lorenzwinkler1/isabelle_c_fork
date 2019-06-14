@@ -124,9 +124,12 @@ theorem (in is_prime) is_prime_correct:
   apply (case_tac "n = 1")
    apply (clarsimp simp: is_prime_linear'_def, wp, simp)[1]
   apply (unfold is_prime_linear'_def)
-  text\<open>... and here it happens ... \<close>
-  apply (subst whileLoopE_add_inv [  where I="\<lambda>r s. is_prime_linear_inv n r s"
-                                       and M="(\<lambda>(r, s). n - r)"])
+  text\<open>... and here happens the annotation with the invariant:
+       by instancing @{thm whileLoopE_add_inv}.
+       One can say that the while loop is spiced up with the
+       invariant and the measure by a rewrite step. \<close>
+  apply (subst whileLoopE_add_inv [ where I = "is_prime_linear_inv n"
+                                      and M = "\<lambda>(r, _). n - r"])
   apply (wp, auto)
   done
 
@@ -151,11 +154,11 @@ proof (rule validNF_assume_pre)
     then show ?thesis
            apply (unfold is_prime_linear'_def, insert 1)
            text\<open>... and here happens the annotation with the invariant:
-                as instantiation @{thm whileLoopE_add_inv}-rule ...
-                One can say that the while-loop is spiced-up with the
+                by instancing @{thm whileLoopE_add_inv}.
+                One can say that the while loop is spiced up with the
                 invariant and the measure by a rewrite step. \<close>
-           apply (subst whileLoopE_add_inv [ where I="\<lambda>r s. is_prime_linear_inv n r s"
-                                               and M="(\<lambda>(r, _). n - r)"])
+           apply (subst whileLoopE_add_inv [ where I = "is_prime_linear_inv n"
+                                               and M = "\<lambda>(r, _). n - r"])
            by (wp, auto)
   qed
 qed
