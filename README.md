@@ -13,13 +13,13 @@ isabelle jedit -d C11-FrontEnd C11-FrontEnd/examples/C3.thy
 
 ```console
 export L4V_ARCH = ARM # the same effect can be made in ~/.isabelle/etc/settings
-isabelle jedit -d . C11-FrontEnd/semantic-backends/AutoCorres/TestSEL4.thy
-isabelle jedit -d . C11-FrontEnd/semantic-backends/AutoCorres/IsPrime_integrated.thy
+isabelle jedit -d . -l CParser C11-FrontEnd/semantic-backends/AutoCorres/TestSEL4.thy
+isabelle jedit -d . -l AutoCorres C11-FrontEnd/semantic-backends/AutoCorres/IsPrime_integrated.thy
 ```
 
-For the last examples, a sub-window ``Bad session structure`` will be opened,
-but this can be ignored: after a click on ``OK``, the compilation will
-correctly start.
+For the last examples, we were used to see a sub-window ``Bad session
+structure`` appearing, but it has been fixed. Nevertheless, if it still does
+appear: after a click on ``OK``, the compilation will correctly start.
 
 Additionally, ``run_tests`` can be executed in ``l4v/src/``, and interrupted
 once the success of ``CBaseRefine`` obtained. Then, to test the interactive

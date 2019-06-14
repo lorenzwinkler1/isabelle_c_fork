@@ -74,6 +74,23 @@ session Isabelle_C = C_document +
     "root.tex"
     "root.bib"
 
+session Isabelle_C_AutoCorres = AutoCorres +
+  options [document = pdf, document_output = "generated"]
+  (* TODO: find a way to concatenate together PDF in:
+           generated/part1 + generated/part2 + generated/part3 *)
+  sessions
+    "HOL-Computational_Algebra"
+  theories
+    "semantic-backends/AutoCorres/README"
+    "semantic-backends/AutoCorres/IsPrime_integrated"
+    "semantic-backends/AutoCorres/IsPrime_linear_outside"
+    "semantic-backends/AutoCorres/IsPrime_sqrt_outside"
+    "semantic-backends/AutoCorres/Parse_for_loop"
+    "semantic-backends/AutoCorres/TestSEL4"
+  document_files
+    "root.tex"
+    "root.bib"
+
 session C_autocorres = C +
   sessions
     "HOL-Eisbach"

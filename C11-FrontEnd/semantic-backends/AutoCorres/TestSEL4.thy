@@ -11,7 +11,7 @@
 
 theory TestSEL4
 imports
-  "../../../l4v/src/tools/c-parser/CTranslation"
+  CParser.CTranslation
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/TestSEL4.thy\<close>\<close>
 
