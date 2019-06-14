@@ -13,6 +13,7 @@ theory TestSEL4
 imports
   "../../../l4v/src/tools/c-parser/CTranslation"
 begin
+\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/TestSEL4.thy\<close>\<close>
 
 declare [[allow_underscore_idents]]
 declare [[ML_print_depth = 500]] \<comment> \<open>Any number large enough for @{command install_C_file}
