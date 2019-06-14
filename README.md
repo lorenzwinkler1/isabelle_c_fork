@@ -13,7 +13,7 @@ isabelle jedit -d C11-FrontEnd C11-FrontEnd/examples/C3.thy
 
 ```console
 export L4V_ARCH = ARM # the same effect can be made in ~/.isabelle/etc/settings
-isabelle jedit -d . l4v/examples/TestSEL4.thy
+isabelle jedit -d . C11-FrontEnd/semantic-backends/AutoCorres/TestSEL4.thy
 isabelle jedit -d . C11-FrontEnd/semantic-backends/AutoCorres/IsPrime_integrated.thy
 ```
 
