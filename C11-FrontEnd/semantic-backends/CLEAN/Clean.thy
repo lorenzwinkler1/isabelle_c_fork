@@ -103,6 +103,19 @@ fun      assign_local :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigm
                       \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
   where "assign_local upd rhs = assign(\<lambda>\<sigma>. ((upd o map_hd) (%_. rhs \<sigma>)) \<sigma>)"
 
+
+definition block\<^sub>C :: "  (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E
+                     \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E  
+                     \<Rightarrow> ('\<alpha>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E
+                     \<Rightarrow> ('\<alpha>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
+  where   "block\<^sub>C push core pop \<equiv> (          \<comment> \<open>assumes break and return unset \<close> 
+                                   push ;-   \<comment> \<open>create new instances of local variables \<close> 
+                                   core ;-   \<comment> \<open>execute the body \<close>
+                                   unset_break ;-        \<comment> \<open>unset a potential break \<close>
+                                   unset_return_val;-    \<comment> \<open>unset a potential return break \<close>
+                                   (x \<leftarrow> pop;            \<comment> \<open>restore previous local var instances \<close>
+                                    unit\<^sub>S\<^sub>E(x)))"         \<comment> \<open>yield the return value \<close>
+    
     
 definition if_C :: "[('\<sigma>_ext) control_state_ext \<Rightarrow> bool, 
                       ('\<beta>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E, 
@@ -132,24 +145,7 @@ syntax    (xsymbols)
 translations 
           "while\<^sub>C c do b od" == "CONST Clean.while_C c b"
 
-definition body\<^sub>C :: "   (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E
-                     \<Rightarrow> ('\<alpha>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E
-                     \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E  
-                     \<Rightarrow> ('\<alpha>,   ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
-  where   "body\<^sub>C push pop X \<equiv> (push ;- X ;- unset_break ;- (x \<leftarrow> pop; unset_return_val;- unit\<^sub>S\<^sub>E(x)))"     
-    
-(* a "function m (x1:T1; ... ;xn : Tn) : T = {locvar-decl; X}" is then
-   compiled to:
-
-   a) an extension of the ('\<alpha>, '\<sigma>) cstate_ext with the locvar-decl-stack 
-      and the corresponding generation of the push and pop operations on that stack
- 
-   b) definition m\<^sub>S\<^sub>E :: " T1 \<Rightarrow> ... \<Rightarrow> Tn \<Rightarrow> T" 
-        where m\<^sub>S\<^sub>E x1 .. xn \<equiv> body\<^sub>C push\<^sub>l\<^sub>o\<^sub>c\<^sub>v\<^sub>a\<^sub>r\<^sub>-\<^sub>d\<^sub>e\<^sub>c\<^sub>l pop\<^sub>l\<^sub>o\<^sub>c\<^sub>v\<^sub>a\<^sub>r\<^sub>-\<^sub>d\<^sub>e\<^sub>c\<^sub>l X
-
-   CAVEAT: This coding scheme has the undesired effect that all return types of functions must be 
-   the same ;-( But as a first shot, this is perhaps acceptable.
-*)   
+   
     
 section\<open> A Specialized Representation of States based on Records) \<close>
 
