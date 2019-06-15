@@ -70,7 +70,9 @@ ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory}; \<close
 subsection \<open>Encoding swap in CLEAN\<close>
 
 (* for some strange reason, "result" is no longer a term. term "result" crashes. *)
-local_vars local_swap_state  
+(* list-lifting should be automatic in local_vars. *)
+
+local_vars local_swap_state
    tmp :: "int list" 
    res :: "unit list"
 
@@ -106,8 +108,21 @@ definition swap :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a local_swap_sta
 definition swap_contract :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
   where   "swap_contract i j \<equiv> undefined "
 
+(* NOTE: If local variables were only used in single-assignment style, it is possible
+   to drastically simplify the encoding. These variables were not stored in the state,
+   just kept as part of the monadic calculation. The simplifications refer both to 
+   calculation as well as well as symbolic execution and deduction. *) 
+
+definition swap' :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a state_scheme) MON\<^sub>S\<^sub>E"
+    where "swap' i j \<equiv> (tmp \<leftarrow>  (\<lambda>\<sigma>. Some(A \<sigma> ! i, \<sigma>)) ;
+                          ((assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
+                           (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) (tmp)))))" 
+(* Note that all local variables are single-assigned in swap, the entire local var definition
+   can be ommitted *) 
+
 subsection \<open>Encoding partition in CLEAN\<close>
 
+(* recall: list-lifting should be automatic in local_vars. *)
 local_vars  local_partition_state
     pivot  :: "int list"
     i      :: "nat list"
@@ -172,6 +187,58 @@ definition partition_contract :: "nat \<Rightarrow> nat \<Rightarrow>  (nat,'a l
       return(i)
      \<close>
 *)         
+
+subsection \<open>Encoding quicksort in CLEAN\<close>
+
+local_vars  local_quicksort_state
+    p  :: "nat list"
+    res:: "unit list"
+
+(*
+funct quicksort(lo::nat, hi::nat) returns unit
+     pre  "True"
+     post "True"
+     local_vars p :: int     
+     \<open>if\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N \<open>lo < hi\<close> then
+        p := partition(lo, hi) ;-
+        quicksort(A, lo, p - 1) ;-
+        quicksort(A, p + 1, hi)
+      else Skip\<close>
+      
+*)
+
+(* this implies the definitions : *)
+definition push_local_quicksort_state :: "(unit, 'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "push_local_quicksort_state \<sigma> = 
+                 Some((), \<sigma>\<lparr>local_quicksort_state.p := undefined # local_quicksort_state.p \<sigma>,
+                            local_quicksort_state.res := undefined # local_quicksort_state.res \<sigma> \<rparr>)"
+
+definition pop_local_quicksort_state :: "(unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E" 
+  where   "pop_local_quicksort_state \<sigma> = Some(hd(local_quicksort_state.res \<sigma>),
+                       \<sigma>\<lparr>local_quicksort_state.p   := tl(local_quicksort_state.p \<sigma>), 
+                         local_quicksort_state.res := tl(local_quicksort_state.res \<sigma>) \<rparr>)"
+
+definition quicksort_core :: "nat \<Rightarrow> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "quicksort_core lo hi \<equiv> 
+                  ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
+                    then ((assign_local p_update (\<lambda>\<sigma>. (fst o the) (partition lo hi \<sigma>))) )
+                    else skip\<^sub>S\<^sub>E 
+                    fi))"
+(* recursion not yet treated. Either axiomatazitation hack (super-dangerous) or 
+   proper formalization via lfp. *)
+
+(*
+funct quicksort(lo::int, hi::int) returns unit
+     pre  "True"
+     post "True"
+     local_vars p :: int     
+     \<open>if\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N \<open>lo < hi\<close> then
+        p := partition(lo, hi) ;-
+        quicksort(lo, p - 1) ;-
+        quicksort(p + 1, hi)
+      else Skip\<close>
+      
+*)
 
 term "Clean.syntax_assign"
 term "B[x:=(B!n)]"
