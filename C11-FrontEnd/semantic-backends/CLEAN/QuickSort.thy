@@ -113,8 +113,9 @@ definition swap_contract :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a local
    just kept as part of the monadic calculation. The simplifications refer both to 
    calculation as well as well as symbolic execution and deduction. *) 
 
+
 definition swap' :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a state_scheme) MON\<^sub>S\<^sub>E"
-    where "swap' i j \<equiv> (tmp \<leftarrow>  (\<lambda>\<sigma>. Some(A \<sigma> ! i, \<sigma>)) ;
+    where "swap' i j \<equiv> (tmp \<leftarrow>  yield\<^sub>C (\<lambda>\<sigma>. A \<sigma> ! i) ;
                           ((assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
                            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) (tmp)))))" 
 (* Note that all local variables are single-assigned in swap, the entire local var definition

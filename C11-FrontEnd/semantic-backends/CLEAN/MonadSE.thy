@@ -130,9 +130,12 @@ lemma bind_right_unit'[simp]: "(m;- (result ())) = m"
           
 text{* The bind-operator in the state-exception monad yields already
        a semantics for the concept of an input sequence on the meta-level: *}
-lemma     syntax_test: "(o1 \<leftarrow> f1 ; o2 \<leftarrow> f2; return (post o1 o2)) = X"
+lemma     syntax_test: "(o1 \<leftarrow> f1 ; o2 \<leftarrow> f2; result (post o1 o2)) = X"
 oops
   
+definition yield\<^sub>C :: "('a  \<Rightarrow> 'b) \<Rightarrow>  ('b,'a ) MON\<^sub>S\<^sub>E"
+    where "yield\<^sub>C f \<equiv> (\<lambda>\<sigma>. Some(f \<sigma>, \<sigma>))"
+
 
 definition try_SE :: "('o,'\<sigma>) MON\<^sub>S\<^sub>E \<Rightarrow> ('o option,'\<sigma>) MON\<^sub>S\<^sub>E" ("try\<^sub>S\<^sub>E")
 where     "try\<^sub>S\<^sub>E ioprog = (\<lambda>\<sigma>. case ioprog \<sigma> of
