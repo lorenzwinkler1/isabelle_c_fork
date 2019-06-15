@@ -21,7 +21,7 @@ begin
   
 text{* Clean is a minimalistic imperative language 
 with C-like control-flow operators based on a shallow embedding into the
-SE exception Monad theory formalized in @{theory MonadSE}. It comprises:
+SE exception Monad theory formalized in @{theory "MonadSE"}. It comprises:
 \begin{itemize}
 \item C-like control flow with \verb+break+ and \verb+return+
 \item global variables
@@ -84,7 +84,24 @@ consts syntax_assign :: "('\<alpha>  \<Rightarrow> int) \<Rightarrow> int \<Righ
 definition assign :: "(('\<sigma>_ext) control_state_scheme  \<Rightarrow> 
                        ('\<sigma>_ext) control_state_scheme) \<Rightarrow> 
                        (unit,('\<sigma>_ext) control_state_scheme)MON\<^sub>S\<^sub>E"
-where     "assign f = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>) else Some((), f \<sigma>))"
+  where   "assign f = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>) else Some((), f \<sigma>))"
+
+(* todo: rename assign to trans2mon combinator; since it will be used for calls as well *)
+
+fun      assign_global :: "(('a  \<Rightarrow> 'a ) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
+                      \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
+                      \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
+  where "assign_global upd rhs = assign(\<lambda>\<sigma>. ((upd) (%_. rhs \<sigma>)) \<sigma>)"
+
+
+fun      map_hd :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a list \<Rightarrow> 'a list" 
+  where "map_hd f (a#S) = f a # S"
+
+
+fun      assign_local :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
+                      \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
+                      \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
+  where "assign_local upd rhs = assign(\<lambda>\<sigma>. ((upd o map_hd) (%_. rhs \<sigma>)) \<sigma>)"
 
     
 definition if_C :: "[('\<sigma>_ext) control_state_ext \<Rightarrow> bool, 

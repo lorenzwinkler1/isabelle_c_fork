@@ -81,19 +81,39 @@ local_vars local_swap_state
    tmp :: "int list" 
    res :: "unit list"
 
-ML\<open>@{typ local_swap_state}\<close>
-definition push_local_state_swap :: "(unit,local_swap_state) MON\<^sub>S\<^sub>E"
+
+definition push_local_state_swap :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
   where   "push_local_state_swap \<sigma> = Some((),
                                           \<sigma>\<lparr>local_swap_state.tmp := 
                                                undefined # local_swap_state.tmp \<sigma> \<rparr>)"
 
-definition pop_local_state_swap :: "(unit,local_swap_state) MON\<^sub>S\<^sub>E"
+definition pop_local_state_swap :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
   where   "pop_local_state_swap \<sigma> = Some(hd(local_swap_state.res \<sigma>), \<comment> \<open> recall : returns unit \<close>
                                         \<sigma>\<lparr>local_swap_state.tmp:= tl( local_swap_state.tmp \<sigma>) \<rparr>)"
 term "Clean.syntax_assign"
 term "B[x:=(B!j)]"
-term assign
-definition swap :: "int => int =>  (unit,local_swap_state) MON\<^sub>S\<^sub>E"
+
+
+
+term "assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i )"  
+term "assign(\<lambda>\<sigma>. ((upd o map_hd) (f \<sigma>)) \<sigma>)"
+
+term "assign "
+term "(A \<sigma>[i := A \<sigma> ! i]) = list_update (A \<sigma>) (i) (A \<sigma> ! i)"
+
+term "assign(\<lambda>\<sigma>. ((A_update ) (\<lambda>_. list_update (A \<sigma>) (i) (A \<sigma> ! i))) \<sigma>)"
+term " ((A_update o map_hd) f)"
+term " block"
+
+
+term "assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))"
+definition swap_body :: "nat => nat =>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
+    where "swap_body i j \<equiv> ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
+                            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
+                            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>))))" 
+thm swap_body_def
+
+definition swap :: "nat => nat =>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
    where  "swap i j \<equiv> (\<open>tmp := A!i\<close>       ;-
                        \<open>A := (A[i:=(A!j)])\<close> ;-   
                        \<open>A := (A[j:=tmp])\<close>)"
