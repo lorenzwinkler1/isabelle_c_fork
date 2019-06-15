@@ -25,9 +25,10 @@ global_vars  (* state *)
     A :: "int list "
 
 
-funct swap (i::int, j :: int) returns unit 
-     pre  "True"
-     post "True"
+funct swap (i::nat, j :: nat) returns unit 
+     pre  "i < length A \<and> j < length A"
+     post "length (pre A) = length (A) \<and> \<forall>n. n \<noteq> i \<and> n \<noteq> j \<and> n < length A \<longrightarrow> (pre A)!n = A!n 
+           \<and> A!j = (pre A)!i \<and> A!i = (pre A)!j"
      local_vars tmp :: int
      \<open>\<open>tmp := A!i\<close> ;-
       \<open>A[i] := A[j]\<close> ;-   (* A := A[i:=A[j]] *)
