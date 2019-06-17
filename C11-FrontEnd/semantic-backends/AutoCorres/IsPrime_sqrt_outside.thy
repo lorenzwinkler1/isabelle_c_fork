@@ -1,5 +1,5 @@
 (*
- * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
