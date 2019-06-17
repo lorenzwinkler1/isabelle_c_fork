@@ -154,8 +154,8 @@ definition partition_core :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a loca
                (assign_local j_update (\<lambda>\<sigma>. lo )) ;-
                (while\<^sub>C (\<lambda>\<sigma>. (hd o j) \<sigma> \<le> hi - 1 ) 
                 do (if\<^sub>C (\<lambda>\<sigma>. A \<sigma> ! (hd o j) \<sigma> < (hd o pivot)\<sigma> ) 
-                    then (\<lambda>\<sigma>. (swap ((hd o i) \<sigma>)  ((hd o j) \<sigma>))  \<sigma>) ;-
-                         (assign_local i_update (\<lambda>\<sigma>. ((hd o i) \<sigma>) + 1))
+                    then (_ \<leftarrow> call_2\<^sub>C (swap) (\<lambda>\<sigma>. (hd o i) \<sigma>) (\<lambda>\<sigma>. (hd o j) \<sigma>)  ;
+                         (assign_local i_update (\<lambda>\<sigma>. ((hd o i) \<sigma>) + 1)))
                     else skip\<^sub>S\<^sub>E 
                     fi) 
                 od) ;-
@@ -222,7 +222,8 @@ definition pop_local_quicksort_state :: "(unit,'a local_quicksort_state_scheme) 
 definition quicksort_core :: "nat \<Rightarrow> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
   where   "quicksort_core lo hi \<equiv> 
                   ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
-                    then ((assign_local p_update (\<lambda>\<sigma>. (fst o the) (partition lo hi \<sigma>))) )
+                    then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call_2\<^sub>C (partition) (\<lambda>\<sigma>. lo) (\<lambda>\<sigma>. hi) ;
+                          assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p))
                     else skip\<^sub>S\<^sub>E 
                     fi))"
 (* recursion not yet treated. Either axiomatazitation hack (super-dangerous) or 
@@ -241,6 +242,14 @@ funct quicksort(lo::int, hi::int) returns unit
       
 *)
 
+definition quicksort :: "nat \<Rightarrow> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E" 
+  where   "quicksort lo hi \<equiv> block\<^sub>C push_local_quicksort_state 
+                                    (quicksort_core lo hi) 
+                                    pop_local_quicksort_state"
+
+term "E \<longrightarrow> B"
+
+(* bric a brac *)
 term "Clean.syntax_assign"
 term "B[x:=(B!n)]"
 term "assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! n )"  
