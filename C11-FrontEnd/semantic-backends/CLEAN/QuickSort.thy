@@ -161,8 +161,8 @@ definition partition_core :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a loca
                 od) ;-
                (assign_local j_update (\<lambda>\<sigma>. ((hd o j) \<sigma>) + 1)) ;-
 
-               (\<lambda>\<sigma>. (swap ((hd o i) \<sigma>)  ((hd o j) \<sigma>))  \<sigma>) ;-
-               (assign_local res_update (\<lambda>\<sigma>. (hd o i) \<sigma>))  \<comment> \<open> the meaning of the return stmt \<close>
+               (_ \<leftarrow> call_2\<^sub>C (swap) (\<lambda>\<sigma>. (hd o i) \<sigma>) (\<lambda>\<sigma>. (hd o j) \<sigma>)  ;
+               (assign_local res_update (\<lambda>\<sigma>. (hd o i) \<sigma>)))  \<comment> \<open> the meaning of the return stmt \<close>
                )"
 
 thm partition_core_def
@@ -219,13 +219,6 @@ definition pop_local_quicksort_state :: "(unit,'a local_quicksort_state_scheme) 
                        \<sigma>\<lparr>local_quicksort_state.p   := tl(local_quicksort_state.p \<sigma>), 
                          local_quicksort_state.res := tl(local_quicksort_state.res \<sigma>) \<rparr>)"
 
-definition quicksort_core :: "nat \<Rightarrow> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "quicksort_core lo hi \<equiv> 
-                  ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
-                    then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call_2\<^sub>C (partition) (\<lambda>\<sigma>. lo) (\<lambda>\<sigma>. hi) ;
-                          assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p))
-                    else skip\<^sub>S\<^sub>E 
-                    fi))"
 (* recursion not yet treated. Either axiomatazitation hack (super-dangerous) or 
    proper formalization via lfp. *)
 
@@ -242,12 +235,22 @@ funct quicksort(lo::int, hi::int) returns unit
       
 *)
 
-definition quicksort :: "nat \<Rightarrow> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E" 
-  where   "quicksort lo hi \<equiv> block\<^sub>C push_local_quicksort_state 
-                                    (quicksort_core lo hi) 
-                                    pop_local_quicksort_state"
+axiomatization  quicksort_core :: "nat \<Rightarrow> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
+           and  quicksort      :: "nat \<Rightarrow> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E" 
 
-term "E \<longrightarrow> B"
+  where  core: "quicksort_core lo hi \<equiv> 
+                  ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
+                    then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call_2\<^sub>C (partition) (\<lambda>\<sigma>. lo) (\<lambda>\<sigma>. hi) ;
+                          assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
+                          (_ \<leftarrow> call_2\<^sub>C (quicksort) (\<lambda>\<sigma>. lo) (\<lambda>\<sigma>. (hd o p) \<sigma> - 1)  ;
+                            _ \<leftarrow> call_2\<^sub>C (quicksort) (\<lambda>\<sigma>. (hd o p) \<sigma> + 1) (\<lambda>\<sigma>. hi) ; unit\<^sub>S\<^sub>E() )
+                    else skip\<^sub>S\<^sub>E 
+                    fi))"
+
+
+  and   body: "quicksort lo hi \<equiv> block\<^sub>C push_local_quicksort_state 
+                                        (quicksort_core lo hi) 
+                                        pop_local_quicksort_state"
 
 (* bric a brac *)
 term "Clean.syntax_assign"
