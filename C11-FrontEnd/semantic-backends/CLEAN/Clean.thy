@@ -352,7 +352,7 @@ by (simp add: assign_def assms exec_bind_SE_success)
 
 lemma exec_assign'  : 
 assumes "exec_stop \<sigma>"
-shows "(\<sigma> \<Turnstile> (assign f;- M)) =      (\<sigma> \<Turnstile> M)"
+shows "(\<sigma> \<Turnstile> (assign f;- M)) = (\<sigma> \<Turnstile> M)"
 by (simp add: assign_def assms exec_bind_SE_success bind_SE'_def)     
 
 lemma non_exec_assign_global  : 
@@ -424,6 +424,49 @@ assumes "exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> (call_0\<^sub>C M;- M')) = (\<sigma> \<Turnstile>  M')"
   by (simp add: assms bind_SE'_def exec_call_0)
 
+
+
+
+lemma non_exec_call_1  : 
+assumes "\<not> exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> (call_1\<^sub>C M A\<^sub>1); M')) = (\<sigma> \<Turnstile> M (A\<^sub>1 \<sigma>);- M')"
+  by (simp add: assms bind_SE'_def bind_SE_def call_1\<^sub>C_def valid_SE_def)
+
+lemma non_exec_call_1'  : 
+assumes "\<not> exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> call_1\<^sub>C M A\<^sub>1;- M') = (\<sigma> \<Turnstile>  M (A\<^sub>1 \<sigma>);- M')"
+  by (simp add: assms bind_SE'_def non_exec_call_1)
+
+lemma exec_call_1  : 
+assumes "exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> call_1\<^sub>C M A\<^sub>1; M')) = (\<sigma> \<Turnstile>  M')"
+  by (simp add: assms call_1\<^sub>C_def exec_bind_SE_success)
+
+lemma exec_call_1'  : 
+assumes "exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> (call_1\<^sub>C M A\<^sub>1;- M')) = (\<sigma> \<Turnstile>  M')"
+  by (simp add: assms bind_SE'_def exec_call_1)
+
+
+lemma non_exec_call_2  : 
+assumes "\<not> exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> (call_2\<^sub>C M A\<^sub>1 A\<^sub>2); M')) = (\<sigma> \<Turnstile> M (A\<^sub>1 \<sigma>) (A\<^sub>2 \<sigma>);- M')"
+  by (simp add: assms bind_SE'_def bind_SE_def call_2\<^sub>C_def valid_SE_def)
+
+lemma non_exec_call_2'  : 
+assumes "\<not> exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> call_2\<^sub>C M A\<^sub>1 A\<^sub>2;- M') = (\<sigma> \<Turnstile>  M (A\<^sub>1 \<sigma>) (A\<^sub>2 \<sigma>);- M')"
+  by (simp add: assms bind_SE'_def non_exec_call_2)
+
+lemma exec_call_2  : 
+assumes "exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> call_2\<^sub>C M A\<^sub>1 A\<^sub>2; M')) = (\<sigma> \<Turnstile>  M')"
+  by (simp add: assms call_2\<^sub>C_def exec_bind_SE_success)
+
+lemma exec_call_2'  : 
+assumes "exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> (call_2\<^sub>C M A\<^sub>1 A\<^sub>2;- M')) = (\<sigma> \<Turnstile>  M')"
+  by (simp add: assms bind_SE'_def exec_call_2)
 
 
 lemma exec_If\<^sub>C_If\<^sub>S\<^sub>E  : 
