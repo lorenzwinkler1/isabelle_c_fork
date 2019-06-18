@@ -4,6 +4,7 @@
  ******************************************************************************)
 
 chapter {* The Clean Language *}
+text{* Pronounce : "C lean". *}
 
 theory Clean
   imports Symbex_MonadSE
@@ -23,13 +24,15 @@ text{* Clean is a minimalistic imperative language
 with C-like control-flow operators based on a shallow embedding into the
 SE exception Monad theory formalized in @{theory "MonadSE"}. It comprises:
 \begin{itemize}
-\item C-like control flow with \verb+break+ and \verb+return+
-\item global variables
+\item C-like control flow with \verb+break+ and \verb+return+.
+\item global variables.
 \item function calls (seen as Monad-executions) with side-effects, recursion
-      and local variables
+      and local variables.
 \item parameters are modeled via functional abstractions 
       (functions are Monads ...); a passing of parameters to local variables
-      might be added later
+      might be added later.
+\item parametric polymorphism might be added later; at present, states are
+      restricted to be monmorphic.
 \item cartouche syntax for update operations.
 \end{itemize} *}
   
@@ -71,8 +74,8 @@ definition unset_break :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S
 definition return :: "'\<alpha> \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"    
   where   "return x = (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> return_val := True \<rparr>))"
     
-definition unset_return_val :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"    
-  where   "unset_return_val  = (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> return_val := False \<rparr>))"
+definition unset_return :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"    
+  where   "unset_return  = (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> return_val := False \<rparr>))"
     
 definition exec_stop :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool"
   where   "exec_stop = (\<lambda> \<sigma>. break_val \<sigma> \<or> return_val \<sigma> )"
@@ -112,7 +115,7 @@ definition block\<^sub>C :: "  (unit, ('\<sigma>_ext) control_state_ext)MON\<^su
                                    push ;-   \<comment> \<open>create new instances of local variables \<close> 
                                    core ;-   \<comment> \<open>execute the body \<close>
                                    unset_break ;-        \<comment> \<open>unset a potential break \<close>
-                                   unset_return_val;-    \<comment> \<open>unset a potential return break \<close>
+                                   unset_return;-    \<comment> \<open>unset a potential return break \<close>
                                    (x \<leftarrow> pop;            \<comment> \<open>restore previous local var instances \<close>
                                     unit\<^sub>S\<^sub>E(x)))"         \<comment> \<open>yield the return value \<close>
     
@@ -245,7 +248,6 @@ end
 
 *}
 
-ML\<open> Syntax.string_of_typ ; open Term\<close>
 
 ML{* 
 local open StateMgt_core in
@@ -255,8 +257,6 @@ val S = List.foldr (fn ((f,_,_), thy)
 
 end
 *}
-
-ML\<open>\<close>
 
 ML{*
 val SPY = Unsynchronized.ref([]:(binding * typ * mixfix)list)
@@ -325,31 +325,106 @@ val _ =
     ((Parse.type_args_constrained -- Parse.binding) -- Scan.repeat1 Parse.const_binding
     >> (fn (x, z) => Toplevel.theory (new_state_record false x  z)));
 
-
 *}
 
-ML\<open>@{command_keyword "global_vars"}\<close>
 
-section\<open>Monadic Presentation of Assignments (based on Records) \<close>
+section\<open>Monadic Presentation of Assignments (based on Extensible Records) \<close>
 
 
 text\<open> ... and we provide syntactic sugar via cartouches \<close>
 text\<open> Basic Symbolic execution rules. As they are equalities, they can also
 be used as program optimization rules. \<close>
 
-lemma exec_assign  : 
+lemma non_exec_assign  : 
 assumes "\<not> exec_stop \<sigma>"
 shows "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign f; M)) = ((f \<sigma>) \<Turnstile>  M)"
 by (simp add: assign_def assms exec_bind_SE_success)
-    
-lemma exec_assign'  : 
+
+lemma non_exec_assign'  : 
+assumes "\<not> exec_stop \<sigma>"
+shows "(\<sigma> \<Turnstile> (assign f;- M)) = ((f \<sigma>) \<Turnstile>  M)"
+by (simp add: assign_def assms exec_bind_SE_success bind_SE'_def)
+
+lemma exec_assign  : 
 assumes "exec_stop \<sigma>"
-shows "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign f; M)) = (\<sigma> \<Turnstile>  M)"
+shows "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign f; M)) = (\<sigma> \<Turnstile> M)"
 by (simp add: assign_def assms exec_bind_SE_success)     
 
+lemma exec_assign'  : 
+assumes "exec_stop \<sigma>"
+shows "(\<sigma> \<Turnstile> (assign f;- M)) =      (\<sigma> \<Turnstile> M)"
+by (simp add: assign_def assms exec_bind_SE_success bind_SE'_def)     
+
+lemma non_exec_assign_global  : 
+assumes "\<not> exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign_global upd rhs; M)) = ((upd (\<lambda>_. rhs \<sigma>) \<sigma>) \<Turnstile>  M)"
+by(simp add: non_exec_assign assms)
+
+lemma non_exec_assign_global'  : 
+assumes "\<not> exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> (assign_global upd rhs;- M)) = ((upd (\<lambda>_. rhs \<sigma>) \<sigma>) \<Turnstile>  M)"
+  by (metis (full_types) assms bind_SE'_def non_exec_assign_global)
+
+
+lemma exec_assign_global  : 
+assumes "exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign_global upd rhs; M)) = ( \<sigma> \<Turnstile>  M)"
+  by (simp add: assign_def assms exec_bind_SE_success)
+
+lemma exec_assign_global'  : 
+assumes "exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> (assign_global upd rhs;- M)) = ( \<sigma> \<Turnstile>  M)"
+  by (simp add:  assign_def assms exec_bind_SE_success bind_SE'_def)
+
+lemma non_exec_assign_local  : 
+assumes "\<not> exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign_local upd rhs; M)) = ((upd (map_hd (\<lambda>_. rhs \<sigma>)) \<sigma>) \<Turnstile>  M)"
+  by(simp add: non_exec_assign assms)
+
+lemma non_exec_assign_local'  : 
+assumes "\<not> exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> (assign_local upd rhs;- M)) = ((upd (map_hd (\<lambda>_. rhs \<sigma>)) \<sigma>) \<Turnstile>  M)"
+  by (metis assms bind_SE'_def non_exec_assign_local)
+
+
+lemma exec_assign_local  : 
+assumes "exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign_local upd rhs; M)) = ( \<sigma> \<Turnstile>  M)"
+  by (simp add: assign_def assms exec_bind_SE_success)
+
+lemma exec_assign_local'  : 
+assumes "exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> (assign_global upd rhs;- M)) = ( \<sigma> \<Turnstile>  M)"
+  by (simp add:  assign_def assms exec_bind_SE_success bind_SE'_def)
+
+
 lemmas exec_assignD = exec_assign[THEN iffD1]
+thm exec_assignD
 
 lemmas exec_assignD' = exec_assign'[THEN iffD1]
+
+lemma non_exec_call_0  : 
+assumes "\<not> exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> call_0\<^sub>C M; M')) = (\<sigma> \<Turnstile> M;- M')"
+  by (simp add: assms bind_SE'_def bind_SE_def call_0\<^sub>C_def valid_SE_def)
+
+lemma non_exec_call_0'  : 
+assumes "\<not> exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> call_0\<^sub>C M;- M') = (\<sigma> \<Turnstile> M;- M')"
+  by (simp add: assms bind_SE'_def non_exec_call_0)
+
+
+lemma exec_call_0  : 
+assumes "exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> call_0\<^sub>C M; M')) = (\<sigma> \<Turnstile>  M')"
+  by (simp add: assms call_0\<^sub>C_def exec_bind_SE_success)
+
+lemma exec_call_0'  : 
+assumes "exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> (call_0\<^sub>C M;- M')) = (\<sigma> \<Turnstile>  M')"
+  by (simp add: assms bind_SE'_def exec_call_0)
+
+
 
 lemma exec_If\<^sub>C_If\<^sub>S\<^sub>E  : 
 assumes "\<not> exec_stop \<sigma>"
@@ -487,6 +562,8 @@ lemma break_assign_skip [simp]: "break ;- assign f = break"
   apply(rule ext)
   unfolding break_def assign_def exec_stop_def bind_SE'_def   bind_SE_def
   by auto
+
+
 
 lemma break_if_skip [simp]: "break ;- (if\<^sub>C b then c else d fi) = break"
   apply(rule ext)
