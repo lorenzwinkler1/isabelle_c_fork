@@ -22,8 +22,26 @@ begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
 section\<open>The Theory of the \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
-text\<open>This theory part develops the concepts of the invariant. This bit is presented before
-the actual code, but could also be after or even inside \<^C>\<open>/* as C annotation */\<close> of the source.\<close>
+text\<open>This theory part develops basic concepts of the invariant. This bit is presented here \<^emph>\<open>before\<close>
+the actual code, but could also be after or even inside the \<^C>\<open>\<close> command as comment-annotation of 
+the source.\<close>
+
+
+text\<open>The example is non-trivial both from the C semantics side as well as from its 
+algorithmic side. 
+\<^enum> From the C side: it is far from trivial to see that the precondition
+  @{term "\<lambda>\<sigma>. n \<le> UINT_MAX"} suffices to make sure that no arithmetic
+  overflow occurs.
+\<^enum> From the algorithmic side: the (small) amount of number theory required by
+  this exercise makes it impossible for automated provers to establish the result
+  without additional nonlinear axioms, i.e. the background theory is non-trivial.
+  In our example, everything is proven, the TCB of this verification resides
+  only on:
+  \<^item> The logical consistency of HOL and its correct implementation in Isabelle/HOL, and
+  \<^item> that the assumptions of AutoCorres wrt. to the underlying C-semantics
+    are valid. \<close>
+
+
 
 definition
   "partial_prime p (n :: nat) \<equiv>  (1 < p \<and> (\<forall>i \<in> {2 ..< min p n}. \<not> i dvd p))"
@@ -104,34 +122,21 @@ lemma prime_dvd:
 
 section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
 
+text\<open> This C code contains a function that determines if the given number 
+      @{term n} is prime.
+
+      It returns 0 if @{term n}  is composite, or non-zero if @{term n}  is prime.
+ 
+      This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
+
+
 
 C \<open>
-
-/*
- * Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
- * Copyright 2014, NICTA
- *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- */
-
-//  Setup of AutoCorres for parsing and semantically representing this C element.
+//  Setup of AutoCorres for semantically representing this C element.
 //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs =  is_prime ]
-
 
 #define SQRT_UINT_MAX 65536
 
-
-/*
- * Determine if the given number 'n' is prime.
- *
- * We return 0 if 'n' is composite, or non-zero if 'n' is prime.
- *
- * Faster version than a linear primality test ; runs in O(sqrt(n)).
- */
 unsigned int is_prime(unsigned int n)
 {
     /* Numbers less than 2 are not primes. */
@@ -150,30 +155,33 @@ unsigned int is_prime(unsigned int n)
     return 1;
 }\<close>
 
-section\<open>The Results of the AutoCorres Evaluation and some Consequences\<close>
+section\<open>The Results of the AutoCorres Evaluation\<close>
 
 C_export_file  (* This exports the C code into a C file ready to be compiled by gcc. *)
 
 text\<open>AutoCorres produced internally the following definitions of this input:\<close>
 find_theorems name:is_prime
 
-text\<open>of key importance:\<close>
+text\<open>The following definitions are key importance: they represent the C program
+     as a HOL function over a state modeling modeled by AutoCorres for the given 
+     C program.\<close>
 thm is_prime_global_addresses.is_prime_body_def
 thm is_prime.is_prime'_def   
 thm SQRT_UINT_MAX_def
+text\<open>Note that the pre-processor macro has been converted into a definition in HOL.\<close>
 
+
+section\<open>Preliminaries of the Proof\<close>
+text\<open>This section contains the auxilliary definitions and lemmas for the 
+     final correctness proof; in particular, the loop invariant is stated here.\<close>
 
 definition is_prime_inv
   where [simp]: "is_prime_inv n i s \<equiv> (1 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX \<and> 
-                                       i * i \<le> SQRT_UINT_MAX * SQRT_UINT_MAX \<and> partial_prime n i)"
-
-lemma nat_leE: "\<lbrakk> (a::nat) \<le> b; a < b \<Longrightarrow> R; a = b \<Longrightarrow> R \<rbrakk> \<Longrightarrow> R" 
-  using nat_less_le by blast
-
+                                       i * i \<le> SQRT_UINT_MAX * SQRT_UINT_MAX \<and> 
+                                       partial_prime n i)"
 
 lemma uint_max_factor [simp]:  "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
   by (clarsimp simp: UINT_MAX_def SQRT_UINT_MAX_def)
-
 
 lemma sqr_less_mono [simp]:
     "((i::nat) * i < j * j) = (i < j)" 
@@ -208,11 +216,44 @@ theorem (in is_prime) is_prime_faster_correct:
                                        and M = "(\<lambda>(r, s). (Suc n) * (Suc n) - r * r)"])
    apply wp
     apply clarsimp
-    apply (metis One_nat_def Suc_leI Suc_lessD nat_leE prime_dvd leD mult_le_mono n_less_n_mult_m)
-   apply (fastforce elim: nat_leE simp: partial_prime_sqr)   
+    apply (metis One_nat_def Suc_leI Suc_lessD order_leE prime_dvd leD mult_le_mono n_less_n_mult_m)
+   apply (fastforce elim: order_leE simp: partial_prime_sqr)   
   apply (clarsimp simp: SQRT_UINT_MAX_def)
   done
 
+
+
+theorem (in is_prime) is_prime_correct':
+    "\<lbrace> \<lambda>\<sigma>. n \<le> UINT_MAX \<rbrace> is_prime' n \<lbrace> \<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
+proof (rule validNF_assume_pre)
+  assume 1 : "n \<le> UINT_MAX"
+  have   2 : "n=0 \<or> n=1 \<or> n > 1" by linarith
+  show ?thesis
+    proof (insert 2, elim disjE)
+      assume  "n=0" 
+      then show ?thesis  by (clarsimp simp:  is_prime'_def, wp, auto) 
+    next
+      assume  "n=1" 
+      then show ?thesis  by (clarsimp simp:  is_prime'_def, wp, auto) 
+    next
+      assume  "1 < n" 
+      then show ?thesis
+           apply (unfold is_prime'_def dvd_eq_mod_eq_0 [symmetric] SQRT_UINT_MAX_def [symmetric], insert 1)
+           text\<open>... and here happens the annotation with the invariant:
+                by instancing @{thm whileLoopE_add_inv}.
+                One can say that the while loop is spiced up with the
+                invariant and the measure by a rewrite step. \<close>
+           apply (subst whileLoopE_add_inv [  where I = "\<lambda>r s. is_prime_inv n r s"
+                                              and M = "(\<lambda>(r, s). (Suc n) * (Suc n) - r * r)"])
+           apply (wp,auto simp: prime_dvd partial_prime_sqr)
+               using not_less_eq_eq apply force
+              apply (metis Suc_leI add_Suc mult_Suc mult_Suc_right mult_le_mono)
+             apply (metis SQRT_UINT_MAX_def mult_Suc_right plus_nat.simps(2) rel_simps(76) 
+                          sqr_le_sqr_minus_1 times_nat.simps(2))
+           apply (simp_all add: SQRT_UINT_MAX_def)
+           done
+    qed
+qed
 
 
 end
