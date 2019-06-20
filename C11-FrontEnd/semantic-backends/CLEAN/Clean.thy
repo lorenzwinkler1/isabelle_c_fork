@@ -465,7 +465,7 @@ shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> call_2\<^sub>C M A\<^sub>1 A\<^
 
 lemma exec_call_2'  : 
 assumes "exec_stop \<sigma>"
-shows   "(\<sigma> \<Turnstile> (call_2\<^sub>C M A\<^sub>1 A\<^sub>2;- M')) = (\<sigma> \<Turnstile>  M')"
+shows   "(\<sigma> \<Turnstile> (call_2\<^sub>C M A\<^sub>1 A\<^sub>2;- M')) = (\<sigma> \<Turnstile> M')"
   by (simp add: assms bind_SE'_def exec_call_2)
 
 
