@@ -104,9 +104,9 @@ sig
     (**)
   type ClangCVersion = C_Ast.clangCVersion
   type Ident = C_Ast.ident
-  type Position = C_Ast.position
+  type Position = C_Ast.positiona
   type PosLength = Position * int
-  type Name = C_Ast.name
+  type Name = C_Ast.namea
   type Bool = bool
   type CString = C_Ast.cString
   type CChar = C_Ast.cChar
@@ -338,9 +338,9 @@ struct
   val posOf''' = posOf'' o Left
   val internalPos = InternalPosition
   fun make_comment body_begin body body_end range =
-    Comment ( posOf' false range |> #1
-            , From_string (Symbol_Pos.implode (body_begin @ body @ body_end))
-            , case body_end of [] => SingleLine | _ => MultiLine)
+    Commenta ( posOf' false range |> #1
+             , From_string (Symbol_Pos.implode (body_begin @ body @ body_end))
+             , case body_end of [] => SingleLine | _ => MultiLine)
 
   (* Language.C.Data.Node *)
   val undefNode = OnlyPos nopos (nopos, ~1)
@@ -387,11 +387,11 @@ struct
   fun liftStrLit (CStrLit0 (str, at)) = CStrConst str at
 
   (* Language.C.Syntax.Constants *)
-  fun concatCStrings cs = CString0 (flatten (map (fn CString0 (s,_) => s) cs), exists (fn CString0 (_, b) => b) cs)
+  fun concatCStrings cs = CString0 (flattena (map (fn CString0 (s,_) => s) cs), exists (fn CString0 (_, b) => b) cs)
 
   (* Language.C.Parser.ParserMonad *)
   fun getNewName env =
-    (Name (C_Env_Ext.get_namesupply env), C_Env_Ext.map_namesupply (fn x => x + 1) env)
+    (Namea (C_Env_Ext.get_namesupply env), C_Env_Ext.map_namesupply (fn x => x + 1) env)
   fun addTypedef (Ident0 (i, _, node)) env =
     let val (pos1, _) = decode_error' node
         val id = serial ()

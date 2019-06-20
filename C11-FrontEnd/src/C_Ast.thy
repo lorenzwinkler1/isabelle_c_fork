@@ -53,11 +53,66 @@ After importing it using a renovated version of Haskabelle, we generate the AST 
 file, so that its fast loading can now be performed with \<^theory_text>\<open>ML_file\<close>.
 \<close>
 
-ML\<open>
+ML \<comment> \<open>\<^file>\<open>../generated/c_ast.ML\<close>\<close> \<open>
 val fresh_ident0 =
   let val i = Synchronized.var "counter for new identifier" 38 in
     fn () => Int.toString (Synchronized.change_result i (fn i => (i, i + 1)))
   end
+\<close>
+
+ML \<comment> \<open>\<^file>\<open>../generated/c_ast.ML\<close>\<close> \<open>
+\<comment> \<open>\<^file>\<open>../../Citadelle/src/compiler_generic/meta_isabelle/Printer_init.thy\<close>\<close>
+structure CodeType = struct
+  type mlInt = string
+  type 'a mlMonad = 'a option
+end
+
+structure CodeConst = struct
+  structure Monad = struct
+    val bind = fn
+        NONE => (fn _ => NONE)
+      | SOME a => fn f => f a
+    val return = SOME
+  end
+
+  structure Printf = struct
+    local
+      fun sprintf s l =
+        case String.fields (fn #"%" => true | _ => false) s of
+          [] => ""
+        | [x] => x
+        | x :: xs =>
+            let fun aux acc l_pat l_s =
+              case l_pat of
+                [] => rev acc
+              | x :: xs => aux (String.extract (x, 1, NONE) :: hd l_s :: acc) xs (tl l_s) in
+            String.concat (x :: aux [] xs l)
+      end
+    in
+      fun sprintf0 s_pat = s_pat
+      fun sprintf1 s_pat s1 = sprintf s_pat [s1]
+      fun sprintf2 s_pat s1 s2 = sprintf s_pat [s1, s2]
+      fun sprintf3 s_pat s1 s2 s3 = sprintf s_pat [s1, s2, s3]
+      fun sprintf4 s_pat s1 s2 s3 s4 = sprintf s_pat [s1, s2, s3, s4]
+      fun sprintf5 s_pat s1 s2 s3 s4 s5 = sprintf s_pat [s1, s2, s3, s4, s5]
+    end
+  end
+
+  structure String = struct
+    val concat = String.concatWith
+  end
+
+  structure Sys = struct
+    val isDirectory2 = SOME o File.is_dir o Path.explode handle ERROR _ => K NONE
+  end
+
+  structure To = struct
+    fun nat f = Int.toString o f
+  end
+
+  fun outFile1 _ _ = tap (fn _ => warning "not implemented") NONE
+  fun outStand1 f = outFile1 f ""
+end
 \<close>
 
 ML_file \<open>../generated/c_ast.ML\<close>
@@ -114,9 +169,9 @@ type CStrLit = NodeInfo C_Ast.cStringLiteral
 (**)
 type ClangCVersion = C_Ast.clangCVersion
 type Ident = C_Ast.ident
-type Position = C_Ast.position
+type Position = C_Ast.positiona
 type PosLength = Position * int
-type Name = C_Ast.name
+type Name = C_Ast.namea
 type Bool = bool
 type CString = C_Ast.cString
 type CChar = C_Ast.cChar
@@ -135,7 +190,7 @@ type Comment = C_Ast.comment
 type 'a Reversed = 'a
 datatype CDeclrR = CDeclrR0 of C_Ast.ident C_Ast.optiona * NodeInfo C_Ast.cDerivedDeclarator list Reversed * NodeInfo C_Ast.cStringLiteral C_Ast.optiona * NodeInfo C_Ast.cAttribute list * NodeInfo
 type 'a Maybe = 'a C_Ast.optiona
-datatype 'a Located = Located of 'a * (C_Ast.position * (C_Ast.position * int))
+datatype 'a Located = Located of 'a * (Position * (Position * int))
 (**)
 fun CDeclrR ide l s a n = CDeclrR0 (ide, l, s, a, n)
 val reverse = rev
@@ -148,13 +203,14 @@ val Ident = C_Ast.Ident0
 val CDecl_flat = fn l1 => C_Ast.CDecl l1 o map (fn (a, b, c) => ((a, b), c))
 fun flat3 (a, b, c) = ((a, b), c)
 fun maybe def f = fn C_Ast.None => def | C_Ast.Some x => f x 
-val id = I
-fun flip f b a = f a b
 val Reversed = I
 (**)
 val From_string = C_Ast.SS_base o C_Ast.ST
 (**)
+val Namea = C_Ast.name
+(**)
 open C_Ast
+fun flip f b a = f a b
 open Basic_Library
 end
 \<close>

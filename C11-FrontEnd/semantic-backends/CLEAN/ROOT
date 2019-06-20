@@ -1,7 +1,10 @@
 (******************************************************************************
- * Generation of Language.C Grammar with ML Interface Binding
+ * CLEAN
  *
- * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Copyright (c) 2005-2007 ETH Zurich, Switzerland
+ *               2009-2019 Université Paris-Saclay, Univ. Paris-Sud, France 
+ *               2009-2012 Achim D. Brucker, Germany
+ *               2015-2017 University Sheffield, UK
  *
  * All rights reserved.
  *
@@ -34,48 +37,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-(* For modularity reasons, and to ease the importation of a specific session by
-   semantic back-ends, theory files are (at the time of writing) not regrouped
-   into a unique session. *)
-
-session C = HOL +
-  options [document = pdf, document_output = "generated/part1"]
+session CLEAN = HOL +
   theories
-    C_Main
-  document_files
-    "root.tex"
-    "root.bib"
+    "src/Clean"
 
-session C_examples = C + (* a standard test suite *)
-  options [document = pdf, document_output = "generated/part2"]
+session CLEAN_examples = CLEAN +
   theories
-    "examples/C0"
-    "examples/C1"
-    "examples/C2"
-    "examples/C3"
-    "examples/C_paper"
-  document_files
-    "root.tex"
-    "root.bib"
-
-session C_document = C_examples +
-  options [document = pdf, document_output = "generated/part3"]
-  theories
-    C_Appendices
-  document_files
-    "root.tex"
-    "root.bib"
-
-session Isabelle_C = C_document +
-  options [document = pdf, document_output = "generated"]
-  (* TODO: find a way to concatenate together PDF in:
-           generated/part1 + generated/part2 + generated/part3 *)
-  document_files
-    "root.tex"
-    "root.bib"
-
-session C_autocorres = C +
-  sessions
-    "HOL-Eisbach"
-  theories
-    "examples/C_autocorres"
+    "examples/program-based/QuickSort"
+    "examples/program-based/SquareRoot_test"

@@ -1,5 +1,5 @@
 theory QuickSort
-  imports Clean
+  imports CLEAN.Clean
 begin
 
 (*

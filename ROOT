@@ -38,44 +38,19 @@
    semantic back-ends, theory files are (at the time of writing) not regrouped
    into a unique session. *)
 
-session C = HOL +
-  options [document = pdf, document_output = "generated/part1"]
-  theories
-    C_Main
-  document_files
-    "root.tex"
-    "root.bib"
-
-session C_examples = C + (* a standard test suite *)
-  options [document = pdf, document_output = "generated/part2"]
-  theories
-    "examples/C0"
-    "examples/C1"
-    "examples/C2"
-    "examples/C3"
-    "examples/C_paper"
-  document_files
-    "root.tex"
-    "root.bib"
-
-session C_document = C_examples +
-  options [document = pdf, document_output = "generated/part3"]
-  theories
-    C_Appendices
-  document_files
-    "root.tex"
-    "root.bib"
-
-session Isabelle_C = C_document +
+session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres +
   options [document = pdf, document_output = "generated"]
   (* TODO: find a way to concatenate together PDF in:
            generated/part1 + generated/part2 + generated/part3 *)
+  sessions
+    "HOL-Computational_Algebra"
+  theories
+    "semantic-backends/AutoCorres/README"
+    "semantic-backends/AutoCorres/IsPrime_integrated"
+    "semantic-backends/AutoCorres/IsPrime_linear_outside"
+    "semantic-backends/AutoCorres/IsPrime_sqrt_outside"
+    "semantic-backends/AutoCorres/Parse_for_loop"
+    "semantic-backends/AutoCorres/TestSEL4"
   document_files
     "root.tex"
     "root.bib"
-
-session C_autocorres = C +
-  sessions
-    "HOL-Eisbach"
-  theories
-    "examples/C_autocorres"
