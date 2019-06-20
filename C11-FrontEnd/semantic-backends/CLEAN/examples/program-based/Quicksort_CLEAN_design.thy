@@ -1,4 +1,4 @@
-theory QuickSort
+theory Quicksort_CLEAN_design
   imports CLEAN.Clean
 begin
 
