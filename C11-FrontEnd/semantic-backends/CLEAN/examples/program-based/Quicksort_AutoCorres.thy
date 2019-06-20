@@ -96,13 +96,11 @@ int main(void)
 #endif
 \<close>
 
-context quicksort begin
+thm quicksort_global_addresses.partition_body_def
+thm quicksort_global_addresses.quicksort_body_def
 
-thm partition_body_def
-thm quicksort_body_def
-
-thm partition'_def
-thm quicksort'.simps
+thm quicksort.partition'_def
+thm quicksort.quicksort'.simps
 
 
 (* Some rules for pointer addition *)
@@ -569,7 +567,7 @@ where
   "partitioned s a n pivot_idx \<equiv>
    (\<forall>i. i < n \<longrightarrow> (i < pivot_idx \<longleftrightarrow> heap_w32 s (a +\<^sub>p int i) < heap_w32 s (a +\<^sub>p int pivot_idx)))"
 
-lemma partition_correct:
+lemma (in quicksort) partition_correct:
   "\<forall>s0. \<lbrace> \<lambda>s. is_array s a (unat n) \<and> n > 0 \<and> s = s0 \<rbrace>
         partition' a n
         \<lbrace> \<lambda>r s. is_array s a (unat n) \<and>
@@ -994,7 +992,7 @@ lemma make_schematic_post:
  * Proof of recursive quicksort function!
  *)
 
-lemma quicksort_correct:
+lemma (in quicksort) quicksort_correct:
   shows "\<forall>a m s0. \<lbrace> \<lambda>s. is_array s a (unat n) \<and> s = s0 \<and> unat n < m \<rbrace>
          quicksort' m a n
          \<lbrace> \<lambda>r s. is_array s a (unat n) \<and>
@@ -1104,8 +1102,6 @@ next
     done
 
 qed
-
-end
 
 end
 
