@@ -1,5 +1,5 @@
 theory QuickSort
-  imports "../../src/Clean"
+  imports CLEAN.Clean
 begin
 
 (*
