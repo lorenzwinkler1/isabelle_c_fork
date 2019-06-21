@@ -25,7 +25,7 @@ imports
   "AutoCorres.AutoCorres"
   "HOL-Computational_Algebra.Primes"
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
+\<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
 C \<open>
 //  Setup of AutoCorres for parsing and semantically representing this C element.
