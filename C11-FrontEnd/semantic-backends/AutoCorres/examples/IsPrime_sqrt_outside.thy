@@ -19,10 +19,10 @@ imports
   "AutoCorres.AutoCorres"
   "HOL-Computational_Algebra.Primes"
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
+\<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
 section\<open>The Theory of the \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
-text\<open>This theory part develops basic concepts of the invariant. This bit is presented here \<^emph>\<open>before\<close>
+text\<open>This section develops basic concepts of the invariant. This bit is presented here \<^emph>\<open>before\<close>
 the actual code, but could also be after or even inside the \<^C>\<open>\<close> command as comment-annotation of 
 the source.\<close>
 
@@ -143,12 +143,12 @@ unsigned int is_prime(unsigned int n)
     if (n < 2)
         return 0;
 
-    /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX), whichever
-     * comes first. */
+    /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX), whichever comes first. */
     /* Find the first non-trivial factor of 'n' less than sqrt(n). */
+
     for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++) {
         if (n % i == 0)
-            return 0;
+            return 0; 
     }
 
     /* No factors. */

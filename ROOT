@@ -46,11 +46,11 @@ session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres +
     "HOL-Computational_Algebra"
   theories
     "semantic-backends/AutoCorres/README"
-    "semantic-backends/AutoCorres/IsPrime_integrated"
-    "semantic-backends/AutoCorres/IsPrime_linear_outside"
-    "semantic-backends/AutoCorres/IsPrime_sqrt_outside"
-    "semantic-backends/AutoCorres/Parse_for_loop"
-    "semantic-backends/AutoCorres/TestSEL4"
+    "semantic-backends/AutoCorres/examples/IsPrime_integrated"
+    "semantic-backends/AutoCorres/examples/IsPrime_linear_outside"
+    "semantic-backends/AutoCorres/examples/IsPrime_sqrt_outside"
+    "semantic-backends/AutoCorres/examples/Parse_for_loop"
+    "semantic-backends/AutoCorres/examples/TestSEL4"
   document_files
     "root.tex"
     "root.bib"
