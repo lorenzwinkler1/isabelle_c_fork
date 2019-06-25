@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -228,7 +229,7 @@ fun new_var (ty,l,r) (embmap, calls) = let
                | SOME i => i + 1
   val nm = embret_var_name (rtype_n, temp_i)
   val mvinfo = MungedVar{munge = nm, owned_by = NONE}
-  val temp = ewrap(Var (MString.dest nm, ref (SOME (ty, mvinfo))), l, r)
+  val temp = ewrap(Var (MString.dest nm, Unsynchronized.ref (SOME (ty, mvinfo))), l, r)
   val emb' = Symtab.update (rtype_n, temp_i) embmap
 in
   ((emb',calls), temp)

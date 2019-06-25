@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -134,7 +135,7 @@ in
                                        expr_type e1, expr_type e2)
   | UnOp(unop, e0) => unop_type (unop, expr_type e0)
   | Constant c => constant_type c
-  | Var (s, ref NONE) => let
+  | Var (s, Unsynchronized.ref NONE) => let
     in
       case varinfo s of
         NONE => let
@@ -145,7 +146,7 @@ in
         end
       | SOME ty => ty
     end
-  | Var (_, ref (SOME (cty, _))) => cty
+  | Var (_, Unsynchronized.ref (SOME (cty, _))) => cty
   | StructDot (e0, fld) => let
     in
       case expr_type e0 of

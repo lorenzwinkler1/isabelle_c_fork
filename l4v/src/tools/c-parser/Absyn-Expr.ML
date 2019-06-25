@@ -12,6 +12,7 @@
 
 structure ExprDatatype =
 struct
+open Unsynchronized
 
 type numliteral_info =
      {value: IntInf.int, suffix : string, base : StringCvt.radix}

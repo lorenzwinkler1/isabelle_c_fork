@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -215,7 +216,7 @@ val global_heap_var = global_var global_heap
 
 fun apt_string s = "[.[" ^ s ^ "].]"
 
-val gs_n = ref 1
+val gs_n = Unsynchronized.ref 1
 fun gensym s = (s ^ "_" ^ Int.toString (!gs_n) before
                 gs_n := !gs_n + 1)
 

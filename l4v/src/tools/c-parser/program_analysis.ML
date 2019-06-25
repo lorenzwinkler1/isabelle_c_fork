@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -1245,7 +1246,7 @@ fun get_modified env e = let
   datatype s = BrackLeft | Normal
   fun recurse state e =
       case enode e of
-        Var (s,ref (SOME (ty, MungedVar {munge = mnm, ...}))) => let
+        Var (s,Unsynchronized.ref (SOME (ty, MungedVar {munge = mnm, ...}))) => let
           fun check vi = srcname vi = s andalso get_mname vi = mnm
         in
           case find_scoped_vdecl s (get_scope env) of
@@ -1263,7 +1264,7 @@ fun get_modified env e = let
                                " not in environment")
             end
         end
-      | Var (s, ref NONE) => let
+      | Var (s, Unsynchronized.ref NONE) => let
           open Region
           val msg = toString (make {left = eleft e, right = eright e}) ^
                     "no info attached for variable " ^ s
@@ -1410,7 +1411,7 @@ in
       val bogus = SourcePos.bogus
       val mvinfo = MungedVar {munge = munged_name,
                               owned_by = StmtDecl.get_owned_by attrs}
-      val var_e = ewrap(Var (str, ref (SOME (vty, mvinfo))), left s, right s)
+      val var_e = ewrap(Var (str, Unsynchronized.ref (SOME (vty, mvinfo))), left s, right s)
       val (inits, proc_expr_opt, e) =
           case iopt of
             NONE => let
@@ -1661,7 +1662,7 @@ and process_stmt fname e (stmt : statement) = let
            let
              fun foldthis (e, acc) =
                  case enode e of
-                     Var(nm, ref (SOME (_, MungedVar {owned_by = NONE,...}))) =>
+                     Var(nm, Unsynchronized.ref (SOME (_, MungedVar {owned_by = NONE,...}))) =>
                      (Feedback.informStr'(5, sleft stmt, sright stmt,
                                           "Found that "^nm^" is not owned.");
                       w (Chaos e) :: acc)
