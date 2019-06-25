@@ -12,12 +12,12 @@
 (*
  * Verifying quicksort implementation using AutoCorres!
  *)
-theory Quicksort_AutoCorres
+theory Quicksort
 imports
   "AutoCorres.AutoCorres"
   "HOL-Library.Multiset"
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
+\<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
 
 declare validNF_whileLoop_inv_measure_twosteps [wp]
 declare validNF_whileLoopE_inv_measure_twosteps [wp]

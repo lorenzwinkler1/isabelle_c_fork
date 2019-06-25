@@ -34,14 +34,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-(* For modularity reasons, and to ease the importation of a specific session by
-   semantic back-ends, theory files are (at the time of writing) not regrouped
-   into a unique session. *)
-
 session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres +
   options [document = pdf, document_output = "generated"]
-  (* TODO: find a way to concatenate together PDF in:
-           generated/part1 + generated/part2 + generated/part3 *)
   sessions
     "HOL-Computational_Algebra"
   theories
@@ -50,6 +44,7 @@ session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres +
     "semantic-backends/AutoCorres/examples/IsPrime_linear_outside"
     "semantic-backends/AutoCorres/examples/IsPrime_sqrt_outside"
     "semantic-backends/AutoCorres/examples/Parse_for_loop"
+    "semantic-backends/AutoCorres/examples/Quicksort"
     "semantic-backends/AutoCorres/examples/TestSEL4"
   document_files
     "root.tex"
