@@ -23,7 +23,7 @@ begin
 
 section\<open>The Theory of the \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
 text\<open>This section develops basic concepts of the invariant. This bit is presented here \<^emph>\<open>before\<close>
-the actual code, but could also be after or even inside the \<^C>\<open>\<close> command as comment-annotation of 
+the actual code, but could also be after or even inside the \<^theory_text>\<open>C\<close> command as comment-annotation of 
 the source.\<close>
 
 
