@@ -154,15 +154,14 @@ definition partition_core :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a loca
                (assign_local j_update (\<lambda>\<sigma>. lo )) ;-
                (while\<^sub>C (\<lambda>\<sigma>. (hd o j) \<sigma> \<le> hi - 1 ) 
                 do (if\<^sub>C (\<lambda>\<sigma>. A \<sigma> ! (hd o j) \<sigma> < (hd o pivot)\<sigma> ) 
-                    then (_ \<leftarrow> call_2\<^sub>C (swap) (\<lambda>\<sigma>. (hd o i) \<sigma>) (\<lambda>\<sigma>. (hd o j) \<sigma>)  ;
-                         (assign_local i_update (\<lambda>\<sigma>. ((hd o i) \<sigma>) + 1)))
+                    then  call_2\<^sub>C (swap) (\<lambda>\<sigma>. (hd o i) \<sigma>) (\<lambda>\<sigma>. (hd o j) \<sigma>)  ;-
+                          assign_local i_update (\<lambda>\<sigma>. ((hd o i) \<sigma>) + 1)
                     else skip\<^sub>S\<^sub>E 
                     fi) 
                 od) ;-
                (assign_local j_update (\<lambda>\<sigma>. ((hd o j) \<sigma>) + 1)) ;-
-
-               (_ \<leftarrow> call_2\<^sub>C (swap) (\<lambda>\<sigma>. (hd o i) \<sigma>) (\<lambda>\<sigma>. (hd o j) \<sigma>)  ;
-               (assign_local res_update (\<lambda>\<sigma>. (hd o i) \<sigma>)))  \<comment> \<open> the meaning of the return stmt \<close>
+                call_2\<^sub>C (swap) (\<lambda>\<sigma>. (hd o i) \<sigma>) (\<lambda>\<sigma>. (hd o j) \<sigma>)  ;-
+                assign_local res_update (\<lambda>\<sigma>. (hd o i) \<sigma>)  \<comment> \<open> the meaning of the return stmt \<close>
                )"
 
 thm partition_core_def
@@ -194,6 +193,9 @@ subsection \<open>Encoding quicksort in CLEAN\<close>
 local_vars  local_quicksort_state
     p  :: "nat list"
     res:: "unit list"
+
+
+ML\<open> val (x,y) = StateMgt_core.get_data_global @{theory}; \<close>
 
 (*
 funct quicksort(lo::nat, hi::nat) returns unit
@@ -242,15 +244,15 @@ axiomatization  quicksort_core :: "nat \<Rightarrow> nat \<Rightarrow> (unit,'a 
                   ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
                     then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call_2\<^sub>C (partition) (\<lambda>\<sigma>. lo) (\<lambda>\<sigma>. hi) ;
                           assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
-                          (_ \<leftarrow> call_2\<^sub>C (quicksort) (\<lambda>\<sigma>. lo) (\<lambda>\<sigma>. (hd o p) \<sigma> - 1)  ;
-                            _ \<leftarrow> call_2\<^sub>C (quicksort) (\<lambda>\<sigma>. (hd o p) \<sigma> + 1) (\<lambda>\<sigma>. hi) ; unit\<^sub>S\<^sub>E() )
+                          call_2\<^sub>C (quicksort) (\<lambda>\<sigma>. lo) (\<lambda>\<sigma>. (hd o p) \<sigma> - 1)  ;-
+                          call_2\<^sub>C (quicksort) (\<lambda>\<sigma>. (hd o p) \<sigma> + 1) (\<lambda>\<sigma>. hi)  
                     else skip\<^sub>S\<^sub>E 
                     fi))"
 
 
-  and   body: "quicksort lo hi \<equiv> block\<^sub>C push_local_quicksort_state 
-                                        (quicksort_core lo hi) 
-                                        pop_local_quicksort_state"
+  and   block: "quicksort lo hi \<equiv> block\<^sub>C push_local_quicksort_state 
+                                         (quicksort_core lo hi) 
+                                         pop_local_quicksort_state"
 
 (* bric a brac *)
 term "Clean.syntax_assign"

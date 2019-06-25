@@ -18,8 +18,8 @@ projects (such as ``l4v``):
 
 ```console
 export L4V_ARCH = ARM # the same effect can be made in ~/.isabelle/etc/settings
-isabelle jedit -d . -l CParser C11-FrontEnd/semantic-backends/AutoCorres/TestSEL4.thy
-isabelle jedit -d . -l AutoCorres C11-FrontEnd/semantic-backends/AutoCorres/IsPrime_integrated.thy
+isabelle jedit -d . -l CParser C11-FrontEnd/semantic-backends/AutoCorres/examples/TestSEL4.thy
+isabelle jedit -d . -l AutoCorres C11-FrontEnd/semantic-backends/AutoCorres/examples/IsPrime_integrated.thy
 ```
 
 For the last examples, we were used to see a sub-window ``Bad session

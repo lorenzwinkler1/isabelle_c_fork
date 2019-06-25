@@ -19,11 +19,12 @@ imports
   "AutoCorres.AutoCorres"
   "HOL-Computational_Algebra.Primes"
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
+\<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
 section\<open>The Theory of the linear Primality Test Algorithm\<close>
-text\<open>This theory part develops the concepts of the invariant. This bit is presented before
-the actual code, but could also be after or even inside \<^C>\<open>/* as C annotation */\<close> of the source.\<close>
+text\<open>This section develops basic concepts of the invariant. This bit is presented here \<^emph>\<open>before\<close>
+the actual code, but could also be after or even inside the \<^theory_text>\<open>C\<close> command as comment-annotation of 
+the source.\<close>
 
 definition  "partial_prime p (n :: nat) \<equiv> (1 < p \<and> (\<forall>i \<in> {2 ..< min p n}. \<not> i dvd p))"
 
@@ -58,26 +59,11 @@ section\<open>The Gory C Code --- pure without annotations\<close>
 text\<open>... except just one : the invocation of AutoCorres.\<close>
 
 C \<open>
-/*
- * Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
- * Copyright 2014, NICTA
- *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- */
-//  Setup of AutoCorres for parsing and semantically representing this C element.
+//  Setup of AutoCorres for semantically representing this C element.
 //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime_linear  ]
 
 #define SQRT_UINT_MAX 65536
 
-/*
- * Determine if the given number 'n' is prime.
- *
- * We return 0 if 'n' is composite, or non-zero if 'n' is prime.
- */
 unsigned is_prime_linear(unsigned n)
 {
     /* Numbers less than 2 are not prime. */
@@ -97,18 +83,8 @@ unsigned is_prime_linear(unsigned n)
 
 C_export_file  (* This exports the C code into a C file ready to be compiled by gcc. *)
 
-text\<open>AutoCorres produced internally the following definitions of this input:\<close>
-find_theorems name:is_prime
-
-text\<open>Of key importance:\<close>
-thm is_prime_global_addresses.is_prime_linear_body_def
-thm is_prime.is_prime_linear'_def 
-thm SQRT_UINT_MAX_def
-
 lemma uint_max_factor [simp]: "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
   by (clarsimp simp: UINT_MAX_def SQRT_UINT_MAX_def)
-
-
 
 
 section\<open>The Correctness Proof of \<^const>\<open>is_prime.is_prime_linear'\<close>\<close>

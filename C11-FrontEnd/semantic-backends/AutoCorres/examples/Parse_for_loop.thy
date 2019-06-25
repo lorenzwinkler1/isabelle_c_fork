@@ -56,7 +56,7 @@ int g(int c)
       +@ highlight */
   for (unsigned int j = 10; 0 < j; j--)
     // This is where the above invariant gets ultimately attached:
-    // /** INVARIANT: "\<lbrace> 0 <= \<acute>j \<and> \<acute>j <= 10 \<rbrace>" */
+    /** INVARIANT: "\<lbrace> 0 <= \<acute>j \<and> \<acute>j <= 10 \<rbrace>" */
     {
       c = c + j;
     }
