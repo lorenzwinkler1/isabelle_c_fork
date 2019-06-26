@@ -283,4 +283,11 @@ fun install_C_file0 ast env_lang =
 end
 \<close>
 
+section \<open>Setup of \<^theory_text>\<open>C\<close> commands\<close>
+
+ML \<comment> \<open>\<^theory>\<open>C.C_Command\<close>\<close> \<open>
+val _ =
+  Theory.setup (Context.theory_map (C_Module.Data_Accept.put IsarInstall.install_C_file0))
+\<close>
+
 end
