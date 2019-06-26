@@ -34,9 +34,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+session AutoCorres_logic in "C11-FrontEnd/semantic-backends/AutoCorres" = AutoCorres +
+  theories
+    "src/README"
+
 session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres_logic +
-  sessions
-    AutoCorres
   theories
     "semantic-backends/AutoCorres/src/Backend"
 
@@ -55,9 +57,9 @@ session Isabelle_C_AutoCorres_examples in "C11-FrontEnd" = Isabelle_C_AutoCorres
     "root.tex"
     "root.bib"
 
-session Isabelle_C_CLEAN in "C11-FrontEnd" = CLEAN_logic +
+session Isabelle_C_CLEAN in "C11-FrontEnd" = C +
   sessions
-    C
+    CLEAN_logic
   theories
     "semantic-backends/CLEAN/src/Backend"
 
