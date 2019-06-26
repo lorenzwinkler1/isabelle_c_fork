@@ -17,7 +17,7 @@ imports
   "StaticFun"
   "IndirectCalls"
   "ModifiesProofs"
-  "../../../../C11-FrontEnd/semantic-backends/AutoCorres/src/compiler/AC_Command"
+  "../../../../C11-FrontEnd/semantic-backends/AutoCorres/src/compiler/Init"
 keywords
   "cond_sorry_modifies_proofs" :: thy_decl (* not 'thy_load' because the input file may not exist *)
 and
