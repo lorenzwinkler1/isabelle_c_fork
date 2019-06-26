@@ -74,6 +74,12 @@ session Isabelle_C = C_document +
     "root.tex"
     "root.bib"
 
+session CLEAN_backend = CLEAN +
+  sessions
+    C
+  theories
+    "semantic-backends/CLEAN/src/Backend"
+
 session C_autocorres = C +
   sessions
     "HOL-Eisbach"

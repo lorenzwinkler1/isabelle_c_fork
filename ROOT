@@ -49,3 +49,12 @@ session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres +
   document_files
     "root.tex"
     "root.bib"
+
+session Isabelle_C_CLEAN in "C11-FrontEnd" = CLEAN_backend +
+  options [document = pdf, document_output = "generated"]
+  theories
+    "semantic-backends/CLEAN/examples/IsPrime_sqrt_outside"
+    "semantic-backends/CLEAN/examples/Quicksort"
+  document_files
+    "root.tex"
+    "root.bib"
