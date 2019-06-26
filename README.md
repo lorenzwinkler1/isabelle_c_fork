@@ -2,7 +2,8 @@
 
 Isabelle/C contains a C11 front-end support for Isabelle.
 
-Please refer to ``README_advanced.thy`` for a more detailed documentation.
+Note: To keep track of links and formal contents, the first reading
+instructions are regrouped in ``README_advanced.thy``.
 
 ## Authors
 * Frédéric Tuong
