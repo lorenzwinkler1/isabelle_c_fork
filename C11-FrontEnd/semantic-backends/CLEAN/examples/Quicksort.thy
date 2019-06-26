@@ -45,9 +45,9 @@
 
 theory Quicksort
 imports
-  "../../C_CLEAN"
+  "../src/compiler/C_CLEAN"
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
+\<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
 
 C \<open>
 // @ CLEAN
