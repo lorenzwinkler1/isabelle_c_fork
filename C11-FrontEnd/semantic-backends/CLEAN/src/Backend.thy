@@ -35,7 +35,7 @@
  ******************************************************************************)
 
 theory Backend
-  imports CLEAN.Clean
+  imports CLEAN_logic.Clean
           "compiler/C_CLEAN"
 begin
 end

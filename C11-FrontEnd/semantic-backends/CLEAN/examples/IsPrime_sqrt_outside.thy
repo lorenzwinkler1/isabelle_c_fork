@@ -15,7 +15,7 @@ text\<open>This example is used to demonstrate Isabelle/C/CLEAN in a version tha
 annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
 
 theory IsPrime_sqrt_outside
-  imports CLEAN_backend.Backend
+  imports Isabelle_C_CLEAN.Backend
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 

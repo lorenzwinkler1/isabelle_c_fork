@@ -38,13 +38,13 @@ session AutoCorres_logic in "C11-FrontEnd/semantic-backends/AutoCorres" = HOL +
   theories
     "src/README"
 
-session AutoCorres_backend in "C11-FrontEnd" = AutoCorres_logic +
+session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres_logic +
   sessions
     AutoCorres
   theories
     "semantic-backends/AutoCorres/src/Backend"
 
-session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres_backend +
+session Isabelle_C_AutoCorres_examples in "C11-FrontEnd" = Isabelle_C_AutoCorres +
   options [document = pdf, document_output = "generated"]
   sessions
     "HOL-Computational_Algebra"
@@ -59,7 +59,7 @@ session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres_backend +
     "root.tex"
     "root.bib"
 
-session Isabelle_C_CLEAN in "C11-FrontEnd" = CLEAN_backend +
+session Isabelle_C_CLEAN_examples in "C11-FrontEnd" = Isabelle_C_CLEAN +
   options [document = pdf, document_output = "generated"]
   theories
     "semantic-backends/CLEAN/examples/IsPrime_sqrt_outside"

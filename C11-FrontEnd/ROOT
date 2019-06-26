@@ -74,7 +74,7 @@ session Isabelle_C = C_document +
     "root.tex"
     "root.bib"
 
-session CLEAN_backend = CLEAN +
+session Isabelle_C_CLEAN = CLEAN_logic +
   sessions
     C
   theories
