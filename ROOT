@@ -39,7 +39,7 @@ session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres +
   sessions
     "HOL-Computational_Algebra"
   theories
-    "semantic-backends/AutoCorres/README"
+    "semantic-backends/AutoCorres/src/README"
     "semantic-backends/AutoCorres/examples/IsPrime_integrated"
     "semantic-backends/AutoCorres/examples/IsPrime_linear_outside"
     "semantic-backends/AutoCorres/examples/IsPrime_sqrt_outside"
