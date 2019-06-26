@@ -36,6 +36,6 @@
 
 theory Backend
   imports CLEAN_logic.Clean
-          "compiler/C_CLEAN"
+          "compiler/Generator_dynamic_sequential"
 begin
 end

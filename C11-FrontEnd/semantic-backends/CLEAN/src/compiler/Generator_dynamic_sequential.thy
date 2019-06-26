@@ -34,7 +34,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-theory C_CLEAN
+theory Generator_dynamic_sequential
   imports C.C_Main
 begin
 
@@ -126,7 +126,7 @@ subsection \<open>\<^file>\<open>../../../../../l4v/src/tools/c-parser/CTranslat
 \<comment> \<open>Not loaded: \<^file>\<open>../../../../../l4v/src/tools/c-parser/tools/mlyacc/mlyacclib/MLY_parser2.ML\<close>\<close>
 ML_file "../../../../../l4v/src/tools/c-parser/FunctionalRecordUpdate.ML"
 ML_file "../../../../../l4v/src/tools/c-parser/topo_sort.ML"
-ML_file "toolkit/c99/isa_termstypes.ML"
+ML_file "toolkit/isa_termstypes.ML"
 \<comment> \<open>Not loaded: \<^file>\<open>../../../../../l4v/generated/tools/c-parser/StrictC.grm.sig\<close>\<close>
 \<comment> \<open>Not loaded: \<^file>\<open>../../../../../l4v/generated/tools/c-parser/StrictC.grm.sml\<close>\<close>
 \<comment> \<open>Not loaded: \<^file>\<open>../../../../../l4v/generated/tools/c-parser/StrictC.lex.sml\<close>\<close>
@@ -173,11 +173,11 @@ struct
 val extended_heap_ty = \<^typ>\<open>bool\<close>
 end
 \<close>
-ML_file "toolkit/c99/calculate_state.ML"
+ML_file "toolkit/calculate_state.ML"
 ML_file "../../../../../l4v/src/tools/c-parser/syntax_transforms.ML"
 \<comment> \<open>Not loaded: \<^file>\<open>../../../../../l4v/src/tools/c-parser/expression_translation.ML\<close>\<close>
 \<comment> \<open>Not loaded: \<^file>\<open>../../../../../l4v/src/tools/c-parser/modifies_proofs.ML\<close>\<close>
-ML_file "toolkit/c99/HPInter.ML"
+ML_file "toolkit/HPInter.ML"
 \<comment> \<open>Not loaded: \<^file>\<open>../../../../../l4v/src/tools/c-parser/stmt_translation.ML\<close>\<close>
 ML \<comment> \<open>\<^file>\<open>../../../../../l4v/src/tools/c-parser/isar_install.ML\<close>\<close> \<open>
 structure IsarInstall =
