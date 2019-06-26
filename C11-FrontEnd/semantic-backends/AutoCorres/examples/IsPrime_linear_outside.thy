@@ -16,7 +16,7 @@ annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
 
 theory IsPrime_linear_outside
 imports
-  "AutoCorres.AutoCorres"
+  AutoCorres_backend.Backend
   "HOL-Computational_Algebra.Primes"
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>

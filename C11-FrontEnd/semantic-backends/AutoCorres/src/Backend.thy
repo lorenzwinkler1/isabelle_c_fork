@@ -34,36 +34,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-session AutoCorres_logic in "C11-FrontEnd/semantic-backends/AutoCorres" = HOL +
-  theories
-    "src/README"
-
-session AutoCorres_backend in "C11-FrontEnd" = AutoCorres_logic +
-  sessions
-    AutoCorres
-  theories
-    "semantic-backends/AutoCorres/src/Backend"
-
-session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres_backend +
-  options [document = pdf, document_output = "generated"]
-  sessions
-    "HOL-Computational_Algebra"
-  theories
-    "semantic-backends/AutoCorres/examples/IsPrime_integrated"
-    "semantic-backends/AutoCorres/examples/IsPrime_linear_outside"
-    "semantic-backends/AutoCorres/examples/IsPrime_sqrt_outside"
-    "semantic-backends/AutoCorres/examples/Parse_for_loop"
-    "semantic-backends/AutoCorres/examples/Quicksort"
-    "semantic-backends/AutoCorres/examples/TestSEL4"
-  document_files
-    "root.tex"
-    "root.bib"
-
-session Isabelle_C_CLEAN in "C11-FrontEnd" = CLEAN_backend +
-  options [document = pdf, document_output = "generated"]
-  theories
-    "semantic-backends/CLEAN/examples/IsPrime_sqrt_outside"
-    "semantic-backends/CLEAN/examples/Quicksort"
-  document_files
-    "root.tex"
-    "root.bib"
+theory Backend
+  imports AutoCorres.AutoCorres
+begin
+end

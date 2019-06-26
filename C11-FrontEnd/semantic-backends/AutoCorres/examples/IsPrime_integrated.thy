@@ -22,7 +22,7 @@ ensure fast feedback as a consequence of changes of the source. \<close>
 
 theory IsPrime_integrated
 imports
-  "AutoCorres.AutoCorres"
+  AutoCorres_backend.Backend
   "HOL-Computational_Algebra.Primes"
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
