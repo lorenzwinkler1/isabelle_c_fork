@@ -26,7 +26,7 @@ lemma wpc_helper_no_irq:
 
 wpc_setup "\<lambda>m. no_irq m" wpc_helper_no_irq
 
-ML {*
+ML \<open>
 structure CrunchNoIrqInstance : CrunchInstance =
 struct
   val name = "no_irq";
@@ -51,11 +51,11 @@ struct
 end;
 
 structure CrunchNoIrq : CRUNCH = Crunch(CrunchNoIrqInstance);
-*}
+\<close>
 
-setup {*
+setup \<open>
   add_crunch_instance "no_irq" (CrunchNoIrq.crunch_x, CrunchNoIrq.crunch_ignore_add_del)
-*}
+\<close>
 
 crunch_ignore (no_irq) (add:
   NonDetMonad.bind return "when" get gets fail
@@ -556,7 +556,7 @@ lemma no_irq_cacheRangeOp[simp, wp]:
   assumes nf: "\<And>a b. no_irq (oper a b)"
   shows "no_irq (cacheRangeOp oper s e p)"
   apply (simp add: cacheRangeOp_def)
-   apply (wp_trace no_irq_mapM_x nf | wpc | clarsimp)+
+   apply (wp no_irq_mapM_x nf | wpc | clarsimp)+
   done
 
 lemma no_irq_cleanCacheRange_PoU[simp, wp]:
@@ -766,6 +766,14 @@ lemma empty_fail_clearMemory [simp, intro!]:
   by (simp add: clearMemory_def mapM_x_mapM ef_storeWord)
 
 end
+
+lemmas msgRegisters_A_unfold
+  = msg_registers_def
+    msgRegisters_def
+        [unfolded upto_enum_def, simplified,
+         unfolded fromEnum_def enum_register, simplified,
+         unfolded toEnum_def enum_register, simplified]
+
 end
 
 end

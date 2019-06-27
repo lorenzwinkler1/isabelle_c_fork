@@ -474,7 +474,7 @@ lemma arch_thread_set_cap_refs_respects_device_region[wp]:
   "\<lbrace>cap_refs_respects_device_region\<rbrace>
      arch_thread_set p v
    \<lbrace>\<lambda>s. cap_refs_respects_device_region\<rbrace>"
-  apply (simp add: arch_thread_set_def set_object_def)
+  apply (simp add: arch_thread_set_def set_object_def get_object_def)
   apply wp
   apply (clarsimp dest!: get_tcb_SomeD simp del: fun_upd_apply)
   apply (subst get_tcb_rev, assumption, subst option.sel)+
@@ -485,7 +485,7 @@ lemma arch_thread_set_cap_refs_respects_device_region[wp]:
    apply (subst arch_tcb_update_aux3)
    apply (rule_tac cte_wp_at_update_some_tcb, assumption)
    apply (simp add: tcb_cnode_map_def)+
-     done
+  done
 
 lemma arch_thread_set_pspace_respects_device_region[wp]:
   "\<lbrace>pspace_respects_device_region\<rbrace>
@@ -532,7 +532,7 @@ lemma arch_thread_set_pred_tcb_at[wp_unsafe]:
   "\<lbrace>pred_tcb_at proj P t and K (proj_not_field proj tcb_arch_update)\<rbrace>
      arch_thread_set p v
    \<lbrace>\<lambda>rv. pred_tcb_at proj P t\<rbrace>"
-  apply (simp add: arch_thread_set_def set_object_def)
+  apply (simp add: arch_thread_set_def set_object_def get_object_def)
   apply wp
   apply (clarsimp simp: pred_tcb_at_def obj_at_def get_tcb_rev
                   dest!: get_tcb_SomeD)
@@ -565,12 +565,12 @@ lemma arch_thread_set_valid_idle[wp]:
   "\<lbrace>valid_idle and (\<lambda> s. t \<noteq> idle_thread s \<or> (\<forall>atcb. tcb_vcpu atcb = None \<longrightarrow> tcb_vcpu (f atcb) = None))\<rbrace>
     arch_thread_set f t
    \<lbrace>\<lambda>rv. valid_idle\<rbrace>"
-  by (wpsimp simp: arch_thread_set_def set_object_def valid_idle_def valid_arch_idle_def
-                   get_tcb_def pred_tcb_at_def obj_at_def pred_neg_def)
+  by (wpsimp simp: arch_thread_set_def set_object_def get_object_def valid_idle_def
+                   valid_arch_idle_def get_tcb_def pred_tcb_at_def obj_at_def pred_neg_def)
 
 lemma arch_thread_set_valid_ioc[wp]:
   "\<lbrace>valid_ioc\<rbrace> arch_thread_set p v \<lbrace>\<lambda>rv. valid_ioc\<rbrace>"
-  apply (simp add: arch_thread_set_def set_object_def)
+  apply (simp add: arch_thread_set_def set_object_def get_object_def)
   apply (wp set_object_valid_ioc_caps)
   apply (clarsimp simp add: valid_ioc_def
                   simp del: fun_upd_apply
@@ -669,7 +669,7 @@ lemma sym_refs_update_some_tcb:
 
 lemma arch_thread_sym_refs[wp]:
   "\<lbrace>\<lambda>s. sym_refs (state_refs_of s)\<rbrace> arch_thread_set f p \<lbrace>\<lambda>rv s. sym_refs (state_refs_of s)\<rbrace>"
-  apply (simp add: arch_thread_set_def set_object_def)
+  apply (simp add: arch_thread_set_def set_object_def get_object_def)
   apply wp
   apply (clarsimp simp del: fun_upd_apply dest!: get_tcb_SomeD)
   apply (subst get_tcb_rev, assumption, subst option.sel)+
@@ -850,12 +850,12 @@ lemma set_vcpu_if_live_then_nonz_cap_same_refs:
   "\<lbrace>if_live_then_nonz_cap and obj_at (\<lambda>ko'. hyp_refs_of ko' = hyp_refs_of (ArchObj (VCPU v))) p\<rbrace>
      set_vcpu p v \<lbrace>\<lambda>rv. if_live_then_nonz_cap\<rbrace>"
   apply (simp add: set_vcpu_def)
-  apply (wp get_object_wp set_object_iflive)
-  apply (clarsimp split: kernel_object.splits arch_kernel_obj.splits, rule conjI, clarsimp)
-   apply (rule if_live_then_nonz_capD; simp add: obj_at_def)
-   apply (clarsimp simp: live_def hyp_live_def arch_live_def, rule_tac x=y in exI,
-          clarsimp simp: vcpu_tcb_refs_def split: option.splits)
-  apply (clarsimp simp: obj_at_def)
+  including unfold_objects
+  apply (wpsimp wp: set_object_iflive[THEN hoare_set_object_weaken_pre]
+              simp: a_type_def live_def hyp_live_def arch_live_def)
+  apply (rule if_live_then_nonz_capD; simp)
+  apply (clarsimp simp: live_def hyp_live_def arch_live_def,
+         clarsimp simp: vcpu_tcb_refs_def split: option.splits)
   done
 
 lemma vgic_update_if_live_then_nonz_cap[wp]:
@@ -1333,7 +1333,7 @@ interpretation Finalise_AI_1?: Finalise_AI_1
   case 1 show ?case by (intro_locales; (unfold_locales; fact Finalise_AI_asms)?)
   qed
 
-context Arch begin global_naming ARM
+context Arch begin global_naming ARM_HYP
 
 lemma fast_finalise_replaceable[wp]:
   "\<lbrace>\<lambda>s. s \<turnstile> cap \<and> x = is_final_cap' cap s
@@ -1372,7 +1372,7 @@ interpretation Finalise_AI_2?: Finalise_AI_2
   case 1 show ?case by (intro_locales; (unfold_locales; fact Finalise_AI_asms)?)
   qed
 
-context Arch begin global_naming ARM
+context Arch begin global_naming ARM_HYP
 
 crunches
   vcpu_update, vgic_update, vcpu_disable, vcpu_restore, vcpu_save_reg_range, vgic_update_lr,
@@ -1400,17 +1400,10 @@ lemma tcb_cap_valid_pagetable:
   apply (rule ext)
   apply (simp add: tcb_cap_valid_def tcb_cap_cases_def is_nondevice_page_cap_arch_def
                    is_cap_simps valid_ipc_buffer_cap_def is_nondevice_page_cap_simps
+                   is_valid_vtable_root_def
             split: Structures_A.thread_state.split)
   done
 
-lemma tcb_cap_valid_pagedirectory:
-  "tcb_cap_valid (ArchObjectCap (PageDirectoryCap word (Some v))) slot
-    = tcb_cap_valid (ArchObjectCap (PageDirectoryCap word None)) slot"
-  apply (rule ext)
-  apply (simp add: tcb_cap_valid_def tcb_cap_cases_def is_nondevice_page_cap_arch_def
-                   is_cap_simps valid_ipc_buffer_cap_def is_nondevice_page_cap_simps
-            split: Structures_A.thread_state.split)
-  done
 
 lemma store_pde_unmap_empty:
   "\<lbrace>\<lambda>s. obj_at (empty_table {}) word s\<rbrace>
@@ -1629,31 +1622,6 @@ lemma replaceable_reset_pt:
   apply simp_all
   done
 
-lemma replaceable_reset_pd:
-  "\<lbrakk>cap = PageDirectoryCap p m \<and>
-   cte_wp_at ((=) (ArchObjectCap cap)) slot s \<and>
-   (\<forall>vs. vs_cap_ref (ArchObjectCap cap) = Some vs \<longrightarrow> \<not> (vs \<unrhd> p) s) \<and>
-   is_final_cap' (ArchObjectCap cap) s \<and>
-   obj_at (empty_table {}) p s\<rbrakk> \<Longrightarrow>
-   replaceable s slot (ArchObjectCap (PageDirectoryCap p None))
-                      (ArchObjectCap cap)"
-  apply (elim conjE)
-  apply (cases m, simp_all add: replaceable_def gen_obj_refs_def cap_range_def is_cap_simps
-                           tcb_cap_valid_pagedirectory)
-  apply (rule conjI)
-   apply (frule is_final_cap_pd_asid_eq) defer
-   apply clarsimp
-   apply (drule cte_wp_at_obj_refs_singleton_page_directory)
-   apply (erule exE)
-   apply (drule_tac x="asid" in is_final_cap_pd_asid_eq)
-   apply (drule final_cap_pd_slot_eq)
-     apply simp_all
-  apply (rule_tac
-    cap="ArchObjectCap cap"
-    in  no_cap_to_obj_with_diff_ref_finalI)
-  apply simp_all
-  done
-
 crunch caps_of_state [wp]: vcpu_finalise "\<lambda>s. P (caps_of_state s)"
    (wp: crunch_wps)
 
@@ -1681,13 +1649,9 @@ crunch obj_at[wp]: invalidate_tlb_by_asid "\<lambda>s. P' (obj_at P p s)"
 lemma set_asid_pool_empty[wp]:
   "\<lbrace>obj_at (empty_table {}) word\<rbrace> set_asid_pool x2 pool' \<lbrace>\<lambda>xb. obj_at (empty_table {}) word\<rbrace>"
   apply (simp add: set_asid_pool_def)
-  apply (wp set_object_wp)
-  apply (rule_tac Q="\<lambda>r. obj_at (empty_table {}) word and  ko_at r x2" in hoare_post_imp)
-   apply (rule impI)
-   apply (case_tac r ; simp)
-   apply (case_tac x5; simp)
-   apply (clarsimp simp: obj_at_def empty_table_def)
-  apply (wp get_object_sp, simp)
+  including unfold_objects
+  apply (wpsimp wp: set_object_wp_strong simp: a_type_def)
+  apply (clarsimp simp: empty_table_def)
   done
 
 lemma delete_asid_empty_table_pd:
@@ -1889,7 +1853,7 @@ lemma invs_valid_arch_capsI:
   "invs s \<Longrightarrow> valid_arch_caps s"
   by (simp add: invs_def valid_state_def)
 
-context Arch begin global_naming ARM (*FIXME: arch_split*)
+context Arch begin global_naming ARM_HYP (*FIXME: arch_split*)
 
 lemma arch_finalise_case_no_lookup:
   "\<lbrace>pspace_aligned and valid_vspace_objs and valid_objs and
@@ -2103,7 +2067,7 @@ interpretation Finalise_AI_3?: Finalise_AI_3
   case 1 show ?case by (intro_locales; (unfold_locales; fact Finalise_AI_asms)?)
   qed
 
-context Arch begin global_naming ARM
+context Arch begin global_naming ARM_HYP
 
 lemma typ_at_data_at_wp:
   assumes typ_wp: "\<And>a.\<lbrace>typ_at a p \<rbrace> g \<lbrace>\<lambda>s. typ_at a p\<rbrace>"
@@ -2121,7 +2085,7 @@ interpretation Finalise_AI_4?: Finalise_AI_4
   case 1 show ?case by (intro_locales; (unfold_locales; fact Finalise_AI_asms)?)
   qed
 
-context Arch begin global_naming ARM
+context Arch begin global_naming ARM_HYP
 
 lemma set_asid_pool_obj_at_ptr:
   "\<lbrace>\<lambda>s. P (ArchObj (arch_kernel_obj.ASIDPool mp))\<rbrace>

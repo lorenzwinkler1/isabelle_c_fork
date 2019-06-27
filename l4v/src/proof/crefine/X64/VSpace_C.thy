@@ -190,7 +190,7 @@ lemma vspace_at_asid_cross_over:
   "\<lbrakk> vspace_at_asid' pm asid s; asid \<le> mask asid_bits;
           (s, s') \<in> rf_sr\<rbrakk>
       \<Longrightarrow> \<exists>apptr ap. index (x86KSASIDTable_' (globals s')) (unat (asid >> asid_low_bits))
-                     = (ap_Ptr apptr) \<and> cslift s' (ap_Ptr apptr) = Some (asid_pool_C ap)
+                     = (ap_Ptr apptr) \<and> cslift s' (ap_Ptr apptr) = Some (asid_pool_C.asid_pool_C ap)
                   \<and> asid_map_lift (index ap (unat (asid && mask asid_low_bits)))
                       = Some (Asid_map_asid_map_vspace \<lparr>vspace_root_CL = pm\<rparr>)
                   \<and> is_aligned pm pml4Bits
@@ -1017,8 +1017,8 @@ lemma ccorres_pre_gets_x64KSSKIMPML4_ksArchState:
   assumes cc: "\<And>rv. ccorres r xf (P rv) (P' rv) hs (f rv) c"
   shows   "ccorres r xf
                   (\<lambda>s. (\<forall>rv. x64KSSKIMPML4 (ksArchState s) = rv  \<longrightarrow> P rv s))
-                  (P' (ptr_val (pml4_Ptr (symbol_table ''x64KSSKIMPML4''))))
-                          hs (gets (x64KSSKIMPML4 \<circ> ksArchState) >>= (\<lambda>rv. f rv)) c"
+                  (P' (ptr_val x64KSSKIMPML4_Ptr))
+                  hs (gets (x64KSSKIMPML4 \<circ> ksArchState) >>= (\<lambda>rv. f rv)) c"
   apply (rule ccorres_guard_imp)
     apply (rule ccorres_symb_exec_l)
        defer
@@ -1069,8 +1069,7 @@ context kernel_m begin
 (* FIXME: move *)
 lemma ccorres_h_t_valid_x64KSSKIMPML4:
   "ccorres r xf P P' hs f (f' ;; g') \<Longrightarrow>
-   ccorres r xf P P' hs f
-    (Guard C_Guard {s'. s' \<Turnstile>\<^sub>c pml4_Ptr (symbol_table ''x64KSSKIMPML4'')} f';; g')"
+   ccorres r xf P P' hs f (Guard C_Guard {s'. s' \<Turnstile>\<^sub>c x64KSSKIMPML4_Ptr} f';; g')"
   apply (rule ccorres_guard_imp2)
    apply (rule ccorres_move_c_guards[where P = \<top>])
     apply clarsimp
@@ -1385,9 +1384,6 @@ lemma setVMRoot_ccorres:
   apply (frule (1) word_combine_masks[where m="0x7FFFFFFFFFFFF" and m'="0x7FF8000000000000"]; simp)
   apply (match premises in H: \<open>cr3_C.words_C _.[0] && _ = 0\<close> \<Rightarrow> \<open>insert H; word_bitwise\<close>)
   done
-
-(* FIXME: remove *)
-lemmas invs'_invs_no_cicd = invs_invs_no_cicd'
 
 lemma ccorres_seq_IF_False:
   "ccorres_underlying sr \<Gamma> r xf arrel axf G G' hs a (IF False THEN x ELSE y FI ;; c) = ccorres_underlying sr \<Gamma> r xf arrel axf G G' hs a (y ;; c)"
@@ -2459,7 +2455,7 @@ lemma asid_pool_at_c_guard:
 
 (* FIXME: move *)
 lemma setObjectASID_Basic_ccorres:
-  "ccorres dc xfdc \<top> {s. f s = p \<and> casid_pool_relation pool (asid_pool_C (pool' s))} hs
+  "ccorres dc xfdc \<top> {s. f s = p \<and> casid_pool_relation pool (asid_pool_C.asid_pool_C (pool' s))} hs
      (setObject p pool)
      ((Basic (\<lambda>s. globals_update( t_hrs_'_update
             (hrs_mem_update (heap_update (Ptr &(ap_Ptr (f s)\<rightarrow>[''array_C''])) (pool' s)))) s)))"

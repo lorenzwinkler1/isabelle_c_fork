@@ -65,7 +65,7 @@ end
 fun errorStr' (l,r,s) = errorStr(Region.make {left = l, right = r}, s)
 
 
-fun warnStr' (l,r,s) =
+fun warnStr' (l,_,s) =
     !warnf ("Warning "^SourcePos.toString l^ " " ^ s ^ "\n")
 
 fun timestamp s = Time.fmt 0 (Time.now()) ^ ": " ^ s

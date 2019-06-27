@@ -12,14 +12,14 @@
 Functions to access kernel memory.
 *)
 
-chapter {* Accessing the Kernel Heap *}
+chapter \<open>Accessing the Kernel Heap\<close>
 
 theory KHeap_A
 imports Exceptions_A
 begin
 
-text {* This theory gives auxiliary getter and setter methods
-for kernel objects. *}
+text \<open>This theory gives auxiliary getter and setter methods
+for kernel objects.\<close>
 
 section "General Object Access"
 
@@ -36,9 +36,10 @@ definition
   set_object :: "obj_ref \<Rightarrow> kernel_object \<Rightarrow> (unit,'z::state_ext) s_monad"
 where
   "set_object ptr obj \<equiv> do
+     kobj <- get_object ptr;
+     assert (a_type kobj = a_type obj);
      s \<leftarrow> get;
-     kh \<leftarrow> return $ (kheap s)(ptr := Some obj);
-     put (s \<lparr> kheap := kh \<rparr>)
+     put (s\<lparr>kheap := kheap s(ptr \<mapsto> obj)\<rparr>)
    od"
 
 
@@ -182,13 +183,13 @@ where
   "set_simple_ko f ptr ep \<equiv> do
      obj \<leftarrow> get_object ptr;
      assert (is_simple_type obj);
-     assert (case partial_inv f obj of Some e \<Rightarrow> a_type obj = a_type (f ep) | _ \<Rightarrow> False);
+     assert (partial_inv f obj \<noteq> None);
      set_object ptr (f ep)
    od"
 
 
 
-section {* Synchronous and Asyncronous Endpoints *}
+section \<open>Synchronous and Asyncronous Endpoints\<close>
 
 
 abbreviation
@@ -216,7 +217,7 @@ abbreviation
   "ntfn_set_obj ntfn a \<equiv> ntfn \<lparr> ntfn_obj := a \<rparr>"
 
 
-section {* IRQ State and Slot *}
+section \<open>IRQ State and Slot\<close>
 
 definition
   get_irq_state :: "irq \<Rightarrow> (irq_state,'z::state_ext) s_monad" where
@@ -236,10 +237,10 @@ definition
 
 section "User Context"
 
-text {*
+text \<open>
   Changes user context of specified thread by running
   specified user monad.
-*}
+\<close>
 definition
   as_user :: "obj_ref \<Rightarrow> 'a user_monad \<Rightarrow> ('a,'z::state_ext) s_monad"
 where
@@ -252,7 +253,7 @@ where
     return a
   od"
 
-text {* Raise an exception if a property does not hold. *}
+text \<open>Raise an exception if a property does not hold.\<close>
 definition
 throw_on_false :: "'e \<Rightarrow> (bool,'z::state_ext) s_monad \<Rightarrow> ('e + unit,'z::state_ext) s_monad" where
 "throw_on_false ex f \<equiv> doE v \<leftarrow> liftE f; unlessE v $ throwError ex odE"

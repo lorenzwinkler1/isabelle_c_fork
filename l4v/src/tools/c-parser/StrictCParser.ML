@@ -61,7 +61,7 @@ fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (input : inp
               val _ = TextIO.closeIn istream
           in res end
        | (_, Source src) =>
-          f (drain [Input.source_content src]) (C_Env.encode_positions [Input.pos_of src])
+          f (drain [Input.source_content src |> #1]) (C_Env.encode_positions [Input.pos_of src])
 
     fun parse_without_c11 thy = 
       docpp

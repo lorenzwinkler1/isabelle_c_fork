@@ -735,9 +735,8 @@ lemma monad_commute_set_cap_cdt:
   apply (subst oblivious_modify_swap)
    apply (simp add: KHeap_D.set_cap_def split_def gets_the_def
      KHeap_D.set_object_def)
-   apply (intro oblivious_bind oblivious_assert impI conjI allI
-               oblivious_select |
-         simp add: opt_object_def split: cdl_object.split)+
+   apply (intro oblivious_bind oblivious_assert impI conjI allI oblivious_select |
+          simp split: cdl_object.split)+
   apply (clarsimp simp:bind_assoc)
   done
 
@@ -1083,7 +1082,7 @@ lemma retype_addrs_range_subset_strong:
   shows "\<lbrakk>p \<in> set (retype_addrs ptr ty n us); range_cover ptr sz (obj_bits_api ty us) n\<rbrakk>
   \<Longrightarrow> {p..p + 2 ^ obj_bits_api ty us - 1} \<subseteq> {ptr..ptr + of_nat n * 2 ^ obj_bits_api ty us - 1}"
   apply (clarsimp simp: retype_addrs_def ptr_add_def)
-  apply (drule_tac p = pa in range_cover_subset)
+  apply (drule_tac p = x in range_cover_subset)
    apply clarsimp+
   apply blast
   done

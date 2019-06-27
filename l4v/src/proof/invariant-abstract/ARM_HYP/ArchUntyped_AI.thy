@@ -12,7 +12,7 @@ theory ArchUntyped_AI
 imports "../Untyped_AI"
 begin
 
-context Arch begin global_naming ARM
+context Arch begin global_naming ARM_HYP
 
 named_theorems Untyped_AI_assms
 
@@ -34,7 +34,7 @@ lemma cnode_cap_ex_cte[Untyped_AI_assms]:
   apply (simp only: ex_cte_cap_wp_to_def)
   apply (rule exI, erule cte_wp_at_weakenE)
   apply (clarsimp simp: is_cap_simps bits_of_def)
-  apply (case_tac c, simp_all add: mask_cap_def cap_rights_update_def)
+  apply (case_tac c, simp_all add: mask_cap_def cap_rights_update_def split:bool.splits)
   apply (clarsimp simp: nat_to_cref_def word_bits_def)
   apply (erule(2) valid_CNodeCapE)
   apply (simp add: word_bits_def cte_level_bits_def)
@@ -152,7 +152,7 @@ proof -
    apply (rule conjI, assumption)
     apply (clarsimp simp: diminished_def is_cap_simps mask_cap_def
                           cap_rights_update_def,
-              simp split: cap.splits )
+              simp split: cap.splits bool.splits)
    done
 qed
 
@@ -498,7 +498,7 @@ lemma set_pd_cte_wp_at_iin[wp]:
   "\<lbrace>\<lambda>s. P (cte_wp_at (P' (interrupt_irq_node s)) p s)\<rbrace>
    set_pd q pd
    \<lbrace>\<lambda>_ s. P (cte_wp_at (P' (interrupt_irq_node s)) p s)\<rbrace>"
-  apply (simp add: set_pd_def set_object_def)
+  apply (simp add: set_pd_def set_object_def a_type_def)
   apply (wp get_object_wp)
   apply (clarsimp simp: obj_at_def cte_wp_at_caps_of_state
            split: Structures_A.kernel_object.splits arch_kernel_obj.splits)
@@ -532,7 +532,7 @@ lemma create_cap_ioports[wp, Untyped_AI_assms]:
 end
 
 global_interpretation Untyped_AI? : Untyped_AI
-  where nonempty_table = ARM.nonempty_table
+  where nonempty_table = ARM_HYP.nonempty_table
   proof goal_cases
     interpret Arch .
     case 1 show ?case

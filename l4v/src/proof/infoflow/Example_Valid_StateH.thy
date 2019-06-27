@@ -14,15 +14,15 @@ begin
 
 context begin interpretation Arch . (*FIXME: arch_split*)
 
-section {* Haskell state *}
+section \<open>Haskell state\<close>
 
-text {* One invariant we need on s0 is that there exists
+text \<open>One invariant we need on s0 is that there exists
         an associated Haskell state satisfying the invariants.
-        This does not yet exist.  *}
+        This does not yet exist.\<close>
 
-subsection {* Defining the State *}
+subsection \<open>Defining the State\<close>
 
-text {* Low's CSpace *}
+text \<open>Low's CSpace\<close>
 
 definition
   empty_cte :: "nat \<Rightarrow> bool list \<Rightarrow> (capability \<times> mdbnode) option"
@@ -62,7 +62,7 @@ where
                          then map_option (\<lambda>cte. KOCTE cte) (Low_cte' (ucast (offs - base >> cte_level_bits))) else None"
 
 
-text {* High's Cspace *}
+text \<open>High's Cspace\<close>
 
 definition
   High_capsH :: "cnode_index \<Rightarrow> (capability \<times> mdbnode) option"
@@ -91,8 +91,8 @@ where
   "High_cte \<equiv> \<lambda>base offs. if is_aligned offs cte_level_bits \<and> base \<le> offs \<and> offs \<le> base + 2 ^ 14 - 1
                           then map_option (\<lambda>cte. KOCTE cte) (High_cte' (ucast (offs - base >> cte_level_bits))) else None"
 
-text {* We need a copy of boundary crossing caps owned by SilcLabel.
-        The only such cap is Low's cap to the notification *}
+text \<open>We need a copy of boundary crossing caps owned by SilcLabel.
+        The only such cap is Low's cap to the notification\<close>
 
 definition
   Silc_capsH :: "cnode_index \<Rightarrow> (capability \<times> mdbnode) option"
@@ -116,7 +116,7 @@ where
   "Silc_cte \<equiv> \<lambda>base offs. if is_aligned offs cte_level_bits \<and> base \<le> offs \<and> offs \<le> base + 2 ^ 14 - 1
                           then map_option (\<lambda>cte. KOCTE cte) (Silc_cte' (ucast (offs - base >> cte_level_bits))) else None"
 
-text {* notification between Low and High *}
+text \<open>notification between Low and High\<close>
 
 definition
   ntfnH :: Structures_H.notification
@@ -124,7 +124,7 @@ where
   "ntfnH \<equiv> Structures_H.NTFN (Structures_H.ntfn.WaitingNtfn [High_tcb_ptr]) None"
 
 
-text {* Low's VSpace (PageDirectory)*}
+text \<open>Low's VSpace (PageDirectory)\<close>
 
 definition
   Low_pt'H :: "word8 \<Rightarrow> ARM_H.pte "
@@ -169,7 +169,7 @@ where
                     then Some (ucast (offs - base >> 2)) else None)"
 
 
-text {* High's VSpace (PageDirectory)*}
+text \<open>High's VSpace (PageDirectory)\<close>
 
 
 definition
@@ -212,77 +212,77 @@ where
                     then Some (ucast (offs - base >> 2)) else None)"
 
 
-text {* Low's tcb *}
+text \<open>Low's tcb\<close>
 
 definition
   Low_tcbH :: Structures_H.tcb
 where
   "Low_tcbH \<equiv> Thread
-     (* tcbCTable          = *) (CTE (CNodeCap Low_cnode_ptr 10 2 10)
+     \<comment> \<open>tcbCTable          =\<close> (CTE (CNodeCap Low_cnode_ptr 10 2 10)
                                      (MDB (Low_cnode_ptr + 0x20) 0 False False))
-     (* tcbVTable          = *) (CTE (ArchObjectCap (PageDirectoryCap Low_pd_ptr (Some Low_asid))) (MDB (Low_cnode_ptr + 0x30) 0 False False))
-     (* tcbReply           = *) (CTE (ReplyCap Low_tcb_ptr True) (MDB 0 0 True True)) (* master reply cap to itself *)
-     (* tcbCaller          = *) (CTE NullCap Null_mdb)
-     (* tcbIPCBufferFrame  = *) (CTE NullCap Null_mdb)
-     (* tcbDomain          = *) Low_domain
-     (* tcbState           = *) Running
-     (* tcbMCPriority      = *) Low_mcp
-     (* tcbPriority        = *) Low_prio
-     (* tcbQueued          = *) False
-     (* tcbFault           = *) None
-     (* tcbTimeSlice       = *) Low_time_slice
-     (* tcbFaultHandler    = *) 0
-     (* tcbIPCBuffer       = *) 0
-     (* tcbBoundNotification        = *) None
-     (* tcbContext         = *) (ArchThread undefined)"
+     \<comment> \<open>tcbVTable          =\<close> (CTE (ArchObjectCap (PageDirectoryCap Low_pd_ptr (Some Low_asid))) (MDB (Low_cnode_ptr + 0x30) 0 False False))
+     \<comment> \<open>tcbReply           =\<close> (CTE (ReplyCap Low_tcb_ptr True True) (MDB 0 0 True True)) \<comment> \<open>master reply cap to itself\<close>
+     \<comment> \<open>tcbCaller          =\<close> (CTE NullCap Null_mdb)
+     \<comment> \<open>tcbIPCBufferFrame  =\<close> (CTE NullCap Null_mdb)
+     \<comment> \<open>tcbDomain          =\<close> Low_domain
+     \<comment> \<open>tcbState           =\<close> Running
+     \<comment> \<open>tcbMCPriority      =\<close> Low_mcp
+     \<comment> \<open>tcbPriority        =\<close> Low_prio
+     \<comment> \<open>tcbQueued          =\<close> False
+     \<comment> \<open>tcbFault           =\<close> None
+     \<comment> \<open>tcbTimeSlice       =\<close> Low_time_slice
+     \<comment> \<open>tcbFaultHandler    =\<close> 0
+     \<comment> \<open>tcbIPCBuffer       =\<close> 0
+     \<comment> \<open>tcbBoundNotification        =\<close> None
+     \<comment> \<open>tcbContext         =\<close> (ArchThread undefined)"
 
 
-text {* High's tcb *}
+text \<open>High's tcb\<close>
 definition
   High_tcbH :: Structures_H.tcb
 where
   "High_tcbH \<equiv> Thread
-     (* tcbCTable          = *) (CTE (CNodeCap High_cnode_ptr 10 2 10)
+     \<comment> \<open>tcbCTable          =\<close> (CTE (CNodeCap High_cnode_ptr 10 2 10)
                                      (MDB (High_cnode_ptr + 0x20) 0 False False))
-     (* tcbVTable          = *) (CTE (ArchObjectCap (PageDirectoryCap High_pd_ptr (Some High_asid))) (MDB (High_cnode_ptr + 0x30) 0 False False))
-     (* tcbReply           = *) (CTE (ReplyCap High_tcb_ptr True) (MDB 0 0 True True)) (* master reply cap to itself *)
-     (* tcbCaller          = *) (CTE NullCap Null_mdb)
-     (* tcbIPCBufferFrame  = *) (CTE NullCap Null_mdb)
-     (* tcbDomain          = *) High_domain
-     (* tcbState           = *) (BlockedOnNotification ntfn_ptr)
-     (* tcbMCPriority      = *) High_mcp
-     (* tcbPriority        = *) High_prio
-     (* tcbQueued          = *) False
-     (* tcbFault           = *) None
-     (* tcbTimeSlice       = *) High_time_slice
-     (* tcbFaultHandler    = *) 0
-     (* tcbIPCBuffer       = *) 0
-     (* tcbBoundNotification        = *) None
-     (* tcbContext         = *) (ArchThread undefined)"
+     \<comment> \<open>tcbVTable          =\<close> (CTE (ArchObjectCap (PageDirectoryCap High_pd_ptr (Some High_asid))) (MDB (High_cnode_ptr + 0x30) 0 False False))
+     \<comment> \<open>tcbReply           =\<close> (CTE (ReplyCap High_tcb_ptr True True) (MDB 0 0 True True)) \<comment> \<open>master reply cap to itself\<close>
+     \<comment> \<open>tcbCaller          =\<close> (CTE NullCap Null_mdb)
+     \<comment> \<open>tcbIPCBufferFrame  =\<close> (CTE NullCap Null_mdb)
+     \<comment> \<open>tcbDomain          =\<close> High_domain
+     \<comment> \<open>tcbState           =\<close> (BlockedOnNotification ntfn_ptr)
+     \<comment> \<open>tcbMCPriority      =\<close> High_mcp
+     \<comment> \<open>tcbPriority        =\<close> High_prio
+     \<comment> \<open>tcbQueued          =\<close> False
+     \<comment> \<open>tcbFault           =\<close> None
+     \<comment> \<open>tcbTimeSlice       =\<close> High_time_slice
+     \<comment> \<open>tcbFaultHandler    =\<close> 0
+     \<comment> \<open>tcbIPCBuffer       =\<close> 0
+     \<comment> \<open>tcbBoundNotification        =\<close> None
+     \<comment> \<open>tcbContext         =\<close> (ArchThread undefined)"
 
 
-text {* idle's tcb *}
+text \<open>idle's tcb\<close>
 
 definition
   idle_tcbH :: Structures_H.tcb
 where
   "idle_tcbH \<equiv> Thread
-     (* tcbCTable          = *) (CTE NullCap Null_mdb)
-     (* tcbVTable          = *) (CTE NullCap Null_mdb)
-     (* tcbReply           = *) (CTE NullCap Null_mdb)
-     (* tcbCaller          = *) (CTE NullCap Null_mdb)
-     (* tcbIPCBufferFrame  = *) (CTE NullCap Null_mdb)
-     (* tcbDomain          = *) default_domain
-     (* tcbState           = *) IdleThreadState
-     (* tcbMCPriority      = *) default_priority
-     (* tcbPriority        = *) default_priority
-     (* tcbQueued          = *) False
-     (* tcbFault           = *) None
-     (* tcbTimeSlice       = *) time_slice
-     (* tcbFaultHandler    = *) 0
-     (* tcbIPCBuffer       = *) 0
-     (* tcbBoundNotification        = *) None
-     (* tcbContext         = *) (ArchThread empty_context)"
+     \<comment> \<open>tcbCTable          =\<close> (CTE NullCap Null_mdb)
+     \<comment> \<open>tcbVTable          =\<close> (CTE NullCap Null_mdb)
+     \<comment> \<open>tcbReply           =\<close> (CTE NullCap Null_mdb)
+     \<comment> \<open>tcbCaller          =\<close> (CTE NullCap Null_mdb)
+     \<comment> \<open>tcbIPCBufferFrame  =\<close> (CTE NullCap Null_mdb)
+     \<comment> \<open>tcbDomain          =\<close> default_domain
+     \<comment> \<open>tcbState           =\<close> IdleThreadState
+     \<comment> \<open>tcbMCPriority      =\<close> default_priority
+     \<comment> \<open>tcbPriority        =\<close> default_priority
+     \<comment> \<open>tcbQueued          =\<close> False
+     \<comment> \<open>tcbFault           =\<close> None
+     \<comment> \<open>tcbTimeSlice       =\<close> time_slice
+     \<comment> \<open>tcbFaultHandler    =\<close> 0
+     \<comment> \<open>tcbIPCBuffer       =\<close> 0
+     \<comment> \<open>tcbBoundNotification        =\<close> None
+     \<comment> \<open>tcbContext         =\<close> (ArchThread empty_context)"
 
 definition
   irq_cte :: "Structures_H.cte"
@@ -1081,13 +1081,13 @@ lemma kh0H_SomeD:
 
 definition arch_state0H :: Arch.kernel_state where
   "arch_state0H \<equiv> ARMKernelState
-             (* armKSASIDTable    = *) Map.empty
-             (* armKSHWASIDTable  = *) Map.empty
-             (* armKSNextASID     = *) 0
-             (* armKSASIDMap      = *) Map.empty
-             (* armKSGlobalPD     = *) init_global_pd
-             (* armKSGlobalPTs    = *) []
-             (* armKSKernelVSpace = *)
+             \<comment> \<open>armKSASIDTable    =\<close> Map.empty
+             \<comment> \<open>armKSHWASIDTable  =\<close> Map.empty
+             \<comment> \<open>armKSNextASID     =\<close> 0
+             \<comment> \<open>armKSASIDMap      =\<close> Map.empty
+             \<comment> \<open>armKSGlobalPD     =\<close> init_global_pd
+             \<comment> \<open>armKSGlobalPTs    =\<close> []
+             \<comment> \<open>armKSKernelVSpace =\<close>
          (\<lambda>ref. if ref \<in> {kernel_base..kernel_base + mask 20} then ArmVSpaceKernelWindow
                 else ArmVSpaceInvalidRegion)"
 
@@ -1875,12 +1875,12 @@ lemma map_to_ctes_kh0H_SomeD:
         x = idle_tcb_ptr + 0x40 \<and> y = (CTE NullCap Null_mdb) \<or>
         x = Low_tcb_ptr \<and> y = (CTE (CNodeCap Low_cnode_ptr 10 2 10) (MDB (Low_cnode_ptr + 0x20) 0 False False)) \<or>
         x = Low_tcb_ptr + 0x10 \<and> y = (CTE (ArchObjectCap (PageDirectoryCap Low_pd_ptr (Some Low_asid))) (MDB (Low_cnode_ptr + 0x30) 0 False False)) \<or>
-        x = Low_tcb_ptr + 0x20 \<and> y = (CTE (ReplyCap Low_tcb_ptr True) (MDB 0 0 True True)) \<or>
+        x = Low_tcb_ptr + 0x20 \<and> y = (CTE (ReplyCap Low_tcb_ptr True True) (MDB 0 0 True True)) \<or>
         x = Low_tcb_ptr + 0x30 \<and> y = (CTE NullCap Null_mdb) \<or>
         x = Low_tcb_ptr + 0x40 \<and> y = (CTE NullCap Null_mdb) \<or>
         x = High_tcb_ptr \<and> y = (CTE (CNodeCap High_cnode_ptr 10 2 10) (MDB (High_cnode_ptr + 0x20) 0 False False)) \<or>
         x = High_tcb_ptr + 0x10 \<and> y = (CTE (ArchObjectCap (PageDirectoryCap High_pd_ptr (Some High_asid))) (MDB (High_cnode_ptr + 0x30) 0 False False)) \<or>
-        x = High_tcb_ptr + 0x20 \<and> y = (CTE (ReplyCap High_tcb_ptr True) (MDB 0 0 True True)) \<or>
+        x = High_tcb_ptr + 0x20 \<and> y = (CTE (ReplyCap High_tcb_ptr True True) (MDB 0 0 True True)) \<or>
         x = High_tcb_ptr + 0x30 \<and> y = (CTE NullCap Null_mdb) \<or>
         x = High_tcb_ptr + 0x40 \<and> y = (CTE NullCap Null_mdb) \<or>
         x = irq_cnode_ptr \<and> y = (CTE NullCap Null_mdb) \<or>
@@ -2104,8 +2104,8 @@ lemma valid_caps_s0H[simp]:
   "valid_cap' (ArchObjectCap (PageDirectoryCap High_pd_ptr (Some High_asid))) s0H_internal"
   "valid_cap' (NotificationCap ntfn_ptr 0 True False) s0H_internal"
   "valid_cap' (NotificationCap ntfn_ptr 0 False True) s0H_internal"
-  "valid_cap' (ReplyCap Low_tcb_ptr True) s0H_internal"
-  "valid_cap' (ReplyCap High_tcb_ptr True) s0H_internal"
+  "valid_cap' (ReplyCap Low_tcb_ptr True True) s0H_internal"
+  "valid_cap' (ReplyCap High_tcb_ptr True True) s0H_internal"
   apply (simp
         | simp add: valid_cap'_def s0H_internal_def capAligned_def word_bits_def objBits_def s0_ptrs_aligned obj_at'_def projectKO_eq project_inject,
           intro conjI,

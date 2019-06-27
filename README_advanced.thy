@@ -74,8 +74,7 @@ command:
 
 text \<open>
 Note: The version of the \<open>l4v\<close> (\<^url>\<open>https://github.com/seL4/l4v/\<close>)
-project used is \<open>seL4-10.1.1\<close>
-(\<^url>\<open>https://github.com/seL4/l4v/releases/tag/seL4-10.1.1\<close>).
+project used is \<open>e3352826893db4d00fc402fad2a0125307ebe45e\<close>.
 \<close>
 
 subsection \<open>Authors\<close>

@@ -120,9 +120,16 @@ Note that the idle thread is not considered runnable; this is to prevent it bein
 
 When a thread is suspended, either explicitly by a TCB invocation or implicitly when it is being destroyed, any operation that it is currently performing must be cancelled.
 
+> updateRestartPC :: PPtr TCB -> Kernel ()
+> updateRestartPC tcb =
+>     asUser tcb (getRegister nextInstructionRegister
+>                 >>= setRegister faultRegister)
+
 > suspend :: PPtr TCB -> Kernel ()
 > suspend target = do
 >     cancelIPC target
+>     state <- getThreadState target
+>     if state == Running then updateRestartPC target else return ()
 >     setThreadState Inactive target
 >     tcbSchedDequeue target
 
@@ -172,8 +179,8 @@ If the sent message is a fault IPC, the stored fault is transferred.
 
 Replies sent by the "Reply" and "ReplyRecv" system calls can either be normal IPC replies, or fault replies. In the former case, the transfer is the same as for an IPC send, but there is never a fault, capability grants are always allowed, the badge is always 0, and capabilities are never received with diminished rights (diminished rights are now removed).
 
-> doReplyTransfer :: PPtr TCB -> PPtr TCB -> PPtr CTE -> Kernel ()
-> doReplyTransfer sender receiver slot = do
+> doReplyTransfer :: PPtr TCB -> PPtr TCB -> PPtr CTE -> Bool -> Kernel ()
+> doReplyTransfer sender receiver slot grant = do
 >     state <- getThreadState receiver
 >     assert (isReply state)
 >         "Reply transfer to a thread that isn't listening"
@@ -187,7 +194,7 @@ Replies sent by the "Reply" and "ReplyRecv" system calls can either be normal IP
 >     fault <- threadGet tcbFault receiver
 >     case fault of
 >         Nothing -> do
->             doIPCTransfer sender Nothing 0 True receiver
+>             doIPCTransfer sender Nothing 0 grant receiver
 >             cteDeleteOne slot
 >             setThreadState Running receiver
 >             possibleSwitchTo receiver

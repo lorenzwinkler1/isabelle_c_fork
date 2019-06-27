@@ -66,7 +66,7 @@ lemma set_thread_state_ct_st:
   "\<lbrace>\<lambda>s. if thread = cur_thread s then P st else ct_in_state P s\<rbrace>
         set_thread_state thread st
    \<lbrace>\<lambda>rv. ct_in_state P\<rbrace>"
-  apply (simp add: set_thread_state_def set_object_def)
+  apply (simp add: set_thread_state_def set_object_def get_object_def)
   apply (wp|simp)+
   apply (clarsimp simp: ct_in_state_def pred_tcb_at_def obj_at_def)
   done
@@ -113,7 +113,7 @@ lemma setup_reply_master_reply_master[wp]:
 
 lemma setup_reply_master_has_reply[wp]:
   "\<lbrace>\<lambda>s. P (has_reply_cap t s)\<rbrace> setup_reply_master t' \<lbrace>\<lambda>rv s. P (has_reply_cap t s)\<rbrace>"
-  apply (simp add: has_reply_cap_def cte_wp_at_caps_of_state
+  apply (simp add: has_reply_cap_def is_reply_cap_to_def cte_wp_at_caps_of_state
                    setup_reply_master_def)
   apply (wp get_cap_wp)
   apply (clarsimp simp: cte_wp_at_caps_of_state elim!: rsubst[where P=P])
@@ -151,15 +151,15 @@ lemma restart_tcb[wp]:
   "\<lbrace>tcb_at t'\<rbrace> Tcb_A.restart t \<lbrace>\<lambda>rv. tcb_at t'\<rbrace>"
   by (wpsimp simp: tcb_at_typ wp: restart_typ_at)
 
-lemmas suspend_tcb_at[wp] = tcb_at_typ_at [OF suspend_typ_at]
+crunch ex_nonz_cap_to[wp]: update_restart_pc "ex_nonz_cap_to t"
 
-lemma suspend_nonz_cap_to_tcb:
+lemma suspend_nonz_cap_to_tcb[wp]:
   "\<lbrace>\<lambda>s. ex_nonz_cap_to t s \<and> tcb_at t s \<and> valid_objs s\<rbrace>
      suspend t'
    \<lbrace>\<lambda>rv s. ex_nonz_cap_to t s\<rbrace>"
-  apply (simp add: suspend_def)
-  apply (wp cancel_ipc_ex_nonz_cap_to_tcb|simp)+
-  done
+  by (wp cancel_ipc_ex_nonz_cap_to_tcb | simp add: suspend_def)+
+
+lemmas suspend_tcb_at[wp] = tcb_at_typ_at [OF suspend_typ_at]
 
 lemma readreg_invs:
   "\<lbrace>invs and tcb_at src and ex_nonz_cap_to src\<rbrace>
@@ -182,7 +182,7 @@ lemma (in Tcb_AI_1) copyreg_invs:
    \<lbrace>\<lambda>rv. invs\<rbrace>"
   apply (wpsimp simp: if_apply_def2
                   wp: mapM_x_wp' suspend_nonz_cap_to_tcb static_imp_wp)
-  apply (clarsimp simp: invs_def valid_state_def valid_pspace_def
+  apply (clarsimp simp: invs_def valid_state_def valid_pspace_def suspend_def
                  dest!: idle_no_ex_cap)
   done
 
@@ -272,7 +272,7 @@ lemma smrs_cte_at[wp]:
 
 
 lemma si_cte_at[wp]:
-  "\<lbrace>cte_at p\<rbrace> send_ipc bl c ba cg t ep \<lbrace>\<lambda>_. cte_at p\<rbrace>"
+  "\<lbrace>cte_at p\<rbrace> send_ipc bl c ba cg cgr t ep \<lbrace>\<lambda>_. cte_at p\<rbrace>"
   by (wp valid_cte_at_typ)
 
 
@@ -300,8 +300,6 @@ lemma thread_set_valid_objs':
   thread_set f t
   \<lbrace>\<lambda>rv. valid_objs\<rbrace>"
   apply (simp add: thread_set_def)
-  apply wp
-   apply (rule set_object_valid_objs)
   apply wp
   apply clarsimp
   apply (clarsimp dest!: get_tcb_SomeD simp: obj_at_def)
@@ -521,7 +519,7 @@ locale Tcb_AI = Tcb_AI_1 state_ext_t is_cnode_or_valid_arch
         and (case_option \<top> (no_cap_to_obj_dr_emp o fst) e)
         and (case_option \<top> (no_cap_to_obj_dr_emp o fst) f)
         and (case_option \<top> (case_option \<top> (no_cap_to_obj_dr_emp o fst) o snd) g)
-        (* NOTE: The auth TCB does not really belong in the tcb_invocation type, and
+        \<comment> \<open>NOTE: The auth TCB does not really belong in the tcb_invocation type, and
           is only included so that we can assert here that the priority we are setting is
           bounded by the MCP of some auth TCB. Unfortunately, current proofs about the
           decode functions throw away the knowledge that the auth TCB actually came from
@@ -531,7 +529,7 @@ locale Tcb_AI = Tcb_AI_1 state_ext_t is_cnode_or_valid_arch
           don't care which TCB is used as the auth TCB; we only care that there exists
           some auth TCB accessible from the current thread's c-space. Phrased that way,
           we could drop the auth TCB from tcb_invocation. For now, we leave this as
-          future work.*)
+          future work.\<close>
         and (\<lambda>s. case_option True (\<lambda>(pr, auth). mcpriority_tcb_at (\<lambda>mcp. pr \<le> mcp) auth s) pr)
         and (\<lambda>s. case_option True (\<lambda>(mcp, auth). mcpriority_tcb_at (\<lambda>m. mcp \<le> m) auth s) mcp)
         and K (case_option True (is_cnode_cap o fst) e)
@@ -601,7 +599,7 @@ lemma thread_set_valid_objs'':
         \<longrightarrow> valid_tcb t tcb s \<longrightarrow> valid_tcb t (f tcb) s)\<rbrace>
      thread_set f t
    \<lbrace>\<lambda>rv. valid_objs\<rbrace>"
-  apply (simp add: thread_set_def set_object_def)
+  apply (simp add: thread_set_def set_object_def get_object_def)
   apply wp
   apply (clarsimp simp: fun_upd_def[symmetric])
   apply (frule(1) valid_tcb_objs)
@@ -647,15 +645,16 @@ lemma thread_set_tcb_ipc_buffer_cap_cleared_invs:
   done
 
 lemma thread_set_tcb_valid:
-  assumes x: "\<And>tcb. tcb_state (fn tcb) = tcb_state  tcb"
+  assumes x: "\<And>tcb. tcb_state (fn tcb) = tcb_state tcb"
   assumes w: "\<And>tcb. tcb_ipc_buffer (fn tcb) = tcb_ipc_buffer tcb
-                          \<or> tcb_ipc_buffer (fn tcb) = 0"
-  shows      "\<lbrace>tcb_cap_valid c p\<rbrace> thread_set fn t
+                     \<or> tcb_ipc_buffer (fn tcb) = 0"
+  shows      "\<lbrace>tcb_cap_valid c p\<rbrace>
+              thread_set fn t
               \<lbrace>\<lambda>rv. tcb_cap_valid c p\<rbrace>"
-  apply (simp add: thread_set_def set_object_def, wp)
+  apply (wpsimp wp: set_object_wp_strong simp: thread_set_def)
   apply (clarsimp simp: tcb_cap_valid_def
                  dest!: get_tcb_SomeD)
-  apply (simp add: obj_at_def pred_tcb_at_def is_tcb x get_tcb_def
+  apply (simp add: obj_at_def pred_tcb_at_def is_tcb x
             split: if_split_asm cong: option.case_cong prod.case_cong)
   apply (cut_tac tcb=y in w)
   apply auto
@@ -677,7 +676,7 @@ lemma thread_set_ipc_tcb_cap_valid:
            \<and> (\<forall>ptr. valid_ipc_buffer_cap cap (f ptr))\<rbrace>
      thread_set (tcb_ipc_buffer_update f) t
    \<lbrace>\<lambda>rv. tcb_cap_valid cap (t, tcb_cnode_index 4)\<rbrace>"
-  apply (simp add: thread_set_def set_object_def)
+  apply (simp add: thread_set_def set_object_def get_object_def)
   apply wp
   apply (clarsimp simp: tcb_cap_valid_def obj_at_def
                         pred_tcb_at_def is_tcb

@@ -48,6 +48,11 @@ lemma Collect_eq:
 (* FIXME: move next to HOL.iff_allI *)
 lemma iff_impI: "\<lbrakk>P \<Longrightarrow> Q = R\<rbrakk> \<Longrightarrow> (P \<longrightarrow> Q) = (P \<longrightarrow> R)" by blast
 
+(* Long ago, I, fun_app, the verification master of darkness, unleashed an unspeakable evil
+upon the world. But a foolish proof engineer wielding an input abbreviation stepped forth
+to oppose me. Before the final blow was struck, I tore open a hole in a number of refinement
+proofs, and flung him into a broken proof state, where my evil is law. *)
+
 definition
   fun_app :: "('a \<Rightarrow> 'b) \<Rightarrow> 'a \<Rightarrow> 'b" (infixr "$" 10) where
   "f $ x \<equiv> f x"
@@ -150,10 +155,10 @@ lemma linorder_min_same2 [simp]:
   "(min x y = y) = (y \<le> (x::'a::linorder))"
   by (auto simp: min_def linorder_not_le)
 
-text {* A combinator for pairing up well-formed relations.
+text \<open>A combinator for pairing up well-formed relations.
         The divisor function splits the population in halves,
         with the True half greater than the False half, and
-        the supplied relations control the order within the halves. *}
+        the supplied relations control the order within the halves.\<close>
 
 definition
   wf_sum :: "('a \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'a) set \<Rightarrow> ('a \<times> 'a) set \<Rightarrow> ('a \<times> 'a) set"
@@ -412,7 +417,7 @@ lemma allEI:
   shows   "\<forall>x. Q x"
   using assms by (rule all_forward)
 
-text {* General lemmas that should be in the library *}
+text \<open>General lemmas that should be in the library\<close>
 
 lemma dom_ran:
   "x \<in> dom f \<Longrightarrow> the (f x) \<in> ran f"
@@ -450,6 +455,10 @@ lemma map_upt_unfold:
   assumes ab: "a < b"
   shows   "map f [a ..< b] = f a # map f [Suc a ..< b]"
   using assms upt_conv_Cons by auto
+
+lemma tl_nat_list_simp:
+  "tl [a..<b] = [a + 1 ..<b]"
+  by (induct b, auto)
 
 lemma image_Collect2:
   "case_prod f ` {x. P (fst x) (snd x)} = {f x y |x y. P x y}"
@@ -644,9 +653,9 @@ lemma trancl_trancl:
   "(R\<^sup>+)\<^sup>+ = R\<^sup>+"
   by auto
 
-text {* Some rules for showing that the reflexive transitive closure of a
+text \<open>Some rules for showing that the reflexive transitive closure of a
 relation/predicate doesn't add much if it was already transitively
-closed. *}
+closed.\<close>
 
 lemma rtrancl_eq_reflc_trans:
   assumes trans: "trans X"
@@ -890,7 +899,7 @@ lemma UN_sub_empty:
 
 lemma bij_betw_fun_updI:
   "\<lbrakk>x \<notin> A; y \<notin> B; bij_betw f A B\<rbrakk> \<Longrightarrow> bij_betw (f(x := y)) (insert x A) (insert y B)"
-  by (clarsimp simp: bij_betw_def fun_upd_image inj_on_fun_updI split: if_split_asm)
+  by (clarsimp simp: bij_betw_def fun_upd_image inj_on_fun_updI split: if_split_asm; blast)
 
 definition
   "bij_betw_map f A B \<equiv> bij_betw f A (Some ` B)"

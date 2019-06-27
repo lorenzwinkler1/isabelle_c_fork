@@ -9,7 +9,7 @@
  *)
 
 (*
-ARM-specific VSpace invariants
+X64-specific VSpace invariants
 *)
 
 theory ArchVSpace_AI
@@ -740,7 +740,7 @@ crunch valid_objs[wp]: unmap_page "valid_objs"
 
 
 crunch caps_of_state [wp]: unmap_page "\<lambda>s. P (caps_of_state s)"
-  (wp: crunch_wps simp: crunch_simps)
+  (wp: crunch_wps simp: crunch_simps set_arch_obj_simps)
 
 lemma set_cap_valid_slots[wp]:
   "\<lbrace>valid_slots x2\<rbrace> set_cap cap (a, b)
@@ -871,7 +871,7 @@ crunch typ_at [wp]: unmap_page "\<lambda>s. P (typ_at T p s)"
   (wp: mapM_x_wp_inv_weak crunch_wps simp: crunch_simps)
 
 crunch caps_of_state [wp]: unmap_pdpt "\<lambda>s. P (caps_of_state s)"
-  (wp: mapM_x_wp_inv_weak crunch_wps simp: crunch_simps)
+  (wp: mapM_x_wp_inv_weak crunch_wps simp: crunch_simps set_arch_obj_simps)
 
 lemmas flush_table_typ_ats [wp] = abs_typ_at_lifts [OF flush_table_typ_at]
 
@@ -1377,6 +1377,8 @@ lemma arch_update_cap_invs_map:
   apply (frule master_cap_cap_range, simp del: imp_disjL)
   apply (thin_tac "cap_range a = cap_range b" for a b)
   apply (rule conjI)
+   apply (fastforce simp:is_valid_vtable_root_def vs_cap_ref_def split:arch_cap.splits vmpage_size.splits option.splits)
+  apply (rule conjI)
    apply (rule ext)
    apply (simp add: cap_master_cap_def split: cap.splits arch_cap.splits)
   apply (rule context_conjI)
@@ -1449,7 +1451,7 @@ lemma arch_update_cap_invs_unmap_page:
   apply (clarsimp simp: cte_wp_at_caps_of_state is_arch_update_def
                         is_cap_simps cap_master_cap_simps
                         fun_eq_iff appropriate_cte_cap_irqs
-                        is_pt_cap_def
+                        is_pt_cap_def is_valid_vtable_root_def
                  dest!: cap_master_cap_eqDs
               simp del: imp_disjL)
   apply (rule conjI)
@@ -1486,7 +1488,7 @@ lemma arch_update_cap_invs_unmap_page_table:
              set_cap_cap_refs_respects_device_region_spec[where ptr = p])
   apply (simp add: final_cap_at_eq)
   apply (clarsimp simp: cte_wp_at_caps_of_state is_arch_update_def
-                        is_cap_simps cap_master_cap_simps
+                        is_cap_simps cap_master_cap_simps is_valid_vtable_root_def
                         appropriate_cte_cap_irqs is_pt_cap_def
                         fun_eq_iff[where f="cte_refs cap" for cap]
                  dest!: cap_master_cap_eqDs
@@ -1530,7 +1532,7 @@ lemma arch_update_cap_invs_unmap_page_directory:
              set_cap_cap_refs_respects_device_region_spec[where ptr = p])
   apply (simp add: final_cap_at_eq)
   apply (clarsimp simp: cte_wp_at_caps_of_state is_arch_update_def
-                        is_cap_simps cap_master_cap_simps
+                        is_cap_simps cap_master_cap_simps is_valid_vtable_root_def
                         appropriate_cte_cap_irqs is_pt_cap_def
                         fun_eq_iff[where f="cte_refs cap" for cap]
                  dest!: cap_master_cap_eqDs
@@ -1574,51 +1576,7 @@ lemma arch_update_cap_invs_unmap_pd_pointer_table:
              set_cap_cap_refs_respects_device_region_spec[where ptr = p])
   apply (simp add: final_cap_at_eq)
   apply (clarsimp simp: cte_wp_at_caps_of_state is_arch_update_def
-                        is_cap_simps cap_master_cap_simps
-                        appropriate_cte_cap_irqs is_pt_cap_def
-                        fun_eq_iff[where f="cte_refs cap" for cap]
-                 dest!: cap_master_cap_eqDs
-              simp del: imp_disjL)
-  apply (rule conjI)
-   apply (drule(1) if_unsafe_then_capD [OF caps_of_state_cteD])
-    apply (clarsimp simp: cap_master_cap_def)
-   apply (erule ex_cte_cap_wp_to_weakenE)
-   apply (clarsimp simp: appropriate_cte_cap_def)
-  apply (rule conjI)
-   apply (drule valid_global_refsD2, clarsimp)
-   apply (simp add: cap_range_def)
-  apply (frule(1) cap_refs_in_kernel_windowD)
-  apply (simp add: cap_range_def gen_obj_refs_def image_def)
-  apply (intro conjI)
-    apply (clarsimp simp: no_cap_to_obj_with_diff_ref_def
-                          cte_wp_at_caps_of_state)
-    apply fastforce
-   apply (clarsimp simp: obj_at_def empty_table_def)
-   apply (clarsimp split: Structures_A.kernel_object.split_asm
-                          arch_kernel_obj.split_asm)
-  apply clarsimp
-  apply fastforce
-  done
-
-lemma arch_update_cap_invs_unmap_page_map_l4:
-  "\<lbrace>cte_wp_at (is_arch_update cap) p
-             and invs and valid_cap cap
-             and (\<lambda>s. cte_wp_at (\<lambda>c. is_final_cap' c s) p s)
-             and obj_at (empty_table {}) (obj_ref_of cap)
-             and (\<lambda>s. cte_wp_at (\<lambda>c. \<forall>r. vs_cap_ref c = Some r
-                                \<longrightarrow> \<not> (r \<unrhd> obj_ref_of cap) s) p s)
-             and K (is_pml4_cap cap \<and> vs_cap_ref cap = None)\<rbrace>
-  set_cap cap p
-  \<lbrace>\<lambda>rv. invs\<rbrace>"
-  apply (simp add: invs_def valid_state_def)
-  apply (rule hoare_pre)
-   apply (wp arch_update_cap_pspace arch_update_cap_valid_mdb set_cap_idle
-             update_cap_ifunsafe valid_irq_node_typ set_cap_typ_at
-             set_cap_irq_handlers set_cap_valid_arch_caps set_cap_ioports_no_new_ioports
-             set_cap_cap_refs_respects_device_region_spec[where ptr = p])
-  apply (simp add: final_cap_at_eq)
-  apply (clarsimp simp: cte_wp_at_caps_of_state is_arch_update_def
-                        is_cap_simps cap_master_cap_simps
+                        is_cap_simps cap_master_cap_simps is_valid_vtable_root_def
                         appropriate_cte_cap_irqs is_pt_cap_def
                         fun_eq_iff[where f="cte_refs cap" for cap]
                  dest!: cap_master_cap_eqDs
@@ -1722,10 +1680,10 @@ lemma update_aobj_not_reachable:
   "\<lbrace>\<lambda>s. lookup_refs (Some (ArchObj aobj)) vs_lookup_pages1_on_heap_obj \<subseteq> lookup_refs (kheap s p) vs_lookup_pages1_on_heap_obj
     \<and> (b, p) \<in> (vs_lookup_pages s) \<and> (VSRef offset (Some ty), ptr) \<notin> vs_refs_pages (ArchObj aobj)
     \<and> valid_asid_table (x64_asid_table (arch_state s)) s\<rbrace>
-  update_object p
+  set_object p
         (ArchObj aobj)
   \<lbrace>\<lambda>yb s. ([VSRef offset (Some ty)] @ b, ptr) \<notin> vs_lookup_pages s\<rbrace>"
-  apply (simp add: update_object_def set_object_def)
+  apply (simp add: set_object_def)
   apply (wp get_object_wp)
   apply (clarsimp simp: vs_lookup_pages_def)
   apply (erule rtranclE[where b = "(VSRef offset (Some ty) # b, ptr)"])
@@ -2047,7 +2005,7 @@ lemma unmap_pdpt_vs_lookup_pages_pre:
   note ref_simps[simp] = vs_cap_ref_simps vs_ref_pages_simps
   note ucast_simps[simp] = up_ucast_inj_eq ucast_up_ucast mask_asid_low_bits_ucast_ucast ucast_ucast_id
   show ?thesis
-  apply (clarsimp simp: unmap_pdpt_def vs_cap_ref_simps store_pml4e_def)
+  apply (clarsimp simp: unmap_pdpt_def vs_cap_ref_simps store_pml4e_def set_arch_obj_simps)
   apply wp
         apply (rule update_aobj_not_reachable[where b = "[b,c]" for b c,simplified])
        apply (strengthen lookup_refs_pml4_shrink_strg valid_arch_state_asid_table_strg not_in_vs_refs_pages_strg
@@ -2118,14 +2076,14 @@ lemma unmap_pt_vs_lookup_pages_pre:
   note ref_simps[simp] = vs_cap_ref_simps vs_ref_pages_simps
   note ucast_simps[simp] = up_ucast_inj_eq ucast_up_ucast mask_asid_low_bits_ucast_ucast ucast_ucast_id
   show ?thesis
-    apply (clarsimp simp: unmap_page_table_def vs_cap_ref_simps)
+    apply (clarsimp simp: unmap_page_table_def)
     apply wp
-      apply (clarsimp simp: unmap_pd_def vs_cap_ref_simps store_pde_def)
+      apply (clarsimp simp: unmap_pd_def store_pde_def set_arch_obj_simps)
     apply wp
           apply (rule update_aobj_not_reachable[where b = "[b,c,d,e]" for b c d e,simplified])
     apply (strengthen lookup_refs_pd_shrink_strg valid_arch_state_asid_table_strg not_in_vs_refs_pages_strg
            | clarsimp )+
-        apply (strengthen | wp hoare_vcg_imp_lift hoare_vcg_all_lift  | clarsimp simp: conj_ac)+
+        apply (strengthen | wp hoare_vcg_imp_lift hoare_vcg_all_lift  | clarsimp)+
       apply (wpc | wp get_pdpte_wp get_pml4e_wp get_pde_wp)+
     apply ((simp add: lookup_pdpt_slot_def lookup_pd_slot_def | wp get_pdpte_wp get_pml4e_wp | wpc)+)[1]
    apply (simp add: find_vspace_for_asid_def | wp | wpc)+
@@ -2217,16 +2175,16 @@ lemma unmap_page_vs_lookup_pages_pre:
     apply (clarsimp simp: unmap_page_def vs_cap_ref_simps)
     apply (wp | wpc)+
 (* X64SmallPage *)
-      apply (clarsimp simp: store_pte_def)
+      apply (clarsimp simp: store_pte_def set_arch_obj_simps)
     apply wp
           apply (rule update_aobj_not_reachable[where b = "[b,c,d,e,f]" for b c d e f,simplified])
     apply (strengthen lookup_refs_pt_shrink_strg valid_arch_state_asid_table_strg not_in_vs_refs_pages_strg
-           | clarsimp )+
+           | clarsimp)+
        apply (wpsimp simp: unlessE_def split_del: if_split)+
       apply (wpc | wp get_pte_wp get_pml4e_wp get_pde_wp get_pdpte_wp)+
     apply ((simp add: lookup_pt_slot_def lookup_pd_slot_def lookup_pdpt_slot_def | wp get_pdpte_wp get_pml4e_wp get_pde_wp | wpc)+)[1]
 (* X64LargePage *)
-      apply (clarsimp simp: store_pde_def)
+      apply (clarsimp simp: store_pde_def set_arch_obj_simps)
     apply wp
           apply (rule update_aobj_not_reachable[where b = "[b,c,d,e]" for b c d e,simplified])
     apply (strengthen lookup_refs_pd_shrink_strg valid_arch_state_asid_table_strg not_in_vs_refs_pages_strg
@@ -2235,7 +2193,7 @@ lemma unmap_page_vs_lookup_pages_pre:
       apply (wpc | wp get_pte_wp get_pml4e_wp get_pde_wp get_pdpte_wp)+
     apply ((simp add: lookup_pt_slot_def lookup_pd_slot_def lookup_pdpt_slot_def | wp get_pdpte_wp get_pml4e_wp get_pde_wp | wpc)+)[1]
 (* X64HugePage *)
- apply (clarsimp simp: store_pdpte_def)
+ apply (clarsimp simp: store_pdpte_def set_arch_obj_simps)
     apply wp
           apply (rule update_aobj_not_reachable[where b = "[b,c,d]" for b c d,simplified])
     apply (strengthen lookup_refs_pdpt_shrink_strg valid_arch_state_asid_table_strg not_in_vs_refs_pages_strg
@@ -2412,12 +2370,12 @@ lemma unmap_pd_vs_lookup_pages_pre:
   note ref_simps[simp] = vs_cap_ref_simps vs_ref_pages_simps
   note ucast_simps[simp] = up_ucast_inj_eq ucast_up_ucast mask_asid_low_bits_ucast_ucast ucast_ucast_id
   show ?thesis
-  apply (clarsimp simp: unmap_pd_def vs_cap_ref_simps store_pdpte_def)
+  apply (clarsimp simp: unmap_pd_def store_pdpte_def set_arch_obj_simps)
   apply wp
         apply (rule update_aobj_not_reachable[where b = "[b,c,d]" for b c d,simplified])
   apply (strengthen lookup_refs_pdpt_shrink_strg valid_arch_state_asid_table_strg not_in_vs_refs_pages_strg
          | clarsimp )+
-        apply (strengthen | wp hoare_vcg_imp_lift hoare_vcg_all_lift  | clarsimp simp: conj_ac)+
+        apply (strengthen | wp hoare_vcg_imp_lift hoare_vcg_all_lift  | clarsimp)+
       apply (wpc | wp get_pdpte_wp get_pml4e_wp )+
     apply ((simp add: lookup_pdpt_slot_def | wp get_pml4e_wp | wpc)+)[1]
    apply (simp add: find_vspace_for_asid_def | wp | wpc)+
@@ -2627,7 +2585,7 @@ lemma mapM_x_swp_store_empty_pt':
    apply (clarsimp simp: obj_at_def empty_table_def fun_eq_iff)
   apply (rule hoare_seq_ext, assumption)
   apply (thin_tac "\<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>" for P f Q)
-  apply (simp add: store_pte_def update_object_def set_object_def)
+  apply (simp add: store_pte_def set_object_def set_arch_obj_simps)
   apply (wp get_object_wp | simp)
   apply (clarsimp simp: obj_at_def)
   apply auto
@@ -2646,7 +2604,7 @@ lemma mapM_x_swp_store_empty_pd':
    apply (clarsimp simp: obj_at_def empty_table_def fun_eq_iff)
   apply (rule hoare_seq_ext, assumption)
   apply (thin_tac "\<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>" for P f Q)
-  apply (simp add: store_pde_def update_object_def set_object_def)
+  apply (simp add: store_pde_def set_object_def set_arch_obj_simps)
   apply (wp get_object_wp | simp)
   apply (clarsimp simp: obj_at_def)
   apply auto
@@ -2680,7 +2638,7 @@ lemma mapM_x_swp_store_empty_pdpt':
    apply (clarsimp simp: obj_at_def empty_table_def fun_eq_iff)
   apply (rule hoare_seq_ext, assumption)
   apply (thin_tac "\<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>" for P f Q)
-  apply (simp add: store_pdpte_def update_object_def set_object_def)
+  apply (simp add: store_pdpte_def set_object_def set_arch_obj_simps)
   apply (wp get_object_wp | simp)
   apply (clarsimp simp: obj_at_def)
   apply auto
@@ -2925,28 +2883,28 @@ lemma valid_pt_cap_asidNone[simp]:
 
 lemma update_aobj_zombies[wp]:
   "\<lbrace>\<lambda>s. is_final_cap' cap s\<rbrace>
-  update_object ptr (ArchObj obj)
+  set_object ptr (ArchObj obj)
   \<lbrace>\<lambda>_ s. is_final_cap' cap s\<rbrace>"
   apply (simp add: is_final_cap'_def2)
-  apply (wp hoare_vcg_ex_lift hoare_vcg_all_lift update_aobj_cte_wp_at)
+  apply (wp hoare_vcg_ex_lift hoare_vcg_all_lift set_aobject_cte_wp_at)
   done
 
 crunch is_final_cap' [wp]: store_pde "is_final_cap' cap"
-  (wp: crunch_wps simp: crunch_simps ignore: update_object set_pd)
+  (wp: crunch_wps simp: crunch_simps set_arch_obj_simps ignore: set_object set_pd)
 
 crunch is_final_cap' [wp]: store_pte "is_final_cap' cap"
-  (wp: crunch_wps simp: crunch_simps ignore: update_object set_pt)
+  (wp: crunch_wps simp: crunch_simps ignore: set_object set_pt)
 
 crunch is_final_cap' [wp]: store_pdpte "is_final_cap' cap"
-  (wp: crunch_wps simp: crunch_simps ignore: update_object set_pdpt)
+  (wp: crunch_wps simp: crunch_simps set_arch_obj_simps ignore: set_object set_pdpt)
 
 crunch is_final_cap' [wp]: store_pml4e "is_final_cap' cap"
-  (wp: crunch_wps simp: crunch_simps ignore: update_object set_pml4)
+  (wp: crunch_wps simp: crunch_simps set_arch_obj_simps ignore: set_object set_pml4)
 
 lemma lookup_pages_shrink_store_pdpte:
   "\<lbrace>\<lambda>s. p \<notin> vs_lookup_pages s\<rbrace> store_pdpte slot InvalidPDPTE \<lbrace>\<lambda>rv s. p \<notin> vs_lookup_pages s\<rbrace>"
   apply (case_tac p)
-  apply (simp add: store_pdpte_def update_object_def set_object_def | wp get_object_wp | clarsimp)+
+  apply (simp add: store_pdpte_def set_object_def set_arch_obj_simps | wp get_object_wp | clarsimp)+
   apply (simp add: vs_lookup_pages_def)
   apply (drule_tac s1 = s in lookup_bound_estimate[OF vs_lookup_pages1_is_wellformed_lookup, rotated -1])
    apply (simp add: fun_upd_def[symmetric])
@@ -2960,7 +2918,7 @@ lemma lookup_pages_shrink_store_pdpte:
 lemma lookup_pages_shrink_store_pde:
   "\<lbrace>\<lambda>s. p \<notin> vs_lookup_pages s\<rbrace> store_pde slot InvalidPDE \<lbrace>\<lambda>rv s. p \<notin> vs_lookup_pages s\<rbrace>"
   apply (case_tac p)
-  apply (simp add: store_pde_def update_object_def set_object_def | wp get_object_wp | clarsimp)+
+  apply (simp add: store_pde_def set_object_def set_arch_obj_simps | wp get_object_wp | clarsimp)+
   apply (simp add: vs_lookup_pages_def)
   apply (drule_tac s1 = s in lookup_bound_estimate[OF vs_lookup_pages1_is_wellformed_lookup, rotated -1])
    apply (simp add: fun_upd_def[symmetric])
@@ -2974,7 +2932,7 @@ lemma lookup_pages_shrink_store_pde:
 lemma lookup_pages_shrink_store_pte:
   "\<lbrace>\<lambda>s. p \<notin> vs_lookup_pages s\<rbrace> store_pte slot InvalidPTE \<lbrace>\<lambda>rv s. p \<notin> vs_lookup_pages s\<rbrace>"
   apply (case_tac p)
-  apply (simp add: store_pte_def update_object_def set_object_def | wp get_object_wp | clarsimp)+
+  apply (simp add: store_pte_def set_object_def set_arch_obj_simps | wp get_object_wp | clarsimp)+
   apply (simp add: vs_lookup_pages_def)
   apply (drule_tac s1 = s in lookup_bound_estimate[OF vs_lookup_pages1_is_wellformed_lookup, rotated -1])
    apply (simp add: fun_upd_def[symmetric])
@@ -3749,7 +3707,7 @@ lemma store_asid_pool_entry_invs:
    \<rbrace>
   store_asid_pool_entry p asid pml4base \<lbrace>\<lambda>_. invs\<rbrace>"
   unfolding store_asid_pool_entry_def
-  apply simp
+  apply (simp add: set_arch_obj_simps)
   apply wp
   apply simp
   apply (intro impI allI conjI valid_table_caps_aobj_upd_invalid_pml4e invs_valid_table_caps , simp_all add: obj_at_def)

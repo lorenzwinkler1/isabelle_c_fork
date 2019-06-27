@@ -27,7 +27,7 @@ requalify_types
 
 end
 
-text {* These datatypes encode the arguments to the available system calls. *}
+text \<open>These datatypes encode the arguments to the available system calls.\<close>
 
 datatype cnode_invocation =
     InsertCall cap cslot_ptr cslot_ptr
@@ -68,9 +68,9 @@ datatype irq_handler_invocation =
 
 datatype invocation =
     InvokeUntyped untyped_invocation
-  | InvokeEndpoint obj_ref machine_word bool
+  | InvokeEndpoint obj_ref machine_word bool bool
   | InvokeNotification obj_ref machine_word
-  | InvokeReply obj_ref cslot_ptr
+  | InvokeReply obj_ref cslot_ptr bool
   | InvokeTCB tcb_invocation
   | InvokeDomain obj_ref word8
   | InvokeCNode cnode_invocation

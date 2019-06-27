@@ -190,8 +190,6 @@ lemma scheduler_affects_equiv_sym[elim]:
 
 declare globals_equiv_scheduler_sym[elim]
 declare globals_equiv_scheduler_trans[elim]
-declare scheduler_affects_equiv_sym[elim]
-declare scheduler_affects_equiv_trans[elim]
 declare silc_dom_equiv_sym[elim]
 declare silc_dom_equiv_trans[elim]
 
@@ -286,8 +284,6 @@ lemmas globals_equiv_scheduler_inv = globals_equiv_scheduler_inv'[where P="\<top
 
 lemmas reads_respects_scheduler_unobservable =
              reads_respects_scheduler_unobservable'[where P="\<top>",simplified]
-
-crunch globals_equiv[wp]: set_scheduler_action "globals_equiv st"
 
 lemma silc_dom_equiv_scheduler_action_update[simp]:
   "silc_dom_equiv aag st (s\<lparr>scheduler_action := x\<rparr>) = silc_dom_equiv aag st s"
@@ -2492,7 +2488,7 @@ lemma dmo_getActive_IRQ_reads_respect_scheduler:
    apply wp
   apply clarsimp
   apply (simp add: scheduler_equiv_def)
-   done
+  done
 
 definition idle_context
 where
@@ -2502,9 +2498,8 @@ lemma thread_set_context_globals_equiv:
   "\<lbrace>(\<lambda>s. t = idle_thread s \<longrightarrow> tc = idle_context s) and invs and globals_equiv st\<rbrace>
      thread_set (tcb_arch_update (arch_tcb_context_set tc)) t
    \<lbrace>\<lambda>rv. globals_equiv st\<rbrace>"
-  apply (clarsimp simp: thread_set_def set_object_def)
-  apply wp
-  apply clarsimp
+  apply (clarsimp simp: thread_set_def)
+  apply (wpsimp wp: set_object_wp)
   apply (subgoal_tac "t \<noteq> arm_global_pd (arch_state s)")
    apply (clarsimp simp: idle_equiv_def globals_equiv_def tcb_at_def2 get_tcb_def idle_context_def)
    apply (clarsimp split: option.splits kernel_object.splits)
@@ -2587,6 +2582,7 @@ lemma set_object_reads_respects_scheduler[wp]:
   "reads_respects_scheduler aag l \<top> (set_object ptr obj)"
   unfolding equiv_valid_def2 equiv_valid_2_def
   apply(clarsimp simp: set_object_def bind_def get_def put_def return_def
+                       get_object_def assert_def fail_def gets_def
                        scheduler_equiv_def domain_fields_equiv_def
                        globals_equiv_scheduler_def silc_dom_equiv_def)
   apply (clarsimp simp: equiv_for_def scheduler_affects_equiv_def
@@ -2597,7 +2593,7 @@ lemma set_object_reads_respects_scheduler[wp]:
       apply (clarsimp simp: equiv_for_def scheduler_affects_equiv_def
                             scheduler_globals_frame_equiv_def identical_kheap_updates_def
             | rule states_equiv_for_identical_kheap_updates idle_equiv_identical_kheap_updates)+
-      done
+  done
 
 lemma sts_reads_respects_scheduler:
   "reads_respects_scheduler aag l

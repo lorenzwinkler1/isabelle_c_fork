@@ -26,8 +26,8 @@ context Arch begin global_naming X64_A
 
 section "Helper definitions"
 
-text {* This definition ensures that the given pointer is aligned
-to the given page size. *}
+text \<open>This definition ensures that the given pointer is aligned
+to the given page size.\<close>
 
 definition
   check_vp_alignment :: "vmpage_size \<Rightarrow> machine_word \<Rightarrow> (unit,'z::state_ext) se_monad" where
@@ -35,14 +35,14 @@ definition
      unlessE (is_aligned vptr (pageBitsForSize sz)) $
        throwError AlignmentError"
 
-text {* This definition converts a user-supplied argument into an
+text \<open>This definition converts a user-supplied argument into an
 invocation label, used to determine the method to invoke.
-*}
+\<close>
 
 section "Architecture calls"
 
-text {* This definition decodes architecture-specific invocations.
-*}
+text \<open>This definition decodes architecture-specific invocations.
+\<close>
 
 definition
   page_base :: "vspace_ref \<Rightarrow> vmpage_size \<Rightarrow> vspace_ref"
@@ -73,8 +73,8 @@ definition
         dest_slot \<leftarrow> lookup_target_slot cnode (data_to_cptr index) (unat depth);
         ensure_empty dest_slot;
 
-       (* Following should be wrapped in to a funcion like what c did
-          since it is pc99 related, problem is where to put this function*)
+       \<comment> \<open>Following should be wrapped in to a function like what c did
+          since it is pc99 related, problem is where to put this function\<close>
 
         numIOAPICs \<leftarrow> liftE $ gets (x64_num_ioapics \<circ> arch_state);
         whenE (numIOAPICs = 0) $ throwError IllegalOperation;
@@ -101,8 +101,8 @@ definition
         dest_slot \<leftarrow> lookup_target_slot cnode (data_to_cptr index) (unat depth);
         ensure_empty dest_slot;
 
-       (* Following should be wrapped in to a funcion like what c did
-          since it is pc99 related, problem is where to put this function*)
+       \<comment> \<open>Following should be wrapped in to a function like what c did
+          since it is pc99 related, problem is where to put this function\<close>
         whenE (bus > maxPCIBus) $ throwError (RangeError 0 maxPCIBus);
         whenE (dev > maxPCIDev) $ throwError (RangeError 0 maxPCIDev);
         whenE (func > maxPCIFunc) $ throwError (RangeError 0 maxPCIFunc);
@@ -382,13 +382,12 @@ where
          odE
     else throwError TruncatedMessage
     else if invocation_type label = ArchInvocationLabel X64PageUnmap then
-             (*case map_type of
+             \<^cancel>\<open>case map_type of
                  VMIOSpaceMap \<Rightarrow> decode_io_unmap_invocation label args cte cap extra_caps
-               | _ \<Rightarrow>*) returnOk $ InvokePage $ PageUnmap cap cte
-    (* FIXME x64-vtd:
+               | _ \<Rightarrow>\<close> returnOk $ InvokePage $ PageUnmap cap cte
+    \<^cancel>\<open>FIXME x64-vtd:
     else if invocation_type label = ArchInvocationLabel X64PageMapIO
-    then decode_io_map_invocation label args cte cap extra_caps
-    *)
+    then decode_io_map_invocation label args cte cap extra_caps \<close>
     else if invocation_type label = ArchInvocationLabel X64PageGetAddress
     then returnOk $ InvokePage $ PageGetAddr p
   else throwError IllegalOperation
