@@ -35,7 +35,7 @@
  ******************************************************************************)
 
 theory Generator_dynamic_sequential
-  imports C.C_Main
+  imports Init
 begin
 
 section \<open>\<^dir>\<open>../../../../../l4v/src\<close>\<close>
