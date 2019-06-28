@@ -83,7 +83,7 @@ where "mbind' [] iostep \<sigma> = Some([], \<sigma>)" |
                 (case iostep a \<sigma> of 
                      None   \<Rightarrow> None
                   |  Some (out, \<sigma>') \<Rightarrow> (case mbind' S iostep \<sigma>' of 
-                                          None    \<Rightarrow> None   (*  fail-strict *) 
+                                          None    \<Rightarrow> None   \<comment> \<open>fail-strict\<close> 
                                         | Some(outs,\<sigma>'') \<Rightarrow> Some(out#outs,\<sigma>'')))"
 notation mbind' ("mbind\<^sub>F\<^sub>a\<^sub>i\<^sub>l\<^sub>S\<^sub>t\<^sub>o\<^sub>p") (* future name: mbind\<^sub>F\<^sub>a\<^sub>i\<^sub>l\<^sub>S\<^sub>t\<^sub>o\<^sub>p *)
 
@@ -107,7 +107,7 @@ where "mbind'' [] iostep \<sigma> = Some([], \<sigma>)" |
                 (case iostep a \<sigma> of 
                      None           \<Rightarrow> mbind'' S iostep \<sigma>
                   |  Some (out, \<sigma>') \<Rightarrow> (case mbind'' S iostep \<sigma>' of 
-                                          None    \<Rightarrow> None   (*  does not occur *) 
+                                          None    \<Rightarrow> None   \<comment> \<open>does not occur\<close> 
                                         | Some(outs,\<sigma>'') \<Rightarrow> Some(out#outs,\<sigma>'')))"
 
 notation mbind'' ("mbind\<^sub>F\<^sub>a\<^sub>i\<^sub>l\<^sub>P\<^sub>u\<^sub>r\<^sub>g\<^sub>e") (* future name: mbind\<^sub>P\<^sub>u\<^sub>r\<^sub>g\<^sub>e\<^sub>F\<^sub>a\<^sub>i\<^sub>l *)

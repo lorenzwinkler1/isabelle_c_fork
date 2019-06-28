@@ -238,7 +238,7 @@ proof
   let ?S = "\<lambda>n::nat. if n=0 then a else b"
   have "chain ?S" using `a \<subseteq> b` by(auto simp: chain_def)
   hence "f(UN n. ?S n) = (UN n. f(?S n))"
-    using assms by(simp add: cont_def)
+    using assms by (metis cont_def)
   moreover have "(UN n. ?S n) = b" using `a \<subseteq> b` by (auto split: if_splits)
   moreover have "(UN n. f(?S n)) = f a \<union> f b" by (auto split: if_splits)
   ultimately show "f a \<subseteq> f b" by (metis Un_upper1)

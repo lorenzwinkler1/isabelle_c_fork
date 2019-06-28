@@ -41,7 +41,7 @@ section \<open>Isabelle/C\<close>
 text \<open>
 Isabelle/C contains a C11 front-end support for Isabelle.
 
-The code requires Isabelle2018. For a first start, the following C examples or entry-points of
+The code requires Isabelle2019. For a first start, the following C examples or entry-points of
 documentation can be executed:
 
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close>
