@@ -1,6 +1,6 @@
 (*
  * Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
- * Copyright 2014, NICTA
+ * Copyright 2014, NICTA (as for the example) 
  *
  * This software may be distributed and modified according to the terms of
  * the BSD 2-Clause license. Note that NO WARRANTY is provided.
@@ -72,11 +72,8 @@ lemma partial_prime_Suc [simp]:
   apply fastforce
   done
 
-
-
 lemma partial_prime_2 [simp]: "(partial_prime a 2) = (a > 1)"
   by (clarsimp simp: partial_prime_def)
-
 
 lemma not_prime:
     "\<lbrakk> \<not> prime (a :: nat); a > 1 \<rbrakk> \<Longrightarrow> \<exists>x y. x * y = a \<and> 1 < x \<and> 1 < y \<and> x * x \<le> a"
@@ -95,7 +92,6 @@ lemma sqrt_prime:
            One_nat_def less_eq_nat.simps(1) less_not_refl2
            mult_eq_self_implies_10 not_less)
   done
-
 
 lemma partial_prime_sqr:
      "\<lbrakk> n * n > p \<rbrakk> \<Longrightarrow> partial_prime p n = prime p"
@@ -168,6 +164,7 @@ text\<open>The following definitions are key importance: they represent the C pr
 thm is_prime_global_addresses.is_prime_body_def
 thm is_prime.is_prime'_def   
 thm SQRT_UINT_MAX_def
+
 text\<open>Note that the pre-processor macro has been converted into a definition in HOL.\<close>
 
 
@@ -222,7 +219,6 @@ theorem (in is_prime) is_prime_faster_correct:
   done
 
 
-
 theorem (in is_prime) is_prime_correct':
     "\<lbrace> \<lambda>\<sigma>. n \<le> UINT_MAX \<rbrace> is_prime' n \<lbrace> \<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
 proof (rule validNF_assume_pre)
@@ -231,7 +227,7 @@ proof (rule validNF_assume_pre)
   show ?thesis
     proof (insert 2, elim disjE)
       assume  "n=0" 
-      then show ?thesis  by (clarsimp simp:  is_prime'_def, wp, auto) 
+      then show ?thesis  by (clarsimp simp:  is_prime'_def, wp, auto)
     next
       assume  "n=1" 
       then show ?thesis  by (clarsimp simp:  is_prime'_def, wp, auto) 
@@ -254,6 +250,7 @@ proof (rule validNF_assume_pre)
            done
     qed
 qed
+
 
 
 end

@@ -297,12 +297,13 @@ proof (rule validNF_assume_pre)
                 invariant and the measure by a rewrite step. \<close>
            apply (subst whileLoopE_add_inv [  where I = "\<lambda>r s. is_prime_inv n r s"
                                               and M = "(\<lambda>(r, s). (Suc n) * (Suc n) - r * r)"])
-
+           apply wp
+(*
               apply (wp,auto simp: prime_dvd partial_prime_sqr)
                apply (metis "**" Ex_less_Suc dvd_refl even_Suc le_Suc_eq le_antisym le_refl le_trans 
                                  nat_mult_dvd_cancel_disj not_less_eq_eq not_less_zero)
-
-
+*)
+(*
               apply (smt SQRT_UINT_MAX_def Suc_numeral add.commute diff_add_inverse diff_diff_left 
                          diff_is_0_eq eval_nat_numeral(3) even_numeral le_add_diff_inverse 
                          nat_le_Suc_less_imp not_le plus_1_eq_Suc semiring_norm(2) semiring_norm(8))
@@ -326,6 +327,7 @@ proof (rule validNF_assume_pre)
            prefer 4 
            apply (simp add: le_def partial_prime_sqr) sledgehammer
            prefer 4 apply auto
+*)
 (*
            sledgehammer
                using not_less_eq_eq apply force
@@ -333,10 +335,13 @@ proof (rule validNF_assume_pre)
              apply (metis SQRT_UINT_MAX_def mult_Suc_right plus_nat.simps(2) rel_simps(76) 
                           sqr_le_sqr_minus_1 times_nat.simps(2))
            apply (simp_all add: SQRT_UINT_MAX_def)
- *)
            sorry
     qed
+ *)
+
+           sorry
+         qed
 qed
-qed
+
 
 end

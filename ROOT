@@ -42,10 +42,17 @@ session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres +
   options [document = pdf, document_output = "generated"]
   (* TODO: find a way to concatenate together PDF in:
            generated/part1 + generated/part2 + generated/part3 *)
+  theories
+    "semantic-backends/AutoCorres/README"
+
+
+session Isabelle_C_AutoCorres_test in "C11-FrontEnd" = Isabelle_C_AutoCorres +
+  options [document = pdf, document_output = "generated"]
+  (* TODO: find a way to concatenate together PDF in:
+           generated/part1 + generated/part2 + generated/part3 *)
   sessions
     "HOL-Computational_Algebra"
   theories
-    "semantic-backends/AutoCorres/README"
     "semantic-backends/AutoCorres/examples/IsPrime_integrated"
     "semantic-backends/AutoCorres/examples/IsPrime_linear_outside"
     "semantic-backends/AutoCorres/examples/IsPrime_sqrt_outside"

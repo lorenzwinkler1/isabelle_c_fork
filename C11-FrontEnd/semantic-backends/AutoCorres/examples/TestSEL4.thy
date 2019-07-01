@@ -20,13 +20,18 @@ declare [[ML_print_depth = 500]] \<comment> \<open>Any number large enough for @
                                      to completely serialize all provided values\<close>
 
 (*
- * Test to see if we can parse all of seL4.
- * Test to see if all C parsed values are equal without considering positions.
+ * Test to check if Isabelle/C can parse the entire seL4 sources.
+ * Test to check if all C parsed values are equal to the original parser modulo positions.
  *)
+
 
 install_C_file all_parsing no_cpp parse_then_stop
                \<comment> \<open>The following file can be meanwhile CTRL-clicked on it:\<close>
                \<open>../../../../l4v/generated/spec/cspec/c/build/ARM/kernel_all.c_pp\<close>
+(*19 s on MacOS i7 processor. 27,9 kloc, 790 kb. Just parsing, no semantic backend ectivated.*)
+
+
+text\<open>This is just a local test for some lines of the kernel. Some Semantics included. \<close>
 
 install_C no_cpp kernel_not_all \<open>
 # 1 "kernel_all_copy.c"
@@ -244,6 +249,8 @@ seL4_MessageInfo_get_extraCaps(seL4_MessageInfo_t seL4_MessageInfo) {
     return ret;
 }
 \<close>
+
+
 
 context \<comment> \<open>The following binding can be meanwhile CTRL-clicked on it:\<close>
         kernel_not_all
