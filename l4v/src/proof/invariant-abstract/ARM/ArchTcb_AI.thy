@@ -206,7 +206,7 @@ lemma as_user_ipc_tcb_cap_valid4[wp]:
   "\<lbrace>\<lambda>s. tcb_cap_valid cap (t, tcb_cnode_index 4) s\<rbrace>
     as_user a b
    \<lbrace>\<lambda>rv. tcb_cap_valid cap (t, tcb_cnode_index 4)\<rbrace>"
-  apply (simp add: as_user_def set_object_def)
+  apply (simp add: as_user_def set_object_def get_object_def)
   apply (wp | wpc | simp)+
   apply (clarsimp simp: tcb_cap_valid_def obj_at_def
                         pred_tcb_at_def is_tcb
@@ -225,9 +225,9 @@ lemma tc_invs[Tcb_AI_asms]:
        and (case_option \<top> (no_cap_to_obj_dr_emp o fst) e)
        and (case_option \<top> (no_cap_to_obj_dr_emp o fst) f)
        and (case_option \<top> (case_option \<top> (no_cap_to_obj_dr_emp o fst) o snd) g)
-       (* only set prio \<le> mcp of authorising thread *)
+       \<comment> \<open>only set prio \<le> mcp of authorising thread\<close>
        and (\<lambda>s. case_option True (\<lambda>(pr, auth). mcpriority_tcb_at (\<lambda>mcp. pr \<le> mcp) auth s) pr)
-       (* only set mcp \<le> mcp of authorising thread *)
+       \<comment> \<open>only set mcp \<le> mcp of authorising thread\<close>
        and (\<lambda>s. case_option True (\<lambda>(mcp, auth). mcpriority_tcb_at (\<lambda>m. mcp \<le> m) auth s) mcp)
        and K (case_option True (is_cnode_cap o fst) e)
        and K (case_option True (is_valid_vtable_root o fst) f)
@@ -359,15 +359,12 @@ lemma update_cap_valid[Tcb_AI_asms]:
          simp_all add: update_cap_data_def cap_rights_update_def
                        is_cap_defs Let_def split_def valid_cap_def
                        badge_update_def the_cnode_cap_def cap_aligned_def
-                       arch_update_cap_data_def
-            split del: if_split)
-     apply (simp add: badge_update_def cap_rights_update_def)
-    apply (simp add: badge_update_def)
+                       arch_update_cap_data_def split: bool.splits)
    apply (simp add: word_bits_def)
   apply (rename_tac arch_cap)
   using valid_validate_vm_rights[simplified valid_vm_rights_def]
   apply (case_tac arch_cap, simp_all add: acap_rights_update_def
-                                     split: option.splits prod.splits)
+                                     split: option.splits prod.splits bool.splits)
   done
 
 

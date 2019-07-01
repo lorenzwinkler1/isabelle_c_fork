@@ -878,12 +878,13 @@ crunch valid_pspace: do_machine_op "valid_pspace"
 
 lemma do_machine_op_return_foo:
   "do_machine_op (do x\<leftarrow>a;return () od) = (do (do_machine_op a); return () od)"
-  apply (clarsimp simp:do_machine_op_def bind_def gets_def
+  apply (clarsimp simp:do_machine_op_def bind_def' gets_def
     get_def return_def select_f_def split_def simpler_modify_def)
   apply (rule ext)+
   apply (clarsimp simp:image_def)
   apply (rule set_eqI)
   apply clarsimp
+  apply blast
   done
 
 abbreviation(input)
@@ -994,7 +995,7 @@ lemma pspace_no_overlap_same_type:
 lemma set_object_no_overlap:
   "\<lbrace>pspace_no_overlap S and obj_at (\<lambda>k. a_type ko = a_type k) p\<rbrace>
   set_object p ko \<lbrace>\<lambda>r. pspace_no_overlap S\<rbrace>"
-  unfolding set_object_def
+  unfolding set_object_def get_object_def
   apply simp
   apply wp
   apply (clarsimp simp del: fun_upd_apply)
@@ -1255,7 +1256,7 @@ lemma retype_addrs_range_subset:
   \<Longrightarrow> {p .. p + 2 ^ obj_bits_api ty us - 1} \<subseteq> {ptr..(ptr && ~~ mask sz) + 2^sz - 1}"
   apply (clarsimp simp: retype_addrs_def ptr_add_def
               simp del: atLeastatMost_subset_iff atLeastAtMost_iff)
-  apply (frule_tac x = "of_nat pa" in range_cover_cell_subset)
+  apply (frule_tac x = "of_nat x" in range_cover_cell_subset)
     apply (erule of_nat_mono_maybe[rotated])
     apply (drule range_cover.range_cover_n_less)
    apply (simp add:word_bits_def)
@@ -1820,11 +1821,11 @@ lemma unique_reply_caps:
 lemma valid_reply_caps:
   "valid_reply_caps s \<Longrightarrow> valid_reply_caps s'"
   by (clarsimp simp: valid_reply_caps_def unique_reply_caps has_reply_cap_def
-                     pred_tcb_at_pres cte_retype)
+                     pred_tcb_at_pres cte_retype is_reply_cap_to_def)
 
 lemma valid_reply_masters:
   "valid_reply_masters s \<Longrightarrow> valid_reply_masters s'"
-  by (clarsimp simp: valid_reply_masters_def cte_retype is_cap_simps obj_at_pres)
+  by (clarsimp simp: valid_reply_masters_def cte_retype is_cap_simps obj_at_pres is_master_reply_cap_to_def)
 
 end
 

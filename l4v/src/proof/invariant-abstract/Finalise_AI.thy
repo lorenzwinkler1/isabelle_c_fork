@@ -51,6 +51,10 @@ definition
    | ArchObjectCap acap \<Rightarrow> arch_post_cap_delete_pre cap cs
    | _ \<Rightarrow> False"
 
+lemma update_restart_pc_caps_of_state[wp]:
+  "\<lbrace>\<lambda>s. P (caps_of_state s)\<rbrace> update_restart_pc t \<lbrace>\<lambda>_ s. P (caps_of_state s)\<rbrace>"
+  by (simp add: update_restart_pc_def as_user_caps)
+
 locale Finalise_AI_1 =
   fixes state_ext_type1 :: "('a :: state_ext) itself"
   fixes state_ext_type2 :: "('b :: state_ext) itself"
@@ -143,7 +147,8 @@ locale Finalise_AI_1 =
   assumes prepare_thread_delete_caps_of_state:
     "\<And>P t. \<lbrace>\<lambda>(s :: 'a state). P (caps_of_state s)\<rbrace> prepare_thread_delete t \<lbrace>\<lambda>_ s. P (caps_of_state s)\<rbrace>"
 
-text {* Properties about empty_slot *}
+
+text \<open>Properties about empty_slot\<close>
 
 definition
  "halted_if_tcb \<equiv> \<lambda>t s. tcb_at t s \<longrightarrow> st_tcb_at halted t s"
@@ -364,18 +369,18 @@ lemma emptyable_no_reply_cap:
   and    vr: "valid_reply_caps s"
   and    vm: "valid_reply_masters s"
   and    vo: "valid_objs s"
-  and    rc: "caps_of_state s sl' = Some (cap.ReplyCap t False)"
+  and    rc: "\<exists> R. caps_of_state s sl' = Some (cap.ReplyCap t False R)"
   and    rp: "mdb s sl' = Some sl"
   shows      "False"
 proof -
   have rm:
-    "caps_of_state s sl = Some (cap.ReplyCap t True)"
+    "\<exists> R. caps_of_state s sl = Some (cap.ReplyCap t True R)"
     using mdb rc rp unfolding reply_caps_mdb_def
     by fastforce
   have tcb_slot:
     "sl = (t, tcb_cnode_index 2)"
     using vm rm unfolding valid_reply_masters_def
-    by (fastforce simp: cte_wp_at_caps_of_state)
+    by (fastforce simp: cte_wp_at_caps_of_state is_master_reply_cap_to_def)
   have tcb_halted:
     "st_tcb_at halted t s"
     using vo rm tcb_slot e unfolding emptyable_def
@@ -383,7 +388,7 @@ proof -
   have tcb_not_halted:
     "st_tcb_at (Not \<circ> halted) t s"
     using vr rc unfolding valid_reply_caps_def
-    by (fastforce simp add: has_reply_cap_def cte_wp_at_caps_of_state
+    by (fastforce simp add: has_reply_cap_def is_reply_cap_to_def cte_wp_at_caps_of_state
                  simp del: split_paired_Ex
                     elim!: pred_tcb_weakenE)
   show ?thesis
@@ -422,7 +427,7 @@ lemma set_cap_revokable_update:
   apply (cases p)
   apply (clarsimp simp add: set_cap_def in_monad get_object_def)
   apply (case_tac y)
-  apply (auto simp add: in_monad set_object_def split: if_split_asm)
+  apply (auto simp add: in_monad set_object_def get_object_def split: if_split_asm)
   done
 
 
@@ -431,7 +436,7 @@ lemma set_cap_cdt_update:
   apply (cases p)
   apply (clarsimp simp add: set_cap_def in_monad get_object_def)
   apply (case_tac y)
-  apply (auto simp add: in_monad set_object_def split: if_split_asm)
+  apply (auto simp add: in_monad set_object_def get_object_def split: if_split_asm)
   done
 
 lemma tcb_cap_cases_lt:
@@ -511,16 +516,13 @@ lemma cancel_ipc_caps_of_state:
   apply (clarsimp simp: fun_upd_def[symmetric] cte_wp_at_caps_of_state)
   done
 
-
 lemma suspend_caps_of_state:
   "\<lbrace>\<lambda>s. (\<forall>p. cte_wp_at can_fast_finalise p s
            \<longrightarrow> P ((caps_of_state s) (p \<mapsto> cap.NullCap)))
            \<and> P (caps_of_state s)\<rbrace>
      suspend t
    \<lbrace>\<lambda>rv s. P (caps_of_state s)\<rbrace>"
-  unfolding suspend_def
-  by (wpsimp wp: cancel_ipc_caps_of_state simp: fun_upd_def[symmetric])
-
+  by (wpsimp wp: cancel_ipc_caps_of_state simp: suspend_def fun_upd_def[symmetric])+
 
 lemma suspend_final_cap:
   "\<lbrace>\<lambda>s. is_final_cap' cap s \<and> \<not> can_fast_finalise cap
@@ -821,7 +823,7 @@ lemma cap_delete_one_cte_wp_at_preserved:
   done
 
 interpretation delete_one_pre
-  by (unfold_locales, wp cap_delete_one_cte_wp_at_preserved)
+  by (unfold_locales; wpsimp wp: cap_delete_one_cte_wp_at_preserved)
 
 lemma (in Finalise_AI_1) finalise_cap_equal_cap[wp]:
   "\<lbrace>cte_wp_at ((=) cap) sl\<rbrace>
@@ -940,34 +942,34 @@ sublocale delete_one_abs a' for a' :: "('a :: state_ext) itself"
 end
 
 lemma cap_delete_one_deletes_reply:
-  "\<lbrace>cte_wp_at ((=) (cap.ReplyCap t False)) slot and valid_reply_caps\<rbrace>
+  "\<lbrace>cte_wp_at (is_reply_cap_to t) slot and valid_reply_caps\<rbrace>
     cap_delete_one slot
    \<lbrace>\<lambda>rv s. \<not> has_reply_cap t s\<rbrace>"
   apply (simp add: cap_delete_one_def unless_def is_final_cap_def)
   apply wp
-     apply (rule_tac Q="\<lambda>rv s. \<forall>sl'. if (sl' = slot)
+     apply (rule_tac Q="\<lambda>rv s. \<forall>sl' R. if (sl' = slot)
                                then cte_wp_at (\<lambda>c. c = cap.NullCap) sl' s
-                               else caps_of_state s sl' \<noteq> Some (cap.ReplyCap t False)"
+                               else caps_of_state s sl' \<noteq> Some (cap.ReplyCap t False R)"
                   in hoare_post_imp)
-      apply (clarsimp simp add: has_reply_cap_def cte_wp_at_caps_of_state
+      apply (clarsimp simp add: has_reply_cap_def is_reply_cap_to_def cte_wp_at_caps_of_state
                       simp del: split_paired_All split_paired_Ex
                          split: if_split_asm elim!: allEI)
      apply (rule hoare_vcg_all_lift)
      apply simp
      apply (wp static_imp_wp empty_slot_deletes empty_slot_caps_of_state get_cap_wp)+
   apply (fastforce simp: cte_wp_at_caps_of_state valid_reply_caps_def
-                        is_cap_simps unique_reply_caps_def
+                        is_cap_simps unique_reply_caps_def is_reply_cap_to_def
               simp del: split_paired_All)
   done
 
 lemma cap_delete_one_reply_st_tcb_at:
-  "\<lbrace>pred_tcb_at proj P t and cte_wp_at ((=) (cap.ReplyCap t' False)) slot\<rbrace>
+  "\<lbrace>pred_tcb_at proj P t and cte_wp_at (is_reply_cap_to t') slot\<rbrace>
     cap_delete_one slot
    \<lbrace>\<lambda>rv. pred_tcb_at proj P t\<rbrace>"
   apply (simp add: cap_delete_one_def unless_def is_final_cap_def)
   apply (rule hoare_seq_ext [OF _ get_cap_sp])
   apply (rule hoare_assume_pre)
-  apply (clarsimp simp: cte_wp_at_caps_of_state when_def)
+  apply (clarsimp simp: cte_wp_at_caps_of_state when_def is_reply_cap_to_def)
   apply wpsimp
   done
 
@@ -1038,7 +1040,8 @@ locale Finalise_AI_3 = Finalise_AI_2 a b
      prepare_thread_delete t
        \<lbrace>\<lambda>_ s. P (interrupt_irq_node s)\<rbrace>"
 
-crunch irq_node[wp]: suspend, unbind_maybe_notification, unbind_notification "\<lambda>s. P (interrupt_irq_node s)"
+crunches suspend, unbind_maybe_notification, unbind_notification
+  for irq_node[wp]: "\<lambda>s. P (interrupt_irq_node s)"
   (wp: crunch_wps select_wp simp: crunch_simps)
 
 crunch irq_node[wp]: deleting_irq_handler "\<lambda>s. P (interrupt_irq_node s)"

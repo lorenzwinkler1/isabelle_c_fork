@@ -150,8 +150,10 @@ lemma arch_update_cap_zombies:
   done
 
 lemma arch_update_cap_pspace:
-  "\<lbrace>cte_wp_at (is_arch_update cap) p and valid_pspace and valid_cap cap\<rbrace>
-  set_cap cap p
+  "\<lbrace>cte_wp_at (is_arch_update cap and
+               (\<lambda>c. is_valid_vtable_root c \<longrightarrow> is_valid_vtable_root cap)) p
+    and valid_pspace and valid_cap cap\<rbrace>
+     set_cap cap p
   \<lbrace>\<lambda>rv. valid_pspace\<rbrace>"
   apply (simp add: valid_pspace_def)
   apply (rule hoare_pre)
@@ -162,7 +164,7 @@ lemma arch_update_cap_pspace:
   apply clarsimp
   apply (drule caps_of_state_cteD)
   apply (drule (1) cte_wp_tcb_cap_valid)
-  apply (simp add: cap_master_cap_tcb_cap_valid_arch)
+  apply (clarsimp simp: cap_master_cap_tcb_cap_valid_arch)
   done
 
 lemma arch_update_cap_valid_mdb:
@@ -207,7 +209,7 @@ lemma arch_update_cap_valid_mdb:
    apply (clarsimp simp: reply_caps_mdb_def is_cap_simps cap_master_cap_def
                simp del: split_paired_Ex split_paired_All)
    apply (fastforce elim!: exEI)
-  apply (rule conjI, clarsimp simp: is_cap_simps cap_master_cap_def reply_masters_mdb_def)
+  apply (rule conjI, fastforce simp: is_cap_simps cap_master_cap_def reply_masters_mdb_def)
   by (erule (2) valid_arch_mdb_same_master_cap[simplified fun_upd_def])
 
 lemma set_cap_arch_obj:
@@ -219,7 +221,7 @@ lemma set_cap_arch_obj:
 lemma set_mrs_typ_at[wp]:
   "\<lbrace>\<lambda>s. P (typ_at T p s)\<rbrace> set_mrs t buf mrs \<lbrace>\<lambda>rv s. P (typ_at T p s)\<rbrace>"
   apply (simp add: set_mrs_def zipWithM_x_mapM split_def
-                   store_word_offs_def set_object_def
+                   store_word_offs_def set_object_def get_object_def
               cong: option.case_cong
               split del: if_split)
   apply (wp hoare_vcg_split_case_option)

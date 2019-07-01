@@ -11,7 +11,7 @@
 
 theory TestSEL4
 imports
-  CParser.CTranslation
+  Isabelle_C_AutoCorres.Backend
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/TestSEL4.thy\<close>\<close>
 

@@ -59,8 +59,8 @@ lemma map_option_byte_to_word_heap:
                      Let_def disj disj[where x = 0,simplified]
               split: option.splits)
 
-text {* Generalise the different kinds of retypes to allow more general proofs
-about what they might change. *}
+text \<open>Generalise the different kinds of retypes to allow more general proofs
+about what they might change.\<close>
 definition
   ptr_retyps_gen :: "nat \<Rightarrow> ('a :: c_type) ptr \<Rightarrow> bool \<Rightarrow> heap_typ_desc \<Rightarrow> heap_typ_desc"
 where
@@ -192,14 +192,14 @@ lemma memzero_spec:
   apply (hoare_rule HoarePartial.ProcNoRec1)
   apply (clarsimp simp: whileAnno_def)
   apply (rule_tac I1="{t. (ptr_val (s_' s) \<le> ptr_val (s_' s) + ((n_' s) - 1) \<and> ptr_val (s_' s) \<noteq> 0) \<and>
-                             ptr_val (s_' s) + (n_' s - n_' t) = ptr_val (p_' t) \<and>
+                             ptr_val (s_' s) + (n_' s - n_' t) = ptr_val (p___ptr_to_unsigned_char_' t) \<and>
                              n_' t \<le> n_' s \<and>
                              (is_aligned (n_' t) 3) \<and>
                              (is_aligned (n_' s) 3) \<and>
                              (is_aligned (ptr_val (s_' t)) 3) \<and>
                              (is_aligned (ptr_val (s_' s)) 3) \<and>
-                             (is_aligned (ptr_val (p_' t)) 3) \<and>
-                             {ptr_val (p_' t) ..+ unat (n_' t)} \<times> {SIndexVal, SIndexTyp 0}
+                             (is_aligned (ptr_val (p___ptr_to_unsigned_char_' t)) 3) \<and>
+                             {ptr_val (p___ptr_to_unsigned_char_' t) ..+ unat (n_' t)} \<times> {SIndexVal, SIndexTyp 0}
                                  \<subseteq> dom_s (hrs_htd (t_hrs_' (globals t))) \<and>
                              globals t = (globals s)\<lparr> t_hrs_' :=
                              hrs_mem_update (heap_update_list (ptr_val (s_' s))
@@ -210,7 +210,7 @@ lemma memzero_spec:
     apply (clarsimp simp add: hrs_mem_update_def)
 
    apply clarsimp
-   apply (case_tac s, case_tac p)
+   apply (case_tac s, case_tac p___ptr_to_unsigned_char)
 
    apply (subgoal_tac "8 \<le> unat na")
     apply (intro conjI)
@@ -276,9 +276,9 @@ lemma memset_spec:
   apply (clarsimp simp: whileAnno_def)
   apply (rule_tac I1="{t. (ptr_val (s_' s) \<le> ptr_val (s_' s) + ((n_' s) - 1) \<and> ptr_val (s_' s) \<noteq> 0) \<and>
                              c_' t = c_' s \<and>
-                             ptr_val (s_' s) + (n_' s - n_' t) = ptr_val (p_' t) \<and>
+                             ptr_val (s_' s) + (n_' s - n_' t) = ptr_val (p___ptr_to_unsigned_char_' t) \<and>
                              n_' t \<le> n_' s \<and>
-                             {ptr_val (p_' t) ..+ unat (n_' t)} \<times> {SIndexVal, SIndexTyp 0}
+                             {ptr_val (p___ptr_to_unsigned_char_' t) ..+ unat (n_' t)} \<times> {SIndexVal, SIndexTyp 0}
                                 \<subseteq> dom_s (hrs_htd (t_hrs_' (globals t))) \<and>
                              globals t = (globals s)\<lparr> t_hrs_' :=
                              hrs_mem_update (heap_update_list (ptr_val (s_' s))
@@ -309,7 +309,7 @@ lemma memset_spec:
         apply assumption
        apply (erule order_trans [rotated])
        apply (simp add: lt1_neq0)
-      apply (case_tac p, simp add: CTypesDefs.ptr_add_def unat_minus_one field_simps)
+      apply (case_tac p___ptr_to_unsigned_char, simp add: CTypesDefs.ptr_add_def unat_minus_one field_simps)
      apply (metis word_must_wrap word_not_simps(1) linear)
     apply (erule order_trans[rotated])
     apply (clarsimp simp: ptr_val_case split: ptr.splits)
@@ -612,6 +612,7 @@ lemma valid_call_Spec_eq_subset:
 "\<Gamma>' procname = Some (Spec R)
 \<Longrightarrow> (\<forall>x. \<Gamma>'\<Turnstile>\<^bsub>/NF\<^esub> (P x) Call procname (Q x),(A x))
   = ((\<forall>x. P x \<subseteq> fst ` R) \<and> (R \<subseteq> (\<Inter>x. (- P x) \<times> UNIV \<union> UNIV \<times> Q x)))"
+  supply image_cong_simp [cong del]
   apply (safe, simp_all)
     apply (clarsimp simp: HoarePartialDef.valid_def)
     apply (rule ccontr)
@@ -624,7 +625,7 @@ lemma valid_call_Spec_eq_subset:
   apply (clarsimp simp: HoarePartialDef.valid_def)
   apply (erule exec_Normal_elim_cases, simp_all)
   apply (erule exec_Normal_elim_cases, auto simp: image_def)
-   apply fastforce
+   apply blast
   apply (thin_tac "R \<subseteq> _", fastforce)
   done
 
@@ -843,7 +844,8 @@ proof (cases "{ptr_val p' ..+ size_of TYPE('a)} \<inter> {p ..+ nptrs * size_of 
 
   show ?thesis
     by (clarsimp simp: h_t_valid_def valid_footprint_def Let_def
-                       notin same size_of_def[symmetric, where t="TYPE('a)"])
+                       notin same size_of_def[symmetric, where t="TYPE('a)"]
+             cong del: image_cong_simp)
 next
   case False
 
@@ -863,7 +865,7 @@ next
     \<Longrightarrow> \<exists>quot rem. k = quot * size_of TYPE('a) + rem \<and> rem < size_of TYPE('a) \<and> quot < nptrs"
     apply (intro exI conjI, rule div_mult_mod_eq[symmetric])
      apply simp
-    apply (simp add: Word_Miscellaneous.td_gal_lt)
+    apply (simp add: Misc_Arithmetic.td_gal_lt)
     done
 
   have gd: "\<And>p'. p' \<in> ?S \<Longrightarrow> gd p'"
@@ -910,9 +912,8 @@ lemma clift_ptr_retyps_gen_memset_same:
    apply (clarsimp simp: h_val_def)
    apply (simp only: Word.Abs_fnat_hom_mult hrs_mem_update)
    apply (frule_tac k="size_of TYPE('a)" in mult_le_mono1[where j=n, OF Suc_leI])
-   apply (subst heap_list_update_list)
-    apply (simp add: addr_card_def card_word word_bits_def)
-   apply simp
+   apply (subst heap_list_update_list; simp?)
+   apply (simp add: addr_card_def card_word word_bits_def)
   apply (clarsimp split: if_split)
   apply (simp add: h_val_def)
   apply (subst heap_list_update_disjoint_same, simp_all)
@@ -999,6 +1000,7 @@ proof -
     by (clarsimp simp: addr_card_def card_word)
 
   show ?thesis
+    supply image_cong_simp [cong del]
     apply (clarsimp simp add: size_of)
     apply (rule inj_image_eq_iff[OF add_is_injective_ring[where x="- p"], THEN iffD1])
     apply (subst image_Int[OF add_is_injective_ring])
@@ -1013,7 +1015,7 @@ proof -
      apply (simp add: size_of)
      apply (cases y, clarsimp simp: and_not_mask shiftl_t2n)
     apply (simp add: shiftr_div_2n')
-    apply (rule Word_Miscellaneous.td_gal_lt[THEN iffD1], simp)
+    apply (rule Misc_Arithmetic.td_gal_lt[THEN iffD1], simp)
     apply (drule minus_one_helper5[OF yuck])
     apply (rule unat_less_helper, simp)
     done
@@ -1594,6 +1596,7 @@ proof (intro impI allI)
   hence "cpspace_relation ?ks  (underlying_memory (ksMachineState \<sigma>)) ?ks'"
     unfolding cpspace_relation_def
     apply -
+    supply image_cong_simp[cong del]
     apply (clarsimp simp: rl' cterl tag_disj_via_td_name foldr_upd_app_if [folded data_map_insert_def]
       heap_to_user_data_def cte_C_size heap_to_device_data_def)
     apply (subst clift_ptr_retyps_gen_prev_memset_same[OF guard _ _ szo' _ zero],
@@ -1708,6 +1711,7 @@ proof (intro impI allI)
   hence "cpspace_relation ?ks  (underlying_memory (ksMachineState \<sigma>)) ?ks'"
     unfolding cpspace_relation_def
     apply -
+    supply image_cong_simp [cong del]
     apply (clarsimp simp: rl' cterl tag_disj_via_td_name foldr_upd_app_if [folded data_map_insert_def]
       heap_to_user_data_def cte_C_size)
     apply (subst clift_ptr_retyps_gen_prev_memset_same[OF guard _ _ szo' _ zero],
@@ -1842,8 +1846,7 @@ proof (intro impI allI)
   note irq = h_t_valid_eq_array_valid[where 'a=cte_C]
     h_t_array_valid_ptr_retyps_gen[where p="Ptr ptr", simplified, OF szo empty]
 
-  with rf have irq: "h_t_valid (hrs_htd ?ks') c_guard
-      (ptr_coerce (intStateIRQNode_' (globals x)) :: (cte_C[256]) ptr)"
+  with rf have irq: "h_t_valid (hrs_htd ?ks') c_guard intStateIRQNode_array_Ptr"
     apply (clarsimp simp: rf_sr_def cstate_relation_def Let_def)
     apply (simp add: hrs_htd_update h_t_valid_eq_array_valid)
     apply (simp add: h_t_array_valid_ptr_retyps_gen[OF szo] empty)
@@ -1855,6 +1858,7 @@ proof (intro impI allI)
   hence "cpspace_relation ?ks (underlying_memory (ksMachineState \<sigma>)) ?ks'"
     unfolding cpspace_relation_def
     apply -
+    supply image_cong_simp [cong del]
     apply (clarsimp simp: rl' cterl tag_disj_via_td_name foldr_upd_app_if [folded data_map_insert_def])
     apply (subst clift_ptr_retyps_gen_prev_memset_same[OF guard _ _ szo' _ zero],
       simp_all only: szo empty, simp_all)
@@ -2136,22 +2140,23 @@ proof (intro impI allI)
     unfolding rf_sr_def cstate_relation_def by (simp add: Let_def)
   hence "cpspace_relation ?ks (underlying_memory (ksMachineState \<sigma>))  ?ks'"
     unfolding cpspace_relation_def
-  using pte_arr
-  apply (clarsimp simp: rl' cterl cte_C_size tag_disj_via_td_name
-                        foldr_upd_app_if [folded data_map_insert_def])
-  apply (simp add: ht_rl)
-  apply (simp add: ptr_retyp_to_array[simplified])
-  apply (subst clift_ptr_retyps_gen_prev_memset_same[OF guard'], simp_all only: szo2 empty)
-     apply simp
-    apply (simp(no_asm) add: bit_simps word_bits_def)
-   apply (simp add: zero[simplified])
-  apply (simp add: rl projectKOs del: pte_C_size)
-  apply (simp add: rl projectKO_opt_retyp_same ko_def projectKOs Let_def
-                   ptr_add_to_new_cap_addrs [OF szo']
-              cong: if_cong del: pte_C_size)
-  apply (erule cmap_relation_retype)
-  apply (insert relrl, auto)
-  done
+    using pte_arr
+    supply image_cong_simp [cong del]
+    apply (clarsimp simp: rl' cterl cte_C_size tag_disj_via_td_name
+                          foldr_upd_app_if [folded data_map_insert_def])
+    apply (simp add: ht_rl)
+    apply (simp add: ptr_retyp_to_array[simplified])
+    apply (subst clift_ptr_retyps_gen_prev_memset_same[OF guard'], simp_all only: szo2 empty)
+       apply simp
+      apply (simp(no_asm) add: bit_simps word_bits_def)
+     apply (simp add: zero[simplified])
+    apply (simp add: rl projectKOs del: pte_C_size)
+    apply (simp add: rl projectKO_opt_retyp_same ko_def projectKOs Let_def
+                     ptr_add_to_new_cap_addrs [OF szo']
+                cong: if_cong del: pte_C_size)
+    apply (erule cmap_relation_retype)
+    apply (insert relrl, auto)
+    done
 
   moreover
   from rf szb al
@@ -2317,22 +2322,23 @@ proof (intro impI allI)
     unfolding rf_sr_def cstate_relation_def by (simp add: Let_def)
   hence "cpspace_relation ?ks (underlying_memory (ksMachineState \<sigma>))  ?ks'"
     unfolding cpspace_relation_def
-  using pde_arr
-  apply (clarsimp simp: rl' cterl cte_C_size tag_disj_via_td_name
-                        foldr_upd_app_if [folded data_map_insert_def])
-  apply (simp add: ht_rl)
-  apply (simp add: ptr_retyp_to_array[simplified])
-  apply (subst clift_ptr_retyps_gen_prev_memset_same[OF guard'], simp_all only: szo2 empty)
-     apply simp
-    apply (simp(no_asm) add: bit_simps word_bits_def)
-   apply (simp add: zero[simplified])
-  apply (simp add: rl projectKOs del: pde_C_size)
-  apply (simp add: rl projectKO_opt_retyp_same ko_def projectKOs Let_def
-                   ptr_add_to_new_cap_addrs [OF szo']
-              cong: if_cong del: pde_C_size)
-  apply (erule cmap_relation_retype)
-  apply (insert relrl, auto)
-  done
+    using pde_arr
+    supply image_cong_simp [cong del]
+    apply (clarsimp simp: rl' cterl cte_C_size tag_disj_via_td_name
+                          foldr_upd_app_if [folded data_map_insert_def])
+    apply (simp add: ht_rl)
+    apply (simp add: ptr_retyp_to_array[simplified])
+    apply (subst clift_ptr_retyps_gen_prev_memset_same[OF guard'], simp_all only: szo2 empty)
+       apply simp
+      apply (simp(no_asm) add: bit_simps word_bits_def)
+     apply (simp add: zero[simplified])
+    apply (simp add: rl projectKOs del: pde_C_size)
+    apply (simp add: rl projectKO_opt_retyp_same ko_def projectKOs Let_def
+                     ptr_add_to_new_cap_addrs [OF szo']
+                cong: if_cong del: pde_C_size)
+    apply (erule cmap_relation_retype)
+    apply (insert relrl, auto)
+    done
 
   moreover
   from rf szb al
@@ -2497,22 +2503,23 @@ proof (intro impI allI)
     unfolding rf_sr_def cstate_relation_def by (simp add: Let_def)
   hence "cpspace_relation ?ks (underlying_memory (ksMachineState \<sigma>))  ?ks'"
     unfolding cpspace_relation_def
-  using pdpte_arr
-  apply (clarsimp simp: rl' cterl cte_C_size tag_disj_via_td_name
-                        foldr_upd_app_if [folded data_map_insert_def])
-  apply (simp add: ht_rl)
-  apply (simp add: ptr_retyp_to_array[simplified])
-  apply (subst clift_ptr_retyps_gen_prev_memset_same[OF guard'], simp_all only: szo2 empty)
-     apply simp
-    apply (simp(no_asm) add: bit_simps word_bits_def)
-   apply (simp add: zero[simplified])
-  apply (simp add: rl projectKOs del: pdpte_C_size)
-  apply (simp add: rl projectKO_opt_retyp_same ko_def projectKOs Let_def
-                   ptr_add_to_new_cap_addrs [OF szo']
-              cong: if_cong del: pdpte_C_size)
-  apply (erule cmap_relation_retype)
-  apply (insert relrl, auto)
-  done
+    using pdpte_arr
+    supply image_cong_simp [cong del]
+    apply (clarsimp simp: rl' cterl cte_C_size tag_disj_via_td_name
+                          foldr_upd_app_if [folded data_map_insert_def])
+    apply (simp add: ht_rl)
+    apply (simp add: ptr_retyp_to_array[simplified])
+    apply (subst clift_ptr_retyps_gen_prev_memset_same[OF guard'], simp_all only: szo2 empty)
+       apply simp
+      apply (simp(no_asm) add: bit_simps word_bits_def)
+     apply (simp add: zero[simplified])
+    apply (simp add: rl projectKOs del: pdpte_C_size)
+    apply (simp add: rl projectKO_opt_retyp_same ko_def projectKOs Let_def
+                     ptr_add_to_new_cap_addrs [OF szo']
+                cong: if_cong del: pdpte_C_size)
+    apply (erule cmap_relation_retype)
+    apply (insert relrl, auto)
+    done
 
   moreover
   from rf szb al
@@ -2677,22 +2684,23 @@ proof (intro impI allI)
     unfolding rf_sr_def cstate_relation_def by (simp add: Let_def)
   hence "cpspace_relation ?ks (underlying_memory (ksMachineState \<sigma>))  ?ks'"
     unfolding cpspace_relation_def
-  using pml4e_arr
-  apply (clarsimp simp: rl' cterl cte_C_size tag_disj_via_td_name
-                        foldr_upd_app_if [folded data_map_insert_def])
-  apply (simp add: ht_rl)
-  apply (simp add: ptr_retyp_to_array[simplified])
-  apply (subst clift_ptr_retyps_gen_prev_memset_same[OF guard'], simp_all only: szo2 empty)
-     apply simp
-    apply (simp(no_asm) add: bit_simps word_bits_def)
-   apply (simp add: zero[simplified])
-  apply (simp add: rl projectKOs del: pml4e_C_size)
-  apply (simp add: rl projectKO_opt_retyp_same ko_def projectKOs Let_def
-                   ptr_add_to_new_cap_addrs [OF szo']
-              cong: if_cong del: pml4e_C_size)
-  apply (erule cmap_relation_retype)
-  apply (insert relrl, auto)
-  done
+    using pml4e_arr
+    supply image_cong_simp [cong del]
+    apply (clarsimp simp: rl' cterl cte_C_size tag_disj_via_td_name
+                          foldr_upd_app_if [folded data_map_insert_def])
+    apply (simp add: ht_rl)
+    apply (simp add: ptr_retyp_to_array[simplified])
+    apply (subst clift_ptr_retyps_gen_prev_memset_same[OF guard'], simp_all only: szo2 empty)
+       apply simp
+      apply (simp(no_asm) add: bit_simps word_bits_def)
+     apply (simp add: zero[simplified])
+    apply (simp add: rl projectKOs del: pml4e_C_size)
+    apply (simp add: rl projectKO_opt_retyp_same ko_def projectKOs Let_def
+                     ptr_add_to_new_cap_addrs [OF szo']
+                cong: if_cong del: pml4e_C_size)
+    apply (erule cmap_relation_retype)
+    apply (insert relrl, auto)
+    done
 
   moreover
   from rf szb al
@@ -4135,7 +4143,7 @@ proof -
 
   note ht_rest = clift_eq_h_t_valid_eq[OF cl_rest, simplified]
 
-  note irq = h_t_valid_eq_array_valid[where 'a=cte_C and p="ptr_coerce x" for x]
+  note irq = h_t_valid_eq_array_valid[where p=intStateIRQNode_array_Ptr]
     h_t_array_valid_ptr_retyps_gen[where n=1, simplified, OF refl empty_smaller(1)]
     h_t_array_valid_ptr_retyps_gen[where p="Ptr x" for x, simplified, OF refl empty_smaller(2)]
 
@@ -4220,11 +4228,6 @@ lemma cnc_foldl_foldr:
                 new_cap_addrs_def objBits_simps ko_def power_minus_is_div
           cong: foldr_cong)
 
-lemma objBitsKO_gt_0:
-  "0 < objBitsKO ko"
-  by (simp add: objBits_simps' archObjSize_def bit_simps
-         split: kernel_object.splits arch_kernel_object.splits)
-
 lemma objBitsKO_gt_1:
   "(1 :: machine_word) < 2 ^ objBitsKO ko"
   by (simp add: objBits_simps' archObjSize_def bit_simps
@@ -4237,7 +4240,7 @@ lemma ps_clear_subset:
   shows  "ps_clear x (objBitsKO ko) (s' \<lparr>ksPSpace := (\<lambda>x. if x \<in> as' then Some (f x) else ksPSpace s' x) \<rparr>)"
   using al pd sub
   apply -
-  apply (simp add: ps_clear_def3 [OF al  objBitsKO_gt_0] dom_if_Some)
+  apply (simp add: ps_clear_def3 [OF al objBitsKO_gt_0] dom_if_Some)
   apply (erule disjoint_subset2 [rotated])
   apply fastforce
   done
@@ -4705,6 +4708,7 @@ proof (intro impI allI)
     \<Longrightarrow> p + ucast off * 8 + x \<in> {ptr..+ n * 2 ^ (gbits + pageBits) }"
     using sz
     apply (clarsimp simp: new_cap_addrs_def objBits_simps shiftl_t2n intvl_def)
+    apply (rename_tac x off pa)
     apply (rule_tac x = "2 ^ pageBits * pa + unat off * 8 + unat x" in exI)
     apply (simp add: ucast_nat_def power_add)
     apply (subst mult.commute, subst add.assoc)
@@ -4841,6 +4845,7 @@ proof (intro impI allI)
     unfolding cpspace_relation_def
     using empty rc' szo
     apply -
+    supply image_cong_simp [cong del]
     apply (clarsimp simp: rl' tag_disj_via_td_name cte_C_size ht_rl
                           foldr_upd_app_if [folded data_map_insert_def])
     apply (simp add: rl ko_def projectKOs p2dist
@@ -5037,7 +5042,7 @@ lemma memzero_modifies:
   "\<forall>\<sigma>. \<Gamma>\<turnstile>\<^bsub>/UNIV\<^esub> {\<sigma>} Call memzero_'proc {t. t may_only_modify_globals \<sigma> in [t_hrs]}"
   apply (rule allI, rule conseqPre)
   apply (hoare_rule HoarePartial.ProcNoRec1)
-   apply (tactic {* HoarePackage.vcg_tac "_modifies" "false" [] @{context} 1 *})
+   apply (tactic \<open>HoarePackage.vcg_tac "_modifies" "false" [] @{context} 1\<close>)
   apply (clarsimp simp: mex_def meq_def simp del: split_paired_Ex)
   apply (intro exI globals.equality, simp_all)
   done
@@ -5686,8 +5691,9 @@ proof (intro impI allI)
     apply (rule cmap_relationI)
      apply (clarsimp simp: dom_heap_to_device_data cmap_relation_def dom_if image_Un
                            projectKO_opt_retyp_same projectKOs liftt_if[folded hrs_mem_def hrs_htd_def]
-                           hrs_htd_update hrs_mem_update ptr_retyps_valid dom_disj_union ptr_add_to_new_cap_addrs)
-    apply (simp add: heap_to_device_data_def cuser_user_data_device_relation_def)
+                           hrs_htd_update hrs_mem_update ptr_retyps_valid dom_disj_union
+                simp flip: ptr_add_to_new_cap_addrs)
+     apply (simp add: heap_to_device_data_def cuser_user_data_device_relation_def)
     done (* dont need to track all the device memory *)
 
   thus  ?thesis using rf empty kdr rzo
@@ -7216,7 +7222,7 @@ lemma intvl_mult_is_union:
    apply (rule_tac x="k div n" in bexI)
     apply (rule_tac x="k mod n" in exI)
     apply (simp only: Abs_fnat_hom_mult Abs_fnat_hom_add, simp)
-   apply (simp add: Word_Miscellaneous.td_gal_lt[symmetric] mult.commute)
+   apply (simp add: Misc_Arithmetic.td_gal_lt[symmetric] mult.commute)
   apply (rule_tac x="xa * n + k" in exI, simp)
   apply (subst add.commute, rule order_less_le_trans, erule add_less_mono1)
   apply (case_tac m, simp_all)
@@ -7370,13 +7376,10 @@ lemma ccorres_typ_region_bytes_dummy:
       apply (simp add: invs_pspace_aligned')+
   apply (frule typ_bytes_cpspace_relation_clift_devicedata)
       apply (simp add: invs_pspace_aligned')+
-  apply (frule typ_bytes_cpspace_relation_clift_gptr[where
-            ptr'="pml4_Ptr (symbol_table ''x64KSSKIMPML4'')"])
+  apply (frule typ_bytes_cpspace_relation_clift_gptr[where ptr'="x64KSSKIMPML4_Ptr"])
         apply (simp add: invs_pspace_aligned')+
-  apply (frule typ_bytes_cpspace_relation_clift_gptr[where
-            ptr'="ptr_coerce x :: (cte_C[256]) ptr" for x])
+  apply (frule typ_bytes_cpspace_relation_clift_gptr[where ptr'="intStateIRQNode_array_Ptr"])
         apply (simp add: invs_pspace_aligned')+
-    apply (simp add: cte_level_bits_def cte_C_size, simp+)
   apply (simp add: carch_state_relation_def cmachine_state_relation_def)
   apply (simp add: cpspace_relation_def htd_safe_typ_region_bytes)
   apply (simp add: h_t_valid_clift_Some_iff)

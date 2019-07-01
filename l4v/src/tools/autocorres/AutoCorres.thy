@@ -29,6 +29,7 @@ imports
   "Lib.OptionMonadWP"
   "Lib.Apply_Trace"
   AutoCorresSimpset
+  "Lib.MkTermAntiquote"
   "Lib.TermPatternAntiquote"
   keywords "autocorres"
            "autocorres'"
@@ -136,7 +137,6 @@ lemmas ac_statistics_rewrites =
 (* Utils *)
 ML_file "../../lib/set.ML"
 ML_file "trace_antiquote.ML"
-ML_file "mkterm_antiquote.ML"
 ML_file "utils.ML"
 
 (* Common data structures *)
@@ -169,7 +169,7 @@ ML_file "type_strengthen.ML"
 ML_file "autocorres.ML"
 
 (* Setup "autocorres" keyword. *)
-ML {*
+ML \<open>
 val do_autocorres = 
   Toplevel.theory
   o (fn (opt, filename) => fn thy =>
@@ -197,7 +197,7 @@ val _ =
   Outer_Syntax.command @{command_keyword "install_autocorres_file"}
     "Install the C file, and abstract the output of the C parser into a monadic representation."
     (AutoCorres.Parser_Outer.autocorres_parser'' (Resources.parse_files "install_autocorres_file" >> C_Scan.Left) >> do_install_autocorres)
-*}
+\<close>
 
 ML \<open>
 local

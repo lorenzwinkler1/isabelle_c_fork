@@ -127,7 +127,7 @@ bottom 32 bits be communicated to the fault handler, for the second word
 
 > handleEvent (UserLevelFault w1 w2) = withoutPreemption $ do
 >     thread <- getCurThread
->     handleFault thread $ UserException (w1 .&. mask 32) (w2 .&. mask 29)
+>     handleFault thread $ UserException (w1 .&. mask 32) (w2 .&. mask 28)
 >     return ()
 
 \subsubsection{Virtual Memory Faults}
@@ -179,10 +179,10 @@ The "Reply" system call attempts to perform an immediate IPC transfer to the thr
 >     callerSlot <- getThreadCallerSlot thread
 >     callerCap <- getSlotCap callerSlot
 >     case callerCap of
->         ReplyCap caller False -> do
+>         ReplyCap caller False canGrant -> do
 >             assert (caller /= thread)
 >                 "handleReply: caller must not be the current thread"
->             doReplyTransfer thread caller callerSlot
+>             doReplyTransfer thread caller callerSlot canGrant
 >         NullCap -> return ()
 >         _ -> fail "handleReply: invalid caller cap"
 

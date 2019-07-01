@@ -22,7 +22,7 @@ begin
   
 text{* Clean is a minimalistic imperative language 
 with C-like control-flow operators based on a shallow embedding into the
-SE exception Monad theory formalized in @{theory "CLEAN.MonadSE"}. It comprises:
+SE exception Monad theory formalized in @{theory "CLEAN_logic.MonadSE"}. It comprises:
 \begin{itemize}
 \item C-like control flow with \verb+break+ and \verb+return+.
 \item global variables.
@@ -150,7 +150,7 @@ definition if_C :: "[('\<sigma>_ext) control_state_ext \<Rightarrow> bool,
                       ('\<beta>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E, 
                       ('\<beta>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E] \<Rightarrow> ('\<beta>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
   where   "if_C c E F = (\<lambda>\<sigma>. if exec_stop \<sigma> 
-                              then Some(undefined, \<sigma>)  (* state unchanged, return arbitrary *)
+                              then Some(undefined, \<sigma>)  \<comment> \<open>state unchanged, return arbitrary\<close>
                               else if c \<sigma> then E \<sigma> else F \<sigma>)"     
 
 syntax    (xsymbols)

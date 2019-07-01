@@ -1007,7 +1007,7 @@ lemma scheduleChooseNewThread_no_orphans:
                hoare_lift_Pf2 [OF st_tcb_at'_is_active_tcb_ptr_lift[OF nextDomain_st_tcb_at']
                                   nextDomain_ct']
                hoare_vcg_all_lift getDomainTime_wp)[2]
-   apply (wpsimp simp: if_apply_def2 invs_invs_no_cicd' all_queued_tcb_ptrs_def
+   apply (wpsimp simp: if_apply_def2 invs'_invs_no_cicd all_queued_tcb_ptrs_def
                        is_active_tcb_ptr_runnable')+
   done
 
@@ -1240,7 +1240,7 @@ crunch no_orphans [wp]: getThreadReplySlot "no_orphans"
 
 lemma setupCallerCap_no_orphans [wp]:
   "\<lbrace> \<lambda>s. no_orphans s \<and> valid_queues' s \<rbrace>
-   setupCallerCap sender receiver
+   setupCallerCap sender receiver gr
    \<lbrace> \<lambda>rv s. no_orphans s \<rbrace>"
   unfolding setupCallerCap_def
   apply (wp setThreadState_not_active_no_orphans
@@ -1256,7 +1256,7 @@ crunch almost_no_orphans [wp]: getThreadReplySlot "almost_no_orphans tcb_ptr"
 
 lemma setupCallerCap_almost_no_orphans [wp]:
   "\<lbrace> \<lambda>s. almost_no_orphans tcb_ptr s \<and> valid_queues' s \<rbrace>
-   setupCallerCap sender receiver
+   setupCallerCap sender receiver gr
    \<lbrace> \<lambda>rv s. almost_no_orphans tcb_ptr s \<rbrace>"
   unfolding setupCallerCap_def
   apply (wp setThreadState_not_active_almost_no_orphans
@@ -1277,7 +1277,7 @@ crunch no_orphans [wp]: setEndpoint "no_orphans"
 
 lemma sendIPC_no_orphans [wp]:
   "\<lbrace> \<lambda>s. no_orphans s \<and> valid_queues' s \<and> valid_objs' s \<and> sch_act_wf (ksSchedulerAction s) s \<rbrace>
-   sendIPC blocking call badge canGrant thread epptr
+   sendIPC blocking call badge canGrant canGrantReply thread epptr
    \<lbrace> \<lambda>rv s. no_orphans s \<rbrace>"
   unfolding sendIPC_def
   apply (wp hoare_drop_imps setThreadState_not_active_no_orphans sts_st_tcb'
@@ -1308,12 +1308,11 @@ lemma sendFaultIPC_no_orphans [wp]:
 
 lemma sendIPC_valid_queues' [wp]:
   "\<lbrace> \<lambda>s. valid_queues' s \<and> valid_objs' s \<and> sch_act_wf (ksSchedulerAction s) s \<rbrace>
-   sendIPC blocking call badge canGrant thread epptr
+   sendIPC blocking call badge canGrant canGrantReply thread epptr
    \<lbrace> \<lambda>rv s. valid_queues' s \<rbrace>"
   unfolding sendIPC_def
-  apply (wp hoare_drop_imps | wpsimp)+
-          apply (wp_once sts_st_tcb', clarsimp)
-         apply (wp)+
+  apply (wpsimp wp: hoare_drop_imps)
+        apply (wpsimp | wp_once sts_st_tcb')+
   apply (rule_tac Q="\<lambda>rv. valid_queues' and valid_objs' and ko_at' rv epptr
                           and (\<lambda>s. sch_act_wf (ksSchedulerAction s) s)" in hoare_post_imp)
    apply (clarsimp)
@@ -1687,15 +1686,36 @@ lemma handleInterrupt_no_orphans [wp]:
                                 handleReservedIRQ_def)+
   done
 
+lemma updateRestartPC_no_orphans[wp]:
+  "\<lbrace> \<lambda>s. no_orphans s \<and> invs' s \<rbrace>
+   updateRestartPC t
+   \<lbrace> \<lambda>rv s. no_orphans s \<rbrace>"
+  by (wpsimp simp: updateRestartPC_def asUser_no_orphans)
+
+lemma updateRestartPC_valid_queues'[wp]:
+  "\<lbrace> \<lambda>s. valid_queues' s \<rbrace>
+   updateRestartPC t
+   \<lbrace> \<lambda>rv s. valid_queues' s \<rbrace>"
+  unfolding updateRestartPC_def
+  apply (rule asUser_valid_queues')
+  done
+
+lemma updateRestartPC_no_orphans_invs'_valid_queues'[wp]:
+  "\<lbrace>\<lambda>s. no_orphans s \<and> invs' s \<and> valid_queues' s \<rbrace>
+   updateRestartPC t
+   \<lbrace>\<lambda>rv s. no_orphans s \<and> valid_queues' s \<rbrace>"
+  by (wpsimp simp: updateRestartPC_def asUser_no_orphans)
+
 lemma suspend_no_orphans [wp]:
   "\<lbrace> \<lambda>s. no_orphans s \<and> invs' s \<and> sch_act_simple s \<and> tcb_at' t s \<rbrace>
    suspend t
    \<lbrace> \<lambda>rv s. no_orphans s \<rbrace>"
   unfolding suspend_def
   apply (wp | clarsimp simp: unless_def | rule conjI)+
-    apply (clarsimp simp: is_active_tcb_ptr_def is_active_thread_state_def st_tcb_at_neg2)
-    apply (wp setThreadState_not_active_no_orphans hoare_disjI1 setThreadState_st_tcb
-           | clarsimp simp: is_active_thread_state_def isRunning_def isRestart_def)+
+      apply (clarsimp simp: is_active_tcb_ptr_def is_active_thread_state_def st_tcb_at_neg2)
+      apply (wp setThreadState_not_active_no_orphans hoare_disjI1 setThreadState_st_tcb
+             | clarsimp simp: is_active_thread_state_def isRunning_def isRestart_def)+
+    apply (wp hoare_drop_imp)+
   apply auto
   done
 
@@ -1899,7 +1919,7 @@ crunch valid_queues' [wp]: handleFaultReply "valid_queues'"
 
 lemma doReplyTransfer_no_orphans[wp]:
   "\<lbrace>no_orphans and invs' and tcb_at' sender and tcb_at' receiver\<rbrace>
-   doReplyTransfer sender receiver slot
+   doReplyTransfer sender receiver slot grant
    \<lbrace>\<lambda>rv. no_orphans\<rbrace>"
   unfolding doReplyTransfer_def
   apply (wp sts_st_tcb' setThreadState_not_active_no_orphans threadSet_no_orphans

@@ -513,12 +513,18 @@ lemma suspend_unlive':
   "\<lbrace>bound_tcb_at ((=) None) t and valid_mdb and valid_objs and tcb_at t \<rbrace>
       suspend t
    \<lbrace>\<lambda>rv. obj_at (Not \<circ> live) t\<rbrace>"
-  apply (simp add: suspend_def set_thread_state_def set_object_def)
+  apply (simp add: suspend_def set_thread_state_def set_object_def get_object_def)
+  supply hoare_vcg_if_split[wp_split del] if_splits[split del]
   apply (wp | simp only: obj_at_exst_update)+
-  apply (simp add: obj_at_def)
-  apply (rule_tac Q="\<lambda>_. bound_tcb_at ((=) None) t" in hoare_strengthen_post)
-  apply wp
-  apply (auto simp: pred_tcb_def2 live_def hyp_live_def dest: refs_of_live)
+     apply (simp add: obj_at_def live_def hyp_live_def)
+     apply (rule_tac Q="\<lambda>_. bound_tcb_at ((=) None) t" in hoare_strengthen_post)
+      supply hoare_vcg_if_split[wp_split]
+      apply wp
+     apply (auto simp: pred_tcb_def2)[1]
+    apply (simp flip: if_split)
+    apply wp
+   apply wp
+  apply simp
   done
 
 lemma (* finalise_cap_replaceable *) [Finalise_AI_asms]:
@@ -650,17 +656,10 @@ lemma tcb_cap_valid_pagetable:
   apply (rule ext)
   apply (simp add: tcb_cap_valid_def tcb_cap_cases_def is_nondevice_page_cap_arch_def
                    is_cap_simps valid_ipc_buffer_cap_def is_nondevice_page_cap_simps
+                   is_valid_vtable_root_def
             split: Structures_A.thread_state.split)
   done
 
-lemma tcb_cap_valid_pagedirectory:
-  "tcb_cap_valid (ArchObjectCap (PageDirectoryCap word (Some v))) slot
-    = tcb_cap_valid (ArchObjectCap (PageDirectoryCap word None)) slot"
-  apply (rule ext)
-  apply (simp add: tcb_cap_valid_def tcb_cap_cases_def is_nondevice_page_cap_arch_def
-                   is_cap_simps valid_ipc_buffer_cap_def is_nondevice_page_cap_simps
-            split: Structures_A.thread_state.split)
-  done
 
 lemma store_pde_unmap_empty:
   "\<lbrace>\<lambda>s. obj_at (empty_table (set (arm_global_pts (arch_state s)))) word s\<rbrace>
@@ -865,30 +864,7 @@ lemma replaceable_reset_pt:
   apply simp_all
   done
 
-lemma replaceable_reset_pd:
-  "\<lbrakk>cap = PageDirectoryCap p m \<and>
-   cte_wp_at ((=) (ArchObjectCap cap)) slot s \<and>
-   (\<forall>vs. vs_cap_ref (ArchObjectCap cap) = Some vs \<longrightarrow> \<not> (vs \<unrhd> p) s) \<and>
-   is_final_cap' (ArchObjectCap cap) s \<and>
-   obj_at (empty_table (set (second_level_tables (arch_state s)))) p s\<rbrakk> \<Longrightarrow>
-   replaceable s slot (ArchObjectCap (PageDirectoryCap p None))
-                      (ArchObjectCap cap)"
-  apply (elim conjE)
-  apply (cases m, simp_all add: replaceable_def gen_obj_refs_def cap_range_def is_cap_simps
-                           tcb_cap_valid_pagedirectory)
-  apply (rule conjI)
-   apply (frule is_final_cap_pd_asid_eq) defer
-   apply clarsimp
-   apply (drule cte_wp_at_obj_refs_singleton_page_directory)
-   apply (erule exE)
-   apply (drule_tac x="asid" in is_final_cap_pd_asid_eq)
-   apply (drule final_cap_pd_slot_eq)
-     apply simp_all
-  apply (rule_tac
-    cap="ArchObjectCap cap"
-    in  no_cap_to_obj_with_diff_ref_finalI)
-  apply simp_all
-  done
+
 
 crunch caps_of_state [wp]: arch_finalise_cap "\<lambda>s. P (caps_of_state s)"
    (wp: crunch_wps simp: crunch_simps)
@@ -909,12 +885,11 @@ lemma delete_asid_empty_table_pd:
           apply wps
           apply wp+
         apply (simp add: set_asid_pool_def)
-        apply wp
-          apply (case_tac "x2 = word")
-           defer
-           apply wps
-           apply (rule set_object_at_obj)
-          apply (wp get_object_ret | wps)+
+        apply (case_tac "x2 = word")
+         defer
+         apply wps
+         apply (rule set_object_at_obj)
+        apply (wp get_object_ret | wps)+
    apply (clarsimp simp: obj_at_def empty_table_def)+
   done
 

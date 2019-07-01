@@ -61,7 +61,7 @@ fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (input : inp
               val _ = TextIO.closeIn istream
           in res end
        | (_, Source src) =>
-          f (drain [Input.source_content src]) (C_Env.encode_positions [Input.pos_of src])
+          f (drain [Input.source_content src |> #1]) (C_Env.encode_positions [Input.pos_of src])
 
     fun parse_without_c11 thy = 
       docpp
@@ -114,8 +114,8 @@ fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (input : inp
   in
     case maybe_c11 of
       SOME true => 
-        let val ((res1, err1), thy) = parse_without_c11 thy
-            val ((res2, err2), thy) = parse_with_c11 thy
+        let val ((res2, err2), thy) = parse_with_c11 thy
+            val ((res1, err1), thy) = parse_without_c11 thy
             val rm = StmtDecl.rm_region_ext_decl_list
             val r1 = rm res1
             val r2 = rm res2

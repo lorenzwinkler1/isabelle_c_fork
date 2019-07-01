@@ -1,10 +1,7 @@
 (******************************************************************************
- * CLEAN
+ * Generation of Language.C Grammar with ML Interface Binding
  *
- * Copyright (c) 2005-2007 ETH Zurich, Switzerland
- *               2009-2019 Université Paris-Saclay, Univ. Paris-Sud, France 
- *               2009-2012 Achim D. Brucker, Germany
- *               2015-2017 University Sheffield, UK
+ * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
  * All rights reserved.
  *
@@ -37,11 +34,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-session CLEAN = HOL +
+session CLEAN_logic = HOL +
   theories
     "src/Clean"
 
-session CLEAN_examples = CLEAN +
+session CLEAN_examples = CLEAN_logic +
   theories
-    "examples/program-based/QuickSort"
+    "examples/program-based/Quicksort_design"
     "examples/program-based/SquareRoot_test"

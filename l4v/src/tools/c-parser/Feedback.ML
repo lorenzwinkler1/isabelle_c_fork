@@ -1,4 +1,5 @@
 (*
+ * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -12,19 +13,19 @@ signature FEEDBACK =
 sig
 
   exception WantToExit of string
-  val numErrors : int ref
-  val errorThreshold : int option ref
+  val numErrors : int Unsynchronized.ref
+  val errorThreshold : int option Unsynchronized.ref
   val errorStr : Region.t * string -> unit
   val errorStr' : SourcePos.t * SourcePos.t * string -> unit
   val warnStr' : SourcePos.t * SourcePos.t * string -> unit
   val informStr : int * string -> unit
   val informStr' : int * SourcePos.t * SourcePos.t * string -> unit
 
-  val errorf : (string -> unit) ref
-  val warnf : (string -> unit) ref
-  val informf : (string -> unit) ref
+  val errorf : (string -> unit) Unsynchronized.ref
+  val warnf : (string -> unit) Unsynchronized.ref
+  val informf : (string -> unit) Unsynchronized.ref
 
-  val verbosity_level : int ref
+  val verbosity_level : int Unsynchronized.ref
 
   val timestamp : string -> string
 
@@ -32,7 +33,7 @@ end
 
 structure Feedback :> FEEDBACK =
 struct
-
+open Unsynchronized
 exception WantToExit of string
 val isSome = Option.isSome
 
@@ -64,7 +65,7 @@ end
 fun errorStr' (l,r,s) = errorStr(Region.make {left = l, right = r}, s)
 
 
-fun warnStr' (l,r,s) =
+fun warnStr' (l,_,s) =
     !warnf ("Warning "^SourcePos.toString l^ " " ^ s ^ "\n")
 
 fun timestamp s = Time.fmt 0 (Time.now()) ^ ": " ^ s

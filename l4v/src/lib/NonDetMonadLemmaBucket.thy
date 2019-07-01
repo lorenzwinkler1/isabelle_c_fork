@@ -14,7 +14,6 @@ imports
   "MonadEq"
   "Monad_WP/WhileLoopRulesCompleteness"
   "Word_Lib.Distinct_Prop"
-  "HOL-Word.Word_Miscellaneous"
 begin
 setup \<open>AutoLevity_Base.add_attribute_test "wp" WeakestPre.is_wp_rule\<close>
 
@@ -1059,7 +1058,7 @@ lemma bind_inv_inv_comm:
    apply (metis in_inv_by_hoareD)
   apply (rule bind_apply_cong, simp_all)
   apply (clarsimp simp: bind_def split_def return_def)
-  apply (auto elim!: nonemptyE | drule(1) empty_failD3)+
+  apply (auto | drule(1) empty_failD3)+
   done
 
 lemma throwErrorE_E [wp]:

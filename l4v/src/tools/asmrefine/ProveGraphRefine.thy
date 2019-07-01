@@ -268,6 +268,11 @@ lemma of_int_sint_scast:
   "of_int (sint x) = scast x"
   by (simp add: scast_def word_of_int)
 
+lemma less_is_non_zero_p1':
+  fixes a :: "'a :: len word"
+  shows "a < k \<Longrightarrow> 1 + a \<noteq> 0"
+  by (metis less_is_non_zero_p1 add.commute)
+
 lemma(in comm_semiring_1) add_mult_comms:
   "a + b + c = a + c + b"
   "a * b * c = a * c * b"
@@ -279,11 +284,34 @@ lemma array_index_update_If:
         = (if i = j then x else Arrays.index (arr :: ('a['b])) i)"
   by simp
 
-ML {*
+\<comment> \<open>Of the assumptions, only pos is needed to prove the conclusion.
+    The guard assumptions are there to ensure that when used as a simp rule,
+    the RHS array pointer gets an appropriate type.\<close>
+lemma ptr_safe_ptr_add_array_ptr_index_int:
+  assumes guard: "ptr_safe (Ptr p::('a['b]) ptr) htd" (* "nat i < CARD('b)" *)
+  assumes pos: "0 \<le> i"
+  shows "(Ptr p::'a::c_type ptr) +\<^sub>p i = array_ptr_index (Ptr p::('a['b::finite]) ptr) False (nat i)"
+  using pos by (simp add: array_ptr_index_def)
+
+lemma ptr_safe_ptr_add_array_ptr_index_sint:
+  assumes guard: "ptr_safe (Ptr p::('a['b]) ptr) htd" "i <s of_nat CARD('b)"
+  assumes pos: "0 <=s i"
+  shows "(Ptr p::'a::c_type ptr) +\<^sub>p sint i = array_ptr_index (Ptr p::('a['b::finite]) ptr) False (unat i)"
+  using pos by (simp add: array_ptr_index_def int_unat sint_eq_uint word_sle_msb_le)
+
+lemmas ptr_safe_ptr_add_array_ptr_index =
+  ptr_safe_ptr_add_array_ptr_index_int
+  ptr_safe_ptr_add_array_ptr_index_sint
+
+lemma ptr_safe_Array_element_0:
+  "ptr_safe (PTR('a::mem_type['b::finite]) p) htd \<Longrightarrow> ptr_safe (PTR('a) p) htd"
+  by (drule ptr_safe_Array_element[where coerce=False and n=0]; simp add: array_ptr_index_def)
+
+ML \<open>
 fun preserve_skel_conv consts arg_conv ct = let
     val (hd, xs) = strip_comb (Thm.term_of ct)
     val self = preserve_skel_conv consts arg_conv
-  in if is_Const hd andalso member (=) consts
+  in if is_Const hd andalso member (op =) consts
         (fst (dest_Const hd))
     then  if null xs then Conv.all_conv ct
         else Conv.combination_conv self self ct
@@ -344,9 +372,9 @@ val unfold_assertion_data_get_set = Simplifier.make_simproc
   , proc = fn _ => fn ctxt => SOME o (unfold_assertion_data_get_set_conv ctxt) o Thm.term_of
   }
 
-*}
+\<close>
 
-ML {*
+ML \<open>
 fun wrap_tac tac i t = if Thm.nprems_of t = 0 then no_tac t else let
     val t' = Goal.restrict i 1 t
     val r = tac 1 t'
@@ -358,15 +386,15 @@ fun eqsubst_wrap_tac ctxt thms = wrap_tac (EqSubst.eqsubst_tac ctxt [0] thms)
 fun eqsubst_asm_wrap_tac ctxt thms = wrap_tac (EqSubst.eqsubst_asm_tac ctxt [0] thms)
 fun eqsubst_either_wrap_tac ctxt thms = (eqsubst_asm_wrap_tac ctxt thms
     ORELSE' eqsubst_wrap_tac ctxt thms)
-*}
+\<close>
 
 
 
-ML {*
+ML \<open>
 structure ProveSimplToGraphGoals = struct
 
 fun goal_eq (g, g') =
-    (eq_list (aconv) (Logic.strip_assums_hyp g, Logic.strip_assums_hyp g'))
+    (eq_list (op aconv) (Logic.strip_assums_hyp g, Logic.strip_assums_hyp g'))
     andalso (Logic.strip_assums_concl g aconv Logic.strip_assums_concl g')
     andalso (map snd (Logic.strip_params g) = map snd (Logic.strip_params g'))
 
@@ -435,10 +463,12 @@ fun prove_ptr_safe reason ctxt = DETERM o
                 @{thms array_ptr_index_coerce}
             )
         THEN_ALL_NEW asm_full_simp_tac (ctxt addsimps
-            @{thms word_sle_msb_le word_sless_msb_less})
+            @{thms ptr_safe_ptr_add_array_ptr_index
+                   word_sle_msb_le word_sless_msb_less})
         THEN_ALL_NEW asm_simp_tac (ctxt addsimps
             @{thms ptr_safe_field[unfolded typ_uinfo_t_def]
                    ptr_safe_Array_element unat_less_helper
+                   ptr_safe_Array_element_0
                    h_t_valid_Array_element' h_t_valid_field})
         THEN_ALL_NEW except_tac ctxt
             ("prove_ptr_safe: failed for " ^ reason)
@@ -505,6 +535,8 @@ fun normalise_mem_accs reason ctxt = DETERM o let
                        heap_access_Array_element'
                        o_def fupdate_def
                        pointer_inverse_safe_sign
+                       ptr_safe_ptr_add_array_ptr_index
+                       unat_less_helper
             } @ get_field_h_val_rewrites ctxt
         @ #1 gr @ #2 gr
     val h_val = get_disjoint_h_val_globals_swap ctxt
@@ -781,6 +813,7 @@ fun graph_refine_proof_tacs csenv ctxt = let
                         fold_all_htd_updates
                         array_assertion_shrink_right
                         sdiv_word_def sdiv_int_def
+                        unatSuc[OF less_is_non_zero_p1'] unatSuc2[OF less_is_non_zero_p1]
                 }
                 delsimps @{thms ptr_val_inj}
             )),
@@ -802,7 +835,7 @@ fun graph_refine_proof_full_tac csenv ctxt = EVERY
         (graph_refine_proof_tacs csenv ctxt))
 
 fun graph_refine_proof_full_goal_tac csenv ctxt i t
-    = (foldr1 (THEN_ALL_NEW)
+    = (foldr1 (op THEN_ALL_NEW)
         (map snd (graph_refine_proof_tacs csenv ctxt)) i t)
         |> try Seq.hd |> (fn NONE => Seq.empty | SOME t => Seq.single t)
 
@@ -842,8 +875,8 @@ fun test_graph_refine_proof_with_def funs csenv ctxt nm = case
     Symtab.lookup funs nm of SOME (_, _, NONE) => "skipped " ^ nm
   | _ => let
     val ctxt = define_graph_fun_short funs nm ctxt
-  in simpl_to_graph_thm funs csenv ctxt nm;
-    "success on " ^ nm end
+    val (time, _) = Timing.timing (simpl_to_graph_thm funs csenv ctxt) nm
+  in "success on " ^ nm ^ "  [" ^ Timing.message time ^ "]" end
 
 fun test_all_graph_refine_proofs_after funs csenv ctxt nm = let
     val ss = Symtab.keys funs
@@ -862,6 +895,6 @@ fun test_all_graph_refine_proofs_parallel funs csenv ctxt = let
   in "success" end
 
 end
-*}
+\<close>
 
 end

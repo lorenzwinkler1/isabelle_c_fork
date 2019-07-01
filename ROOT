@@ -34,19 +34,15 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-(* For modularity reasons, and to ease the importation of a specific session by
-   semantic back-ends, theory files are (at the time of writing) not regrouped
-   into a unique session. *)
-
-session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres +
-  options [document = pdf, document_output = "generated"]
-  (* TODO: find a way to concatenate together PDF in:
-           generated/part1 + generated/part2 + generated/part3 *)
+session AutoCorres_logic in "C11-FrontEnd/semantic-backends/AutoCorres" = AutoCorres +
   theories
-    "semantic-backends/AutoCorres/README"
+    "src/README"
 
+session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres_logic +
+  theories
+    "semantic-backends/AutoCorres/src/Backend"
 
-session Isabelle_C_AutoCorres_test in "C11-FrontEnd" = Isabelle_C_AutoCorres +
+session Isabelle_C_AutoCorres_examples in "C11-FrontEnd" = Isabelle_C_AutoCorres +
   options [document = pdf, document_output = "generated"]
   (* TODO: find a way to concatenate together PDF in:
            generated/part1 + generated/part2 + generated/part3 *)
@@ -57,7 +53,31 @@ session Isabelle_C_AutoCorres_test in "C11-FrontEnd" = Isabelle_C_AutoCorres +
     "semantic-backends/AutoCorres/examples/IsPrime_linear_outside"
     "semantic-backends/AutoCorres/examples/IsPrime_sqrt_outside"
     "semantic-backends/AutoCorres/examples/Parse_for_loop"
+    "semantic-backends/AutoCorres/examples/Quicksort"
     "semantic-backends/AutoCorres/examples/TestSEL4"
+  document_files
+    "root.tex"
+    "root.bib"
+
+session Isabelle_C_CLEAN in "C11-FrontEnd" = C +
+  sessions
+    CLEAN_logic
+  theories
+    "semantic-backends/CLEAN/src/Backend"
+
+session Isabelle_C_CLEAN_examples in "C11-FrontEnd" = Isabelle_C_CLEAN +
+  options [document = pdf, document_output = "generated"]
+  theories
+    "semantic-backends/CLEAN/examples/IsPrime_sqrt_outside"
+    "semantic-backends/CLEAN/examples/Quicksort"
+  document_files
+    "root.tex"
+    "root.bib"
+
+session README in "C11-FrontEnd" = HOL +
+  options [document = pdf, document_output = "generated"]
+  theories
+    "../README_advanced"
   document_files
     "root.tex"
     "root.bib"

@@ -22,24 +22,14 @@ ensure fast feedback as a consequence of changes of the source. \<close>
 
 theory IsPrime_integrated
 imports
-  "AutoCorres.AutoCorres"
+  Isabelle_C_AutoCorres.Backend
   "HOL-Computational_Algebra.Primes"
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
 C \<open>
-//  Setup of AutoCorres for parsing and semantically representing this C element.
+//  Setup of AutoCorres for semantically representing this C element.
 //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime_linear is_prime ]
-
-/*
- * Copyright 2014, NICTA
- *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- */
 
 #define SQRT_UINT_MAX 65536
 /* We prove locally some facts on this C preprocessor macro, which is internally

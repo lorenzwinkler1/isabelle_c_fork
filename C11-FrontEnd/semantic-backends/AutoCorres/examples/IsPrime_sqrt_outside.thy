@@ -9,21 +9,21 @@
  * @TAG(NICTA_BSD)
  *)
 
-chapter\<open>Linear Prime Sample Proof\<close>
+chapter\<open>A Sqrt Prime Sample Proof\<close>
 
 text\<open>This example is used to demonstrate Isabelle/C/Autocorres in a version that keeps
 annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
 
 theory IsPrime_sqrt_outside
 imports
-  "AutoCorres.AutoCorres"
+  Isabelle_C_AutoCorres.Backend
   "HOL-Computational_Algebra.Primes"
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
 section\<open>The Theory of the \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
 text\<open>This section develops basic concepts of the invariant. This bit is presented here \<^emph>\<open>before\<close>
-the actual code, but could also be after or even inside the \<^C>\<open>\<close> command as comment-annotation of 
+the actual code, but could also be after or even inside the \<^theory_text>\<open>C\<close> command as comment-annotation of 
 the source.\<close>
 
 

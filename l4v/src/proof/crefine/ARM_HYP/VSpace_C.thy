@@ -206,7 +206,7 @@ lemma pd_at_asid_cross_over:
   "\<lbrakk> pd_at_asid' pd asid s; asid \<le> mask asid_bits;
           (s, s') \<in> rf_sr\<rbrakk>
       \<Longrightarrow> \<exists>apptr ap pde. index (armKSASIDTable_' (globals s')) (unat (asid >> asid_low_bits))
-                     = (ap_Ptr apptr) \<and> cslift s' (ap_Ptr apptr) = Some (asid_pool_C ap)
+                     = (ap_Ptr apptr) \<and> cslift s' (ap_Ptr apptr) = Some (asid_pool_C.asid_pool_C ap)
                   \<and> index ap (unat (asid && 2 ^ asid_low_bits - 1)) = pde_Ptr pd
                   \<and> cslift s' (pde_Ptr (pd + 0x3FC0)) = Some pde
                   \<and> is_aligned pd pdBits
@@ -1100,8 +1100,8 @@ lemma ccorres_pre_gets_armUSGlobalPD_ksArchState:
   assumes cc: "\<And>rv. ccorres r xf (P rv) (P' rv) hs (f rv) c"
   shows   "ccorres r xf
                   (\<lambda>s. (\<forall>rv. armUSGlobalPD (ksArchState s) = rv  \<longrightarrow> P rv s))
-                  (P' (ptr_val ((Ptr ::(32 word \<Rightarrow> (pde_C[2048]) ptr)) (symbol_table ''armUSGlobalPD''))))
-                          hs (gets (armUSGlobalPD \<circ> ksArchState) >>= (\<lambda>rv. f rv)) c"
+                  (P' (ptr_val armUSGlobalPD_Ptr)) hs
+                  (gets (armUSGlobalPD \<circ> ksArchState) >>= (\<lambda>rv. f rv)) c"
   apply (rule ccorres_guard_imp)
     apply (rule ccorres_symb_exec_l)
        defer
@@ -1473,9 +1473,7 @@ lemma armv_contextSwitch_ccorres:
 (* FIXME: move *)
 lemma ccorres_h_t_valid_armUSGlobalPD:
   "ccorres r xf P P' hs f (f' ;; g') \<Longrightarrow>
-   ccorres r xf P P' hs f
-    (Guard C_Guard {s'. s' \<Turnstile>\<^sub>c (Ptr::(32 word \<Rightarrow> (pde_C[2048]) ptr)) (symbol_table ''armUSGlobalPD'')} f';;
-    g')"
+   ccorres r xf P P' hs f (Guard C_Guard {s'. s' \<Turnstile>\<^sub>c armUSGlobalPD_Ptr} f';; g')"
   apply (rule ccorres_guard_imp2)
    apply (rule ccorres_move_c_guards[where P = \<top>])
     apply clarsimp
@@ -2187,7 +2185,7 @@ lemma vcpu_switch_ccorres:
     (pspace_aligned' and pspace_distinct' and valid_objs' and no_0_obj'
                      and valid_arch_state'
           and (case v of None \<Rightarrow> \<top> | Some new \<Rightarrow> vcpu_at' new))
-    (UNIV \<inter> {s. new_' s = option_to_ptr v (*(case v of None \<Rightarrow> NULL | Some new \<Rightarrow> vcpu_Ptr new)*) }) hs
+    (UNIV \<inter> {s. new_' s = option_to_ptr v \<comment> \<open>(case v of None \<Rightarrow> NULL | Some new \<Rightarrow> vcpu_Ptr new)\<close> }) hs
         (vcpuSwitch v) (Call vcpu_switch_'proc)"
   by (cases v; clarsimp simp: vcpu_switch_ccorres_None[simplified] vcpu_switch_ccorres_Some[simplified])
 
@@ -2208,7 +2206,7 @@ lemma setVMRoot_ccorres:
    apply (ctac)
      apply csymbr
      apply csymbr
-     apply (simp add: if_1_0_0 cap_get_tag_isCap_ArchObject2 del: Collect_const)
+     apply (simp add: cap_get_tag_isCap_ArchObject2 del: Collect_const)
      apply (rule ccorres_Cond_rhs_Seq)
       apply (simp add: cap_case_isPageDirectoryCap cong: if_cong)
       apply (rule ccorres_cond_true_seq)
@@ -2230,7 +2228,7 @@ lemma setVMRoot_ccorres:
      apply (rule_tac P="to_bool (capPDIsMapped_CL (cap_page_directory_cap_lift threadRoot))
                               = (capPDMappedASID (capCap rv) \<noteq> None)"
                    in ccorres_gen_asm2)
-     apply (simp add: if_1_0_0 to_bool_def del: Collect_const)
+     apply (simp add: to_bool_def del: Collect_const)
      apply (rule ccorres_Cond_rhs_Seq)
       apply (simp add: cap_case_isPageDirectoryCap cong: if_cong)
       apply (simp add: throwError_def catch_def)
@@ -2305,7 +2303,7 @@ lemma setVMRoot_ccorres:
      apply (vcg exspec=findPDForASID_modifies)
     apply (simp add: getSlotCap_def)
     apply (wp getCTE_wp')
-   apply (clarsimp simp add:  if_1_0_0 simp del: Collect_const)
+   apply (clarsimp simp del: Collect_const)
    apply vcg
   apply (clarsimp simp: Collect_const_mem word_sle_def)
   apply (rule conjI)
@@ -2315,8 +2313,7 @@ lemma setVMRoot_ccorres:
    apply (rule_tac x=ta in exI, auto split: option.splits)[1]
    apply (frule (2) sym_refs_tcb_vcpu', clarsimp)
    apply (clarsimp simp: obj_at'_def typ_at'_def ko_wp_at'_def projectKOs)
-  apply (clarsimp simp: ptr_val_tcb_ptr_mask'
-                        size_of_def cte_level_bits_def
+  apply (clarsimp simp: size_of_def cte_level_bits_def
                         tcbVTableSlot_def tcb_cnode_index_defs
                         ccap_rights_relation_def cap_rights_to_H_def
                         to_bool_def true_def allRights_def
@@ -2335,9 +2332,6 @@ lemma setVMRoot_ccorres:
   apply (clarsimp simp: ctcb_relation_def carch_tcb_relation_def)
   done
 
-(* FIXME: remove *)
-lemmas invs'_invs_no_cicd = invs_invs_no_cicd'
-
 lemma setVMRootForFlush_ccorres:
   "ccorres (\<lambda>rv rv'. rv' = from_bool rv) ret__unsigned_long_'
        (invs' and (\<lambda>s. asid \<le> mask asid_bits))
@@ -2351,7 +2345,7 @@ lemma setVMRootForFlush_ccorres:
    apply (ctac add: getSlotCap_h_val_ccorres)
      apply csymbr
      apply csymbr
-     apply (simp add: cap_get_tag_isCap_ArchObject2 if_1_0_0
+     apply (simp add: cap_get_tag_isCap_ArchObject2
                  del: Collect_const)
      apply (rule ccorres_if_lhs)
       apply (rule_tac P="(capPDIsMapped_CL (cap_page_directory_cap_lift threadRoot) = 0)
@@ -2377,7 +2371,7 @@ lemma setVMRootForFlush_ccorres:
     apply simp
     apply (wp hoare_drop_imps)
    apply vcg
-  apply (clarsimp simp: Collect_const_mem if_1_0_0 word_sle_def
+  apply (clarsimp simp: Collect_const_mem word_sle_def
                         ccap_rights_relation_def cap_rights_to_H_def
                         mask_def[where n="Suc 0"] true_def to_bool_def
                         allRights_def size_of_def cte_level_bits_def
@@ -2462,7 +2456,7 @@ lemma ptrFromPAddr_mask6_simp[simp]:
 
 lemma doFlush_ccorres:
   "ccorres dc xfdc (\<lambda>s. vs \<le> ve \<and> ps \<le> ps + (ve - vs) \<and> vs && mask 6 = ps && mask 6
-        (* hyp version translates ps into kernel virtual before flushing *)
+        \<comment> \<open>ahyp version translates ps into kernel virtual before flushing\<close>
         \<and> ptrFromPAddr ps \<le> ptrFromPAddr ps + (ve - vs)
         \<and> unat (ve - vs) \<le> gsMaxObjectSize s)
      (\<lbrace>flushtype_relation t \<acute>invLabel___int\<rbrace> \<inter> \<lbrace>\<acute>start = vs\<rbrace> \<inter> \<lbrace>\<acute>end = ve\<rbrace> \<inter> \<lbrace>\<acute>pstart = ps\<rbrace>) []
@@ -3907,7 +3901,7 @@ lemma asid_pool_at_c_guard:
 
 (* FIXME: move *)
 lemma setObjectASID_Basic_ccorres:
-  "ccorres dc xfdc \<top> {s. f s = p \<and> casid_pool_relation pool (asid_pool_C (pool' s))} hs
+  "ccorres dc xfdc \<top> {s. f s = p \<and> casid_pool_relation pool (asid_pool_C.asid_pool_C (pool' s))} hs
      (setObject p pool)
      ((Basic (\<lambda>s. globals_update( t_hrs_'_update
             (hrs_mem_update (heap_update (Ptr &(ap_Ptr (f s)\<rightarrow>[''array_C''])) (pool' s)))) s)))"

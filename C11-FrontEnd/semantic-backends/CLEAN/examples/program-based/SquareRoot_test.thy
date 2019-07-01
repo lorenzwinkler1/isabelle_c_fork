@@ -6,7 +6,7 @@
 chapter {* Proof of concept for a monadic symbolic execution calculus for WHILE programs *}
 
 theory SquareRoot_test
-imports CLEAN.Clean
+imports CLEAN_logic.Clean
 begin
 
 

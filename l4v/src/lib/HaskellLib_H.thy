@@ -204,7 +204,7 @@ lemma either_simp[simp]: "either = case_sum"
   done
 
 
-instantiation nat :: bit
+instantiation nat :: bit_operations
 begin
 
 definition
@@ -223,7 +223,7 @@ instance ..
 
 end
 
-class HS_bit = bit +
+class HS_bit = bit_operations +
   fixes shiftL :: "'a \<Rightarrow> nat \<Rightarrow> 'a"
   fixes shiftR :: "'a \<Rightarrow> nat \<Rightarrow> 'a"
   fixes bitSize :: "'a \<Rightarrow> nat"
@@ -253,13 +253,13 @@ definition
 definition
   shiftR_nat: "shiftR (x :: nat) n \<equiv> x div (2 ^ n)"
 
-text {* bitSize not defined for nat *}
+text \<open>bitSize not defined for nat\<close>
 
 instance ..
 
 end
 
-class finiteBit = bit +
+class finiteBit = bit_operations +
   fixes finiteBitSize :: "'a \<Rightarrow> nat"
 
 instantiation word :: (len0) finiteBit
@@ -452,7 +452,7 @@ lemma finite_inv_card_less:
    "(card (UNIV - insert (a :: ('a :: finite)) s) < card (UNIV - s)) = (a \<notin> s)"
   by (simp add: finite_inv_card_less')
 
-text {* Support for defining enumerations on datatypes derived from enumerations *}
+text \<open>Support for defining enumerations on datatypes derived from enumerations\<close>
 lemma distinct_map_enum: "\<lbrakk> (\<forall> x y. (F x = F y \<longrightarrow> x = y )) \<rbrakk> \<Longrightarrow> distinct (map F (enum :: 'a :: enum list))"
   apply (simp add: distinct_map)
   apply (rule inj_onI)

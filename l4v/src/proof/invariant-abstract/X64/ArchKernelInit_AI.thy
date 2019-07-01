@@ -20,9 +20,9 @@ begin
 
 context Arch begin global_naming X64 (*FIXME: arch_split*)
 
-text {*
+text \<open>
   Showing that there is a state that satisfies the abstract invariants.
-*}
+\<close>
 
 lemmas ptr_defs = idle_thread_ptr_def init_irq_node_ptr_def
                   init_global_pml4_def init_global_pdpt_def init_global_pd_def
@@ -196,6 +196,12 @@ lemma caps_of_state_init_A_st_Null:
    apply (auto simp add: state_defs tcb_cap_cases_def split: if_split_asm)
   done
 
+lemma cte_wp_at_init_A_st_Null:
+  "cte_wp_at P p init_A_st \<Longrightarrow> P cap.NullCap"
+  apply (subst(asm) cte_wp_at_caps_of_state)
+  apply (simp add:caps_of_state_init_A_st_Null split: if_splits)
+  done
+
 lemmas cte_wp_at_caps_of_state_eq
     = cte_wp_at_caps_of_state[where P="(=) cap" for cap]
 
@@ -235,7 +241,9 @@ lemma valid_global_vspace_mappings_init_A_st: "valid_global_vspace_mappings init
 done
 
 lemma invs_A:
-  "invs init_A_st"
+  "invs init_A_st" (is "invs ?st")
+  supply is_aligned_def[THEN meta_eq_to_obj_eq, THEN iffD2, simp]
+  supply image_cong_simp [cong del]
   apply (simp add: invs_def)
   apply (rule conjI)
    prefer 2
@@ -248,12 +256,21 @@ lemma invs_A:
                           valid_obj_def valid_vm_rights_def vm_kernel_only_def
                           dom_if_Some cte_level_bits_def)
     apply (rule conjI)
+     apply (simp add: vmsz_aligned_def pageBits_def ptTranslationBits_def is_aligned_shift)
+    apply (rule conjI)
+     apply (simp add: vmsz_aligned_def pageBits_def ptTranslationBits_def is_aligned_shift
+                      is_aligned_addrFromPPtr_n table_size)
+    apply (rule conjI)
+     apply (simp add: is_aligned_addrFromPPtr_n table_size)
+    apply (rule conjI)
      apply (clarsimp simp: valid_tcb_def tcb_cap_cases_def is_master_reply_cap_def
                            valid_cap_def obj_at_def valid_tcb_state_def valid_arch_tcb_def
                            cap_aligned_def word_bits_def valid_ipc_buffer_cap_simps)+
     apply (clarsimp simp: valid_cs_def word_bits_def cte_level_bits_def
                           init_irq_ptrs_all_ineqs valid_tcb_def
                    split: if_split_asm)
+     apply (clarsimp simp: vmsz_aligned_def is_aligned_addrFromPPtr_n table_size is_aligned_shift
+                           pageBits_def ptTranslationBits_def)
    apply (simp add: pspace_aligned_init_A pspace_distinct_init_A)
    apply (rule conjI)
     apply (clarsimp simp: if_live_then_nonz_cap_def obj_at_def state_defs live_def hyp_live_def)
@@ -279,12 +296,16 @@ lemma invs_A:
    apply (clarsimp simp: valid_idle_def pred_tcb_at_def obj_at_def state_defs valid_arch_idle_def)
   apply (rule conjI, clarsimp simp: only_idle_def pred_tcb_at_def obj_at_def state_defs)
   apply (rule conjI, clarsimp simp: if_unsafe_then_cap_def caps_of_state_init_A_st_Null)
-  apply (clarsimp simp: valid_reply_caps_def unique_reply_caps_def
-                        has_reply_cap_def pred_tcb_at_def obj_at_def
-                        caps_of_state_init_A_st_Null
-                        cte_wp_at_caps_of_state_eq
-                        valid_reply_masters_def valid_global_refs_def
-                        valid_refs_def[unfolded cte_wp_at_caps_of_state])
+  apply (subgoal_tac "valid_reply_caps ?st \<and> valid_reply_masters ?st \<and> valid_global_refs ?st")
+   prefer 2
+   subgoal
+     using cte_wp_at_init_A_st_Null
+     by (fastforce simp: valid_reply_caps_def unique_reply_caps_def
+                         has_reply_cap_def is_reply_cap_to_def pred_tcb_at_def obj_at_def
+                         caps_of_state_init_A_st_Null is_master_reply_cap_to_def
+                         valid_reply_masters_def valid_global_refs_def
+                         valid_refs_def[unfolded cte_wp_at_caps_of_state])
+  apply (clarsimp, (thin_tac "_")+) (* use new proven assumptions, then drop them *)
   apply (rule conjI)
    apply (clarsimp simp: valid_arch_state_def)
    apply (rule conjI)

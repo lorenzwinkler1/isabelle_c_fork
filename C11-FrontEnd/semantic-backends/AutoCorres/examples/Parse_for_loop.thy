@@ -19,7 +19,7 @@ clumpsy. \<close>
 
 theory Parse_for_loop
 imports
-  "AutoCorres.AutoCorres"
+  Isabelle_C_AutoCorres.Backend
   "HOL-Computational_Algebra.Primes"
 begin
 

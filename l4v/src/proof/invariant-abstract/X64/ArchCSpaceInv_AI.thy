@@ -22,11 +22,11 @@ definition
    safe_ioport_insert :: "cap \<Rightarrow> cap \<Rightarrow> 'a::state_ext state \<Rightarrow> bool"
 where
   "safe_ioport_insert newcap oldcap \<equiv>
-          \<lambda>s. (cap_ioports newcap = {} (* replacing with any non-IOPortCap *)
+          \<lambda>s. (cap_ioports newcap = {} \<comment> \<open>replacing with any non-IOPortCap\<close>
           \<or> ((\<forall>cap''\<in> ran (caps_of_state s).
-                   cap_ioports newcap = cap_ioports cap'' (* copy another IOPortCap *)
-                \<or> cap_ioports newcap \<inter> cap_ioports cap'' = {} (* new IOPortCap with unoverlapping range *))))
-          \<and> ((cap_ioports newcap - cap_ioports oldcap) \<subseteq> issued_ioports (arch_state s)) (* all ioports are issued *)"
+                   cap_ioports newcap = cap_ioports cap'' \<comment> \<open>copy another IOPortCap\<close>
+                \<or> cap_ioports newcap \<inter> cap_ioports cap'' = {} \<comment> \<open>new IOPortCap with unoverlapping range\<close>)))
+          \<and> ((cap_ioports newcap - cap_ioports oldcap) \<subseteq> issued_ioports (arch_state s)) \<comment> \<open> all ioports are issued\<close>"
 
 lemma cap_ioports_triv[simp]:
   "\<not>is_arch_cap cap \<Longrightarrow> cap_ioports cap = {}"
@@ -144,7 +144,11 @@ lemma replace_cap_invs:
    apply (rule conjI)
     apply (unfold reply_caps_mdb_def)[1]
     apply (erule allEI, erule allEI)
-    subgoal by (fastforce split: if_split_asm simp: is_cap_simps)
+    apply (clarsimp split: if_split simp add: is_cap_simps
+                 simp del: split_paired_Ex split_paired_All)
+    apply (rename_tac ptra ptrb rights')
+    apply (rule_tac x="(ptra,ptrb)" in exI)
+    apply fastforce
    apply (unfold reply_masters_mdb_def)[1]
    apply (erule allEI, erule allEI)
    subgoal by (fastforce split: if_split_asm simp: is_cap_simps)
@@ -155,16 +159,19 @@ lemma replace_cap_invs:
    apply (clarsimp simp: ioport_revocable_def is_cap_simps)
   apply (rule conjI)
    apply (erule disjE)
-    apply (clarsimp)
+    apply (clarsimp simp add: is_reply_cap_to_def)
     apply (drule caps_of_state_cteD)
-    apply (erule(1) valid_reply_capsD [OF has_reply_cap_cte_wpD])
+    apply (subgoal_tac "cte_wp_at (is_reply_cap_to t) p s")
+     apply (erule(1) valid_reply_capsD [OF has_reply_cap_cte_wpD])
+    apply (erule cte_wp_at_lift)
+    apply (fastforce simp add:is_reply_cap_to_def)
    apply (simp add: is_cap_simps)
   apply (frule(1) valid_global_refsD2)
   apply (frule(1) cap_refs_in_kernel_windowD)
   apply (rule conjI)
    apply (erule disjE)
     apply (clarsimp simp: valid_reply_masters_def cte_wp_at_caps_of_state)
-    apply (cases p, fastforce)
+    apply (cases p, fastforce simp:is_master_reply_cap_to_def)
    apply (simp add: is_cap_simps)
   apply (elim disjE)
    apply simp

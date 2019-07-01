@@ -15,7 +15,7 @@ begin
 \<comment> \<open>---------------------------------------------------------------------------\<close>
 section "Move this up"
 
-qualify ARM (in Arch)
+qualify ARM_HYP (in Arch)
 
 (* FIXME: move to spec level *)
 (* global data and code of the kernel, not covered by any cap *)
@@ -32,7 +32,7 @@ record iarch_tcb =
   itcb_vcpu :: "obj_ref option"
 end_qualify
 
-context Arch begin global_naming ARM
+context Arch begin global_naming ARM_HYP
 
 definition
   arch_tcb_to_iarch_tcb :: "arch_tcb \<Rightarrow> iarch_tcb"
@@ -276,25 +276,20 @@ primrec
 where
   "valid_pte (InvalidPTE) = \<top>"
 | "valid_pte (LargePagePTE ptr x y) =
-   (\<lambda>s. is_aligned ptr pageBits \<and>
-        data_at ARMLargePage (ptrFromPAddr ptr) s)"
+       data_at ARMLargePage (ptrFromPAddr ptr)"
 | "valid_pte (SmallPagePTE ptr x y) =
-   (\<lambda>s. is_aligned ptr pageBits \<and>
-        data_at ARMSmallPage (ptrFromPAddr ptr) s)"
+       data_at ARMSmallPage (ptrFromPAddr ptr)"
 
 primrec
   valid_pde :: "pde \<Rightarrow> 'z::state_ext state \<Rightarrow> bool"
 where
   "valid_pde (InvalidPDE) = \<top>"
 | "valid_pde (SectionPDE ptr x y) =
-   (\<lambda>s. is_aligned ptr pageBits \<and>
-        data_at ARMSection (ptrFromPAddr ptr) s)"
+       data_at ARMSection (ptrFromPAddr ptr)"
 | "valid_pde (SuperSectionPDE ptr x z) =
-   (\<lambda>s. is_aligned ptr pageBits \<and>
-        data_at ARMSuperSection
-               (ptrFromPAddr ptr) s)"
+       data_at ARMSuperSection (ptrFromPAddr ptr)"
 | "valid_pde (PageTablePDE ptr) =
-   (typ_at (AArch APageTable) (ptrFromPAddr ptr))"
+       typ_at (AArch APageTable) (ptrFromPAddr ptr)"
 
 definition
   valid_vcpu :: "vcpu \<Rightarrow> 'z::state_ext state \<Rightarrow> bool"
@@ -319,18 +314,21 @@ definition
 where
   "wellformed_pte pte \<equiv> case pte of
      LargePagePTE p attr r \<Rightarrow>
-       r \<in> valid_vm_rights
+       r \<in> valid_vm_rights \<and> vmsz_aligned p ARMLargePage
    | SmallPagePTE p attr r \<Rightarrow>
-       r \<in> valid_vm_rights
+       r \<in> valid_vm_rights \<and> vmsz_aligned p ARMSmallPage
    | _ \<Rightarrow> True"
 
 definition
   wellformed_pde :: "pde \<Rightarrow> bool"
 where
   "wellformed_pde pde \<equiv> case pde of
-     pde.PageTablePDE p \<Rightarrow> True
-   | pde.SectionPDE p attr r \<Rightarrow> r \<in> valid_vm_rights
-   | pde.SuperSectionPDE p attr r \<Rightarrow> r \<in> valid_vm_rights
+     pde.PageTablePDE p \<Rightarrow>
+       is_aligned p pt_bits
+   | pde.SectionPDE p attr r \<Rightarrow>
+       r \<in> valid_vm_rights \<and> vmsz_aligned p ARMSection
+   | pde.SuperSectionPDE p attr r \<Rightarrow>
+       r \<in> valid_vm_rights \<and> vmsz_aligned p ARMSuperSection
    | _ \<Rightarrow> True"
 
 definition
@@ -547,7 +545,7 @@ abbreviation
   "\<exists>\<unrhd> p \<equiv> \<lambda>s. \<exists>ref. (ref \<unrhd> p) s"
 
 
-context Arch begin global_naming ARM
+context Arch begin global_naming ARM_HYP
 
 definition
   pde_mapping_bits :: "nat"
@@ -1313,7 +1311,7 @@ lemma valid_vspace_objs_update' [iff]:
 
 end
 
-context Arch begin global_naming ARM
+context Arch begin global_naming ARM_HYP
 
 lemma global_refs_equiv:
   assumes "idle_thread s = idle_thread s'"
@@ -1887,7 +1885,7 @@ lemma pde_graph_ofI:
 
 lemma vs_refs_pdI:
   "\<lbrakk>pd (ucast r) = PageTablePDE x;
-   \<forall>n \<ge> 11. n < 32 \<longrightarrow> \<not> r !! n\<rbrakk>  (* ARMHYP *)
+   \<forall>n \<ge> 11. n < 32 \<longrightarrow> \<not> r !! n\<rbrakk> \<comment> \<open>ARMHYP\<close>
    \<Longrightarrow> (VSRef r (Some APageDirectory), ptrFromPAddr x)
        \<in> vs_refs (ArchObj (PageDirectory pd))"
   apply (simp add: vs_refs_def)
@@ -2136,45 +2134,6 @@ lemma valid_vspace_objs_lift:
   apply (rule valid_vspace_obj_typ [OF z], auto)
   done
 
-lemma valid_validate_vm_rights[simp]:
-  "validate_vm_rights rs \<in> valid_vm_rights"
-and validate_vm_rights_subseteq[simp]:
-  "validate_vm_rights rs \<subseteq> rs"
-and validate_vm_rights_simps[simp]:
-  "validate_vm_rights vm_read_write = vm_read_write"
-  "validate_vm_rights vm_read_only = vm_read_only"
-  "validate_vm_rights vm_kernel_only = vm_kernel_only"
-  by (simp_all add: validate_vm_rights_def valid_vm_rights_def
-                    vm_read_write_def vm_read_only_def vm_kernel_only_def)
-
-lemma validate_vm_rights_inter: (* NOTE: unused *)
-  "validate_vm_rights (validate_vm_rights fun \<inter> msk) =
-   validate_vm_rights (fun \<inter> msk)"
-  by (simp add: validate_vm_rights_def vm_read_write_def vm_read_only_def
-              vm_kernel_only_def)
-
-lemma validate_vm_rights_def':
-  "validate_vm_rights rs =
-   (THE rs'. rs' \<subseteq> rs \<and> rs' : valid_vm_rights \<and>
-     (\<forall>rs''. rs'' \<subseteq> rs \<longrightarrow> rs'' : valid_vm_rights \<longrightarrow> rs'' \<subseteq> rs'))"
-  apply (rule the_equality[symmetric])
-   apply  (auto simp add: validate_vm_rights_def valid_vm_rights_def
-                       vm_read_write_def vm_read_only_def vm_kernel_only_def)[1]
-  apply (simp add: validate_vm_rights_def valid_vm_rights_def
-                 vm_read_write_def vm_read_only_def vm_kernel_only_def)
-  apply safe
-            apply simp+
-       apply (drule_tac x="{AllowRead, AllowWrite}" in spec, simp+)
-    apply (drule_tac x="{AllowRead, AllowWrite}" in spec, simp+)
-   apply (drule_tac x="{AllowRead, AllowWrite}" in spec, simp+)
-  apply (drule_tac x="{AllowRead}" in spec, simp)
-  done
-
-lemma validate_vm_rights_eq[simp]:
-  "rs : valid_vm_rights \<Longrightarrow> validate_vm_rights rs = rs"
-  by (auto simp add: validate_vm_rights_def valid_vm_rights_def
-                     vm_read_write_def vm_read_only_def vm_kernel_only_def)
-
 lemma acap_rights_update_id [intro!, simp]:
   "\<lbrakk>wellformed_acap cap\<rbrakk> \<Longrightarrow> acap_rights_update (acap_rights cap) cap = cap"
   unfolding wellformed_acap_def acap_rights_update_def
@@ -2217,7 +2176,7 @@ lemma valid_vspace_obj_default':
   by (cases aobject_type; simp)
 
 
-text {* arch specific symrefs *}
+text \<open>arch specific symrefs\<close>
 
 definition
   tcb_vcpu_refs :: "obj_ref option \<Rightarrow> (obj_ref \<times> reftype) set"
@@ -2554,9 +2513,22 @@ lemma valid_arch_mdb_eqI:
   shows "valid_arch_mdb (is original_cap s') (caps_of_state s')"
   by (clarsimp simp: valid_arch_mdb_def)
 
+lemma arch_tcb_context_absorbs[simp]:
+  "arch_tcb_context_set uc2 (arch_tcb_context_set uc1 a_tcb) \<equiv> arch_tcb_context_set uc2 a_tcb"
+  apply (simp add: arch_tcb_context_set_def)
+  done
+
+lemma arch_tcb_context_get_set[simp]:
+  "arch_tcb_context_get (arch_tcb_context_set uc a_tcb) = uc"
+  apply (simp add: arch_tcb_context_get_def arch_tcb_context_set_def)
+  done
+
 end
 
-setup {* Add_Locale_Code_Defs.setup "ARM" *}
-setup {* Add_Locale_Code_Defs.setup "ARM_A" *}
+declare ARM_HYP.arch_tcb_context_absorbs[simp]
+declare ARM_HYP.arch_tcb_context_get_set[simp]
+
+setup \<open>Add_Locale_Code_Defs.setup "ARM_HYP"\<close>
+setup \<open>Add_Locale_Code_Defs.setup "ARM_HYP_A"\<close>
 
 end

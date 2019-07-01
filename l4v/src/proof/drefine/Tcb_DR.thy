@@ -425,8 +425,9 @@ lemma dcorres_idempotent_as_user:
   "\<lbrakk> \<And>a. \<lbrace> \<lambda>s. s = a \<rbrace> x \<lbrace> \<lambda>_ s. s = a \<rbrace> \<rbrakk> \<Longrightarrow>
      dcorres dc \<top> (tcb_at u) (return q) (as_user u x)"
   apply (clarsimp simp: as_user_def)
-  apply (clarsimp simp: corres_underlying_def bind_def split_def set_object_def return_def get_def put_def
-         get_tcb_def gets_the_def gets_def assert_opt_def tcb_at_def select_f_def valid_def
+  apply (clarsimp simp: corres_underlying_def bind_def split_def set_object_def get_object_def
+                        return_def get_def put_def get_tcb_def gets_the_def gets_def assert_opt_def
+                        tcb_at_def select_f_def valid_def
          split: option.split Structures_A.kernel_object.split)
   done
 
@@ -440,16 +441,18 @@ lemma suspend_corres:
      (Tcb_D.suspend obj_id) (IpcCancel_A.suspend obj_id)"
   apply (rule corres_guard_imp)
     apply (clarsimp simp: IpcCancel_A.suspend_def Tcb_D.suspend_def)
-   apply (rule corres_split[OF _ finalise_cancel_ipc])
-     apply (rule dcorres_rhs_noop_below_True[OF tcb_sched_action_dcorres])
-     apply (rule set_thread_state_corres)
-     apply wp
-    apply (clarsimp simp:not_idle_thread_def conj_comms)
-    apply wp
-   apply simp
-  apply (clarsimp simp:st_tcb_at_def not_idle_thread_def
-    obj_at_def generates_pending_def
-      split:Structures_A.thread_state.split_asm)
+    apply (rule corres_split[OF _ finalise_cancel_ipc])
+      apply (rule dcorres_symb_exec_r[OF _ gts_inv gts_inv])
+      apply (rule dcorres_rhs_noop_above)
+         apply (case_tac "rv = Running"; simp)
+          apply (rule update_restart_pc_dcorres)
+         apply simp
+        apply (rule dcorres_rhs_noop_below_True[OF tcb_sched_action_dcorres])
+        apply (rule set_thread_state_corres)
+       apply wp
+      apply (case_tac "rv = Running"; simp)
+       apply wp+
+       apply (wpsimp simp: not_idle_thread_def conj_comms)+
 done
 
 lemma dcorres_setup_reply_master:
@@ -481,10 +484,11 @@ lemma dcorres_setup_reply_master:
       apply (rule TrueI)
      apply (clarsimp simp: not_idle_thread_def)
     apply (clarsimp simp:when_def is_master_reply_cap_def split:cap.split_asm)
+    apply (rename_tac rc_rights)
     apply (subgoal_tac "opt_cap (obj_id,tcb_replycap_slot) (transform s')
       = Some (cdl_cap.MasterReplyCap obj_id)")
      apply (clarsimp simp:corres_underlying_def set_cap_is_noop_opt_cap return_def)
-    apply (subgoal_tac "cte_wp_at ((=)  (cap.ReplyCap obj_id True))
+    apply (subgoal_tac "cte_wp_at ((=)  (cap.ReplyCap obj_id True rc_rights))
       (obj_id,tcb_cnode_index 2) s'")
      apply (clarsimp dest!:iffD1[OF cte_wp_at_caps_of_state])
      apply (drule caps_of_state_transform_opt_cap)
@@ -889,11 +893,11 @@ lemma thread_set_valid_irq_node:
    \<Longrightarrow>
    \<lbrace>valid_irq_node\<rbrace> thread_set f p
    \<lbrace>\<lambda>rv s. valid_irq_node s\<rbrace>"
-  apply (simp add:valid_irq_node_def thread_set_def)
+  apply (simp add: valid_irq_node_def thread_set_def)
   apply wp
-   apply (simp add:KHeap_A.set_object_def)
+   apply (simp add: KHeap_A.set_object_def get_object_def)
    apply wp+
-  apply (clarsimp simp:obj_at_def is_cap_table_def dest!:get_tcb_SomeD)
+  apply (clarsimp simp: obj_at_def is_cap_table_def dest!: get_tcb_SomeD)
   apply (drule_tac x = irq in spec)
   apply clarsimp
   done
@@ -951,9 +955,10 @@ lemma dcorres_idempotent_as_user_strong:
                  \<lbrace> \<lambda>_ cxt. P (transform_tcb ms ref (tcb\<lparr>tcb_arch:=arch_tcb_context_set cxt (tcb_arch tcb)\<rparr>) etcb)\<rbrace>"
   shows "dcorres dc \<top> (tcb_at u) (return q) (as_user u x)"
   apply (clarsimp simp: as_user_def)
-  apply (clarsimp simp: corres_underlying_def bind_def split_def set_object_def return_def get_def put_def
-         get_tcb_def gets_the_def gets_def assert_opt_def tcb_at_def select_f_def valid_def
-         split: option.split Structures_A.kernel_object.split)
+  apply (clarsimp simp: corres_underlying_def bind_def split_def set_object_def get_object_def
+                        return_def get_def put_def get_tcb_def gets_the_def gets_def assert_opt_def
+                        tcb_at_def select_f_def valid_def
+                 split: option.split Structures_A.kernel_object.split)
   apply (clarsimp simp: transform_def transform_current_thread_def transform_objects_def restrict_map_def)
   apply (rule ext)
    apply (clarsimp simp: map_add_def split:option.splits)
@@ -1369,14 +1374,14 @@ lemma case_option_wpE:
 
 lemma option_update_thread_not_idle_thread[wp]:
   "\<lbrace>not_idle_thread x and not_idle_thread a\<rbrace>option_update_thread a b c\<lbrace>\<lambda>r. not_idle_thread x\<rbrace>"
-  apply(simp add:option_update_thread_def)
+  apply(simp add: option_update_thread_def)
   apply (rule hoare_pre)
   apply wpc
   apply wp
-  apply (clarsimp simp:thread_set_def set_object_def)
+  apply (clarsimp simp: thread_set_def set_object_def get_object_def)
   apply wp
-  apply (clarsimp simp:not_idle_thread_def)
-done
+  apply (clarsimp simp: not_idle_thread_def)
+  done
 
 lemma reschedule_required_transform: "\<lbrace>\<lambda>ps. transform ps = cs\<rbrace> reschedule_required \<lbrace>\<lambda>r s. transform s = cs\<rbrace>"
   by (clarsimp simp: reschedule_required_def set_scheduler_action_def etcb_at_def
@@ -1410,8 +1415,8 @@ lemma transform_full_intent_set_mcpriority:
 
 lemma set_mcpriority_transform:
   "\<lbrace>\<lambda>s. transform s = i \<and> valid_etcbs s\<rbrace> set_mcpriority t mcp \<lbrace>\<lambda>rv s. transform s = i\<rbrace>"
-  apply (clarsimp simp: set_mcpriority_def thread_set_def set_object_def)
-  apply wp
+  apply (clarsimp simp: set_mcpriority_def thread_set_def)
+  apply (wpsimp wp: set_object_wp)
   apply (clarsimp simp: transform_def transform_current_thread_def transform_objects_def)
   apply (thin_tac "i = _")
   apply (rule_tac f="(++) ((\<lambda>ptr. Some cdl_object.Untyped) |` (- {idle_thread s}))" in arg_cong)

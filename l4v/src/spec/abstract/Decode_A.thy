@@ -35,7 +35,7 @@ requalify_consts
 end
 
 
-text {*
+text \<open>
   This theory includes definitions describing how user arguments are
 decoded into invocation structures; these structures are then used
 to perform the actual system call (see @{text "perform_invocation"}).
@@ -44,12 +44,12 @@ throwing an error if given an invalid request.
 
   As such, this theory describes the binary interface between the
 user and the kernel, along with the preconditions on each argument.
-*}
+\<close>
 
 
 section "CNode"
 
-text {* This definition decodes CNode invocations. *}
+text \<open>This definition decodes CNode invocations.\<close>
 
 definition
   decode_cnode_invocation ::
@@ -148,13 +148,13 @@ odE"
 
 section "Threads"
 
-text {* The definitions in this section decode invocations
+text \<open>The definitions in this section decode invocations
 on TCBs.
-*}
+\<close>
 
-text {* This definition checks whether the first argument is
+text \<open>This definition checks whether the first argument is
 between the second and third.
-*}
+\<close>
 
 definition
   decode_read_registers :: "data list \<Rightarrow> cap \<Rightarrow> (tcb_invocation,'z::state_ext) se_monad"
@@ -432,8 +432,8 @@ where
 
 section "IRQ"
 
-text {* The following two definitions decode system calls for the
-interrupt controller and interrupt handlers *}
+text \<open>The following two definitions decode system calls for the
+interrupt controller and interrupt handlers\<close>
 
 definition
   decode_irq_control_invocation :: "data \<Rightarrow> data list \<Rightarrow> cslot_ptr \<Rightarrow> cap list
@@ -479,9 +479,9 @@ definition
 
 section "Untyped"
 
-text {* The definitions in this section deal with decoding invocations
+text \<open>The definitions in this section deal with decoding invocations
 of untyped memory capabilities.
-*}
+\<close>
 
 definition
   data_to_obj_type :: "data \<Rightarrow> (apiobject_type,'z::state_ext) se_monad" where
@@ -581,10 +581,10 @@ odE"
 
 section "Toplevel invocation decode."
 
-text {* This definition is the toplevel decoding definition; it dispatches
+text \<open>This definition is the toplevel decoding definition; it dispatches
 to the above definitions, after checking, in some cases, whether the
 invocation is allowed.
-*}
+\<close>
 
 definition
   decode_invocation ::
@@ -594,14 +594,14 @@ where
   case cap of
     EndpointCap ptr badge rights \<Rightarrow>
       if AllowSend \<in> rights then
-        returnOk $ InvokeEndpoint ptr badge (AllowGrant \<in> rights)
+        returnOk $ InvokeEndpoint ptr badge (AllowGrant \<in> rights) (AllowGrantReply \<in> rights)
       else throwError $ InvalidCapability 0
   | NotificationCap ptr badge rights \<Rightarrow>
       if AllowSend \<in> rights then
         returnOk $ InvokeNotification ptr badge
       else throwError $ InvalidCapability 0
-  | ReplyCap thread False \<Rightarrow>
-      returnOk $ InvokeReply thread slot
+  | ReplyCap thread False rights \<Rightarrow>
+      returnOk $ InvokeReply thread slot (AllowGrant \<in> rights)
   | IRQControlCap \<Rightarrow>
       liftME InvokeIRQControl
         $ decode_irq_control_invocation label args slot (map fst excaps)
