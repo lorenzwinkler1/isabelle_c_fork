@@ -72,10 +72,10 @@ session Isabelle_C_CLEAN_examples in "C11-FrontEnd" = Isabelle_C_CLEAN +
     "root.tex"
     "root.bib"
 
-session README in "C11-FrontEnd" = HOL +
+session Isabelle_C_README in "C11-FrontEnd" = HOL +
   options [document = pdf, document_output = "generated"]
   theories
-    "../README_advanced"
+    "../README"
   document_files
     "root.tex"
     "root.bib"

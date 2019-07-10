@@ -34,7 +34,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-theory README_advanced imports Main begin
+theory README imports Main begin
 
 section \<open>Isabelle/C\<close>
 
