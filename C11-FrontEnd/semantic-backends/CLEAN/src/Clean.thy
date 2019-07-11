@@ -19,7 +19,6 @@ theory Clean
 *)
 begin
   
-  
 text{* Clean is a minimalistic imperative language 
 with C-like control-flow operators based on a shallow embedding into the
 SE exception Monad theory formalized in @{theory "CLEAN_logic.MonadSE"}. It comprises:

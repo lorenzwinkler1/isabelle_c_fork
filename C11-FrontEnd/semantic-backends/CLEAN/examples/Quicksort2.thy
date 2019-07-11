@@ -48,7 +48,7 @@ begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
 
 C \<open>
-#define MAX 100
+#define MAXSIZE 100
 
 unsigned int A[100];
 

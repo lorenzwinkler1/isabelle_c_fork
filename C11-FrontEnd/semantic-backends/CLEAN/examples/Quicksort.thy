@@ -56,6 +56,8 @@ C \<open>
 #include <stdlib.h>
 #endif
 
+// unsigned int b[100];
+
 unsigned long partition(unsigned int *a, unsigned long n)
 {
    // assume n != 0
