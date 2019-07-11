@@ -17,8 +17,7 @@ annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
 theory IsPrime_sqrt_outside
 imports
   Isabelle_C_AutoCorres.Backend
-   "HOL-Computational_Algebra.Primes"
- "HOL-Computational_Algebra.Primes"
+  "HOL-Computational_Algebra.Primes"
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
