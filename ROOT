@@ -44,8 +44,6 @@ session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres_logic +
 
 session Isabelle_C_AutoCorres_examples in "C11-FrontEnd" = Isabelle_C_AutoCorres +
   options [document = pdf, document_output = "generated"]
-  (* TODO: find a way to concatenate together PDF in:
-           generated/part1 + generated/part2 + generated/part3 *)
   sessions
     "HOL-Computational_Algebra"
   theories
@@ -74,10 +72,10 @@ session Isabelle_C_CLEAN_examples in "C11-FrontEnd" = Isabelle_C_CLEAN +
     "root.tex"
     "root.bib"
 
-session README in "C11-FrontEnd" = HOL +
+session Isabelle_C_README in "C11-FrontEnd" = HOL +
   options [document = pdf, document_output = "generated"]
   theories
-    "../README_advanced"
+    "../README"
   document_files
     "root.tex"
     "root.bib"
