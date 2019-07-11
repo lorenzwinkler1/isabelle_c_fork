@@ -35,7 +35,50 @@
  ******************************************************************************)
 
 theory Backend
-  imports CLEAN_logic.Clean
+  imports (*CLEAN_logic.Clean*)
           "compiler/Generator_dynamic_sequential"
 begin
+definition "n = 0"
+definition "result = 0"
+
+section \<open>User Defined Commands in the Semantic Verification Space\<close>
+
+ML \<comment> \<open>\<^theory>\<open>C.C_Command\<close>\<close> \<open>
+type text_range = Symbol_Pos.text * Position.T
+
+datatype antiq_hol = Invariant of string (* term *)
+                   | Fnspec of text_range (* ident *) * string (* term *)
+                   | Relspec of string (* term *)
+                   | Modifies of (bool (* true: [*] *) * text_range) list
+                   | Dont_translate
+                   | Auxupd of string (* term *)
+                   | Ghostupd of string (* term *)
+                   | Spec of string (* term *)
+                   | End_spec of string (* term *)
+                   | Calls of text_range list
+                   | Owned_by of text_range
+
+val scan_ident = Scan.one (C_Token.is_kind Token.Ident) >> (fn tok => (C_Token.content_of tok, C_Token.pos_of tok))
+val scan_brack_star = C_Parse.position (C_Parse.$$$ "[") -- C_Parse.star -- C_Parse.range (C_Parse.$$$ "]")
+                      >> (fn (((s1, pos1), s2), (s3, (_, pos3))) => (s1 ^ s2 ^ s3, Position.range_position (pos1, pos3)))
+val scan_opt_colon = Scan.option (C_Parse.$$$ ":")
+val scan_colon = C_Parse.$$$ ":" >> SOME
+val show = tap (fn s => Syntax.read_term @{context} s)
+
+\<close>
+
+
+ML \<open>fun command keyword f =
+    C_Annotation.command' keyword ""
+      (K (Scan.option (C_Parse.$$$ ":")
+          -- (C_Parse.term >> (show #> f))
+          >> K C_Transition.Never))\<close>
+setup \<open>command ("PRE_CLEAN", \<^here>) Spec
+    #> command ("POST_CLEAN", \<^here>) End_spec
+    #> command ("INV_CLEAN", \<^here>) Invariant\<close>
+
+
+ML\<open>
+val lexer_trace = Attrib.setup_config_bool @{binding CLEAN_on} (K false);
+\<close>
 end

@@ -220,16 +220,22 @@ theorem (in is_prime) is_prime_faster_correct:
 
 
 theorem (in is_prime) is_prime_correct':
-    "\<lbrace> \<lambda>\<sigma>. n \<le> UINT_MAX \<rbrace> is_prime' n \<lbrace> \<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
+    \<open>\<lbrace> \<lambda>_. n \<le> UINT_MAX \<rbrace> is_prime' n
+     \<lbrace> \<lambda>res _. res \<noteq> 0 \<longleftrightarrow> prime n \<rbrace>!\<close>
 proof (rule validNF_assume_pre)
-  assume 1 : "n \<le> UINT_MAX"
-  have   2 : "n=0 \<or> n=1 \<or> n > 1" by linarith
-  show ?thesis
-    proof (insert 2, elim disjE)
-      assume  "n=0" 
-      then show ?thesis  by (clarsimp simp:  is_prime'_def, wp, auto)
-    next
-      assume  "n=1" 
+ assume 1: \<open>n \<le> UINT_MAX\<close>
+ have   2: \<open>n = 0 \<or> n = 1 \<or> n > 1\<close> by linarith
+ show ?thesis
+  proof (insert 2, elim disjE)
+   assume \<open>n = 0\<close>
+   then show ?thesis
+        by (clarsimp simp: is_prime'_def, wp, auto)
+  next
+
+    
+    
+    
+    assume  "n=1"
       then show ?thesis  by (clarsimp simp:  is_prime'_def, wp, auto) 
     next
       assume  "1 < n" 
