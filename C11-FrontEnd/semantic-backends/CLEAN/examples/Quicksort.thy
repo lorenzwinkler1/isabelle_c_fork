@@ -49,7 +49,7 @@ begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
 
 C \<open>
-// @ CLEAN
+//@ declare [[CLEAN_C99]]
 
 #ifdef TEST
 #include <stdio.h>

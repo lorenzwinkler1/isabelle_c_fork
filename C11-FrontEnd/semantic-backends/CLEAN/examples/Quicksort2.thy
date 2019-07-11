@@ -50,7 +50,7 @@ begin
 C \<open>
 #define MAXSIZE 100
 
-unsigned int A[100];
+unsigned int A[MAXSIZE];
 
 swap_A(unsigned long i,unsigned long j) {
   unsigned long tmp = A[i]; A[i] = A[j]; A[j] = tmp ;

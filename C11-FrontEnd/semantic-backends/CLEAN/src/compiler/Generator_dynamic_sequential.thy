@@ -286,8 +286,17 @@ end
 section \<open>Setup of \<^theory_text>\<open>C\<close> commands\<close>
 
 ML \<comment> \<open>\<^theory>\<open>C.C_Command\<close>\<close> \<open>
+val clean_C99 = Attrib.setup_config_bool @{binding CLEAN_C99} (K false)
+
 val _ =
-  Theory.setup (Context.theory_map (C_Module.Data_Accept.put IsarInstall.install_C_file0))
+  Theory.setup
+    (Context.theory_map
+      (C_Module.Data_Accept.put
+        (fn ast => fn env_lang => fn context =>
+          if Config.get (Context.proof_of context) clean_C99 then
+            IsarInstall.install_C_file0 ast env_lang context
+          else
+            context)))
 \<close>
 
 end

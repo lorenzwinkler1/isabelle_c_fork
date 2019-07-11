@@ -68,6 +68,7 @@ session Isabelle_C_CLEAN_examples in "C11-FrontEnd" = Isabelle_C_CLEAN +
   theories
     "semantic-backends/CLEAN/examples/IsPrime_sqrt_outside"
     "semantic-backends/CLEAN/examples/Quicksort"
+    "semantic-backends/CLEAN/examples/Quicksort2"
   document_files
     "root.tex"
     "root.bib"
