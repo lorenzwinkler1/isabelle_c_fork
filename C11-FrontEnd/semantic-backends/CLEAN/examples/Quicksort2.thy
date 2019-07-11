@@ -47,7 +47,8 @@ theory Quicksort2
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
 
-C \<open>// #define MAX 100
+C \<open>
+#define MAX 100
 
 unsigned int A[100];
 
