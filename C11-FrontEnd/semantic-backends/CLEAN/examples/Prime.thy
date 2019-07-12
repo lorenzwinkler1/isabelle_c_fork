@@ -11,15 +11,15 @@
 
 theory Prime imports Isabelle_C_CLEAN.Backend
 begin
-declare[[CLEAN_on]]
+declare [[CLEAN_on]]
 C \<open>
 #define SQRT_UINT_MAX 65536
 int k = 0;
-
 unsigned int is_prime(unsigned int n)
-//@ PRE_CLEAN True
-//@ POST_CLEAN \<open>if \<forall>i. n mod i \<noteq> 0         \
-                then result=0 else result=1\<close>
+//@ PRE_CLEAN \<open>n \<le> UINT_MAX\<close>
+//@ POST_CLEAN \<open>result \<noteq> 0 \<longleftrightarrow>             \
+   normalize n = n \<and> n \<noteq> 0 \<and> \<not>n dvd 1 \<and>   \
+ (\<forall>a b. n dvd (a * b) \<longrightarrow> n dvd a \<or> n dvd b)\<close>
 { if (n < 2) return 0;
   for (unsigned i = 2; i < SQRT_UINT_MAX
                        && i * i <= n; i++) {

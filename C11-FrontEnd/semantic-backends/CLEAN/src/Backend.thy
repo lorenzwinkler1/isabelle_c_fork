@@ -38,6 +38,7 @@ theory Backend
   imports (*CLEAN_logic.Clean*)
           "compiler/Generator_dynamic_sequential"
 begin
+definition "UINT_MAX = 0"
 definition "n = 0"
 definition "result = 0"
 
