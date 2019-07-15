@@ -43,7 +43,7 @@ definition "result = 0"
 
 section \<open>User Defined Commands in the Semantic Verification Space\<close>
 
-ML \<comment> \<open>\<^theory>\<open>C.C_Command\<close>\<close> \<open>
+ML \<comment> \<open>\<^theory>\<open>Isabelle_C.C_Command\<close>\<close> \<open>
 type text_range = Symbol_Pos.text * Position.T
 
 datatype antiq_hol = Invariant of string (* term *)
