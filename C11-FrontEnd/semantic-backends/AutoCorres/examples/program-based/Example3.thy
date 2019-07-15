@@ -35,8 +35,7 @@
  ******************************************************************************)
 
 theory Example3
-  imports "../../src/compiler/Init"
-          "~~/src/HOL/ex/Cartouche_Examples"
+  imports CParser.Init
 begin
 
 section \<open>\<close>

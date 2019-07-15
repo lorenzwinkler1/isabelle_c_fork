@@ -37,7 +37,7 @@
 chapter \<open>Example\<close>
 
 theory Example2
-  imports "../../src/compiler/Init"
+  imports CParser.Init
 begin
 
 ML\<open>

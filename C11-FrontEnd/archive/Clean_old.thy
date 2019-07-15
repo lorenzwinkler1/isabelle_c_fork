@@ -7,7 +7,7 @@ chapter {* The Clean Language *}
 text{* Pronounce : "C lean". *}
 
 theory Clean_old
-  imports "../semantic-backends/CLEAN/src/Symbex_MonadSE"
+  imports CLEAN_logic.Symbex_MonadSE
           "~~/src/HOL/Eisbach/Eisbach"
 (*  keywords "global_vars" "local_vars" :: thy_decl 
      and "funct" :: thy_decl

@@ -35,7 +35,7 @@
  ******************************************************************************)
 
 theory Example1
-  imports "../../src/compiler/Init"
+  imports CParser.Init
 begin
 
 C \<comment> \<open>Copyright\<close> \<open>

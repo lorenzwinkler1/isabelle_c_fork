@@ -67,8 +67,8 @@ session Isabelle_C_CLEAN_examples in "C11-FrontEnd" = Isabelle_C_CLEAN +
   options [document = pdf, document_output = "generated"]
   theories
     "semantic-backends/CLEAN/examples/IsPrime_sqrt_outside"
-    "semantic-backends/CLEAN/examples/Quicksort"
     "semantic-backends/CLEAN/examples/Quicksort2"
+    "semantic-backends/CLEAN/examples/Quicksort"
   document_files
     "root.tex"
     "root.bib"
@@ -80,3 +80,18 @@ session Isabelle_C_README in "C11-FrontEnd" = HOL +
   document_files
     "root.tex"
     "root.bib"
+
+session Isabelle_C_archive in "C11-FrontEnd" = Isabelle_C_AutoCorres +
+  options [quick_and_dirty]
+  sessions
+    CLEAN_logic
+    "HOL-Computational_Algebra"
+  theories
+    "archive/C0"
+    "archive/Clean_old"
+    "archive/IsPrime_sqrt2_outside"
+    "archive/IsPrime_sqrt_outside"
+    "semantic-backends/AutoCorres/examples/program-based/Example1"
+    "semantic-backends/AutoCorres/examples/program-based/Example2"
+    "semantic-backends/AutoCorres/examples/program-based/Example3"
+    "semantic-backends/CLEAN/examples/Prime"
