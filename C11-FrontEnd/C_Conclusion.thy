@@ -36,7 +36,7 @@
 
 (*<*)
 theory C_Conclusion
-  imports C.C_Main
+  imports C_Intro
 begin
 (*>*)
 

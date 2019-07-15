@@ -35,12 +35,12 @@
  ******************************************************************************)
 
 theory Init
-  imports C.C_Main
+  imports Isabelle_C.C_Main
 begin
 
 section \<open>User Defined Commands in the Semantic Verification Space\<close>
 
-ML \<comment> \<open>\<^theory>\<open>C.C_Command\<close>\<close> \<open>
+ML \<comment> \<open>\<^theory>\<open>Isabelle_C.C_Command\<close>\<close> \<open>
 local
 type text_range = Symbol_Pos.text * Position.T
 

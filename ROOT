@@ -57,7 +57,7 @@ session Isabelle_C_AutoCorres_examples in "C11-FrontEnd" = Isabelle_C_AutoCorres
     "root.tex"
     "root.bib"
 
-session Isabelle_C_CLEAN in "C11-FrontEnd" = C +
+session Isabelle_C_CLEAN in "C11-FrontEnd" = Isabelle_C +
   sessions
     CLEAN_logic
   theories
