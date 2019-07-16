@@ -21,7 +21,7 @@ end
 structure IsarPreInstall : ISAR_PRE_INSTALL =
 struct
   structure M = C_Ast
-  val To_string0 = String.implode o M.to_list
+  val To_string0 = M.meta_of_logic
   val of_StringCvt_radix = M.rec_StringCvt_radix StringCvt.BIN StringCvt.OCT StringCvt.DEC StringCvt.HEX
   fun of_Unsynchronized_ref f x = Unsynchronized.ref (M.rec_Unsynchronized_ref f x)
   val of_SourcePos = M.rec_SourcePos (fn c => fn f => fn l => SourcePos.make {column = c, file = To_string0 f, line = l})

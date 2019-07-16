@@ -186,7 +186,7 @@ fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
      | SOME (Right (C_Lex.Token ((pos1, pos2), (tok, src)))) =>
        case tok of
          C_Lex.Char (b, [c]) =>
-          return0 (C_Grammar.Tokens.cchar (CChar (String.sub (c,0)) b, pos1, pos2))
+          return0 (C_Grammar.Tokens.cchar (CChar (From_char_hd c) b, pos1, pos2))
        | C_Lex.String (b, s) =>
           return0 (C_Grammar.Tokens.cstr (CString0 (From_string (implode s), b), pos1, pos2))
        | C_Lex.Integer (i, repr, flag) =>
@@ -212,7 +212,7 @@ fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
           C_Grammar_Tokens.token_of_string
                           (C_Grammar.Tokens.error (pos1, pos2))
                           (ClangCVersion0 (From_string src))
-                          (CChar #"0" false)
+                          (CChar (From_char_hd "0") false)
                           (CFloat (From_string src))
                           (CInteger 0 DecRepr (Flags 0))
                           (CString0 (From_string src, false))
