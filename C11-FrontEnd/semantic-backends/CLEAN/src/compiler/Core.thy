@@ -44,4 +44,21 @@ theory Core
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../../../Citadelle/src/compiler/Core.thy\<close>\<close>
 
+ML\<open>
+structure CLEAN_Core =
+struct
+open C_Ast
+
+fun compile ast env_lang =
+  IsarInstall.install_C_file0 ast env_lang
+  |> rev
+  |> map
+     (fn function =>
+       [ META_semi_theories (Theories_one (Theory_definition (Definitiona (Term_rewrite (Term_basic [SS_base (ST ("pop_" ^ #fname function))], SS_base (ST "\<equiv>"), Term_basic [SS_base (ST "()")])))))
+       , META_semi_theories (Theories_one (Theory_definition (Definitiona (Term_rewrite (Term_basic [SS_base (ST ("push_" ^ #fname function))], SS_base (ST "\<equiv>"), Term_basic [SS_base (ST "()")])))))
+       , META_semi_theories (Theories_one (Theory_definition (Definitiona (Term_rewrite (Term_basic [SS_base (ST ("core_" ^ #fname function))], SS_base (ST "\<equiv>"), Term_basic [SS_base (ST "()")])))))])
+  |> concat
+end
+\<close>
+
 end

@@ -276,8 +276,9 @@ fun install_C_file0 ast env_lang =
               NONE => (fn _ => true)
             | SOME set => (fn s => Binaryset.member(set,s))
       val fninfo : HPInter.fninfo list = HPInter.mk_fninfo \<^theory> cse toTranslateP ast
+      (*val _ = writeln (\<^make_string> (ast, cse, ecenv, state, rcdinfo, vdecls, globs, fninfo))*)
   in
-    tap (fn _ => writeln (\<^make_string> (ast, cse, ecenv, state, rcdinfo, vdecls, globs, fninfo)))
+    fninfo
   end)
 
 end

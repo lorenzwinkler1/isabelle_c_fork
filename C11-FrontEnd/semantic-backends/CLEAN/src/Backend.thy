@@ -38,4 +38,5 @@ theory Backend
   imports CLEAN_logic.Clean
           "compiler/Generator_dynamic_sequential"
 begin
+generation_syntax [ deep [in self], shallow ]
 end

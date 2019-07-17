@@ -1391,7 +1391,16 @@ val _ =
       (C_Module.Data_Accept.put
         (fn ast => fn env_lang => fn context =>
           if Config.get (Context.proof_of context) clean_C99 then
-            IsarInstall.install_C_file0 ast env_lang context
+            let val l_meta = CLEAN_Core.compile ast env_lang
+            in Context.map_theory
+                (Outer_Syntax'.command'
+                  (outer_syntax_commands''''
+                    SOME
+                    \<^mk_string>
+                    (K (get_thy \<^here> (K l_meta #> META.Fold_custom)))
+                    ()))
+                context
+            end
           else
             context)))
 \<close>
