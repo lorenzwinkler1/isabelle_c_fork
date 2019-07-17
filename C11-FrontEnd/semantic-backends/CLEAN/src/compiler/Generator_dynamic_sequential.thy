@@ -56,7 +56,11 @@ theory Generator_dynamic_sequential
       
            (* Isabelle semantics (parameterizing the semantics of Language) *)
            "design" "analysis" "oid_start"
-       and "generation_syntax"
+
+       and (* Isabelle syntax *)
+           "meta_command" "meta_command'"
+           "generation_syntax"
+
            :: thy_decl
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../../../Citadelle/src/compiler/Generator_dynamic_sequential.thy\<close>\<close>
@@ -1358,6 +1362,21 @@ val () = let open Generation_mode in
                   (#deep (Data_gen.get thy))
           |> (fn [] => Toplevel'.keep (fn _ => warning "Nothing performed.") []
                | l => l)))
+end
+\<close>
+
+subsection\<open>Setup of Meta Commands for a Generic Usage: @{command meta_command}, @{command meta_command'}\<close>
+
+ML\<open>
+local
+  fun outer_syntax_commands'''2 command_keyword meta_command =
+    outer_syntax_commands''' SOME \<^mk_string> command_keyword ""
+      Parse.ML_source
+      (fn source =>
+        get_thy \<^here> (meta_command source #> META.Fold_custom))
+in
+val () = outer_syntax_commands'''2 \<^command_keyword>\<open>meta_command\<close> Bind_META.meta_command
+val () = outer_syntax_commands'''2 \<^command_keyword>\<open>meta_command'\<close> Generation_mode.meta_command
 end
 \<close>
 
