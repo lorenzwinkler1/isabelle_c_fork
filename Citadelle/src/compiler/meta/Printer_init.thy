@@ -42,9 +42,111 @@
 section\<open>Initializing the Printer\<close>
 
 theory  Printer_init
-imports "../Init"
-        "../isabelle_home/src/HOL/Isabelle_Main1"
+imports "../../compiler_generic/Init"
+        "../../compiler_generic/isabelle_home/src/HOL/Isabelle_Main1"
+  keywords "lazy_code_printing" "apply_code_printing" "apply_code_printing_reflect"
+           :: thy_decl
 begin
+
+ML{*
+structure Code_printing = struct
+datatype code_printing = Code_printing of
+     (string * (bstring * Code_Printer.raw_const_syntax option) list,
+      string * (bstring * Code_Printer.tyco_syntax option) list,
+      string * (bstring * string option) list,
+      (string * string) * (bstring * unit option) list,
+      (xstring * string) * (bstring * unit option) list,
+      bstring * (bstring * (string * string list) option) list)
+      Code_Symbol.attr
+      list
+
+structure Data_code = Theory_Data
+  (type T = code_printing list Symtab.table
+   val empty = Symtab.empty
+   val extend = I
+   val merge = Symtab.merge (K true))
+
+val code_empty = ""
+
+val () =
+  Outer_Syntax.command @{command_keyword lazy_code_printing} "declare dedicated printing for code symbols"
+    (Isabelle_Code_Target.parse_symbol_pragmas (Code_Printer.parse_const_syntax) (Code_Printer.parse_tyco_syntax)
+      Parse.string (Parse.minus >> K ()) (Parse.minus >> K ())
+      (Parse.text -- Scan.optional (@{keyword "attach"} |-- Scan.repeat1 Parse.term) [])
+      >> (fn code =>
+            Toplevel.theory (Data_code.map (Symtab.map_default (code_empty, []) (fn l => Code_printing code :: l)))))
+
+fun apply_code_printing thy =
+    (case Symtab.lookup (Data_code.get thy) code_empty of SOME l => rev l | _ => [])
+ |> (fn l => fold (fn Code_printing l => fold Code_Target.set_printings l) l thy)
+
+val () =
+  Outer_Syntax.command @{command_keyword apply_code_printing} "apply dedicated printing for code symbols"
+    (Parse.$$$ "(" -- Parse.$$$ ")" >> K (Toplevel.theory apply_code_printing))
+
+fun reflect_ml source thy =
+  case ML_Context.exec (fn () =>
+            ML_Context.eval_source (ML_Compiler.verbose false ML_Compiler.flags) source) (Context.Theory thy) of
+    Context.Theory thy => thy
+
+fun apply_code_printing_reflect thy =
+    (case Symtab.lookup (Data_code.get thy) code_empty of SOME l => rev l | _ => [])
+ |> (fn l => fold (fn Code_printing l =>
+      fold (fn Code_Symbol.Module (_, l) =>
+                 fold (fn ("SML", SOME (txt, _)) => reflect_ml (Input.source false txt (Position.none, Position.none))
+                        | _ => I) l
+             | _ => I) l) l thy)
+
+val () =
+  Outer_Syntax.command @{command_keyword apply_code_printing_reflect} "apply dedicated printing for code symbols"
+    (Parse.ML_source >> (fn src => Toplevel.theory (apply_code_printing_reflect o reflect_ml src)))
+
+end
+
+*}
+
+ML_file "~~/src/Doc/antiquote_setup.ML"
+
+text \<open>
+\begin{matharray}{rcl}
+  @{command_def lazy_code_printing} & : & @{text "theory \<rightarrow> theory"} \\
+  @{command_def apply_code_printing} & : & @{text "theory \<rightarrow> theory"} \\
+  @{command_def apply_code_printing_reflect} & : & @{text "local_theory \<rightarrow> local_theory"}
+\end{matharray}
+
+@{rail \<open>
+  @@{command lazy_code_printing}
+      ( ( printing_const | printing_typeconstructor
+      | printing_class | printing_class_relation | printing_class_instance
+      | printing_module ) + '|' )
+  ;
+  @@{command apply_code_printing} '(' ')'
+  ;
+  @@{command apply_code_printing_reflect} text
+  ;
+\<close>}
+\<close>
+
+text\<open>
+@{command lazy_code_printing} has the same semantics as @{command code_printing}
+or @{command ML},
+except that no side effects occur until we give more details about its intended future semantics:
+this will be precised by calling
+@{command apply_code_printing} or @{command apply_code_printing_reflect}.
+\<close>
+
+text\<open>
+@{command apply_code_printing} repeatedly calls @{command code_printing}
+to all previously registered elements with @{command lazy_code_printing} (the order is preserved).
+\<close>
+
+text\<open>
+@{command apply_code_printing_reflect} repeatedly calls @{command ML}
+to all previously registered elements with @{command lazy_code_printing} (the order is preserved).
+As a consequence, code for other targets (Haskell, OCaml, Scala) are ignored.
+Moreover before the execution of the overall,
+it is possible to give an additional piece of SML code as argument to priorly execute.
+\<close>
 
 text\<open>At the time of writing, the following target languages supported
      by Isabelle are also supported by the meta-compiler:
@@ -56,7 +158,151 @@ subsection\<open>Kernel Code for Target Languages\<close>
      not allowed in a Isabelle 'code_const' expr
      (e.g. '_', '"', ...) *)
 
-ML \<open>
+lazy_code_printing code_module "CodeType" \<rightharpoonup> (Haskell) \<open>
+  type MlInt = Integer
+; type MlMonad a = IO a
+\<close> | code_module "CodeConst" \<rightharpoonup> (Haskell) \<open>
+  import System.Directory
+; import System.IO
+; import qualified CodeConst.Printf
+
+; outFile1 f file = (do
+  fileExists <- doesFileExist file
+  if fileExists then error ("File exists " ++ file ++ "\n") else do
+    h <- openFile file WriteMode
+    f (\pat -> hPutStr h . CodeConst.Printf.sprintf1 pat)
+    hClose h)
+
+; outStand1 :: ((String -> String -> IO ()) -> IO ()) -> IO ()
+; outStand1 f = f (\pat -> putStr . CodeConst.Printf.sprintf1 pat)
+\<close> | code_module "CodeConst.Monad" \<rightharpoonup> (Haskell) \<open>
+  bind a = (>>=) a
+; return :: a -> IO a
+; return = Prelude.return
+\<close> | code_module "CodeConst.Printf" \<rightharpoonup> (Haskell) \<open>
+  import Text.Printf
+; sprintf0 = id
+
+; sprintf1 :: PrintfArg a => String -> a -> String
+; sprintf1 = printf
+
+; sprintf2 :: PrintfArg a => PrintfArg b => String -> a -> b -> String
+; sprintf2 = printf
+
+; sprintf3 :: PrintfArg a => PrintfArg b => PrintfArg c => String -> a -> b -> c -> String
+; sprintf3 = printf
+
+; sprintf4 :: PrintfArg a => PrintfArg b => PrintfArg c => PrintfArg d => String -> a -> b -> c -> d -> String
+; sprintf4 = printf
+
+; sprintf5 :: PrintfArg a => PrintfArg b => PrintfArg c => PrintfArg d => PrintfArg e => String -> a -> b -> c -> d -> e -> String
+; sprintf5 = printf
+\<close> | code_module "CodeConst.String" \<rightharpoonup> (Haskell) \<open>
+  concat s [] = []
+; concat s (x : xs) = x ++ concatMap ((++) s) xs
+\<close> | code_module "CodeConst.Sys" \<rightharpoonup> (Haskell) \<open>
+  import System.Directory
+; isDirectory2 = doesDirectoryExist
+\<close> | code_module "CodeConst.To" \<rightharpoonup> (Haskell) \<open>
+  nat = id
+
+\<close> | code_module "" \<rightharpoonup> (OCaml) \<open>
+module CodeType = struct
+  type mlInt = int
+
+  type 'a mlMonad = 'a option
+end
+
+module CodeConst = struct
+  let outFile1 f file =
+    try
+      let () = if Sys.file_exists file then Printf.eprintf "File exists \"%S\"\n" file else () in
+      let oc = open_out file in
+      let b = f (fun s a -> try Some (Printf.fprintf oc s a) with _ -> None) in
+      let () = close_out oc in
+      b
+    with _ -> None
+
+  let outStand1 f =
+    f (fun s a -> try Some (Printf.fprintf stdout s a) with _ -> None)
+
+  module Monad = struct
+    let bind = function
+        None -> fun _ -> None
+      | Some a -> fun f -> f a
+    let return a = Some a
+  end
+
+  module Printf = struct
+    include Printf
+    let sprintf0 = sprintf
+    let sprintf1 = sprintf
+    let sprintf2 = sprintf
+    let sprintf3 = sprintf
+    let sprintf4 = sprintf
+    let sprintf5 = sprintf
+  end
+
+  module String = String
+
+  module Sys = struct open Sys
+    let isDirectory2 s = try Some (is_directory s) with _ -> None
+  end
+
+  module To = struct
+    let nat big_int x = Big_int.int_of_big_int (big_int x)
+  end
+end
+
+\<close> | code_module "" \<rightharpoonup> (Scala) \<open>
+object CodeType {
+  type mlMonad [A] = Option [A]
+  type mlInt = Int
+}
+
+object CodeConst {
+  def outFile1 [A] (f : (String => A => Option [Unit]) => Option [Unit], file0 : String) : Option [Unit] = {
+    val file = new java.io.File (file0)
+    if (file .isFile) {
+      None
+    } else {
+      val writer = new java.io.PrintWriter (file)
+      f ((fmt : String) => (s : A) => Some (writer .write (fmt .format (s))))
+      Some (writer .close ())
+    }
+  }
+
+  def outStand1 [A] (f : (String => A => Option [Unit]) => Option [Unit]) : Option[Unit] = {
+    f ((fmt : String) => (s : A) => Some (print (fmt .format (s))))
+  }
+
+  object Monad {
+    def bind [A, B] (x : Option [A], f : A => Option [B]) : Option [B] = x match {
+      case None => None
+      case Some (a) => f (a)
+    }
+    def Return [A] (a : A) = Some (a)
+  }
+  object Printf {
+    def sprintf0 (x0 : String) = x0
+    def sprintf1 [A1] (fmt : String, x1 : A1) = fmt .format (x1)
+    def sprintf2 [A1, A2] (fmt : String, x1 : A1, x2 : A2) = fmt .format (x1, x2)
+    def sprintf3 [A1, A2, A3] (fmt : String, x1 : A1, x2 : A2, x3 : A3) = fmt .format (x1, x2, x3)
+    def sprintf4 [A1, A2, A3, A4] (fmt : String, x1 : A1, x2 : A2, x3 : A3, x4 : A4) = fmt .format (x1, x2, x3, x4)
+    def sprintf5 [A1, A2, A3, A4, A5] (fmt : String, x1 : A1, x2 : A2, x3 : A3, x4 : A4, x5 : A5) = fmt .format (x1, x2, x3, x4, x5)
+  }
+  object String {
+    def concat (s : String, l : List [String]) = l filter (_ .nonEmpty) mkString s
+  }
+  object Sys {
+    def isDirectory2 (s : String) = Some (new java.io.File (s) .isDirectory)
+  }
+  object To {
+    def nat [A] (f : A => BigInt, x : A) = f (x) .intValue ()
+  }
+}
+
+\<close> | code_module "" \<rightharpoonup> (SML) \<open>
 structure CodeType = struct
   type mlInt = string
   type 'a mlMonad = 'a option
@@ -111,11 +357,12 @@ structure CodeConst = struct
       val () = if File.exists pfile then error ("File exists \"" ^ file ^ "\"\n") else ()
       val oc = Unsynchronized.ref []
       val _ = f (fn a => fn b => SOME (oc := Printf.sprintf1 a b :: (Unsynchronized.! oc))) in
-      SOME (File.write_list pfile (rev (Unsynchronized.! oc))) handle ERROR _ => NONE
+      SOME (File.write_list pfile (rev (Unsynchronized.! oc))) handle _ => NONE
     end
 
-  fun outStand1 _ = error "Not available in this version of theory file"
+  fun outStand1 f = outFile1 f (Unsynchronized.! stdout_file)
 end
+
 \<close>
 
 subsection\<open>Interface with Types\<close>

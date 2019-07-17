@@ -94,10 +94,13 @@ was defined at Isabelle side.
 As a consequence, experimentations in ``deep'' and ``shallow'' are performed
 without leaving the editing session, in the same as the one the meta-compiler is actually running.\<close>
 
+\<^cancel>\<open>
 apply_code_printing_reflect \<open>
   val stdout_file = Unsynchronized.ref ""
 \<close> text\<open>This variable is not used in this theory (only in \<^file>\<open>Generator_static.thy\<close>),
        but needed for well typechecking the reflected SML code.\<close>
+\<close>
+ML \<open>warning "apply_code_printing_reflect must be enabled"\<close>
 
 code_reflect' open META
    functions (* executing the compiler as monadic combinators for deep and shallow *)
@@ -1185,8 +1188,8 @@ fun mk_free ctxt s l =
     end
   end
 
-val list_all_eq = fn x0 :: xs =>
-  List.all (fn x1 => x0 = x1) xs
+val list_all_eq = fn [] => true
+                   | x0 :: xs => List.all (fn x1 => x0 = x1) xs
 
 end
 \<close>
@@ -1437,7 +1440,7 @@ let open Generation_mode
   end
   |> (fn l => let val (l_warn, l) = (map fst l, map snd l) in
       if Deep.list_all_eq l then
-        (List.concat l_warn, hd l)
+        (List.concat l_warn, case l of [] => "" | x :: _ => x)
       else
         error "There is an extracted language which does not produce a similar Isabelle content as the others"
       end)
@@ -1536,6 +1539,8 @@ fun thy_shallow l_obj get_all_meta_embed =
                                          |> Local_Theory.new_group
                                          |> f
                                          |> Local_Theory.reset_group
+                                            \<comment> \<open>Note: \<^ML>\<open>Local_Theory.reset\<close> is mandatory
+                                                   for the cases listed in \<^ML>\<open>Named_Target.switch\<close>.\<close>
                                          |> Local_Theory.reset
                       fun not_used p _ = error ("not used " ^ Position.here p)
                       val context_of = I
