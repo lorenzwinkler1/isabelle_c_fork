@@ -17,6 +17,31 @@ annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
 theory IsPrime_sqrt_outside
   imports Isabelle_C_CLEAN.Backend
 begin
+
+declare [[CLEAN_on]]
+C \<open>
+// @ CLEAN
+
+#define SQRT_UINT_MAX 65536
+
+unsigned int is_prime(unsigned int n)
+{
+    /* Numbers less than 2 are not primes. */
+    if (n < 2)
+        return 0;
+
+    /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX), whichever comes first. */
+    /* Find the first non-trivial factor of 'n' less than sqrt(n). */
+
+    for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++) {
+        if (n % i == 0)
+            return 0; 
+    }
+
+    /* No factors. */
+    return 1;
+}\<close>
+
 \<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
 section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
