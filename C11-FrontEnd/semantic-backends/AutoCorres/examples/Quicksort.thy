@@ -43,9 +43,6 @@
  * @TAG(NICTA_BSD)
  *)
 
-(*
- * Verifying quicksort implementation using AutoCorres!
- *)
 theory Quicksort
 imports
   Isabelle_C_AutoCorres.Backend
@@ -53,23 +50,12 @@ imports
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
 
-declare validNF_whileLoop_inv_measure_twosteps [wp]
-declare validNF_whileLoopE_inv_measure_twosteps [wp]
 
-declare creturn_def [vcg_simp]
+section\<open>The Quicksort Algorithm in Isabelle/C \<close>
 
 C \<open>
 //@ install_autocorres quicksort
 
-/*
- * Copyright 2014, NICTA
- *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- */
 #ifdef TEST
 #include <stdio.h>
 #include <stdlib.h>
@@ -130,14 +116,17 @@ int main(void)
 #endif
 \<close>
 
+
+section\<open>Inspecting the outcome of Isabelle/C/AutoCorres\<close>
 thm quicksort_global_addresses.partition_body_def
 thm quicksort_global_addresses.quicksort_body_def
 
 thm quicksort.partition'_def
 thm quicksort.quicksort'.simps
 
+section\<open>The Correctness Proof\<close>
 
-(* Some rules for pointer addition *)
+subsection\<open>Some rules for pointer addition\<close> 
 
 (* FIXME: move *)
 lemma ptr_add_assoc [simp]:
@@ -150,9 +139,7 @@ lemma ptr_add_commute [simp]:
   by (metis ptr_add_assoc add.commute)
 
 
-(*
- * Array validity definitions
- *)
+subsection\<open>Array validity definitions\<close> 
 
 definition
   array_loc_valid :: "word32 ptr \<Rightarrow> nat \<Rightarrow> bool"
@@ -241,8 +228,7 @@ lemma updated_array_is_array [simp]:
   "is_array (heap_w32_update f s) a n = is_array s a n"
   by (simp add: is_array_def)
 
-
-(* Some word arithmetic *)
+subsection\<open>Some word arithmetic\<close>
 
 (* FIXME: move *)
 lemma unat_plus_weak:
@@ -268,8 +254,7 @@ lemma unat_linear_over_array_loc2:
    unat (ptr_val a + 4 * (of_nat n)) = unat (ptr_val a) + 4 * n"
   by (frule unat_linear_over_array_loc, simp)
 
-
-(* Pointer inequalities *)
+subsection\<open>Pointer inequalities\<close>
 
 lemma array_no_wrap:
   "\<lbrakk> array_loc_valid a n; m < n \<rbrakk> \<Longrightarrow> a \<le> a +\<^sub>p int m"
@@ -319,7 +304,7 @@ lemma array_loc_strict_mono2:
   by (metis array_loc_strict_mono uint_nat word_less_nat_alt)
 
 
-(* Concatenation lemmas *)
+subsection\<open>Concatenation lemmas\<close>
 
 lemma array_concat_elems_valid:
   "array_elems_valid s a (n + m) =
@@ -379,7 +364,7 @@ lemma concat_is_array:
   by (subst is_array_concat2[where m = "m"], simp_all)
 
 
-(* Array contents, definitions and lemmas *)
+subsection\<open>Array contents, definitions and lemmas\<close>
 
 primrec
   the_array :: "lifted_globals \<Rightarrow> word32 ptr \<Rightarrow> nat \<Rightarrow> word32 list"
@@ -416,8 +401,7 @@ lemma the_array_concat2:
   apply (simp_all only: the_array_concat)
   done
 
-
-(* Pointer simplification rules *)
+subsection\<open>Pointer simplification rules\<close>
 
 (* FIXME: move *)
 lemma word32_mult_cancel_right:
@@ -453,7 +437,7 @@ lemma ptr_offsets_eq2 [simp]:
   by (simp add: uint_nat)
 
 
-(* Array update simplification *)
+subsection\<open>Array update simplification\<close>
 
 (* FIXME: move? *)
 lemma trivial_heap_update [simp]:
@@ -478,9 +462,8 @@ lemma multiset_of_cycle:
   apply (metis list_update_overwrite list_update_swap)
   done
 
-
-(* Defining sanity of program, i.e. that only the array can change,
-   and some related lemmas *)
+subsection\<open>Defining sanity of program\<close>
+text\<open>sanity in the sense that only the array can change, and some related lemmas\<close>
 
 definition unmodified_outside_range ::
              "lifted_globals \<Rightarrow> lifted_globals \<Rightarrow> word32 ptr \<Rightarrow> nat \<Rightarrow> bool"
@@ -543,7 +526,7 @@ lemma unmodified_outside_subrange2:
   done
 
 
-(* Sanity in terms of arrays not changing *)
+subsection\<open>Sanity in terms of arrays not changing\<close>
 
 lemma is_still_array:
   "\<lbrakk> unmodified_outside_range s s' a n;
@@ -591,15 +574,18 @@ lemma the_same_array:
   apply (simp add: empty_array_not_at_mem_end)
   done
 
-
-(*
- * Proof of partition function!
- *)
+subsection\<open>Proof of partition function!\<close>
 
 definition partitioned
 where
   "partitioned s a n pivot_idx \<equiv>
    (\<forall>i. i < n \<longrightarrow> (i < pivot_idx \<longleftrightarrow> heap_w32 s (a +\<^sub>p int i) < heap_w32 s (a +\<^sub>p int pivot_idx)))"
+
+declare validNF_whileLoop_inv_measure_twosteps [wp]
+declare validNF_whileLoopE_inv_measure_twosteps [wp]
+
+declare creturn_def [vcg_simp]
+
 
 lemma (in quicksort) partition_correct:
   "\<forall>s0. \<lbrace> \<lambda>s. is_array s a (unat n) \<and> n > 0 \<and> s = s0 \<rbrace>
