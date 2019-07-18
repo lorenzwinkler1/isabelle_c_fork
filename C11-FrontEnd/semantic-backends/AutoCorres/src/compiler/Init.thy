@@ -1,5 +1,5 @@
 (******************************************************************************
- * Generation of Language.C Grammar with ML Interface Binding
+ * Isabelle/C
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
@@ -36,7 +36,7 @@
 
 theory Init
   imports "HOL-Eisbach.Eisbach"
-          C.C_Main
+          Isabelle_C.C_Main
 begin
 
 section \<open>\<close>
@@ -606,7 +606,7 @@ end;
 
 section \<open>User Defined Commands in the Semantic Verification Space\<close>
 
-ML \<comment> \<open>\<^theory>\<open>C.C_Command\<close>\<close> \<open>
+ML \<comment> \<open>\<^theory>\<open>Isabelle_C.C_Command\<close>\<close> \<open>
 local
 type text_range = Symbol_Pos.text * Position.T
 

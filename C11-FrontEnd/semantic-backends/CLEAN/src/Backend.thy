@@ -1,5 +1,5 @@
 (******************************************************************************
- * Generation of Language.C Grammar with ML Interface Binding
+ * Isabelle/C
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
@@ -38,4 +38,5 @@ theory Backend
   imports CLEAN_logic.Clean
           "compiler/Generator_dynamic_sequential"
 begin
+generation_syntax [ deep [in self], shallow ]
 end

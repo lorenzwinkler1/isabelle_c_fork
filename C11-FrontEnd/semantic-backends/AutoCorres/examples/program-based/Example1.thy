@@ -1,5 +1,5 @@
 (******************************************************************************
- * Generation of Language.C Grammar with ML Interface Binding
+ * Isabelle/C
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
@@ -33,13 +33,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-
-theory Example1
-  imports "../../src/compiler/Init"
-begin
-
-C \<comment> \<open>Copyright\<close> \<open>
-/*
+(*
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -47,8 +41,11 @@ C \<comment> \<open>Copyright\<close> \<open>
  * See "LICENSE_BSD2.txt" for details.
  *
  * @TAG(NICTA_BSD)
- */
-\<close>
+ *)
+
+theory Example1
+  imports CParser.Init
+begin
 
 C \<comment> \<open>\<open>INVARIANT\<close> Inserting an invariant after the \<open>while\<close> loop \<^url>\<open>https://github.com/seL4/l4v/blob/master/tools/c-parser/testfiles/breakcontinue.c\<close>\<close> \<open>
 int h(int e)

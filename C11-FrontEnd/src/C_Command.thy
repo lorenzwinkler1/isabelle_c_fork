@@ -1,5 +1,5 @@
 (******************************************************************************
- * Generation of Language.C Grammar with ML Interface Binding
+ * Isabelle/C
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
@@ -47,7 +47,7 @@ begin
 
 subsection \<open>Main Module Interface of Commands\<close>
 
-ML \<comment> \<open>\<^theory>\<open>C.C_Eval\<close>\<close> \<open>
+ML \<comment> \<open>\<^theory>\<open>Isabelle_C.C_Eval\<close>\<close> \<open>
 structure C_Module =
 struct
 
@@ -70,9 +70,10 @@ structure Data_Accept = Generic_Data
    val merge = #2)
 
 fun env context =
-  if Config.get (Context.proof_of context) C_Options.propagate_env
-  then Data_In_Env.get context
-  else C_Env.empty_env_lang
+  case Config.get (Context.proof_of context) C_Options.starting_env of
+    "last" => Data_In_Env.get context
+  | "empty" => C_Env.empty_env_lang
+  | s => error ("Unknown option: " ^ s ^ Position.here (Config.pos_of C_Options.starting_env))
 
 fun err _ _ pos _ =
   error ("Parser: No matching grammar rule" ^ Position.here pos)

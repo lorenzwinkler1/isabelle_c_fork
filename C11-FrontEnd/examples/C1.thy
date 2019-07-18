@@ -1,5 +1,5 @@
 (******************************************************************************
- * Generation of Language.C Grammar with ML Interface Binding
+ * Isabelle/C
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
@@ -37,7 +37,7 @@
 chapter \<open>Example\<close>
 
 theory C1
-  imports C.C_Main
+  imports Isabelle_C.C_Main
           "~~/src/HOL/ex/Cartouche_Examples"
 begin
 
@@ -413,7 +413,7 @@ setup \<open>Context.theory_map (C_Module.Data_Accept.put (fn _ => fn _ => I))\<
 
 subsubsection \<open>6\<close>
 
-declare [[C_propagate_env]]
+declare [[C_starting_env = last]]
 
 C \<comment> \<open>Propagation of Updates\<close> \<open>
 int a = 0;
@@ -431,7 +431,7 @@ C \<open>
 int main3 () { main2 (); }
 \<close>
 
-declare [[C_propagate_env = false]]
+declare [[C_starting_env = empty]]
 
 subsection \<open>General commands\<close>
 

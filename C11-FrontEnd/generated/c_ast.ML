@@ -29,6 +29,9 @@ structure C_Ast : sig
   val eq : 'a equal -> 'a -> 'a -> bool
   val equal_lista : 'a equal -> 'a list -> 'a list -> bool
   val equal_list : 'a equal -> ('a list) equal
+  val equal_bool : bool -> bool -> bool
+  datatype char = Chara of bool * bool * bool * bool * bool * bool * bool * bool
+  val equal_chara : char -> char -> bool
   val equal_char : char equal
   val shows_prec_char : nat -> char -> char list -> char list
   val shows_string : char list -> char list -> char list
@@ -37,7 +40,8 @@ structure C_Ast : sig
   val shows_prec : 'a show -> nat -> 'a -> char list -> char list
   val shows_list : 'a show -> 'a list -> char list -> char list
   val show_char : char show
-  datatype string_b_a_s_e = ST of string | STa of char list
+  datatype string_b_a_s_e = ST of string | STa of int list
+  val equal_integer : int equal
   val equal_string_b_a_s_e : string_b_a_s_e -> string_b_a_s_e -> bool
   datatype abr_string = SS_base of string_b_a_s_e | String_concatWith of abr_string * abr_string list
   val equal_abr_stringa : abr_string -> abr_string -> bool
@@ -54,7 +58,7 @@ structure C_Ast : sig
   datatype more_info = MungedVar of abr_string * abr_string option | EnumC | FunctionName
   datatype binoptype = LogOr | LogAnd | Equals | NotEquals | BitwiseAnd | BitwiseOr | BitwiseXOr | Lt | Gt | Leq | Geq | Plus | Minus | Times | Divides | Modulus | RShift | LShift
   datatype unoptype = Negate | Not | Addr | BitNegate
-  datatype base_inttype = Char | Short | Inta | Long | LongLong | Double | Float
+  datatype base_inttype = Charb | Short | Inta | Long | LongLong | Double | Float
   datatype 'a ctype = Signed of base_inttype | Unsigned of base_inttype | Bool | PlainChar | StructTy of abr_string | UnionTy of abr_string | EnumTy of abr_string option | Ptr of 'a ctype | Array of 'a ctype * 'a option |
     Bitfield of bool * 'a | Identa of abr_string | Function of 'a ctype * 'a ctype list | Void
   datatype expr = E of expr_node region_Wrap
@@ -67,14 +71,12 @@ structure C_Ast : sig
   val equal_binoptype : binoptype -> binoptype -> bool
   val equal_unoptype : unoptype -> unoptype -> bool
   val equal_base_inttype : base_inttype -> base_inttype -> bool
-  val equal_bool : bool -> bool -> bool
   val equal_optiona : 'a equal -> 'a option -> 'a option -> bool
   val equal_ctypea : 'a equal -> 'a ctype -> 'a ctype -> bool
   val equal_ctype : 'a equal -> 'a ctype equal
   val equal_StringCvt_radix : stringCvt_radix -> stringCvt_radix -> bool
   val equal_literalconstant_nodea : literalconstant_node -> literalconstant_node -> bool
   val equal_literalconstant_node : literalconstant_node equal
-  val equal_integer : int equal
   val equal_proda : 'a equal -> 'b equal -> 'a * 'b -> 'a * 'b -> bool
   val equal_prod : 'a equal -> 'b equal -> ('a * 'b) equal
   val equal_more_infoa : more_info -> more_info -> bool
@@ -88,6 +90,7 @@ structure C_Ast : sig
   val equal_designator : designator equal
   val equal_initializera : initializer -> initializer -> bool
   val equal_initializer : initializer equal
+  val equal_literal : string equal
   datatype ocl_multiplicity_single = Mult_nat of Code_Numeral.natural | Mult_star | Mult_infinity
   datatype ocl_collection = Set | Sequence | Ordered0 | Subsets0 | Union0 | Redefines0 | Derived0 | Qualifier0 | Nonunique0
   datatype 'a ocl_multiplicity_ext = Ocl_multiplicity_ext of (ocl_multiplicity_single * ocl_multiplicity_single option) list * abr_string option * ocl_collection list * 'a
@@ -136,9 +139,16 @@ structure C_Ast : sig
   datatype opt_ident = OptIdent of Code_Numeral.natural
   val equal_opt_identa : opt_ident -> opt_ident -> bool
   val equal_opt_ident : opt_ident equal
+  val one_integera : int
+  val one_integer : int one
   type 'a plus
   val plusa : 'a plus -> 'a -> 'a -> 'a
   val plus_integer : int plus
+  val zero_integer : int zero
+  type 'a zero_neq_one
+  val one_zero_neq_one : 'a zero_neq_one -> 'a one
+  val zero_zero_neq_one : 'a zero_neq_one -> 'a zero
+  val zero_neq_one_integer : int zero_neq_one
   val equal_natural : Code_Numeral.natural equal
   val one_natural : Code_Numeral.natural one
   val plus_natural : Code_Numeral.natural plus
@@ -164,7 +174,7 @@ structure C_Ast : sig
   datatype function_Kind = Definition | Primrec | Fun | Function_Sorry
   datatype typea = Typea of name * typea list | Func of typea * typea | TVar of name | NoType
   datatype typeSign = TypeSign of name * (name * name list) list * typea
-  datatype literal = Int of Code_Numeral.natural | Stringa of abr_string
+  datatype literal = Int of Code_Numeral.natural | String of abr_string
   datatype term = Literal of literal | Const of name | Abs of name * term | App of term * term | If of term * term * term | Let of (term * term) list * term | Case of term * (term * term) list |
     ListCompr of term * listComprFragment list | RecConstr of name * (name * term) list | RecUpdate of term * (name * term) list | DoBlock of abr_string * doBlockFragment list * abr_string | Parenthesized of term
   and doBlockFragment = DoGenerator of term * term | DoQualifier of term | DoLetStmt of (term * term) list
@@ -372,11 +382,11 @@ structure C_Ast : sig
   val fold : ('a -> 'b -> 'b) -> 'a list -> 'b -> 'b
   val rev : 'a list -> 'a list
   val map : ('a -> 'b) -> 'a list -> 'b list
-  val replace_chars : (char -> abr_string) -> abr_string -> string option -> abr_string -> abr_string
-  val map_gena : (abr_string -> string option -> abr_string -> abr_string) -> (char -> abr_string) -> string_b_a_s_e -> abr_string
+  val replace_integers : (int -> abr_string) -> abr_string -> string option -> abr_string -> abr_string
+  val map_gena : (abr_string -> string option -> abr_string -> abr_string) -> (int -> abr_string) -> string_b_a_s_e -> abr_string
   val mapa : ('a -> 'b) -> 'a list -> 'b list
-  val map_gen : (abr_string -> string option -> abr_string -> abr_string) -> (char -> abr_string) -> abr_string -> abr_string
-  val replace_charsa : (char -> abr_string) -> abr_string -> abr_string
+  val map_gen : (abr_string -> string option -> abr_string -> abr_string) -> (int -> abr_string) -> abr_string -> abr_string
+  val replace_integersa : (int -> abr_string) -> abr_string -> abr_string
   val mapM : ('a -> 'b -> 'c * 'b) -> 'a list -> 'b -> 'c list * 'b
   val start_map : ('a -> 'b) -> 'a list -> 'c -> 'b list * 'c
   val start_mapf : ('a -> 'b) -> ((abr_string -> abr_string) -> generation_semantics_ocl -> 'a list) -> 'c compiler_env_config_ext -> 'b list * 'c compiler_env_config_ext
@@ -393,10 +403,10 @@ structure C_Ast : sig
   val function_definition_params0 : ('a cDeclaration -> 'b) -> 'a cDeclaration list -> 'b list
   val ident_struct_type0 : abr_string -> abr_string
   val less_eq_nat : nat -> nat -> bool
-  val foldl_one : ('a -> char -> 'a) -> 'a -> string -> 'a
-  val foldlb : ('a -> char -> 'a) -> 'a -> string_b_a_s_e -> 'a
-  val foldla : ('a -> char -> 'a) -> 'a -> abr_string -> 'a
-  val to_list : abr_string -> char list
+  val foldl_one : ('a -> int -> 'a) -> 'a -> string -> 'a
+  val foldlb : ('a -> int -> 'a) -> 'a -> string_b_a_s_e -> 'a
+  val foldla : ('a -> int -> 'a) -> 'a -> abr_string -> 'a
+  val to_list : abr_string -> int list
   val length : abr_string -> nat
   val pref_ident : abr_string -> abr_string
   val ident_struct_type : ident -> abr_string
@@ -413,6 +423,7 @@ structure C_Ast : sig
   val hd : 'a list -> 'a
   val decl_spec_ty : 'a cDeclarationSpecifier list -> 'b ctype
   val ident_struct_const : ident -> abr_string
+  val meta_of_logic : abr_string -> string
   val not_yet_supported : abr_string -> unit
   val map_prod : ('a -> 'b) -> ('c -> 'd) -> 'a * 'c -> 'b * 'd
   val bogus : sourcePos
@@ -421,6 +432,8 @@ structure C_Ast : sig
   val bogwrap : 'a -> 'a region_Wrap
   val ebogwrap : expr_node -> expr
   val map2 : ('a -> 'b -> 'c) -> 'a list -> 'b list -> 'c list
+  val of_boola : 'a zero_neq_one -> bool -> 'a
+  val integer_of_char : char -> int
   val show_intFlag : cIntFlag -> abr_string
   val sgn_integer : int -> int
   val apsnd : ('a -> 'b) -> 'c * 'a -> 'c * 'b
@@ -471,6 +484,9 @@ structure C_Ast : sig
   val map_sum : ('a -> 'b) -> ('c -> 'd) -> ('a, 'c) sum -> ('b, 'd) sum
   val bind2 : ('a, ('b * 'c)) sum -> ('b -> 'd) -> ('a, ('d * 'c)) sum
   val bind3 : ('a -> ('b, ('c * 'd)) sum) -> ('c -> 'e) -> 'a -> ('b, ('e * 'd)) sum
+  val bit_cut_integer : int -> int * bool
+  val char_of_integer : int -> char
+  val explode : string -> char list
   val scan_upto_b_i_n_d : ('a list -> ('b, ('c * 'a list)) sum) -> 'a list -> ((char list), (('a list * 'c) * 'a list)) sum
   val errorb : char list -> 'a list -> ((char list), ('b * 'a list)) sum
   val oneof_b_i_n_d : ('a list -> ((char list), ('b * 'a list)) sum) list -> 'a list -> ((char list), ('b * 'a list)) sum
@@ -632,10 +648,8 @@ structure C_Ast : sig
   val modulo_nat : nat -> nat -> nat
   val divide_nat : nat -> nat -> nat
   val nat_to_digit10_aux : nat list -> nat -> nat list
-  val nat_of_char : char -> nat
-  val char_of_nat : nat -> char
   val nat_to_digit10 : nat -> abr_string
-  val add_0 : char -> abr_string
+  val add_0 : int -> abr_string
   val l_fold : (('a -> 'b -> all_meta list * 'b) embedding_fun -> 'c -> 'c) -> ('a, 'b) embedding -> 'c -> 'c
   val txt_a : abr_string list -> ('a -> 'b compiler_env_config_ext -> all_meta list * 'b compiler_env_config_ext) embedding_fun
   val fun_upd : 'a equal -> ('a -> 'b) -> 'a -> 'b -> 'a -> 'b
@@ -666,7 +680,7 @@ structure C_Ast : sig
   val d_input_class : 'a compiler_env_config_ext -> ocl_class option
   val ctxt_fun_name : 'a ocl_ctxt_pre_post_ext -> abr_string
   val split_at : ('a -> bool) -> 'a list -> 'a list * ('a option * 'a list)
-  val print_ctxt_to_ocl_gen_split : abr_string -> (char list) option
+  val print_ctxt_to_ocl_gen_split : abr_string -> (int list) option
   val term_parenthesis : semi_terma -> semi_terma
   val term_warning_parenthesis : semi_terma -> semi_terma
   val ctxt_fun_ty : 'a ocl_ctxt_pre_post_ext -> ocl_ty
@@ -695,7 +709,7 @@ structure C_Ast : sig
   val print_ctxt_is_name_at_pre : abr_string -> abr_string option
   val var_at_when_hol_post : abr_string
   val print_ctxt_is_name_at_post : abr_string -> abr_string option
-  val to_lista : string_b_a_s_e -> char list
+  val to_lista : string_b_a_s_e -> int list
   val fold_Const : ('a -> abr_string -> 'a) -> 'a -> terma -> 'a
   val map_Const : (abr_string -> typ -> abr_string) -> terma -> terma
   val print_ctxt_to_ocl_gen : string_b_a_s_e list -> (abr_string -> abr_string option) -> abr_string -> ocl_ctxt_term -> ocl_ctxt_term
@@ -747,8 +761,9 @@ structure C_Ast : sig
   val get_class_hierarchy_strict : ocl_class list -> ocl_class list
   val get_class_hierarchy_aux : ocl_class list -> ocl_class -> ocl_class list
   val get_class_hierarchya : ocl_class -> ocl_class list
-  val is_letter : char -> bool
-  val is_digit : char -> bool
+  val ascii_of_literal : string -> int
+  val is_letter : int -> bool
+  val is_digit : int -> bool
   val isub : abr_string -> abr_string
   val fold_class_gen_aux :
     (ocl_class, unit) inheritance_ext list ->
@@ -881,7 +896,7 @@ structure C_Ast : sig
   val co4 : ('a -> 'b) -> ('c -> 'd -> 'e -> 'f -> 'a) -> 'c -> 'd -> 'e -> 'f -> 'b
   val make : ocl_ty_obj -> (abr_string * ocl_ty) list -> ocl_ctxt_clause list -> bool -> unit ocl_class_raw_ext
   val nat_to_digit26_aux : nat list -> nat -> nat list
-  val mapb : (char -> char) -> abr_string -> abr_string
+  val mapb : (int -> int) -> abr_string -> abr_string
   val uppercase : abr_string -> abr_string
   val nat_to_digit26 : nat -> abr_string
   val ident_current : 'a * 'b -> 'b
@@ -962,7 +977,7 @@ structure C_Ast : sig
   val base255 : abr_string -> abr_string
   val text2_of_str : abr_string -> abr_string
   val text_of_str : abr_string -> abr_string
-  val all : (char -> bool) -> abr_string -> bool
+  val all : (int -> bool) -> abr_string -> bool
   val print_examp_oclbase_gen : ocl_def_base -> semi_terma * definition
   val filter_ocl_exn : abr_string -> 'a print_examp_instance_draw_list_attra -> 'a print_examp_instance_draw_list_attra
   val print_examp_instance_draw_list_attr_aux_base : ocl_ty * ocl_data_shallow -> semi_terma print_examp_instance_draw_list_attra
@@ -1024,11 +1039,11 @@ structure C_Ast : sig
   val map_entry : 'a equal -> 'a -> ('b -> 'b) -> ('a * 'b) list -> ('a * 'b) list
   val map_entrya : 'a equal -> 'a -> ('b -> 'b) -> ('a, 'b) alist -> ('a, 'b) alist
   val modify_def : 'b equal -> 'a -> 'b -> ('a -> 'a) -> ('b, 'a) alist -> ('b, 'a) alist
-  val modify_defa : 'a -> abr_string -> ('a -> 'a) -> ((char list), 'a) alist -> ((char list), 'a) alist
+  val modify_defa : 'a -> abr_string -> ('a -> 'a) -> ((int list), 'a) alist -> ((int list), 'a) alist
   val of_inh : 'a tmp_inh -> 'a
   val map_class_inh : ((ocl_class, 'a) inheritance_ext list) tmp_inh -> ((abr_string * ocl_ty) list) list
-  val lookupb : ((char list), 'a) alist -> abr_string -> 'a option
-  val inserta : abr_string -> 'a -> ((char list), 'a) alist -> ((char list), 'a) alist
+  val lookupb : ((int list), 'a) alist -> abr_string -> 'a option
+  val inserta : abr_string -> 'a -> ((int list), 'a) alist -> ((int list), 'a) alist
   val rbt_of_class :
     'b one * 'b plus * 'b zero ->
       'a compiler_env_config_ext -> abr_string -> bool * ((abr_string -> (ocl_ty * (opt_attr_type * opt_ident)) option) * (opt_attr_type -> ((unit ocl_ty_class_ext option -> 'b -> 'c -> 'c) -> 'c -> 'c) option))
@@ -1054,13 +1069,13 @@ structure C_Ast : sig
   val classRaw_own_update : ((abr_string * ocl_ty) list -> (abr_string * ocl_ty) list) -> 'a ocl_class_raw_ext -> 'a ocl_class_raw_ext
   val classRaw_own : 'a ocl_class_raw_ext -> (abr_string * ocl_ty) list
   val cl_name_to_string : 'a ocl_class_raw_ext -> abr_string
-  val class_unflat_aux : ((char list), ((abr_string * ocl_ty) list)) alist -> ((char list), (abr_string list)) alist -> ((char list), unit) alist -> abr_string -> ocl_class option
+  val class_unflat_aux : ((int list), ((abr_string * ocl_ty) list)) alist -> ((int list), (abr_string list)) alist -> ((int list), unit) alist -> abr_string -> ocl_class option
   val oclAss_relationa : 'a ocl_association_ext -> ocl_association_relation
   val oclAss_relation : 'a ocl_association_ext -> (ocl_ty_obj * unit ocl_multiplicity_ext) list
   val remove_binding : ocl_ty -> ocl_ty
   val map_entryb : 'a equal -> 'a -> ('b -> 'b) -> ('a, 'b) alist -> ('a, 'b) alist
-  val map_entryc : abr_string -> ('a -> 'a) -> ((char list), 'a) alist -> ((char list), 'a) alist
-  val entriesa : ((char list), 'a) alist -> (abr_string * 'a) list
+  val map_entryc : abr_string -> ('a -> 'a) -> ((int list), 'a) alist -> ((int list), 'a) alist
+  val entriesa : ((int list), 'a) alist -> (abr_string * 'a) list
   val oclTy_class : unit ocl_ty_class_ext -> ocl_ty
   val normalize0 : 'b equal -> ('a -> 'b) -> 'a list -> 'a list
   val fold_max_aux : ('a -> 'a list -> 'b -> 'b) -> 'a list -> 'a list -> 'b -> 'b
@@ -1143,15 +1158,15 @@ structure C_Ast : sig
   val ocl_instance_single_empty : unit ocl_instance_single_ext
   val fold_instance_single : (abr_string -> ((abr_string * abr_string) option * (abr_string * ocl_data_shallow)) list -> 'a -> 'a) -> 'b ocl_instance_single_ext -> 'a -> 'a
   val print_examp_def_st_assoc_build_rbt_gen :
-    (abr_string -> (((char list), (((internal_oid list) list) list * unit ocl_ty_class_ext)) alist -> ((char list), (((internal_oid list) list) list * unit ocl_ty_class_ext)) alist) -> ('a, 'b) alist -> ('a, 'b) alist) ->
+    (abr_string -> (((int list), (((internal_oid list) list) list * unit ocl_ty_class_ext)) alist -> ((int list), (((internal_oid list) list) list * unit ocl_ty_class_ext)) alist) -> ('a, 'b) alist -> ('a, 'b) alist) ->
       (abr_string -> (abr_string -> (ocl_ty * ('c * 'd)) option) * 'e) -> (internal_oid -> internal_oids option) -> (abr_string -> internal_oids option) -> ('f ocl_instance_single_ext * internal_oids) list -> ('a, 'b) alist
   val print_examp_def_st_assoc_build_rbt :
     (abr_string -> (abr_string -> (ocl_ty * ('a * 'b)) option) * 'c) ->
       (internal_oid -> internal_oids option) ->
-        (abr_string -> internal_oids option) -> ('d ocl_instance_single_ext * internal_oids) list -> ((char list), ((char list), (((internal_oid list) list) list * unit ocl_ty_class_ext)) alist) alist
+        (abr_string -> internal_oids option) -> ('d ocl_instance_single_ext * internal_oids) list -> ((int list), ((int list), (((internal_oid list) list) list * unit ocl_ty_class_ext)) alist) alist
   val var_map_of_list : abr_string
   val term_lista : ('a -> semi_terma) -> 'a list -> semi_terma
-  val foldb : (abr_string -> 'a -> 'b -> 'b) -> ((char list), 'a) alist -> 'b -> 'b
+  val foldb : (abr_string -> 'a -> 'b -> 'b) -> ((int list), 'a) alist -> 'b -> 'b
   val print_examp_def_st_assoc :
     (abr_string -> (abr_string -> (ocl_ty * ('a * 'b)) option) * 'c) -> (internal_oid -> internal_oids option) -> (abr_string -> internal_oids option) -> ('d ocl_instance_single_ext * internal_oids) list -> semi_terma
   val init_map_class2 :
@@ -1178,7 +1193,7 @@ structure C_Ast : sig
         (abr_string -> abr_string -> 'd option) -> (internal_oid -> 'e option) -> (abr_string -> 'e option) -> ocl_enum list -> ('a ocl_instance_single_ext * 'b) list -> (reporting * abr_string) list -> (reporting * abr_string) list
   val print_examp_def_st_assoc_build_rbt2 :
     (abr_string -> (abr_string -> (ocl_ty * ('a * 'b)) option) * 'c) ->
-      (internal_oid -> internal_oids option) -> (abr_string -> internal_oids option) -> ('d ocl_instance_single_ext * internal_oids) list -> ((char list), (((internal_oid list) list) list * unit ocl_ty_class_ext)) alist
+      (internal_oid -> internal_oids option) -> (abr_string -> internal_oids option) -> ('d ocl_instance_single_ext * internal_oids) list -> ((int list), (((internal_oid list) list) list * unit ocl_ty_class_ext)) alist
   val less_natural : Code_Numeral.natural -> Code_Numeral.natural -> bool
   val mk_instance_single_cpt : (abr_string -> internal_oids option) -> 'a ocl_instance_single_ext list -> 'b compiler_env_config_ext -> ('a ocl_instance_single_ext * internal_oids) list
   val tyObj_ass_id : 'a ocl_ty_class_ext -> Code_Numeral.natural
@@ -1188,7 +1203,7 @@ structure C_Ast : sig
   val deref_assocs_list : 'b equal -> ('a -> 'b list * 'c list) -> 'b -> 'a list -> 'c list
   val check_single_ty :
     ('a -> (abr_string -> (ocl_ty * ('b * 'c)) option) * 'd) ->
-      ((char list), ('e * unit ocl_ty_class_ext)) alist ->
+      ((int list), ('e * unit ocl_ty_class_ext)) alist ->
         (Code_Numeral.natural -> (((internal_oid list) list) list) option) ->
           (internal_oid * abr_string) list -> internal_oid -> 'a * unit ocl_multiplicity_ext -> 'a * unit ocl_multiplicity_ext -> (reporting * abr_string) list -> (reporting * abr_string) list
   val map_of_list : 'a equal -> ('a * 'b list) list -> 'a -> ('b list) option
@@ -1543,9 +1558,9 @@ structure C_Ast : sig
   val var_select_object_set_any : abr_string
   val var_select_object_set : abr_string
   val lookup2 : 'a equal -> 'b equal -> ('a, ('b, 'c) alist) alist -> 'a * 'b -> 'c option
-  val lookup2a : ((char list), ((char list), 'a) alist) alist -> abr_string * abr_string -> 'a option
+  val lookup2a : ((int list), ((int list), 'a) alist) alist -> abr_string * abr_string -> 'a option
   val insert2 : 'a equal -> 'b equal -> 'a * 'b -> 'c -> ('a, ('b, 'c) alist) alist -> ('a, ('b, 'c) alist) alist
-  val insert2a : abr_string * abr_string -> 'a -> ((char list), ((char list), 'a) alist) alist -> ((char list), ((char list), 'a) alist) alist
+  val insert2a : abr_string * abr_string -> 'a -> ((int list), ((int list), 'a) alist) alist -> ((int list), ((int list), 'a) alist) alist
   val var_select : abr_string
   val print_access_select_obj : ocl_class -> 'a compiler_env_config_ext -> all_meta list * 'a compiler_env_config_ext
   val pRINT_access_select_obj : (ocl_class -> 'a compiler_env_config_ext -> all_meta list * 'a compiler_env_config_ext) embedding_fun
@@ -1683,7 +1698,7 @@ structure C_Ast : sig
   val replace_gen : ((('a list), 'a) nsplit list -> 'b) -> 'a list -> ('a -> bool) -> 'a list -> 'b
   val nsplit_f : 'a list -> ('a -> bool) -> (('a list), 'a) nsplit list
   val escape_sml : abr_string -> abr_string
-  val is_special : char -> bool
+  val is_special : int -> bool
   val ap1 : ('a -> 'b list -> 'c) -> 'a -> ('d -> 'b) -> 'd -> 'c
   val ap2 : ('a -> 'b list -> 'c) -> 'a -> ('d -> 'b) -> ('e -> 'b) -> 'd -> 'e -> 'c
   val ap3 : ('a -> 'b list -> 'c) -> 'a -> ('d -> 'b) -> ('e -> 'b) -> ('f -> 'b) -> 'd -> 'e -> 'f -> 'c
@@ -1696,7 +1711,6 @@ structure C_Ast : sig
   val co1 : ('a -> 'b) -> ('c -> 'a) -> 'c -> 'b
   val co2 : ('a -> 'b) -> ('c -> 'd -> 'a) -> 'c -> 'd -> 'b
   val cIf : 'a cExpression -> 'a cStatement -> 'a cStatement optiona -> 'a -> 'a cStatement
-  val char_escape : char
   val ap16 : ('a -> 'b list -> 'c) ->
                'a -> ('d -> 'b) ->
                        ('e -> 'b) ->
@@ -2210,6 +2224,7 @@ structure C_Ast : sig
   val of_boot_setup_env : (abr_string -> string) -> 'a -> boot_setup_env -> string
   val of_all_meta : (abr_string -> string) -> (Code_Numeral.natural -> CodeType.mlInt) -> 'a compiler_env_config_ext -> all_meta -> string
   val term_string : abr_string -> semi_terma
+  val integer_escape : int
   val of_all_meta_lists : (abr_string -> string) -> (Code_Numeral.natural -> CodeType.mlInt) -> bool compiler_env_config_ext -> (abr_string option * all_meta list) list -> string list
   val write_file0a :
     (abr_string -> string) ->
@@ -2245,7 +2260,7 @@ structure C_Ast : sig
   val cUnary : cUnaryOp -> 'a cExpression -> 'a -> 'a cExpression
   val cWhile : 'a cExpression -> 'a cStatement -> bool -> 'a -> 'a cStatement
   val cXorOp : cBinaryOp
-  val textstr_of_str : (abr_string -> abr_string) -> (char -> abr_string) -> (abr_string -> abr_string) -> abr_string -> abr_string
+  val textstr_of_str : (abr_string -> abr_string) -> (int -> abr_string) -> (abr_string -> abr_string) -> abr_string -> abr_string
   val write_file0 : (all_meta_embedding list * abr_string option) compiler_env_config_ext -> (((string -> string -> unit CodeType.mlMonad) -> unit CodeType.mlMonad) -> unit CodeType.mlMonad) * string list
   val cAsmExt : 'a cStringLiteral -> 'a -> 'a cExternalDeclaration
   val cAssign : cAssignOp -> 'a cExpression -> 'a cExpression -> 'a -> 'a cExpression
@@ -2455,7 +2470,6 @@ structure C_Ast : sig
   val cStaticAssert : 'a cExpression -> 'a cStringLiteral -> 'a -> 'a cDeclaration
   val clangCVersion : abr_string -> clangCVersion
   val isabelle_apply : abr_string -> abr_string list -> abr_string
-  val char_to_digit16 : char -> abr_string
   val builtinPosition : positiona
   val rec_ext_decl : (expr ctype * abr_string region_Wrap -> (expr ctype * abr_string region_Wrap) list -> fnspec list -> (block_item list) region_Wrap -> 'a) -> (declaration region_Wrap -> 'a) -> ext_decl -> 'a
   val rec_unoptype : 'a -> 'a -> 'a -> 'a -> unoptype -> 'a
@@ -2463,6 +2477,7 @@ structure C_Ast : sig
   val internalPosition : positiona
   val cGenericSelection : 'a cExpression -> ('a cDeclaration optiona * 'a cExpression) list -> 'a -> 'a cExpression
   val check_export_code : ('a -> unit) -> ('a -> unit) -> ('a -> unit) -> (abr_string -> unit) -> (reporting * 'a) list -> abr_string -> unit
+  val integer_to_digit16 : int -> abr_string
   val rec_SourcePos : (int -> abr_string -> int -> 'a) -> sourcePos -> 'a
   val rec_binoptype : 'a -> 'a -> 'a -> 'a -> 'a -> 'a -> 'a -> 'a -> 'a -> 'a -> 'a -> 'a -> 'a -> 'a -> 'a -> 'a -> 'a -> 'a -> binoptype -> 'a
   val rec_more_info : (abr_string -> abr_string option -> 'a) -> 'a -> 'a -> more_info -> 'a
@@ -2525,7 +2540,7 @@ structure C_Ast : sig
   val of_Nonea : abr_string
   val of_Paira : abr_string
   val of_Somea : abr_string
-  val of_boola : (abr_string -> 'a) -> bool -> 'a
+  val of_boolb : (abr_string -> 'a) -> bool -> 'a
   val of_lista : ('a -> 'a list -> 'a) -> (abr_string -> 'a) -> ('b -> 'a) -> 'b list -> 'a
   val of_paira : ('a -> 'b list -> 'c) -> (abr_string -> 'a) -> ('d -> 'b) -> ('e -> 'b) -> 'd * 'e -> 'c
   val of_unita : (abr_string -> 'a) -> unit -> 'a
@@ -2603,7 +2618,17 @@ fun equal_lista A_ [] (x21 :: x22) = false
 
 fun equal_list A_ = {equala = equal_lista A_} : ('a list) equal;
 
-val equal_char = {equala = (fn a => fn b => ((a : char) = b))} : char equal;
+fun equal_bool p true = p
+  | equal_bool p false = not p
+  | equal_bool true p = p
+  | equal_bool false p = not p;
+
+datatype char = Chara of bool * bool * bool * bool * bool * bool * bool * bool;
+
+fun equal_chara (Chara (x1, x2, x3, x4, x5, x6, x7, x8)) (Chara (y1, y2, y3, y4, y5, y6, y7, y8)) =
+  equal_bool x1 y1 andalso (equal_bool x2 y2 andalso (equal_bool x3 y3 andalso (equal_bool x4 y4 andalso (equal_bool x5 y5 andalso (equal_bool x6 y6 andalso (equal_bool x7 y7 andalso equal_bool x8 y8))))));
+
+val equal_char = {equala = equal_chara} : char equal;
 
 fun shows_prec_char p c = (fn a => c :: a);
 
@@ -2617,11 +2642,13 @@ val shows_list = #shows_list : 'a show -> 'a list -> char list -> char list;
 
 val show_char = {shows_prec = shows_prec_char, shows_list = shows_list_char} : char show;
 
-datatype string_b_a_s_e = ST of string | STa of char list;
+datatype string_b_a_s_e = ST of string | STa of int list;
+
+val equal_integer = {equala = (fn a => fn b => a = b)} : int equal;
 
 fun equal_string_b_a_s_e (ST x1) (STa x2) = false
   | equal_string_b_a_s_e (STa x2) (ST x1) = false
-  | equal_string_b_a_s_e (STa x2) (STa y2) = equal_lista equal_char x2 y2
+  | equal_string_b_a_s_e (STa x2) (STa y2) = equal_lista equal_integer x2 y2
   | equal_string_b_a_s_e (ST x1) (ST y1) = ((x1 : string) = y1);
 
 datatype abr_string = SS_base of string_b_a_s_e | String_concatWith of abr_string * abr_string list;
@@ -2660,7 +2687,7 @@ datatype binoptype = LogOr | LogAnd | Equals | NotEquals | BitwiseAnd | BitwiseO
 
 datatype unoptype = Negate | Not | Addr | BitNegate;
 
-datatype base_inttype = Char | Short | Inta | Long | LongLong | Double | Float;
+datatype base_inttype = Charb | Short | Inta | Long | LongLong | Double | Float;
 
 datatype 'a ctype = Signed of base_inttype | Unsigned of base_inttype | Bool | PlainChar | StructTy of abr_string | UnionTy of abr_string | EnumTy of abr_string option | Ptr of 'a ctype | Array of 'a ctype * 'a option |
   Bitfield of bool * 'a | Identa of abr_string | Function of 'a ctype * 'a ctype list | Void;
@@ -3046,30 +3073,25 @@ fun equal_base_inttype Double Float = false
   | equal_base_inttype Long Short = false
   | equal_base_inttype Short Inta = false
   | equal_base_inttype Inta Short = false
-  | equal_base_inttype Char Float = false
-  | equal_base_inttype Float Char = false
-  | equal_base_inttype Char Double = false
-  | equal_base_inttype Double Char = false
-  | equal_base_inttype Char LongLong = false
-  | equal_base_inttype LongLong Char = false
-  | equal_base_inttype Char Long = false
-  | equal_base_inttype Long Char = false
-  | equal_base_inttype Char Inta = false
-  | equal_base_inttype Inta Char = false
-  | equal_base_inttype Char Short = false
-  | equal_base_inttype Short Char = false
+  | equal_base_inttype Charb Float = false
+  | equal_base_inttype Float Charb = false
+  | equal_base_inttype Charb Double = false
+  | equal_base_inttype Double Charb = false
+  | equal_base_inttype Charb LongLong = false
+  | equal_base_inttype LongLong Charb = false
+  | equal_base_inttype Charb Long = false
+  | equal_base_inttype Long Charb = false
+  | equal_base_inttype Charb Inta = false
+  | equal_base_inttype Inta Charb = false
+  | equal_base_inttype Charb Short = false
+  | equal_base_inttype Short Charb = false
   | equal_base_inttype Float Float = true
   | equal_base_inttype Double Double = true
   | equal_base_inttype LongLong LongLong = true
   | equal_base_inttype Long Long = true
   | equal_base_inttype Inta Inta = true
   | equal_base_inttype Short Short = true
-  | equal_base_inttype Char Char = true;
-
-fun equal_bool p true = p
-  | equal_bool p false = not p
-  | equal_bool true p = p
-  | equal_bool false p = not p;
+  | equal_base_inttype Charb Charb = true;
 
 fun equal_optiona A_ NONE (SOME x2) = false
   | equal_optiona A_ (SOME x2) NONE = false
@@ -3270,8 +3292,6 @@ fun equal_literalconstant_nodea (NUMCONST (x11, x12, x13)) (STRING_LIT x2) = fal
   | equal_literalconstant_nodea (NUMCONST (x11, x12, x13)) (NUMCONST (y11, y12, y13)) = x11 = y11 andalso (equal_abr_stringa x12 y12 andalso equal_StringCvt_radix x13 y13);
 
 val equal_literalconstant_node = {equala = equal_literalconstant_nodea} : literalconstant_node equal;
-
-val equal_integer = {equala = (fn a => fn b => a = b)} : int equal;
 
 fun equal_proda A_ B_ (x1, x2) (y1, y2) = eq A_ x1 y1 andalso eq B_ x2 y2;
 
@@ -3533,6 +3553,8 @@ val equal_expr = equal_expr ();
 val equal_expr_node = equal_expr_node ();
 val equal_designator = equal_designator ();
 val equal_initializer = equal_initializer ();
+
+val equal_literal = {equala = (fn a => fn b => ((a : string) = b))} : string equal;
 
 datatype ocl_multiplicity_single = Mult_nat of Code_Numeral.natural | Mult_star | Mult_infinity;
 
@@ -3918,10 +3940,22 @@ fun equal_opt_identa (OptIdent x) (OptIdent ya) = equal_naturala x ya;
 
 val equal_opt_ident = {equala = equal_opt_identa} : opt_ident equal;
 
+val one_integera : int = (1 : IntInf.int);
+
+val one_integer = {one = one_integera} : int one;
+
 type 'a plus = {plusa : 'a -> 'a -> 'a};
 val plusa = #plusa : 'a plus -> 'a -> 'a -> 'a;
 
 val plus_integer = {plusa = (fn a => fn b => a + b)} : int plus;
+
+val zero_integer = {zero = (0 : IntInf.int)} : int zero;
+
+type 'a zero_neq_one = {one_zero_neq_one : 'a one, zero_zero_neq_one : 'a zero};
+val one_zero_neq_one = #one_zero_neq_one : 'a zero_neq_one -> 'a one;
+val zero_zero_neq_one = #zero_zero_neq_one : 'a zero_neq_one -> 'a zero;
+
+val zero_neq_one_integer = {one_zero_neq_one = one_integer, zero_zero_neq_one = zero_integer} : int zero_neq_one;
 
 val equal_natural = {equala = equal_naturala} : Code_Numeral.natural equal;
 
@@ -3987,7 +4021,7 @@ datatype typea = Typea of name * typea list | Func of typea * typea | TVar of na
 
 datatype typeSign = TypeSign of name * (name * name list) list * typea;
 
-datatype literal = Int of Code_Numeral.natural | Stringa of abr_string;
+datatype literal = Int of Code_Numeral.natural | String of abr_string;
 
 datatype term = Literal of literal | Const of name | Abs of name * term | App of term * term | If of term * term * term | Let of (term * term) list * term | Case of term * (term * term) list | ListCompr of term * listComprFragment list
   | RecConstr of name * (name * term) list | RecUpdate of term * (name * term) list | DoBlock of abr_string * doBlockFragment list * abr_string | Parenthesized of term
@@ -4353,7 +4387,10 @@ fun rev xs = fold (fn a => fn b => a :: b) xs [];
 
 fun map f l = rev (foldl (fn la => fn x => f x :: la) [] l);
 
-fun replace_chars f s1 s s2 = flattenb s1 (flattenb (case s of NONE => SS_base (ST "") | SOME sa => flattena (map f (String.explode sa))) s2);
+fun replace_integers f s1 s s2 =
+  flattenb s1 (flattenb (case s of NONE => SS_base (ST "")
+                          | SOME sa => flattena (map f ((map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) sa)))
+                s2);
 
 fun map_gena replace g = (fn a => (case a of ST s => replace (SS_base (ST "")) (SOME s) (SS_base (ST "")) | STa s => flattena (map g s)));
 
@@ -4362,7 +4399,7 @@ fun mapa f [] = []
 
 fun map_gen replace g e = (case e of SS_base a => map_gena replace g a | String_concatWith (abr, l) => String_concatWith (map_gen replace g abr, mapa (map_gen replace g) l));
 
-fun replace_charsa f = map_gen (replace_chars f) f;
+fun replace_integersa f = map_gen (replace_integers f) f;
 
 fun mapM f l accu = let
                       val a = fold (fn x => fn (la, accua) => let
@@ -4380,7 +4417,7 @@ fun mapM f l accu = let
 fun start_map f = mapM (fn x => (fn a => (f x, a)));
 
 fun start_mapf f fl =
-  (fn env => start_map f (fl (flattenb (case d_output_header_thy env of NONE => SS_base (ST "") | SOME (n_thy, (_, _)) => replace_charsa (fn x => (if ((x : char) = #"_") then SS_base (ST "-") else SS_base (STa [x]))) n_thy))
+  (fn env => start_map f (fl (flattenb (case d_output_header_thy env of NONE => SS_base (ST "") | SOME (n_thy, (_, _)) => replace_integersa (fn n => (if n = (95 : IntInf.int) then SS_base (ST "-") else SS_base (STa [n]))) n_thy))
                            (d_ocl_semantics env))
                env);
 
@@ -4436,7 +4473,7 @@ fun ident_struct_type0 s = flattena [s, SS_base (ST "_C")];
 
 fun less_eq_nat m n = integer_of_nat m <= integer_of_nat n;
 
-fun foldl_one f accu s = foldl f accu (String.explode s);
+fun foldl_one f accu = foldl f accu o (map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode);
 
 fun foldlb f accu = (fn a => (case a of ST aa => foldl_one f accu aa | STa aa => foldl f accu aa));
 
@@ -4446,7 +4483,7 @@ fun to_list s = rev (foldla (fn l => fn c => c :: l) [] s);
 
 fun length x = foldla (fn n => fn _ => suc n) zero_nata x;
 
-fun pref_ident s = (if less_eq_nat one_nat (length s) andalso (((nth (to_list s) zero_nata) : char) = #"_") then flattena [SS_base (ST "StrictC'"), s] else s);
+fun pref_ident s = (if less_eq_nat one_nat (length s) andalso nth (to_list s) zero_nata = (95 : IntInf.int) then flattena [SS_base (ST "StrictC'"), s] else s);
 
 fun ident_struct_type x = (fn Ident0 (s, _, _) => pref_ident (ident_struct_type0 s)) x;
 
@@ -4488,7 +4525,7 @@ fun decl_spec_ty l_decl_spec =
                    | CSignedType0 _ => (SOME Signed, tl []) | CUnsigType0 _ => (SOME Unsigned, tl []) | CBoolType0 _ => (NONE, []) | CComplexType0 _ => (NONE, []) | CInt128Type0 _ => (NONE, []) | CSUType0 (_, _) => (NONE, [])
                    | CEnumType0 (_, _) => (NONE, []) | CTypeDef0 (_, _) => (NONE, []) | CTypeOfExpr0 (_, _) => (NONE, []) | CTypeOfType0 (_, _) => (NONE, []) | CAtomicType0 (_, _) => (NONE, []));
              in
-               (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+               (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                   | [CDoubleType0 _] => Double))
                                     (groupBy (fn a => fn b =>
                                                (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4500,9 +4537,9 @@ fun decl_spec_ty l_decl_spec =
                                                  | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                  | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                       l)
-                              of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                              of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                               | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                 of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                 of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                  | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
              end
     | [CVoidType0 _] => Void
@@ -4516,7 +4553,7 @@ fun decl_spec_ty l_decl_spec =
             | CEnumType0 (_, _) => (NONE, CVoidType0 x :: ab :: lista) | CTypeDef0 (_, _) => (NONE, CVoidType0 x :: ab :: lista) | CTypeOfExpr0 (_, _) => (NONE, CVoidType0 x :: ab :: lista)
             | CTypeOfType0 (_, _) => (NONE, CVoidType0 x :: ab :: lista) | CAtomicType0 (_, _) => (NONE, CVoidType0 x :: ab :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4528,9 +4565,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CCharType0 aa :: lista =>
@@ -4542,7 +4579,7 @@ fun decl_spec_ty l_decl_spec =
             | CComplexType0 _ => (NONE, CCharType0 aa :: lista) | CInt128Type0 _ => (NONE, CCharType0 aa :: lista) | CSUType0 (_, _) => (NONE, CCharType0 aa :: lista) | CEnumType0 (_, _) => (NONE, CCharType0 aa :: lista)
             | CTypeDef0 (_, _) => (NONE, CCharType0 aa :: lista) | CTypeOfExpr0 (_, _) => (NONE, CCharType0 aa :: lista) | CTypeOfType0 (_, _) => (NONE, CCharType0 aa :: lista) | CAtomicType0 (_, _) => (NONE, CCharType0 aa :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4554,9 +4591,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | [CShortType0 x] =>
@@ -4568,7 +4605,7 @@ fun decl_spec_ty l_decl_spec =
             | CSUType0 (_, _) => (NONE, [CShortType0 x]) | CEnumType0 (_, _) => (NONE, [CShortType0 x]) | CTypeDef0 (_, _) => (NONE, [CShortType0 x]) | CTypeOfExpr0 (_, _) => (NONE, [CShortType0 x])
             | CTypeOfType0 (_, _) => (NONE, [CShortType0 x]) | CAtomicType0 (_, _) => (NONE, [CShortType0 x]));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4580,9 +4617,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CShortType0 x :: CVoidType0 ac :: lista =>
@@ -4596,7 +4633,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CShortType0 x :: CVoidType0 ac :: lista) | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CVoidType0 ac :: lista) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CVoidType0 ac :: lista)
             | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CVoidType0 ac :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4608,9 +4645,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CShortType0 x :: CCharType0 ac :: lista =>
@@ -4624,7 +4661,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CShortType0 x :: CCharType0 ac :: lista) | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CCharType0 ac :: lista) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CCharType0 ac :: lista)
             | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CCharType0 ac :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4636,9 +4673,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CShortType0 x :: CShortType0 ac :: lista =>
@@ -4652,7 +4689,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CShortType0 x :: CShortType0 ac :: lista) | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CShortType0 ac :: lista) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CShortType0 ac :: lista)
             | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CShortType0 ac :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4664,9 +4701,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CShortType0 x :: CIntType0 ac :: lista =>
@@ -4680,7 +4717,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CShortType0 x :: CIntType0 ac :: lista) | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CIntType0 ac :: lista) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CIntType0 ac :: lista)
             | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CIntType0 ac :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4692,9 +4729,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CShortType0 x :: CLongType0 ac :: lista =>
@@ -4708,7 +4745,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CShortType0 x :: CLongType0 ac :: lista) | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CLongType0 ac :: lista) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CLongType0 ac :: lista)
             | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CLongType0 ac :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4720,9 +4757,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CShortType0 x :: CFloatType0 ac :: lista =>
@@ -4736,7 +4773,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CShortType0 x :: CFloatType0 ac :: lista) | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CFloatType0 ac :: lista) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CFloatType0 ac :: lista)
             | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CFloatType0 ac :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4748,9 +4785,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CShortType0 x :: CDoubleType0 ac :: lista =>
@@ -4764,7 +4801,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CShortType0 x :: CDoubleType0 ac :: lista) | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CDoubleType0 ac :: lista) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CDoubleType0 ac :: lista)
             | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CDoubleType0 ac :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4776,9 +4813,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CShortType0 x :: CSignedType0 ac :: lista =>
@@ -4792,7 +4829,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CShortType0 x :: CSignedType0 ac :: lista) | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CSignedType0 ac :: lista) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CSignedType0 ac :: lista)
             | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CSignedType0 ac :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4804,9 +4841,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CShortType0 x :: CUnsigType0 xa :: lista =>
@@ -4820,7 +4857,7 @@ fun decl_spec_ty l_decl_spec =
                                  | CTypeDef0 (_, _) => (NONE, [CShortType0 x, CUnsigType0 xa]) | CTypeOfExpr0 (_, _) => (NONE, [CShortType0 x, CUnsigType0 xa]) | CTypeOfType0 (_, _) => (NONE, [CShortType0 x, CUnsigType0 xa])
                                  | CAtomicType0 (_, _) => (NONE, [CShortType0 x, CUnsigType0 xa]));
                            in
-                             (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong
+                             (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong
                                                                 | [CFloatType0 _] => Float | [CDoubleType0 _] => Double))
                                                   (groupBy (fn a => fn b =>
                                                              (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4833,9 +4870,9 @@ fun decl_spec_ty l_decl_spec =
                                                                | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false
                                                                | (CAtomicType0 (_, _), _) => false))
                                                     l)
-                                            of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                                            of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                             | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                               of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                               of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                                | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
                            end
         | CVoidType0 ae :: listb =>
@@ -4852,7 +4889,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CVoidType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CVoidType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CVoidType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4864,9 +4901,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CCharType0 ae :: listb =>
@@ -4883,7 +4920,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CCharType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CCharType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CCharType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4895,9 +4932,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CShortType0 ae :: listb =>
@@ -4914,7 +4951,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CShortType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CShortType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CShortType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4926,9 +4963,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | [CIntType0 _] => Unsigned Short
@@ -4946,7 +4983,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CIntType0 xb :: af :: listaa) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CIntType0 xb :: af :: listaa)
                 | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CIntType0 xb :: af :: listaa));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4958,9 +4995,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 ae :: listb =>
@@ -4977,7 +5014,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CLongType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CLongType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CLongType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -4989,9 +5026,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CFloatType0 ae :: listb =>
@@ -5008,7 +5045,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CFloatType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CFloatType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CFloatType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5020,9 +5057,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CDoubleType0 ae :: listb =>
@@ -5039,7 +5076,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CDoubleType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CDoubleType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CDoubleType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5051,9 +5088,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CSignedType0 ae :: listb =>
@@ -5070,7 +5107,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CSignedType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CSignedType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CSignedType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5082,9 +5119,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CUnsigType0 ae :: listb =>
@@ -5101,7 +5138,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CUnsigType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CUnsigType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CUnsigType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5113,9 +5150,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CBoolType0 ae :: listb =>
@@ -5132,7 +5169,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CBoolType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CBoolType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CBoolType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5144,9 +5181,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CComplexType0 ae :: listb =>
@@ -5163,7 +5200,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CComplexType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CComplexType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CComplexType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5175,9 +5212,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CInt128Type0 ae :: listb =>
@@ -5194,7 +5231,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CInt128Type0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CInt128Type0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CInt128Type0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5206,9 +5243,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CSUType0 (cStructureUnion, ae) :: listb =>
@@ -5225,7 +5262,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeDef0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CSUType0 (cStructureUnion, ae) :: listb) | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CSUType0 (cStructureUnion, ae) :: listb)
                 | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CSUType0 (cStructureUnion, ae) :: listb) | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CSUType0 (cStructureUnion, ae) :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5237,9 +5274,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CEnumType0 (cEnumeration, ae) :: listb =>
@@ -5256,7 +5293,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeDef0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CEnumType0 (cEnumeration, ae) :: listb) | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CEnumType0 (cEnumeration, ae) :: listb)
                 | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CEnumType0 (cEnumeration, ae) :: listb) | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CEnumType0 (cEnumeration, ae) :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5268,9 +5305,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CTypeDef0 (ident, ae) :: listb =>
@@ -5287,7 +5324,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CTypeDef0 (ident, ae) :: listb) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CTypeDef0 (ident, ae) :: listb)
                 | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CTypeDef0 (ident, ae) :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5299,9 +5336,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CTypeOfExpr0 (cExpression, ae) :: listb =>
@@ -5318,7 +5355,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeDef0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CTypeOfExpr0 (cExpression, ae) :: listb) | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CTypeOfExpr0 (cExpression, ae) :: listb)
                 | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CTypeOfExpr0 (cExpression, ae) :: listb) | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CTypeOfExpr0 (cExpression, ae) :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5330,9 +5367,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CTypeOfType0 (cDeclaration, ae) :: listb =>
@@ -5349,7 +5386,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeDef0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CTypeOfType0 (cDeclaration, ae) :: listb) | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CTypeOfType0 (cDeclaration, ae) :: listb)
                 | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CTypeOfType0 (cDeclaration, ae) :: listb) | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CTypeOfType0 (cDeclaration, ae) :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5361,9 +5398,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CAtomicType0 (cDeclaration, ae) :: listb =>
@@ -5380,7 +5417,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeDef0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CAtomicType0 (cDeclaration, ae) :: listb) | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CAtomicType0 (cDeclaration, ae) :: listb)
                 | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CAtomicType0 (cDeclaration, ae) :: listb) | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CUnsigType0 xa :: CAtomicType0 (cDeclaration, ae) :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5392,9 +5429,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end)
     | CShortType0 x :: CBoolType0 ac :: lista =>
@@ -5408,7 +5445,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CShortType0 x :: CBoolType0 ac :: lista) | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CBoolType0 ac :: lista) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CBoolType0 ac :: lista)
             | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CBoolType0 ac :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5420,9 +5457,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CShortType0 x :: CComplexType0 ac :: lista =>
@@ -5436,7 +5473,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CShortType0 x :: CComplexType0 ac :: lista) | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CComplexType0 ac :: lista) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CComplexType0 ac :: lista)
             | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CComplexType0 ac :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5448,9 +5485,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CShortType0 x :: CInt128Type0 ac :: lista =>
@@ -5464,7 +5501,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CShortType0 x :: CInt128Type0 ac :: lista) | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CInt128Type0 ac :: lista) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CInt128Type0 ac :: lista)
             | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CInt128Type0 ac :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5476,9 +5513,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CShortType0 x :: CSUType0 (cStructureUnion, ac) :: lista =>
@@ -5495,7 +5532,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CSUType0 (cStructureUnion, ac) :: lista) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CSUType0 (cStructureUnion, ac) :: lista)
             | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CSUType0 (cStructureUnion, ac) :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5507,9 +5544,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CShortType0 x :: CEnumType0 (cEnumeration, ac) :: lista =>
@@ -5526,7 +5563,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CEnumType0 (cEnumeration, ac) :: lista) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CEnumType0 (cEnumeration, ac) :: lista)
             | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CEnumType0 (cEnumeration, ac) :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5538,9 +5575,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CShortType0 x :: CTypeDef0 (ident, ac) :: lista =>
@@ -5556,7 +5593,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CTypeDef0 (ident, ac) :: lista) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CTypeDef0 (ident, ac) :: lista)
             | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CTypeDef0 (ident, ac) :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5568,9 +5605,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CShortType0 x :: CTypeOfExpr0 (cExpression, ac) :: lista =>
@@ -5587,7 +5624,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CTypeOfExpr0 (cExpression, ac) :: lista) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CTypeOfExpr0 (cExpression, ac) :: lista)
             | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CTypeOfExpr0 (cExpression, ac) :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5599,9 +5636,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CShortType0 x :: CTypeOfType0 (cDeclaration, ac) :: lista =>
@@ -5618,7 +5655,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CTypeOfType0 (cDeclaration, ac) :: lista) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CTypeOfType0 (cDeclaration, ac) :: lista)
             | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CTypeOfType0 (cDeclaration, ac) :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5630,9 +5667,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CShortType0 x :: CAtomicType0 (cDeclaration, ac) :: lista =>
@@ -5649,7 +5686,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeOfExpr0 (_, _) => (NONE, CShortType0 x :: CAtomicType0 (cDeclaration, ac) :: lista) | CTypeOfType0 (_, _) => (NONE, CShortType0 x :: CAtomicType0 (cDeclaration, ac) :: lista)
             | CAtomicType0 (_, _) => (NONE, CShortType0 x :: CAtomicType0 (cDeclaration, ac) :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5661,9 +5698,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CIntType0 aa :: lista =>
@@ -5675,7 +5712,7 @@ fun decl_spec_ty l_decl_spec =
             | CSUType0 (_, _) => (NONE, CIntType0 aa :: lista) | CEnumType0 (_, _) => (NONE, CIntType0 aa :: lista) | CTypeDef0 (_, _) => (NONE, CIntType0 aa :: lista) | CTypeOfExpr0 (_, _) => (NONE, CIntType0 aa :: lista)
             | CTypeOfType0 (_, _) => (NONE, CIntType0 aa :: lista) | CAtomicType0 (_, _) => (NONE, CIntType0 aa :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5687,9 +5724,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CLongType0 x :: lista =>
@@ -5701,7 +5738,7 @@ fun decl_spec_ty l_decl_spec =
                                  | CSUType0 (_, _) => (NONE, [CLongType0 x]) | CEnumType0 (_, _) => (NONE, [CLongType0 x]) | CTypeDef0 (_, _) => (NONE, [CLongType0 x]) | CTypeOfExpr0 (_, _) => (NONE, [CLongType0 x])
                                  | CTypeOfType0 (_, _) => (NONE, [CLongType0 x]) | CAtomicType0 (_, _) => (NONE, [CLongType0 x]));
                            in
-                             (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong
+                             (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong
                                                                 | [CFloatType0 _] => Float | [CDoubleType0 _] => Double))
                                                   (groupBy (fn a => fn b =>
                                                              (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5714,9 +5751,9 @@ fun decl_spec_ty l_decl_spec =
                                                                | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false
                                                                | (CAtomicType0 (_, _), _) => false))
                                                     l)
-                                            of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                                            of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                             | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                               of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                               of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                                | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
                            end
         | CVoidType0 ac :: listaa =>
@@ -5730,7 +5767,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CVoidType0 ac :: listaa) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CVoidType0 ac :: listaa) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CVoidType0 ac :: listaa)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CVoidType0 ac :: listaa));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5742,9 +5779,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CCharType0 ac :: listaa =>
@@ -5758,7 +5795,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CCharType0 ac :: listaa) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CCharType0 ac :: listaa) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CCharType0 ac :: listaa)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CCharType0 ac :: listaa));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5770,9 +5807,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CShortType0 ac :: listaa =>
@@ -5786,7 +5823,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CShortType0 ac :: listaa) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CShortType0 ac :: listaa) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CShortType0 ac :: listaa)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CShortType0 ac :: listaa));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5798,9 +5835,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CIntType0 ac :: listaa =>
@@ -5814,7 +5851,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CIntType0 ac :: listaa) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CIntType0 ac :: listaa) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CIntType0 ac :: listaa)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CIntType0 ac :: listaa));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5826,9 +5863,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | [CLongType0 xa] =>
@@ -5841,7 +5878,7 @@ fun decl_spec_ty l_decl_spec =
                 | CSUType0 (_, _) => (NONE, [CLongType0 x, CLongType0 xa]) | CEnumType0 (_, _) => (NONE, [CLongType0 x, CLongType0 xa]) | CTypeDef0 (_, _) => (NONE, [CLongType0 x, CLongType0 xa])
                 | CTypeOfExpr0 (_, _) => (NONE, [CLongType0 x, CLongType0 xa]) | CTypeOfType0 (_, _) => (NONE, [CLongType0 x, CLongType0 xa]) | CAtomicType0 (_, _) => (NONE, [CLongType0 x, CLongType0 xa]));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5853,9 +5890,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 xa :: CVoidType0 ae :: listb =>
@@ -5872,7 +5909,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CVoidType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CVoidType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CVoidType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5884,9 +5921,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 xa :: CCharType0 ae :: listb =>
@@ -5903,7 +5940,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CCharType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CCharType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CCharType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5915,9 +5952,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 xa :: CShortType0 ae :: listb =>
@@ -5934,7 +5971,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CShortType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CShortType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CShortType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5946,9 +5983,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 xa :: CIntType0 ae :: listb =>
@@ -5965,7 +6002,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CIntType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CIntType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CIntType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -5977,9 +6014,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 xa :: CLongType0 ae :: listb =>
@@ -5996,7 +6033,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CLongType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CLongType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CLongType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6008,9 +6045,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 xa :: CFloatType0 ae :: listb =>
@@ -6027,7 +6064,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CFloatType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CFloatType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CFloatType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6039,9 +6076,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 xa :: CDoubleType0 ae :: listb =>
@@ -6058,7 +6095,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CDoubleType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CDoubleType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CDoubleType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6070,9 +6107,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 xa :: CSignedType0 ae :: listb =>
@@ -6089,7 +6126,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CSignedType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CSignedType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CSignedType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6101,9 +6138,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 xa :: CUnsigType0 xb :: listb =>
@@ -6119,7 +6156,7 @@ fun decl_spec_ty l_decl_spec =
                                      | CTypeDef0 (_, _) => (NONE, [CLongType0 x, CLongType0 xa, CUnsigType0 xb]) | CTypeOfExpr0 (_, _) => (NONE, [CLongType0 x, CLongType0 xa, CUnsigType0 xb])
                                      | CTypeOfType0 (_, _) => (NONE, [CLongType0 x, CLongType0 xa, CUnsigType0 xb]) | CAtomicType0 (_, _) => (NONE, [CLongType0 x, CLongType0 xa, CUnsigType0 xb]));
                                in
-                                 (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong
+                                 (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong
                                                                     | [CFloatType0 _] => Float | [CDoubleType0 _] => Double))
                                                       (groupBy (fn a => fn b =>
                                                                  (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6132,9 +6169,9 @@ fun decl_spec_ty l_decl_spec =
                                                                    | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false
                                                                    | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                                         l)
-                                                of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                                                of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                                 | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                                   of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                                   of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                                    | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
                                end
             | CVoidType0 ag :: listaa =>
@@ -6152,7 +6189,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CVoidType0 ag :: listaa)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CVoidType0 ag :: listaa));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6164,9 +6201,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CCharType0 ag :: listaa =>
@@ -6184,7 +6221,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CCharType0 ag :: listaa)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CCharType0 ag :: listaa));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6196,9 +6233,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CShortType0 ag :: listaa =>
@@ -6217,7 +6254,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CShortType0 ag :: listaa)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CShortType0 ag :: listaa));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6229,9 +6266,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | [CIntType0 _] => Unsigned LongLong
@@ -6252,7 +6289,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CIntType0 xc :: ah :: listc)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CIntType0 xc :: ah :: listc));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6264,9 +6301,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CLongType0 ag :: listaa =>
@@ -6284,7 +6321,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CLongType0 ag :: listaa)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CLongType0 ag :: listaa));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6296,9 +6333,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CFloatType0 ag :: listaa =>
@@ -6317,7 +6354,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CFloatType0 ag :: listaa)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CFloatType0 ag :: listaa));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6329,9 +6366,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CDoubleType0 ag :: listaa =>
@@ -6350,7 +6387,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CDoubleType0 ag :: listaa)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CDoubleType0 ag :: listaa));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6362,9 +6399,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CSignedType0 ag :: listaa =>
@@ -6383,7 +6420,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CSignedType0 ag :: listaa)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CSignedType0 ag :: listaa));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6395,9 +6432,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CUnsigType0 ag :: listaa =>
@@ -6416,7 +6453,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CUnsigType0 ag :: listaa)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CUnsigType0 ag :: listaa));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6428,9 +6465,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CBoolType0 ag :: listaa =>
@@ -6448,7 +6485,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CBoolType0 ag :: listaa)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CBoolType0 ag :: listaa));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6460,9 +6497,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CComplexType0 ag :: listaa =>
@@ -6481,7 +6518,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CComplexType0 ag :: listaa)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CComplexType0 ag :: listaa));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6493,9 +6530,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CInt128Type0 ag :: listaa =>
@@ -6514,7 +6551,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CInt128Type0 ag :: listaa)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CInt128Type0 ag :: listaa));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6526,9 +6563,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CSUType0 (cStructureUnion, ag) :: listaa =>
@@ -6554,7 +6591,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CSUType0 (cStructureUnion, ag) :: listaa)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CSUType0 (cStructureUnion, ag) :: listaa));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6566,9 +6603,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CEnumType0 (cEnumeration, ag) :: listaa =>
@@ -6594,7 +6631,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CEnumType0 (cEnumeration, ag) :: listaa)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CEnumType0 (cEnumeration, ag) :: listaa));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6606,9 +6643,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CTypeDef0 (ident, ag) :: listaa =>
@@ -6632,7 +6669,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CTypeDef0 (ident, ag) :: listaa)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CTypeDef0 (ident, ag) :: listaa));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6644,9 +6681,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CTypeOfExpr0 (cExpression, ag) :: listaa =>
@@ -6672,7 +6709,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CTypeOfExpr0 (cExpression, ag) :: listaa)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CTypeOfExpr0 (cExpression, ag) :: listaa));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6684,9 +6721,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CTypeOfType0 (cDeclaration, ag) :: listaa =>
@@ -6712,7 +6749,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CTypeOfType0 (cDeclaration, ag) :: listaa)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CTypeOfType0 (cDeclaration, ag) :: listaa));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6724,9 +6761,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CAtomicType0 (cDeclaration, ag) :: listaa =>
@@ -6752,7 +6789,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CAtomicType0 (cDeclaration, ag) :: listaa)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CUnsigType0 xb :: CAtomicType0 (cDeclaration, ag) :: listaa));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6764,9 +6801,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end)
         | CLongType0 xa :: CBoolType0 ae :: listb =>
@@ -6783,7 +6820,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CBoolType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CBoolType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CBoolType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6795,9 +6832,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 xa :: CComplexType0 ae :: listb =>
@@ -6814,7 +6851,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CComplexType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CComplexType0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CComplexType0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6826,9 +6863,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 xa :: CInt128Type0 ae :: listb =>
@@ -6845,7 +6882,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CInt128Type0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CInt128Type0 ae :: listb)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CInt128Type0 ae :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6857,9 +6894,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 xa :: CSUType0 (cStructureUnion, ae) :: listb =>
@@ -6876,7 +6913,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CSUType0 (cStructureUnion, ae) :: listb) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CSUType0 (cStructureUnion, ae) :: listb)
                 | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CSUType0 (cStructureUnion, ae) :: listb) | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CSUType0 (cStructureUnion, ae) :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6888,9 +6925,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 xa :: CEnumType0 (cEnumeration, ae) :: listb =>
@@ -6907,7 +6944,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CEnumType0 (cEnumeration, ae) :: listb) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CEnumType0 (cEnumeration, ae) :: listb)
                 | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CEnumType0 (cEnumeration, ae) :: listb) | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CEnumType0 (cEnumeration, ae) :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6919,9 +6956,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 xa :: CTypeDef0 (ident, ae) :: listb =>
@@ -6938,7 +6975,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CTypeDef0 (ident, ae) :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CTypeDef0 (ident, ae) :: listb)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CTypeDef0 (ident, ae) :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6950,9 +6987,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 xa :: CTypeOfExpr0 (cExpression, ae) :: listb =>
@@ -6969,7 +7006,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CTypeOfExpr0 (cExpression, ae) :: listb) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CTypeOfExpr0 (cExpression, ae) :: listb)
                 | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CTypeOfExpr0 (cExpression, ae) :: listb) | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CTypeOfExpr0 (cExpression, ae) :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -6981,9 +7018,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 xa :: CTypeOfType0 (cDeclaration, ae) :: listb =>
@@ -7000,7 +7037,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CTypeOfType0 (cDeclaration, ae) :: listb) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CTypeOfType0 (cDeclaration, ae) :: listb)
                 | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CTypeOfType0 (cDeclaration, ae) :: listb) | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CTypeOfType0 (cDeclaration, ae) :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7012,9 +7049,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CLongType0 xa :: CAtomicType0 (cDeclaration, ae) :: listb =>
@@ -7031,7 +7068,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CAtomicType0 (cDeclaration, ae) :: listb) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CAtomicType0 (cDeclaration, ae) :: listb)
                 | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CAtomicType0 (cDeclaration, ae) :: listb) | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CLongType0 xa :: CAtomicType0 (cDeclaration, ae) :: listb));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7043,9 +7080,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CFloatType0 ac :: listaa =>
@@ -7059,7 +7096,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CFloatType0 ac :: listaa) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CFloatType0 ac :: listaa) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CFloatType0 ac :: listaa)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CFloatType0 ac :: listaa));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7071,9 +7108,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CDoubleType0 ac :: listaa =>
@@ -7087,7 +7124,7 @@ fun decl_spec_ty l_decl_spec =
                 | CEnumType0 (_, _) => (NONE, CLongType0 x :: CDoubleType0 ac :: listaa) | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CDoubleType0 ac :: listaa) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CDoubleType0 ac :: listaa)
                 | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CDoubleType0 ac :: listaa) | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CDoubleType0 ac :: listaa));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7099,9 +7136,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CSignedType0 ac :: listaa =>
@@ -7115,7 +7152,7 @@ fun decl_spec_ty l_decl_spec =
                 | CEnumType0 (_, _) => (NONE, CLongType0 x :: CSignedType0 ac :: listaa) | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CSignedType0 ac :: listaa) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CSignedType0 ac :: listaa)
                 | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CSignedType0 ac :: listaa) | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CSignedType0 ac :: listaa));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7127,9 +7164,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CUnsigType0 xa :: listaa =>
@@ -7143,7 +7180,7 @@ fun decl_spec_ty l_decl_spec =
                                       | CTypeDef0 (_, _) => (NONE, [CLongType0 x, CUnsigType0 xa]) | CTypeOfExpr0 (_, _) => (NONE, [CLongType0 x, CUnsigType0 xa]) | CTypeOfType0 (_, _) => (NONE, [CLongType0 x, CUnsigType0 xa])
                                       | CAtomicType0 (_, _) => (NONE, [CLongType0 x, CUnsigType0 xa]));
                                 in
-                                  (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong
+                                  (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong
                                                                      | [CFloatType0 _] => Float | [CDoubleType0 _] => Double))
                                                        (groupBy (fn a => fn b =>
                                                                   (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7156,9 +7193,9 @@ fun decl_spec_ty l_decl_spec =
                                                                     | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false
                                                                     | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                                          l)
-                                                 of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                                                 of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                                  | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                                    of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                                    of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                                     | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
                                 end
             | CVoidType0 ae :: listb =>
@@ -7175,7 +7212,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CVoidType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CVoidType0 ae :: listb)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CVoidType0 ae :: listb));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7187,9 +7224,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CCharType0 ae :: listb =>
@@ -7206,7 +7243,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CCharType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CCharType0 ae :: listb)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CCharType0 ae :: listb));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7218,9 +7255,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CShortType0 ae :: listb =>
@@ -7237,7 +7274,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CShortType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CShortType0 ae :: listb)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CShortType0 ae :: listb));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7249,9 +7286,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | [CIntType0 _] => Unsigned Long
@@ -7269,7 +7306,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CIntType0 xb :: af :: listab) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CIntType0 xb :: af :: listab)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CIntType0 xb :: af :: listab));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7281,9 +7318,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CLongType0 ae :: listb =>
@@ -7300,7 +7337,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CLongType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CLongType0 ae :: listb)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CLongType0 ae :: listb));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7312,9 +7349,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CFloatType0 ae :: listb =>
@@ -7331,7 +7368,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CFloatType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CFloatType0 ae :: listb)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CFloatType0 ae :: listb));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7343,9 +7380,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CDoubleType0 ae :: listb =>
@@ -7362,7 +7399,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CDoubleType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CDoubleType0 ae :: listb)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CDoubleType0 ae :: listb));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7374,9 +7411,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CSignedType0 ae :: listb =>
@@ -7393,7 +7430,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CSignedType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CSignedType0 ae :: listb)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CSignedType0 ae :: listb));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7405,9 +7442,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CUnsigType0 ae :: listb =>
@@ -7424,7 +7461,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CUnsigType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CUnsigType0 ae :: listb)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CUnsigType0 ae :: listb));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7436,9 +7473,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CBoolType0 ae :: listb =>
@@ -7455,7 +7492,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CBoolType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CBoolType0 ae :: listb)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CBoolType0 ae :: listb));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7467,9 +7504,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CComplexType0 ae :: listb =>
@@ -7486,7 +7523,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CComplexType0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CComplexType0 ae :: listb)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CComplexType0 ae :: listb));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7498,9 +7535,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CInt128Type0 ae :: listb =>
@@ -7517,7 +7554,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CInt128Type0 ae :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CInt128Type0 ae :: listb)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CInt128Type0 ae :: listb));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7529,9 +7566,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CSUType0 (cStructureUnion, ae) :: listb =>
@@ -7548,7 +7585,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CSUType0 (cStructureUnion, ae) :: listb) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CSUType0 (cStructureUnion, ae) :: listb)
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CSUType0 (cStructureUnion, ae) :: listb) | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CSUType0 (cStructureUnion, ae) :: listb));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7560,9 +7597,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CEnumType0 (cEnumeration, ae) :: listb =>
@@ -7579,7 +7616,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CEnumType0 (cEnumeration, ae) :: listb) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CEnumType0 (cEnumeration, ae) :: listb)
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CEnumType0 (cEnumeration, ae) :: listb) | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CEnumType0 (cEnumeration, ae) :: listb));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7591,9 +7628,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CTypeDef0 (ident, ae) :: listb =>
@@ -7610,7 +7647,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CTypeDef0 (ident, ae) :: listb) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CTypeDef0 (ident, ae) :: listb)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CTypeDef0 (ident, ae) :: listb));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7622,9 +7659,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CTypeOfExpr0 (cExpression, ae) :: listb =>
@@ -7641,7 +7678,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CTypeOfExpr0 (cExpression, ae) :: listb) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CTypeOfExpr0 (cExpression, ae) :: listb)
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CTypeOfExpr0 (cExpression, ae) :: listb) | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CTypeOfExpr0 (cExpression, ae) :: listb));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7653,9 +7690,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CTypeOfType0 (cDeclaration, ae) :: listb =>
@@ -7673,7 +7710,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CTypeOfType0 (cDeclaration, ae) :: listb)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CTypeOfType0 (cDeclaration, ae) :: listb));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7685,9 +7722,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end
             | CAtomicType0 (cDeclaration, ae) :: listb =>
@@ -7705,7 +7742,7 @@ fun decl_spec_ty l_decl_spec =
                     | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CAtomicType0 (cDeclaration, ae) :: listb)
                     | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CUnsigType0 xa :: CAtomicType0 (cDeclaration, ae) :: listb));
               in
-                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+                (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                    | [CDoubleType0 _] => Double))
                                      (groupBy (fn a => fn b =>
                                                 (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7717,9 +7754,9 @@ fun decl_spec_ty l_decl_spec =
                                                   | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false
                                                   | (CTypeDef0 (_, _), _) => false | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                        l)
-                               of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                               of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                                | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-                  of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+                  of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
                   | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
               end)
         | CBoolType0 ac :: listaa =>
@@ -7733,7 +7770,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CBoolType0 ac :: listaa) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CBoolType0 ac :: listaa) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CBoolType0 ac :: listaa)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CBoolType0 ac :: listaa));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7745,9 +7782,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CComplexType0 ac :: listaa =>
@@ -7762,7 +7799,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CComplexType0 ac :: listaa) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CComplexType0 ac :: listaa)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CComplexType0 ac :: listaa));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7774,9 +7811,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CInt128Type0 ac :: listaa =>
@@ -7790,7 +7827,7 @@ fun decl_spec_ty l_decl_spec =
                 | CEnumType0 (_, _) => (NONE, CLongType0 x :: CInt128Type0 ac :: listaa) | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CInt128Type0 ac :: listaa) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CInt128Type0 ac :: listaa)
                 | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CInt128Type0 ac :: listaa) | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CInt128Type0 ac :: listaa));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7802,9 +7839,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CSUType0 (cStructureUnion, ac) :: listaa =>
@@ -7821,7 +7858,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CSUType0 (cStructureUnion, ac) :: listaa) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CSUType0 (cStructureUnion, ac) :: listaa)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CSUType0 (cStructureUnion, ac) :: listaa));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7833,9 +7870,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CEnumType0 (cEnumeration, ac) :: listaa =>
@@ -7852,7 +7889,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CEnumType0 (cEnumeration, ac) :: listaa) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CEnumType0 (cEnumeration, ac) :: listaa)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CEnumType0 (cEnumeration, ac) :: listaa));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7864,9 +7901,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CTypeDef0 (ident, ac) :: listaa =>
@@ -7882,7 +7919,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeDef0 (_, _) => (NONE, CLongType0 x :: CTypeDef0 (ident, ac) :: listaa) | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CTypeDef0 (ident, ac) :: listaa)
                 | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CTypeDef0 (ident, ac) :: listaa) | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CTypeDef0 (ident, ac) :: listaa));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7894,9 +7931,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CTypeOfExpr0 (cExpression, ac) :: listaa =>
@@ -7913,7 +7950,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CTypeOfExpr0 (cExpression, ac) :: listaa) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CTypeOfExpr0 (cExpression, ac) :: listaa)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CTypeOfExpr0 (cExpression, ac) :: listaa));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7925,9 +7962,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CTypeOfType0 (cDeclaration, ac) :: listaa =>
@@ -7944,7 +7981,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CTypeOfType0 (cDeclaration, ac) :: listaa) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CTypeOfType0 (cDeclaration, ac) :: listaa)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CTypeOfType0 (cDeclaration, ac) :: listaa));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7956,9 +7993,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end
         | CAtomicType0 (cDeclaration, ac) :: listaa =>
@@ -7975,7 +8012,7 @@ fun decl_spec_ty l_decl_spec =
                 | CTypeOfExpr0 (_, _) => (NONE, CLongType0 x :: CAtomicType0 (cDeclaration, ac) :: listaa) | CTypeOfType0 (_, _) => (NONE, CLongType0 x :: CAtomicType0 (cDeclaration, ac) :: listaa)
                 | CAtomicType0 (_, _) => (NONE, CLongType0 x :: CAtomicType0 (cDeclaration, ac) :: listaa));
           in
-            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+            (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                                | [CDoubleType0 _] => Double))
                                  (groupBy (fn a => fn b =>
                                             (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -7987,9 +8024,9 @@ fun decl_spec_ty l_decl_spec =
                                               | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                               | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                    l)
-                           of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                           of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                            | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-              of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
+              of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double
               | (NONE, Float) => Signed Float | (SOME sigb, ty) => sigb ty)
           end)
     | CFloatType0 aa :: lista =>
@@ -8002,7 +8039,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CFloatType0 aa :: lista) | CTypeOfExpr0 (_, _) => (NONE, CFloatType0 aa :: lista) | CTypeOfType0 (_, _) => (NONE, CFloatType0 aa :: lista)
             | CAtomicType0 (_, _) => (NONE, CFloatType0 aa :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -8014,9 +8051,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CDoubleType0 aa :: lista =>
@@ -8029,7 +8066,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CDoubleType0 aa :: lista) | CTypeOfExpr0 (_, _) => (NONE, CDoubleType0 aa :: lista) | CTypeOfType0 (_, _) => (NONE, CDoubleType0 aa :: lista)
             | CAtomicType0 (_, _) => (NONE, CDoubleType0 aa :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -8041,9 +8078,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CSignedType0 aa :: lista =>
@@ -8056,7 +8093,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CSignedType0 aa :: lista) | CTypeOfExpr0 (_, _) => (NONE, CSignedType0 aa :: lista) | CTypeOfType0 (_, _) => (NONE, CSignedType0 aa :: lista)
             | CAtomicType0 (_, _) => (NONE, CSignedType0 aa :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -8068,9 +8105,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CUnsigType0 aa :: lista =>
@@ -8083,7 +8120,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CUnsigType0 aa :: lista) | CTypeOfExpr0 (_, _) => (NONE, CUnsigType0 aa :: lista) | CTypeOfType0 (_, _) => (NONE, CUnsigType0 aa :: lista)
             | CAtomicType0 (_, _) => (NONE, CUnsigType0 aa :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -8095,9 +8132,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | [CBoolType0 _] => Bool
@@ -8111,7 +8148,7 @@ fun decl_spec_ty l_decl_spec =
             | CEnumType0 (_, _) => (NONE, CBoolType0 x :: ab :: lista) | CTypeDef0 (_, _) => (NONE, CBoolType0 x :: ab :: lista) | CTypeOfExpr0 (_, _) => (NONE, CBoolType0 x :: ab :: lista)
             | CTypeOfType0 (_, _) => (NONE, CBoolType0 x :: ab :: lista) | CAtomicType0 (_, _) => (NONE, CBoolType0 x :: ab :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -8123,9 +8160,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CComplexType0 aa :: lista =>
@@ -8138,7 +8175,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CComplexType0 aa :: lista) | CTypeOfExpr0 (_, _) => (NONE, CComplexType0 aa :: lista) | CTypeOfType0 (_, _) => (NONE, CComplexType0 aa :: lista)
             | CAtomicType0 (_, _) => (NONE, CComplexType0 aa :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -8150,9 +8187,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CInt128Type0 aa :: lista =>
@@ -8165,7 +8202,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CInt128Type0 aa :: lista) | CTypeOfExpr0 (_, _) => (NONE, CInt128Type0 aa :: lista) | CTypeOfType0 (_, _) => (NONE, CInt128Type0 aa :: lista)
             | CAtomicType0 (_, _) => (NONE, CInt128Type0 aa :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -8177,9 +8214,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | [CSUType0 (CStruct0 (tag, ide, _, _, _), _)] => decl_spec_ty_tag tag let
@@ -8201,7 +8238,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeOfExpr0 (_, _) => (NONE, CSUType0 (CStruct0 (tag, ide, x, xa, xb), xc) :: ad :: lista) | CTypeOfType0 (_, _) => (NONE, CSUType0 (CStruct0 (tag, ide, x, xa, xb), xc) :: ad :: lista)
             | CAtomicType0 (_, _) => (NONE, CSUType0 (CStruct0 (tag, ide, x, xa, xb), xc) :: ad :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -8213,9 +8250,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | [CEnumType0 (CEnum0 (ide, _, _, _), _)] => EnumTy (ident_option ide)
@@ -8233,7 +8270,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeOfExpr0 (_, _) => (NONE, CEnumType0 (CEnum0 (ide, x, xa, xb), xc) :: ad :: lista) | CTypeOfType0 (_, _) => (NONE, CEnumType0 (CEnum0 (ide, x, xa, xb), xc) :: ad :: lista)
             | CAtomicType0 (_, _) => (NONE, CEnumType0 (CEnum0 (ide, x, xa, xb), xc) :: ad :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -8245,9 +8282,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | [CTypeDef0 (i, _)] => identb i
@@ -8261,7 +8298,7 @@ fun decl_spec_ty l_decl_spec =
             | CSUType0 (_, _) => (NONE, CTypeDef0 (i, x) :: ab :: lista) | CEnumType0 (_, _) => (NONE, CTypeDef0 (i, x) :: ab :: lista) | CTypeDef0 (_, _) => (NONE, CTypeDef0 (i, x) :: ab :: lista)
             | CTypeOfExpr0 (_, _) => (NONE, CTypeDef0 (i, x) :: ab :: lista) | CTypeOfType0 (_, _) => (NONE, CTypeDef0 (i, x) :: ab :: lista) | CAtomicType0 (_, _) => (NONE, CTypeDef0 (i, x) :: ab :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -8273,9 +8310,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CTypeOfExpr0 (cExpression, aa) :: lista =>
@@ -8289,7 +8326,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CTypeOfExpr0 (cExpression, aa) :: lista) | CTypeOfExpr0 (_, _) => (NONE, CTypeOfExpr0 (cExpression, aa) :: lista) | CTypeOfType0 (_, _) => (NONE, CTypeOfExpr0 (cExpression, aa) :: lista)
             | CAtomicType0 (_, _) => (NONE, CTypeOfExpr0 (cExpression, aa) :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -8301,9 +8338,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CTypeOfType0 (cDeclaration, aa) :: lista =>
@@ -8317,7 +8354,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CTypeOfType0 (cDeclaration, aa) :: lista) | CTypeOfExpr0 (_, _) => (NONE, CTypeOfType0 (cDeclaration, aa) :: lista) | CTypeOfType0 (_, _) => (NONE, CTypeOfType0 (cDeclaration, aa) :: lista)
             | CAtomicType0 (_, _) => (NONE, CTypeOfType0 (cDeclaration, aa) :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -8329,9 +8366,9 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end
     | CAtomicType0 (cDeclaration, aa) :: lista =>
@@ -8345,7 +8382,7 @@ fun decl_spec_ty l_decl_spec =
             | CTypeDef0 (_, _) => (NONE, CAtomicType0 (cDeclaration, aa) :: lista) | CTypeOfExpr0 (_, _) => (NONE, CAtomicType0 (cDeclaration, aa) :: lista) | CTypeOfType0 (_, _) => (NONE, CAtomicType0 (cDeclaration, aa) :: lista)
             | CAtomicType0 (_, _) => (NONE, CAtomicType0 (cDeclaration, aa) :: lista));
       in
-        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Char | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
+        (case (siga, (case mapa (fn a => (case a of [CCharType0 _] => Charb | [CShortType0 _] => Short | [CIntType0 _] => Inta | [CLongType0 _] => Long | [CLongType0 _, CLongType0 _] => LongLong | [CFloatType0 _] => Float
                                            | [CDoubleType0 _] => Double))
                              (groupBy (fn a => fn b =>
                                         (case (a, b) of (CVoidType0 _, _) => false | (CCharType0 _, _) => false | (CShortType0 _, _) => false | (CIntType0 _, _) => false | (CLongType0 _, CVoidType0 _) => false
@@ -8357,15 +8394,17 @@ fun decl_spec_ty l_decl_spec =
                                           | (CBoolType0 _, _) => false | (CComplexType0 _, _) => false | (CInt128Type0 _, _) => false | (CSUType0 (_, _), _) => false | (CEnumType0 (_, _), _) => false | (CTypeDef0 (_, _), _) => false
                                           | (CTypeOfExpr0 (_, _), _) => false | (CTypeOfType0 (_, _), _) => false | (CAtomicType0 (_, _), _) => false))
                                l)
-                       of [] => Inta | [Char] => Char | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
+                       of [] => Inta | [Charb] => Charb | [Short] => Short | [Short, Inta] => Short | [Inta] => Inta | [Long] => Long | [Long, Inta] => Long | [Long, Double] => Double | [LongLong] => LongLong
                        | [LongLong, Inta] => LongLong | [Double] => Double | [Float] => Float))
-          of (NONE, Char) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
+          of (NONE, Charb) => PlainChar | (NONE, Short) => Signed Short | (NONE, Inta) => Signed Inta | (NONE, Long) => Signed Long | (NONE, LongLong) => Signed LongLong | (NONE, Double) => Signed Double | (NONE, Float) => Signed Float
           | (SOME sigb, ty) => sigb ty)
       end);
 
 fun ident_struct_const x = (fn Ident0 (s, _, _) => pref_ident (flattena [s, SS_base (ST "_C")])) x;
 
-fun not_yet_supported x = (warning o String.implode o to_list) x;
+fun meta_of_logic x = ((String.implode o map (fn k => if 0 <= k andalso k < 128 then (Char.chr o IntInf.toInt) k else raise Fail "Non-ASCII character in literal")) o to_list) x;
+
+fun not_yet_supported x = (warning o meta_of_logic) x;
 
 fun map_prod f g (a, b) = (f a, g b);
 
@@ -8382,6 +8421,19 @@ fun ebogwrap x = (E o bogwrap) x;
 fun map2 f (x :: xs) (y :: ys) = f x y :: map2 f xs ys
   | map2 f xs [] = []
   | map2 f [] ys = [];
+
+fun of_boola A_ true = one (one_zero_neq_one A_)
+  | of_boola A_ false = zero (zero_zero_neq_one A_);
+
+fun integer_of_char (Chara (b0, b1, b2, b3, b4, b5, b6, b7)) =
+  ((((((of_boola zero_neq_one_integer b7 * (2 : IntInf.int) + of_boola zero_neq_one_integer b6) * (2 : IntInf.int) + of_boola zero_neq_one_integer b5) * (2 : IntInf.int) + of_boola zero_neq_one_integer b4) * (2 : IntInf.int) +
+      of_boola zero_neq_one_integer b3) *
+      (2 : IntInf.int) +
+     of_boola zero_neq_one_integer b2) *
+     (2 : IntInf.int) +
+    of_boola zero_neq_one_integer b1) *
+    (2 : IntInf.int) +
+    of_boola zero_neq_one_integer b0;
 
 fun show_intFlag x = (fn a => (case a of FlagUnsigned0 => SS_base (ST "u") | FlagLong0 => SS_base (ST "l") | FlagLongLong0 => SS_base (ST "ll") | FlagImag0 => SS_base (ST "i"))) x;
 
@@ -8439,12 +8491,11 @@ fun constant x =
                                 NUMCONST (i, flattena (concat (rev (map2 (fn flag => fn aa => (case aa of true => [show_intFlag flag] | false => [])) [FlagImag0, FlagLongLong0, FlagLong0, FlagUnsigned0]
                                                                      (to_bl (len0_bit0 (len0_bit0 len0_num1)) (word_of_int (len0_bit0 (len0_bit0 len0_num1)) (Int_of_integer flags)))))),
                                            (case repr of DecRepr0 => DEC | HexRepr0 => HEX | OctalRepr0 => OCT))
-                        | CCharConst0 (CChar0 (c, _), _) => NUMCONST ((IntInf.fromInt o Char.ord) c, SS_base (ST ""), DEC)
-                        | CFloatConst0 (_, _) => let
-                                                   val _ = not_yet_supported (flattena [SS_base (ST "Float not yet supported (String returned)")]);
-                                                 in
-                                                   STRING_LIT (SS_base (ST ""))
-                                                 end
+                        | CCharConst0 (CChar0 (c, _), _) => NUMCONST (integer_of_char c, SS_base (ST ""), DEC) | CFloatConst0 (_, _) => let
+                    val _ = not_yet_supported (flattena [SS_base (ST "Float not yet supported (String returned)")]);
+                  in
+                    STRING_LIT (SS_base (ST ""))
+                  end
                         | CStrConst0 (CString0 (str, _), _) => STRING_LIT str)))
     x;
 
@@ -8545,62 +8596,82 @@ fun bind2 m f = map_sum id (map_prod f id) m;
 
 fun bind3 scan f xs = bind2 (scan xs) f;
 
-fun scan_upto_b_i_n_d enda ts =
-  or (bind3 enda (fn a => ([], a)))
-    (fn a => (case a of [] => Inl [#"d", #"i", #"d", #" ", #"n", #"o", #"t", #" ", #"f", #"i", #"n", #"d", #" ", #"t", #"h", #"e", #" ", #"e", #"n", #"d", #"-", #"m", #"a", #"r", #"k", #"e", #"r"]
-               | t :: aa => bindd (scan_upto_b_i_n_d enda) (fn (res1, res2) => returna (t :: res1, res2)) aa))
-    ts;
+fun bit_cut_integer k = (if k = (0 : IntInf.int) then ((0 : IntInf.int), false) else let
+                                                                                       val (r, s) = Integer.div_mod (abs k) (abs (2 : IntInf.int));
+                                                                                     in
+                                                                                       ((if (0 : IntInf.int) < k then r else ~ r - s), s = (1 : IntInf.int))
+                                                                                     end);
+
+fun char_of_integer k = let
+                          val (q0, b0) = bit_cut_integer k;
+                          val (q1, b1) = bit_cut_integer q0;
+                          val (q2, b2) = bit_cut_integer q1;
+                          val (q3, b3) = bit_cut_integer q2;
+                          val (q4, b4) = bit_cut_integer q3;
+                          val (q5, b5) = bit_cut_integer q4;
+                          val (q6, b6) = bit_cut_integer q5;
+                          val a = bit_cut_integer q6;
+                          val (_, aa) = a;
+                        in
+                          Chara (b0, b1, b2, b3, b4, b5, b6, aa)
+                        end;
+
+fun explode s = mapa char_of_integer ((map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) s);
+
+fun scan_upto_b_i_n_d enda ts = or (bind3 enda (fn a => ([], a))) (fn a => (case a of [] => Inl (explode "did not find the end-marker") | t :: aa => bindd (scan_upto_b_i_n_d enda) (fn (res1, res2) => returna (t :: res1, res2)) aa)) ts;
 
 fun errorb e = (fn _ => Inl e);
 
-fun oneof_b_i_n_d x =
-  (fn a => (case a of [] => errorb [#"d", #"i", #"d", #" ", #"n", #"o", #"t", #" ", #"f", #"i", #"n", #"d", #" ", #"a", #" ", #"m", #"a", #"t", #"c", #"h", #"i", #"n", #"g", #" ", #"e", #"l", #"e", #"m", #"e", #"n", #"t"]
-             | xa :: xs => fold (fn x2 => fn x1 => or x1 x2) xs xa))
-    x;
+fun oneof_b_i_n_d x = (fn a => (case a of [] => errorb (explode "did not find a matching element") | xa :: xs => fold (fn x2 => fn x1 => or x1 x2) xs xa)) x;
 
 fun bind_k scan f = bind3 scan (fn _ => f);
 
 fun shows_prec_list A_ p xs = shows_list A_ xs;
 
-fun shows_quote s = shows_prec_char zero_nata #"'" o s o shows_prec_char zero_nata #"'";
+fun shows_quote s = shows_prec_char zero_nata (Chara (true, true, true, false, false, true, false, false)) o s o shows_prec_char zero_nata (Chara (true, true, true, false, false, true, false, false));
 
 fun take n [] = []
   | take n (x :: xs) = (if equal_nata n zero_nata then [] else x :: take (minus_nat n one_nat) xs);
 
 fun err_expecting A_ msg ts =
-  Inl ([#"e", #"x", #"p", #"e", #"c", #"t", #"i", #"n", #"g", #" "] @
-        msg @ [#",", #" ", #"b", #"u", #"t", #" ", #"f", #"o", #"u", #"n", #"d", #":", #" "] @ shows_quote (shows_prec_list A_ zero_nata (take (nat_of_integer (30 : IntInf.int)) ts)) []);
+  Inl ([Chara (true, false, true, false, false, true, true, false), Chara (false, false, false, true, true, true, true, false), Chara (false, false, false, false, true, true, true, false),
+         Chara (true, false, true, false, false, true, true, false), Chara (true, true, false, false, false, true, true, false), Chara (false, false, true, false, true, true, true, false),
+         Chara (true, false, false, true, false, true, true, false), Chara (false, true, true, true, false, true, true, false), Chara (true, true, true, false, false, true, true, false),
+         Chara (false, false, false, false, false, true, false, false)] @
+        msg @ [Chara (false, false, true, true, false, true, false, false), Chara (false, false, false, false, false, true, false, false), Chara (false, true, false, false, false, true, true, false),
+                Chara (true, false, true, false, true, true, true, false), Chara (false, false, true, false, true, true, true, false), Chara (false, false, false, false, false, true, false, false),
+                Chara (false, true, true, false, false, true, true, false), Chara (true, true, true, true, false, true, true, false), Chara (true, false, true, false, true, true, true, false),
+                Chara (false, true, true, true, false, true, true, false), Chara (false, false, true, false, false, true, true, false), Chara (false, true, false, true, true, true, false, false),
+                Chara (false, false, false, false, false, true, false, false)] @
+                shows_quote (shows_prec_list A_ zero_nata (take (nat_of_integer (30 : IntInf.int)) ts)) []);
 
-fun exactly_aux (A1_, A2_) s i (x :: xs) (y :: ys) = (if eq A1_ x y then exactly_aux (A1_, A2_) s i xs ys else err_expecting A2_ ([#"\""] @ s @ [#"\""]) i)
+fun exactly_aux (A1_, A2_) s i (x :: xs) (y :: ys) = (if eq A1_ x y then exactly_aux (A1_, A2_) s i xs ys else err_expecting A2_ (explode "\"" @ s @ explode "\"") i)
   | exactly_aux (A1_, A2_) s i [] xs = Inr (s, xs)
-  | exactly_aux (A1_, A2_) s i (x :: xs) [] = err_expecting A2_ ([#"\""] @ s @ [#"\""]) i;
+  | exactly_aux (A1_, A2_) s i (x :: xs) [] = err_expecting A2_ (explode "\"" @ s @ explode "\"") i;
 
 fun exactly s x = exactly_aux (equal_char, show_char) s x s x;
 
 fun many p (t :: ts) = (if p t then bindc (many p ts) (fn (rs, tsa) => Inr (t :: rs, tsa)) else Inr ([], t :: ts))
   | many p [] = Inr ([], []);
 
-fun many1 p =
-  (fn a => (case a of [] => Inl [#"d", #"i", #"d", #" ", #"n", #"o", #"t", #" ", #"f", #"i", #"n", #"d", #" ", #"a", #"n", #" ", #"e", #"l", #"e", #"m", #"e", #"n", #"t"]
-             | t :: ts => (if p t then bindc (many p ts) (fn (rs, tsa) => Inr (t :: rs, tsa))
-                            else Inl [#"d", #"i", #"d", #" ", #"n", #"o", #"t", #" ", #"f", #"i", #"n", #"d", #" ", #"a", #" ", #"f", #"i", #"r", #"s", #"t", #" ", #"m", #"a", #"t", #"c", #"h", #"i", #"n", #"g", #" ", #"e", #"l", #"e",
-                                       #"m", #"e", #"n", #"t"])));
+fun many1 p = (fn a => (case a of [] => Inl (explode "did not find an element") | t :: ts => (if p t then bindc (many p ts) (fn (rs, tsa) => Inr (t :: rs, tsa)) else Inl (explode "did not find a first matching element"))));
 
 fun member A_ [] y = false
   | member A_ (x :: xs) y = eq A_ x y orelse member A_ xs y;
 
 fun manyof1 cs = many1 (member equal_char cs);
 
-fun stars1 x = manyof1 [#"*"] x;
+fun stars1 x = manyof1 (explode "*") x;
 
-fun end_comment x = bindd stars1 (fn _ => exactly [#"/"]) x;
+fun end_comment x = bindd stars1 (fn _ => exactly (explode "/")) x;
 
 fun parse_id_m_a_y_b_e l_token =
   scan_upto_b_i_n_d
     (oneof_b_i_n_d
-      (concat [bind_k end_comment (SOME [#"e", #"n", #"d", #" ", #"o", #"f", #" ", #"c", #"o", #"m", #"m", #"e", #"n", #"t"]) ::
-                 mapa (fn s => bind_k (exactly s) (SOME [#"e", #"n", #"c", #"o", #"u", #"n", #"t", #"e", #"r", #"i", #"n", #"g", #" ", #"n", #"e", #"x", #"t", #" ", #"t", #"o", #"k", #"e", #"n"])) l_token,
-                [bind_k (manyof1 [#" ", #"\n", #"\t", #"\r"]) NONE]]));
+      (concat [bind_k end_comment (SOME (explode "end of comment")) :: mapa (fn s => bind_k (exactly s) (SOME (explode "encountering next token"))) l_token,
+                [bind_k (manyof1 [Chara (false, false, false, false, false, true, false, false), Chara (false, true, false, true, false, false, false, false), Chara (true, false, false, true, false, false, false, false),
+                                   Chara (true, false, true, true, false, false, false, false)])
+                   NONE]]));
 
 fun parse_id_o_n_e l_token = bindd (parse_id_m_a_y_b_e l_token) (fn a => (case a of ([], NONE) => returna [] | ([], SOME aa) => errorb aa | (aa :: lista, _) => returna (aa :: lista)));
 
@@ -8612,7 +8683,13 @@ fun many_m_a_x_aux l f = bindd f (fn v => let
 
 fun many_m_a_x x = many_m_a_x_aux [] x;
 
-fun parse_id_list l_token = many_c_a_t_c_h_a_l_l (bindd (bindd (many (member equal_char [#" ", #"\n", #"\t", #"\r"])) (fn _ => returna ())) (fn _ => or (bind_k (exactly [#"[", #"*", #"]"]) NONE) (bind3 (parse_id_o_n_e l_token) SOME)));
+fun parse_id_list l_token =
+  many_c_a_t_c_h_a_l_l
+    (bindd (bindd (many (member equal_char
+                          [Chara (false, false, false, false, false, true, false, false), Chara (false, true, false, true, false, false, false, false), Chara (true, false, false, true, false, false, false, false),
+                            Chara (true, false, true, true, false, false, false, false)]))
+             (fn _ => returna ()))
+      (fn _ => or (bind_k (exactly (explode "[*]")) NONE) (bind3 (parse_id_o_n_e l_token) SOME)));
 
 fun in_safe_monad f s = let
                           val Inr sa = f s;
@@ -8620,9 +8697,9 @@ fun in_safe_monad f s = let
                           sa
                         end;
 
-fun parse_str_aux l = bindd (scan_upto_b_i_n_d (or (bind_k (exactly [#"\\", #"\""]) (fn s => parse_str_aux ([#"\""] :: s :: l))) (bind_k (exactly [#"\""]) (fn s => returna (concat (rev (s :: l))))))) (fn (s, f) => f s);
+fun parse_str_aux l = bindd (scan_upto_b_i_n_d (or (bind_k (exactly (explode "\092\"")) (fn s => parse_str_aux (explode "\"" :: s :: l))) (bind_k (exactly (explode "\"")) (fn s => returna (concat (rev (s :: l))))))) (fn (s, f) => f s);
 
-fun parse_str x = bindd (exactly [#"\""]) (fn _ => parse_str_aux []) x;
+fun parse_str x = bindd (exactly (explode "\"")) (fn _ => parse_str_aux []) x;
 
 fun shows_sep s sep [] = shows_string []
   | shows_sep s sep [x] = s x
@@ -8633,7 +8710,9 @@ fun null [] = true
 
 fun shows_list_gen showsx e l s r xs = (if null xs then shows_string e else shows_string l o shows_sep showsx (shows_string s) xs o shows_string r);
 
-fun showsp_list s p xs = shows_list_gen (s zero_nata) [#"[", #"]"] [#"["] [#",", #" "] [#"]"] xs;
+fun showsp_list s p xs =
+  shows_list_gen (s zero_nata) [Chara (true, true, false, true, true, false, true, false), Chara (true, false, true, true, true, false, true, false)] [Chara (true, true, false, true, true, false, true, false)]
+    [Chara (false, false, true, true, false, true, false, false), Chara (false, false, false, false, false, true, false, false)] [Chara (true, false, true, true, true, false, true, false)] xs;
 
 fun shows_list_list A_ xss = showsp_list (shows_prec_list A_) zero_nata xss;
 
@@ -8642,81 +8721,130 @@ fun gen_length n (x :: xs) = gen_length (suc n) xs
 
 fun size_list x = gen_length zero_nata x;
 
-fun trim x = dropWhile (member equal_char [#" ", #"\n", #"\t", #"\r"]) x;
+fun trim x = dropWhile (member equal_char
+                         [Chara (false, false, false, false, false, true, false, false), Chara (false, true, false, true, false, false, false, false), Chara (true, false, false, true, false, false, false, false),
+                           Chara (true, false, true, true, false, false, false, false)])
+               x;
 
 fun drop n [] = []
   | drop n (x :: xs) = (if equal_nata n zero_nata then x :: xs else drop (minus_nat n one_nat) xs);
 
 fun oneof_aux allowed (x :: xs) ts = (if equal_lista equal_char (mapa snd (zip x ts)) x then Inr (x, trim (drop (size_list x) ts)) else oneof_aux allowed xs ts)
-  | oneof_aux allowed [] ts = err_expecting show_char ([#"o", #"n", #"e", #" ", #"o", #"f", #" "] @ shows_list_list show_char allowed []) ts;
+  | oneof_aux allowed [] ts =
+    err_expecting show_char
+      ([Chara (true, true, true, true, false, true, true, false), Chara (false, true, true, true, false, true, true, false), Chara (true, false, true, false, false, true, true, false),
+         Chara (false, false, false, false, false, true, false, false), Chara (true, true, true, true, false, true, true, false), Chara (false, true, true, false, false, true, true, false),
+         Chara (false, false, false, false, false, true, false, false)] @
+        shows_list_list show_char allowed [])
+      ts;
 
 fun oneof xs = oneof_aux xs xs;
 
 fun eoi A_ [] = Inr ((), [])
-  | eoi A_ (v :: va) = err_expecting A_ [#"e", #"n", #"d", #" ", #"o", #"f", #" ", #"i", #"n", #"p", #"u", #"t"] (v :: va);
+  | eoi A_ (v :: va) =
+    err_expecting A_
+      [Chara (true, false, true, false, false, true, true, false), Chara (false, true, true, true, false, true, true, false), Chara (false, false, true, false, false, true, true, false),
+        Chara (false, false, false, false, false, true, false, false), Chara (true, true, true, true, false, true, true, false), Chara (false, true, true, false, false, true, true, false),
+        Chara (false, false, false, false, false, true, false, false), Chara (true, false, false, true, false, true, true, false), Chara (false, true, true, true, false, true, true, false),
+        Chara (false, false, false, false, true, true, true, false), Chara (true, false, true, false, true, true, true, false), Chara (false, false, true, false, true, true, true, false)]
+      (v :: va);
 
 fun parse_commenta x =
-  bindd (exactly [#"/"])
+  bindd (exactly (explode "/"))
     (fn _ => bindd stars1 (fn _ => bindd (many_c_a_t_c_h_a_l_l
                                            let
-                                             val colon = (fn f => bindd f (fn _ => bindd (bindd (many (member equal_char [#" ", #"\n", #"\t", #"\r"])) (fn _ => returna ())) (fn _ => exactly [#":"])));
+                                             val colon = (fn f => bindd f (fn _ => bindd (bindd (many (member equal_char
+                                                                                                        [Chara (false, false, false, false, false, true, false, false), Chara (false, true, false, true, false, false, false, false),
+                                                                                                          Chara (true, false, false, true, false, false, false, false), Chara (true, false, true, true, false, false, false, false)]))
+                                                                                           (fn _ => returna ()))
+                                                                                     (fn _ => exactly (explode ":"))));
                                              val colon_s = colon o exactly;
-                                             val str = (fn f => bindd f (fn _ => bindd (bindd (many (member equal_char [#" ", #"\n", #"\t", #"\r"])) (fn _ => returna ())) (fn _ => parse_str)));
+                                             val str = (fn f => bindd f (fn _ => bindd (bindd (many (member equal_char
+                                                                                                      [Chara (false, false, false, false, false, true, false, false), Chara (false, true, false, true, false, false, false, false),
+                                                                                                        Chara (true, false, false, true, false, false, false, false), Chara (true, false, true, true, false, false, false, false)]))
+                                                                                         (fn _ => returna ()))
+                                                                                   (fn _ => parse_str)));
                                            in
-                                             bindd (bindd (many (member equal_char [#" ", #"\n", #"\t", #"\r"])) (fn _ => returna ()))
-                                               (fn _ => or (bind3 (app_rev (app_rev (oneof [[#"I", #"N", #"V", #"A", #"R", #"I", #"A", #"N", #"T"], [#"I", #"N", #"V"]]) colon) str) Invariant)
+                                             bindd (bindd (many (member equal_char
+                                                                  [Chara (false, false, false, false, false, true, false, false), Chara (false, true, false, true, false, false, false, false),
+                                                                    Chara (true, false, false, true, false, false, false, false), Chara (true, false, true, true, false, false, false, false)]))
+                                                     (fn _ => returna ()))
+                                               (fn _ => or (bind3 (app_rev (app_rev (oneof [explode "INVARIANT", explode "INV"]) colon) str) Invariant)
                                                           (or (oneof_b_i_n_d
                                                                 let
-                                                                  val fnspec = [#"F", #"N", #"S", #"P", #"E", #"C"];
-                                                                  val relspec = [#"R", #"E", #"L", #"S", #"P", #"E", #"C"];
-                                                                  val modifies = [#"M", #"O", #"D", #"I", #"F", #"I", #"E", #"S"];
-                                                                  val dONT_TRANSLATE = [#"D", #"O", #"N", #"T", #"_", #"T", #"R", #"A", #"N", #"S", #"L", #"A", #"T", #"E"];
+                                                                  val fnspec = explode "FNSPEC";
+                                                                  val relspec = explode "RELSPEC";
+                                                                  val modifies = explode "MODIFIES";
+                                                                  val dONT_TRANSLATE = explode "DONT_TRANSLATE";
                                                                 in
                                                                   [bind3 (bindd (exactly fnspec)
-                                                                           (fn _ => many_m_a_x (bindd (bindd (many (member equal_char [#" ", #"\n", #"\t", #"\r"])) (fn _ => returna ()))
+                                                                           (fn _ => many_m_a_x (bindd (bindd (many (member equal_char
+                                                                                                                     [Chara (false, false, false, false, false, true, false, false),
+ Chara (false, true, false, true, false, false, false, false), Chara (true, false, false, true, false, false, false, false), Chara (true, false, true, true, false, false, false, false)]))
+                                                                                                        (fn _ => returna ()))
                                                                                                  (fn _ => bindd (scan_upto_b_i_n_d
-                                                                                                                  (bindd (bindd (many (member equal_char [#" ", #"\n", #"\t", #"\r"])) (fn _ => returna ())) (fn _ => exactly [#":"])))
+                                                                                                                  (bindd (bindd
+     (many (member equal_char
+             [Chara (false, false, false, false, false, true, false, false), Chara (false, true, false, true, false, false, false, false), Chara (true, false, false, true, false, false, false, false),
+               Chara (true, false, true, true, false, false, false, false)]))
+     (fn _ => returna ()))
+                                                                                                                    (fn _ => exactly (explode ":"))))
                                                                                                             (fn (s1, _) =>
-                                                                                                              bindd (bindd (many (member equal_char [#" ", #"\n", #"\t", #"\r"])) (fn _ => returna ()))
+                                                                                                              bindd (bindd
+(many (member equal_char
+        [Chara (false, false, false, false, false, true, false, false), Chara (false, true, false, true, false, false, false, false), Chara (true, false, false, true, false, false, false, false),
+          Chara (true, false, true, true, false, false, false, false)]))
+(fn _ => returna ()))
                                                                                                                 (fn _ => bindd parse_str (fn s2 => returna (s1, s2))))))))
                                                                      Fnspeca,
                                                                     bind3 (app_rev (exactly relspec) str) Relspeca, bind3 (bindd (colon_s modifies) (fn _ => parse_id_list [fnspec, relspec, modifies, dONT_TRANSLATE])) Modifies,
                                                                     bind_k (exactly dONT_TRANSLATE) Dont_translate]
                                                                 end)
-                                                            (or (bind3 (app_rev (colon_s [#"A", #"U", #"X", #"U", #"P", #"D"]) str) Auxupda)
-                                                              (or (bind3 (app_rev (colon_s [#"G", #"H", #"O", #"S", #"T", #"U", #"P", #"D"]) str) Ghostupda)
-                                                                (or (bind3 (bind3 (app_rev (colon_s [#"S", #"P", #"E", #"C"]) str)
-                                                                             (in_safe_monad (or (bindd (scan_upto_b_i_n_d (exactly [#"."])) (returna o fst)) (fn ts => returna ts []))))
+                                                            (or (bind3 (app_rev (colon_s (explode "AUXUPD")) str) Auxupda)
+                                                              (or (bind3 (app_rev (colon_s (explode "GHOSTUPD")) str) Ghostupda)
+                                                                (or (bind3 (bind3 (app_rev (colon_s (explode "SPEC")) str)
+                                                                             (in_safe_monad (or (bindd (scan_upto_b_i_n_d (exactly (explode "."))) (returna o fst)) (fn ts => returna ts (explode "")))))
                                                                       Speca)
-                                                                  (or (bind3 (app_rev (colon_s [#"E", #"N", #"D", #"-", #"S", #"P", #"E", #"C"]) str) End_spec)
-                                                                    (or (bind3 (bindd (exactly [#"C", #"A", #"L", #"L", #"S"]) (fn _ => parse_id_list [])) Calls)
-                                                                      (bind3 (bindd (exactly [#"O", #"W", #"N", #"E", #"D", #"_", #"B", #"Y"])
-                                                                               (fn _ => bindd (bindd (many (member equal_char [#" ", #"\n", #"\t", #"\r"])) (fn _ => returna ())) (fn _ => parse_id_o_n_e [])))
+                                                                  (or (bind3 (app_rev (colon_s (explode "END-SPEC")) str) End_spec)
+                                                                    (or (bind3 (bindd (exactly (explode "CALLS")) (fn _ => parse_id_list [])) Calls)
+                                                                      (bind3 (bindd (exactly (explode "OWNED_BY"))
+                                                                               (fn _ => bindd (bindd (many (member equal_char
+                                                                                                             [Chara (false, false, false, false, false, true, false, false), Chara (false, true, false, true, false, false, false, false),
+                                                                                                               Chara (true, false, false, true, false, false, false, false), Chara (true, false, true, true, false, false, false, false)]))
+                                                                                                (fn _ => returna ()))
+                                                                                          (fn _ => parse_id_o_n_e [])))
                                                                         Owned_by))))))))
                                            end)
-                                     (fn cmd => bindd (scan_upto_b_i_n_d (bindd (bindd (many (member equal_char [#" ", #"\n", #"\t", #"\r"])) (fn _ => returna ())) (fn _ => end_comment)))
+                                     (fn cmd => bindd (scan_upto_b_i_n_d
+                                                        (bindd (bindd (many (member equal_char
+                                                                              [Chara (false, false, false, false, false, true, false, false), Chara (false, true, false, true, false, false, false, false),
+                                                                                Chara (true, false, false, true, false, false, false, false), Chara (true, false, true, true, false, false, false, false)]))
+                                                                 (fn _ => returna ()))
+                                                          (fn _ => end_comment)))
                                                   (fn (remain, _) => bindd (eoi show_char) (fn _ => returna (if null remain then cmd else cmd @ [OTHER remain]))))))
     x;
 
-fun string_implode x = SS_base (STa x);
+fun string_implode x = SS_base (STa (mapa integer_of_char x));
 
-fun errora x = (error o String.implode o to_list) x;
+fun errora x = (error o meta_of_logic) x;
 
 fun parse_comment x =
   (fn a => (case a of Commenta (_, s, SingleLine) => [OTHER s]
              | Commenta (_, s, MultiLine) =>
-               (case parse_commenta (to_list s) of Inl sa => errora (SS_base (STa sa)) | Inr (l, []) => mapa (map_comment_type string_implode) l | Inr (_, _ :: _) => errora (SS_base (ST "the remaining stream is not empty")))))
+               (case parse_commenta (mapa char_of_integer (to_list s)) of Inl sa => errora (SS_base (STa (mapa integer_of_char sa))) | Inr (l, []) => mapa (map_comment_type string_implode) l
+                 | Inr (_, _ :: _) => errora (SS_base (ST "the remaining stream is not empty")))))
     x;
 
 fun sbogwrap x = (Stmt o bogwrap) x;
 
 fun filter_statement l =
   app_rev (app_rev l (mapa (map_filter let
-                                         val inl = (fn s => fn f => app_rev (app_rev (app_rev (f (SS_base (STa s))) (BI_Stmt o sbogwrap)) Inl) SOME);
+                                         val inl = (fn s => fn f => app_rev (app_rev (app_rev (f (SS_base (STa (mapa integer_of_char s)))) (BI_Stmt o sbogwrap)) Inl) SOME);
                                          val inr = (fn s => app_rev (app_rev s Inr) SOME);
                                        in
                                          (fn a => (case a of Invariant _ => NONE | Fnspeca _ => NONE | Relspeca _ => NONE | Modifies _ => NONE | Dont_translate => NONE | Auxupda s => inl s Auxupd | Ghostupda s => inl s Ghostupd
-                                                    | Speca (s1, s2) => inr (Inl (SS_base (STa s1), SS_base (STa s2))) | End_spec s => inr (Inr (SS_base (STa s))) | Calls _ => NONE | Owned_by _ => NONE | OTHER _ => NONE))
+                                                    | Speca (s1, s2) => inr (Inl (SS_base (STa (mapa integer_of_char s1)), SS_base (STa (mapa integer_of_char s2)))) | End_spec s => inr (Inr (SS_base (STa (mapa integer_of_char s))))
+                                                    | Calls _ => NONE | Owned_by _ => NONE | OTHER _ => NONE))
                                        end o
                              parse_comment)))
     concat;
@@ -8972,8 +9100,8 @@ fun filter_fnspec x =
                                                              bogwrap)
                                                     Fnspec)
                                             SOME
-                                        | Relspeca s => app_rev (app_rev (app_rev (flattena [SS_base (ST "\""), SS_base (STa s), SS_base (ST "\"")]) bogwrap) Relspec) SOME
-                                        | Modifies l => app_rev (app_rev (app_rev l (mapa (fn aa => (case aa of NONE => SS_base (ST "phantom_machine_state") | SOME s => SS_base (STa s))))) Fn_modifies) SOME
+                                        | Relspeca s => app_rev (app_rev (app_rev (flattena [SS_base (ST "\""), SS_base (STa (mapa integer_of_char s)), SS_base (ST "\"")]) bogwrap) Relspec) SOME
+                                        | Modifies l => app_rev (app_rev (app_rev l (mapa (fn aa => (case aa of NONE => SS_base (ST "phantom_machine_state") | SOME s => SS_base (STa (mapa integer_of_char s)))))) Fn_modifies) SOME
                                         | Dont_translate => app_rev Didnt_translate SOME | Auxupda _ => NONE | Ghostupda _ => NONE | Speca _ => NONE | End_spec _ => NONE | Calls _ => NONE | Owned_by _ => NONE | OTHER _ => NONE)) o
                    parse_comment))
     x;
@@ -9893,7 +10021,7 @@ fun statement_While expr =
                              (if is_do then Block (mapa BI_Stmt [body, sbogwrap loop]) else loop)
                            end));
 
-fun stringLiteral x = (fn CStrLit0 (CString0 (s, _), _) => replace_charsa (fn xa => (if ((xa : char) = #"\n") then SS_base (ST "\\n") else SS_base (STa [xa]))) s) x;
+fun stringLiteral x = (fn CStrLit0 (CString0 (s, _), _) => replace_integersa (fn xa => (if xa = (10 : IntInf.int) then SS_base (ST "\092n") else SS_base (STa [xa]))) s) x;
 
 fun assemblyOperand x = mapa (fn CAsmOperand0 (o_i, s, e, _) => (ident_option o_i, (stringLiteral s, expression e))) x;
 
@@ -10127,19 +10255,15 @@ fun divide_nat m n = Nat (divide_integer (integer_of_nat m) (integer_of_nat n));
 
 fun nat_to_digit10_aux l n = (if less_nat n (nat_of_integer (10 : IntInf.int)) then n :: l else nat_to_digit10_aux (modulo_nat n (nat_of_integer (10 : IntInf.int)) :: l) (divide_nat n (nat_of_integer (10 : IntInf.int))));
 
-fun nat_of_char x = (nat_of_integer o (IntInf.fromInt o Char.ord)) x;
-
-fun char_of_nat x = ((Char.chr o IntInf.toInt) o integer_of_nat) x;
-
 fun nat_to_digit10 n = let
-                         val nat_raw_to_str = map (fn i => char_of_nat (plus_nat (nat_of_char #"0") i));
+                         val nat_raw_to_str = map (integer_of_nat o plus_nat (nat_of_integer (48 : IntInf.int)));
                        in
                          SS_base (STa (nat_raw_to_str (nat_to_digit10_aux [] n)))
                        end;
 
 fun add_0 n =
   let
-    val na = nat_of_char n;
+    val na = nat_of_integer n;
   in
     flattenb (flattena (map (fn _ => SS_base (ST "0"))
                          (upt zero_nata (if less_nat na (nat_of_integer (10 : IntInf.int)) then nat_of_integer (2 : IntInf.int) else (if less_nat na (nat_of_integer (100 : IntInf.int)) then one_nat else zero_nata)))))
@@ -10249,7 +10373,7 @@ fun split_at f l = let
                      (takeWhile fa l, (case dropWhile fa l of [] => (NONE, []) | x :: a => (SOME x, a)))
                    end;
 
-fun print_ctxt_to_ocl_gen_split s = (case split_at (fn sa => ((sa : char) = #".")) (to_list s) of (_, (NONE, _)) => NONE | (_, (SOME _, sa)) => SOME sa);
+fun print_ctxt_to_ocl_gen_split s = (case split_at (fn sa => sa = (46 : IntInf.int)) (to_list s) of (_, (NONE, _)) => NONE | (_, (SOME _, sa)) => SOME sa);
 
 fun term_parenthesis x = Term_paren (SS_base (ST "("), SS_base (ST ")"), x);
 
@@ -10331,7 +10455,7 @@ fun print_ctxt_is_name_at_gen var s = let
                                         val _ :: _ = vara;
                                         val lg_var = size_list vara;
                                       in
-                                        (if equal_lista equal_char (take_last lg_var sa) vara then SOME (SS_base (STa (take_first (minus_nat (size_list sa) lg_var) sa))) else NONE)
+                                        (if equal_lista equal_integer (take_last lg_var sa) vara then SOME (SS_base (STa (take_first (minus_nat (size_list sa) lg_var) sa))) else NONE)
                                       end;
 
 val var_at_when_hol_pre : abr_string = SS_base (ST "at_pre");
@@ -10347,7 +10471,7 @@ fun print_ctxt_is_name_at_post x = let
                                    end
                                      x;
 
-fun to_lista x = (fn a => (case a of ST aa => String.explode aa | STa l => l)) x;
+fun to_lista x = (fn a => (case a of ST aa => (map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) aa | STa l => l)) x;
 
 fun fold_Const f accu expr = (case expr of Consta (s, _) => f accu s | Free (_, _) => accu | Var (_, _) => accu | Bound _ => accu | Absa (_, _, a) => fold_Const f accu a | Appa (term1, a) => fold_Const f (fold_Const f accu term1) a);
 
@@ -10357,7 +10481,7 @@ fun map_Const f expr =
 
 fun print_ctxt_to_ocl_gen l_access f var =
   let
-    val l_ex = (fn s => list_ex (case print_ctxt_to_ocl_gen_split s of NONE => (fn _ => false) | SOME sa => (fn n => equal_lista equal_char (to_lista n) sa)) l_access);
+    val l_ex = (fn s => list_ex (case print_ctxt_to_ocl_gen_split s of NONE => (fn _ => false) | SOME sa => (fn n => equal_lista equal_integer (to_lista n) sa)) l_access);
   in
     (fn T_pure (t, o_s) =>
       T_pure (map_Const (fn s => fn _ => (if l_ex s then (case f s of NONE => s | SOME sa => flattenb sa var) else s)) t, (if fold_Const (fn b => fn s => b orelse l_ex s andalso not (is_none (f s))) false t then NONE else o_s)))
@@ -10493,11 +10617,32 @@ fun get_class_hierarchy_aux l_res (OclClass (name, l_attr, dataty)) = let
 
 fun get_class_hierarchya x = get_class_hierarchy_aux [] x;
 
-fun is_letter n = #"A" <= n andalso n <= #"Z" orelse #"a" <= n andalso n <= #"z";
+fun ascii_of_literal x = (hd o (map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode)) x;
 
-fun is_digit n = #"0" <= n andalso n <= #"9";
+fun is_letter x = let
+                    val int_A = ascii_of_literal "A";
+                    val int_Z = ascii_of_literal "Z";
+                    val int_a = ascii_of_literal "a";
+                    val int_z = ascii_of_literal "z";
+                  in
+                    (fn n => int_A <= n andalso n <= int_Z orelse int_a <= n andalso n <= int_z)
+                  end
+                    x;
 
-fun isub x = replace_charsa (fn c => (if is_letter c orelse (is_digit c orelse member equal_char [#"_"] c) then flattenb (SS_base (ST "\092<^sub>")) (SS_base (STa [c])) else add_0 c)) x;
+fun is_digit x = let
+                   val int_0 = ascii_of_literal "0";
+                   val int_9 = ascii_of_literal "9";
+                 in
+                   (fn n => int_0 <= n andalso n <= int_9)
+                 end
+                   x;
+
+fun isub x = replace_integersa let
+                                 val is_und = member equal_integer ((map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) "_");
+                               in
+                                 (fn c => (if is_letter c orelse (is_digit c orelse is_und c) then flattenb (SS_base (ST "\092<^sub>")) (SS_base (STa [c])) else add_0 c))
+                               end
+               x;
 
 fun fold_class_gen_aux l_inh f accu (OclClass (name, l_attr, dataty)) =
   let
@@ -10545,7 +10690,7 @@ fun fold_class f =
 
 fun thma x = Thm_thm x;
 
-fun equal s1 s2 = equal_lista equal_char (to_list s1) (to_list s2);
+fun equal s1 s2 = equal_lista equal_integer (to_list s1) (to_list s2);
 
 fun thm x = i Theory_thm x;
 
@@ -10600,7 +10745,7 @@ fun print_ctxt_pre_post x =
                                                                          xa orelse fold_Const (fn ba => fn s =>
                                                                                                 ba orelse (case print_ctxt_to_ocl_gen_split s of NONE => false
                                                                                                             | SOME sa => let
-     val f_eq = (fn aa => equal_lista equal_char (to_list (print_ctxt_const_name attr_n aa NONE)) sa);
+     val f_eq = (fn aa => equal_lista equal_integer (to_list (print_ctxt_const_name attr_n aa NONE)) sa);
    in
      f_eq var_at_when_hol_post orelse f_eq var_at_when_hol_pre
    end))
@@ -10892,7 +11037,7 @@ fun type_synonyma n = (fn a => Type_synonym ((n, []), a));
 val consts_value : abr_string = SS_base (ST "(_)");
 
 fun consts_raw0 s l e o_arg =
-  Consts (s, l, flattenb (replace_charsa (fn c => (if ((c : char) = #"_") then SS_base (ST "'_") else SS_base (STa [c]))) e)
+  Consts (s, l, flattenb (replace_integersa (fn n => (if n = (95 : IntInf.int) then SS_base (ST "'_") else SS_base (STa [n]))) e)
                   (case o_arg of NONE => SS_base (ST "")
                     | SOME arg =>
                       let
@@ -10943,7 +11088,7 @@ fun map_enum_syn l_enum l_syn =
 
 fun consts x = i Theory_consts x;
 
-fun membera l x = member (equal_list equal_char) (map to_lista l) (to_list x);
+fun membera l x = member (equal_list equal_integer) (map to_lista l) (to_list x);
 
 fun print_ctxt_const ctxt env =
   let
@@ -11189,7 +11334,7 @@ val wildcard : abr_string = SS_base (ST "_");
 
 fun k x uu = x;
 
-fun print f = f (String.implode o to_list) (CodeConst.To.nat Code_Numeral.integer_of_natural);
+fun print f = f meta_of_logic (CodeConst.To.nat Code_Numeral.integer_of_natural);
 
 fun comp_env_input_class_bind l f = fold (fn x => x f) l;
 
@@ -11231,19 +11376,14 @@ fun make x = co4 (fn f => f ()) (fn a => fn b => fn c => fn d => fn e => Ocl_cla
 
 fun nat_to_digit26_aux l n = (if less_nat n (nat_of_integer (26 : IntInf.int)) then n :: l else nat_to_digit26_aux (modulo_nat n (nat_of_integer (26 : IntInf.int)) :: l) (divide_nat n (nat_of_integer (26 : IntInf.int))));
 
-fun mapb f = map_gen (replace_chars (fn c => SS_base (STa [f c]))) (fn x => SS_base (STa [f x]));
+fun mapb f = map_gen (replace_integers (fn c => SS_base (STa [f c]))) (fn x => SS_base (STa [f x]));
 
-fun uppercase x = mapb (fn c => let
-                                  val n = nat_of_char c;
-                                in
-                                  (if less_nat n (nat_of_integer (97 : IntInf.int)) then c else char_of_nat (minus_nat n (nat_of_integer (32 : IntInf.int))))
-                                end)
-                    x;
+fun uppercase x = mapb (fn n => (if n < (97 : IntInf.int) then n else n - (32 : IntInf.int))) x;
 
 fun nat_to_digit26 x =
   let
     val str26_of_nat = let
-                         val nat_raw_of_str26 = map (fn i => char_of_nat (plus_nat (nat_of_char #"a") i));
+                         val nat_raw_of_str26 = map (integer_of_nat o plus_nat (nat_of_integer (97 : IntInf.int)));
                        in
                          (fn n => SS_base (STa (nat_raw_of_str26 (nat_to_digit26_aux [] n))))
                        end;
@@ -11351,7 +11491,7 @@ fun d_input_state
       d_ocl_HO_type, d_hsk_constr, d_output_sorry_dirty, more))
   = d_input_state;
 
-fun assoca x l = assoc (equal_list equal_char) (to_list x) (map (map_prod to_lista id) l);
+fun assoca x l = assoc (equal_list equal_integer) (to_list x) (map (map_prod to_lista id) l);
 
 fun get_state f = (fn OclDefPP (_, s_pre, s_post) => fn env => let
                                                                  val get_state = let
@@ -11407,7 +11547,7 @@ fun merge_uniquea B_ f =
                                                                     b) o
     map (map (fn (oid, e) => ((oid, f e), e)));
 
-fun merge_uniqueb l = map (map (map_prod id (fn OclDefCoreBinding (_, ocli) => ocli))) (merge_uniquea (equal_list equal_char) (fn OclDefCoreBinding (s, _) => to_list s) l);
+fun merge_uniqueb l = map (map (map_prod id (fn OclDefCoreBinding (_, ocli) => ocli))) (merge_uniquea (equal_list equal_integer) (fn OclDefCoreBinding (s, _) => to_list s) l);
 
 fun inst_attr (Ocl_instance_single_ext (inst_name, inst_ty, inst_attr_with, inst_attr, more)) = inst_attr;
 
@@ -11601,7 +11741,7 @@ fun print_transition_where x =
                                               | (SOME ocore1, SOME ocore2) => (SS_base (ST "OclIsMaintained"), let
                                                                                                                  val l = [(ocore1, s_pre), (ocore2, s_post)];
                                                                                                                in
-                                                                                                                 (if equal_lista equal_char (to_list s_pre) (to_list s_post) then [hd l] else l)
+                                                                                                                 (if equal_lista equal_integer (to_list s_pre) (to_list s_post) then [hd l] else l)
                                                                                                                end));
                                     val (x_where, ca) = c;
                                   in
@@ -11684,10 +11824,10 @@ fun print_examp_instance_app_constr2_notmpa l_attr e =
     | OclAttrCast (ty, OclAttrCast (abr_stringa, ocl_list_attr, aa), _) => term_postunary (term_parenthesis (print_examp_instance_app_constr2_notmpa (OclAttrCast (abr_stringa, ocl_list_attr, aa)) e)) (Term_basic [dot_astype ty]));
 
 fun to_bold_number x =
-  replace_charsa
-    (fn c => nth [SS_base (ST "\092<zero>"), SS_base (ST "\092<one>"), SS_base (ST "\092<two>"), SS_base (ST "\092<three>"), SS_base (ST "\092<four>"), SS_base (ST "\092<five>"), SS_base (ST "\092<six>"), SS_base (ST "\092<seven>"),
+  replace_integersa
+    (fn n => nth [SS_base (ST "\092<zero>"), SS_base (ST "\092<one>"), SS_base (ST "\092<two>"), SS_base (ST "\092<three>"), SS_base (ST "\092<four>"), SS_base (ST "\092<five>"), SS_base (ST "\092<six>"), SS_base (ST "\092<seven>"),
                    SS_base (ST "\092<eight>"), SS_base (ST "\092<nine>")]
-               (minus_nat (nat_of_char c) (nat_of_integer (48 : IntInf.int))))
+               (nat_of_integer (n - (48 : IntInf.int))))
     x;
 
 val var_OclInteger : abr_string = SS_base (ST "OclInt");
@@ -11700,17 +11840,17 @@ fun is_emptyb x = (fn a => (case a of ST s => ((s : string) = "") | STa aa => nu
 
 fun is_empty e = (case e of SS_base a => is_emptyb a | String_concatWith (_, a) => list_all is_empty a);
 
-fun base255 x = replace_charsa (fn c => (if is_letter c then SS_base (STa [c]) else add_0 c)) x;
+fun base255 x = replace_integersa (fn c => (if is_letter c then SS_base (STa [c]) else add_0 c)) x;
 
-fun text2_of_str x = replace_charsa (fn c => flattena [SS_base (ST "\\"), SS_base (ST "<"), SS_base (STa [c]), SS_base (ST ">")]) x;
+fun text2_of_str x = replace_integersa (fn c => flattena [SS_base (ST "\092"), SS_base (ST "<"), SS_base (STa [c]), SS_base (ST ">")]) x;
 
 fun text_of_str str =
   let
     val s = SS_base (ST "c");
     val ap = SS_base (ST " # ");
   in
-    flattena [SS_base (ST "(let "), s, SS_base (ST " = char_of_nat in "),
-               replace_charsa (fn c => (if is_letter c then flattena [SS_base (ST "CHR ''"), SS_base (STa [c]), SS_base (ST "''"), ap] else flattena [s, SS_base (ST " "), add_0 c, ap])) str, SS_base (ST "[])")]
+    flattena [SS_base (ST "(let "), s, SS_base (ST " = char_of :: nat \092<Rightarrow> char in "),
+               replace_integersa (fn c => (if is_letter c then flattena [SS_base (ST "CHR ''"), SS_base (STa [c]), SS_base (ST "''"), ap] else flattena [s, SS_base (ST " "), add_0 c, ap])) str, SS_base (ST "[])")]
   end;
 
 fun all f = foldla (fn b => fn s => b andalso f s) true;
@@ -11978,15 +12118,15 @@ fun map_entrya A_ xc xd xe = Alist (map_entry A_ xc xd (impl_of xe));
 
 fun modify_def B_ v k f rbt = (case lookup B_ rbt k of NONE => updatea B_ k (f v) rbt | SOME _ => map_entrya B_ k f rbt);
 
-fun modify_defa v k = modify_def (equal_list equal_char) v (to_list k);
+fun modify_defa v k = modify_def (equal_list equal_integer) v (to_list k);
 
 fun of_inh x = (fn Tinh l => l) x;
 
 fun map_class_inh l_inherited = map (fn OclClass (_, l, _) => l) (of_inh (map_inh of_linh l_inherited));
 
-fun lookupb m k = lookupa (equal_list equal_char) m (to_list k);
+fun lookupb m k = lookupa (equal_list equal_integer) m (to_list k);
 
-fun inserta k = insert (equal_list equal_char) (to_list k);
+fun inserta k = insert (equal_list equal_integer) (to_list k);
 
 fun rbt_of_class (B1_, B2_, B3_) env =
   let
@@ -12059,12 +12199,12 @@ fun init_map_class (C1_, C2_, C3_) env l =
                  | SOME s => (case lookupb rbt_str s of NONE => f ()
                                | SOME oid_starta => (insert equal_internal_oid (Oid accu) oid_starta rbt_nat, (inserta (inst_name ocli) oid_starta rbt_str, (oid_start, succ (one_natural, plus_natural) accu)))))
              end)
-        l (emptya, (bulkload (equal_list equal_char) (map (fn (k, a) => let
-                                                                          val (_, aa) = a;
-                                                                        in
-                                                                          (to_lista k, aa)
-                                                                        end)
-                                                       (d_input_instance env)),
+        l (emptya, (bulkload (equal_list equal_integer) (map (fn (k, a) => let
+                                                                             val (_, aa) = a;
+                                                                           in
+                                                                             (to_lista k, aa)
+                                                                           end)
+                                                          (d_input_instance env)),
                      (d_ocl_oid_start env, Code_Numeral.zero_natural)));
   in
     (rbt_of_class (C1_, C2_, C3_) env, (lookupa equal_internal_oid rbt_nat, lookupb rbt_str))
@@ -12290,7 +12430,7 @@ fun remove_binding e =
 
 fun map_entryb A_ = map_entrya A_;
 
-fun map_entryc k = map_entryb (equal_list equal_char) (to_list k);
+fun map_entryc k = map_entryb (equal_list equal_integer) (to_list k);
 
 fun entriesa m = map (map_prod (fn c => SS_base (STa c)) id) (entries m);
 
@@ -12325,11 +12465,11 @@ fun class_unflat x =
                                           (case let
                                                   val (l_none, l_some) = partition (fn (_, m) => is_none (tyRole m)) (oclAss_relation ass);
                                                 in
-                                                  flatten [l_none, normalize0 (equal_list equal_char) (fn (_, m) => let
-val SOME a = tyRole m;
-                                                                                                                    in
-to_list a
-                                                                                                                    end)
+                                                  flatten [l_none, normalize0 (equal_list equal_integer) (fn (_, m) => let
+   val SOME a = tyRole m;
+ in
+   to_list a
+ end)
                                                                      l_some]
                                                 end
                                             of [] => id | [_] => id
@@ -12356,7 +12496,7 @@ to_list a
                                     (mapi (fn a => fn b => (a, b)) l_ass) rbt))
               end;
     in
-      class_unflat_aux (fold (fn cflat => inserta (cl_name_to_string cflat) (normalize0 (equal_list equal_char) (to_list o fst) (map (map_prod id remove_binding) (classRaw_own cflat)))) l emptya)
+      class_unflat_aux (fold (fn cflat => inserta (cl_name_to_string cflat) (normalize0 (equal_list equal_integer) (to_list o fst) (map (map_prod id remove_binding) (classRaw_own cflat)))) l emptya)
         (fold (fn cflat => let
                              val OclTyObj (n, a) = classRaw_name cflat;
                            in
@@ -12570,12 +12710,12 @@ fun print_examp_def_st_dom_lemmas x = (fn _ => fn env => (map lemmasa let
                                                            env))
                                         x;
 
-fun print_examp_def_st_locale_sort env l = merge_uniquea (equal_list equal_char) (to_list o inst_name) (map (fn OclDefCoreBinding name => let
-                      val SOME n = assoca name (d_input_instance env);
-                    in
-                      [flip n]
-                    end)
-                                                                                                         l);
+fun print_examp_def_st_locale_sort env l = merge_uniquea (equal_list equal_integer) (to_list o inst_name) (map (fn OclDefCoreBinding name => let
+                         val SOME n = assoca name (d_input_instance env);
+                       in
+                         [flip n]
+                       end)
+                                                                                                            l);
 
 fun print_examp_def_st_def_interp x =
   (fn OclDefSt (n, l) => fn env =>
@@ -12621,12 +12761,12 @@ fun map_class_gen_h_inh f =
   map_class_gen_hb
     (fn isub_name => fn name => fn _ => fn l_inh => fn l_subtree => fn _ =>
       let
-        val l_mem = (fn l => member (equal_list equal_char) (map (fn OclClass (n, _, _) => to_list n) l));
+        val l_mem = (fn l => member (equal_list equal_integer) (map (fn OclClass (n, _, _) => to_list n) l));
       in
         f isub_name name (fn n => let
                                     val na = to_list n;
                                   in
-                                    (if equal_lista equal_char na (to_list name) then EQ else (if l_mem (of_linh l_inh) na then GT else (if l_mem l_subtree na then LT else UN)))
+                                    (if equal_lista equal_integer na (to_list name) then EQ else (if l_mem (of_linh l_inh) na then GT else (if l_mem l_subtree na then LT else UN)))
                                   end)
       end);
 
@@ -12926,12 +13066,12 @@ fun print_examp_def_st_assoc rbt map_self map_username l_assoc =
 
 fun init_map_class2 (C1_, C2_, C3_) env l =
   let
-    val rbt_str = bulkload (equal_list equal_char) (map (fn (k, a) => let
-                                                                        val (_, aa) = a;
-                                                                      in
-                                                                        (to_lista k, aa)
-                                                                      end)
-                                                     (d_input_instance env));
+    val rbt_str = bulkload (equal_list equal_integer) (map (fn (k, a) => let
+                                                                           val (_, aa) = a;
+                                                                         in
+                                                                           (to_lista k, aa)
+                                                                         end)
+                                                        (d_input_instance env));
   in
     (rbt_of_class (C1_, C2_, C3_) env,
       (lookupa equal_internal_oid
@@ -13232,8 +13372,8 @@ fun print_examp_instance_defassoc_typecheck_gen l_ocli env =
           val raise_mla =
             (if less_nat (nb_class spec) (plus_nat (size_list l_spec1) (if list_ex (fn c => equal (cl_name_to_string c) const_oclany) l_spec1 then zero_nata else one_nat))
               then raise_ml_warn
-                     (flattenb (SS_base (ST "Some classes have been ignored because of duplications of classes, the absence of classes inheriting from OclAny or the presence of cycles.\\n"))
-                       (flattenb (SS_base (ST "The classes considered for the generation are only:\\n  "))
+                     (flattenb (SS_base (ST "Some classes have been ignored because of duplications of classes, the absence of classes inheriting from OclAny or the presence of cycles.\092n"))
+                       (flattenb (SS_base (ST "The classes considered for the generation are only:\092n  "))
                          (String_concatWith
                            (SS_base (ST ", "),
                              rev (fst (fold_class (fn _ => fn name => fn _ => fn _ => fn _ => fn a =>
@@ -13249,8 +13389,8 @@ fun print_examp_instance_defassoc_typecheck_gen l_ocli env =
               of [] => id
               | a :: lista =>
                 raise_ml_warn
-                  (flattenb (SS_base (ST "Duplicate constant declaration:\\n"))
-                    (String_concatWith (SS_base (ST "\\n"), map (fn (s, name) => flattenb (SS_base (ST "  ")) (flattenb name (flattenb (SS_base (ST ": ")) (SS_base (STa s))))) (a :: lista)))))
+                  (flattenb (SS_base (ST "Duplicate constant declaration:\092n"))
+                    (String_concatWith (SS_base (ST "\092n"), map (fn (s, name) => flattenb (SS_base (ST "  ")) (flattenb name (flattenb (SS_base (ST ": ")) (SS_base (STa s))))) (a :: lista)))))
               raise_mla;
           val raise_mlc =
             (case map fst (entries (fold (fn ass => fn accu =>
@@ -13264,7 +13404,7 @@ fun print_examp_instance_defassoc_typecheck_gen l_ocli env =
                                      l_spec2 emptya))
               of [] => id
               | a :: lista =>
-                raise_ml_warn (flattenb (SS_base (ST "Duplicate constant declaration in association:\\n")) (String_concatWith (SS_base (ST "\\n"), map (fn s => flattenb (SS_base (ST "  ")) (SS_base (STa s))) (a :: lista)))))
+                raise_ml_warn (flattenb (SS_base (ST "Duplicate constant declaration in association:\092n")) (String_concatWith (SS_base (ST "\092n"), map (fn s => flattenb (SS_base (ST "  ")) (SS_base (STa s))) (a :: lista)))))
               raise_mlb;
           val enva = d_input_class_update (fn _ => SOME spec) env;
           val l_assoc = map_filter id l_ocli;
@@ -13406,7 +13546,7 @@ fun hsk_typespec names = (fn TypeSpec (l, n) => (hsk_name names n, map (hsk_name
 
 fun hsk_nameb x = hsk_name0 (fn _ => id) x;
 
-fun term_stringa s = Term_basic [flattena [SS_base (ST "\\"), SS_base (ST "<open>"), s, SS_base (ST "\\"), SS_base (ST "<close>")]];
+fun term_stringa s = Term_basic [flattena [SS_base (ST "\092"), SS_base (ST "<open>"), s, SS_base (ST "\092"), SS_base (ST "<close>")]];
 
 fun term_stringb f s = Term_apply (f, [term_stringa s]);
 
@@ -13420,7 +13560,7 @@ fun lex_list_cons (Lexical_ext (lex_list_cons, lex_bool_false, lex_string, more)
 
 fun lex_string (Lexical_ext (lex_list_cons, lex_bool_false, lex_string, more)) = lex_string;
 
-fun hsk_literal str = (fn a => (case a of Int n => Term_basic [natural_to_digit10 n] | Stringa aa => str aa));
+fun hsk_literal str = (fn a => (case a of Int n => Term_basic [natural_to_digit10 n] | String aa => str aa));
 
 fun hsk_term lexi names t =
   (case t of Literal a => hsk_literal (lex_string lexi) a
@@ -15234,8 +15374,7 @@ fun print_iskindof_lemma_cp x =
         val lem_simp2 = simp_only [thma (flattena [SS_base (ST "cp_"), const_oclistypeof, isub name1, SS_base (ST "_"), name3, SS_base (ST "_"), name2])];
         val a = (if null next_dataty then ([], by [lem_simp1, lem_simp2])
                   else ([[lem_simp1],
-                          [plus [rule (wherea (thma (SS_base (ST "cpI2"))) [(SS_base (ST "f"), term_preunary (Term_basic [SS_base (ST "op")]) (Term_basic [SS_base (ST "or")]))]), plus [rule (thma (SS_base (ST "allI")))],
-                                  rule (thma (SS_base (ST "cp_OclOr")))]],
+                          [plus [rule (wherea (thma (SS_base (ST "cpI2"))) [(SS_base (ST "f"), term_parenthesis (Term_basic [SS_base (ST "or")]))]), plus [rule (thma (SS_base (ST "allI")))], rule (thma (SS_base (ST "cp_OclOr")))]],
                           [lem_simp2]],
                          by (map (fn OclClass (n, _, _) => simp_only [thma (flattena [SS_base (ST "cp_"), const_ocliskindof, isub n, SS_base (ST "_"), name3, SS_base (ST "_"), name2])]) next_dataty)));
         val (aa, b) = a;
@@ -15344,11 +15483,11 @@ val var_select_object_set : abr_string = SS_base (ST "select_object\092<^sub>S\0
 
 fun lookup2 A_ B_ rbt = (fn (x1, x2) => binda (lookup A_ rbt x1) (fn rbta => lookup B_ rbta x2));
 
-fun lookup2a m = (fn (k1, k2) => lookup2 (equal_list equal_char) (equal_list equal_char) m (to_list k1, to_list k2));
+fun lookup2a m = (fn (k1, k2) => lookup2 (equal_list equal_integer) (equal_list equal_integer) m (to_list k1, to_list k2));
 
 fun insert2 A_ B_ = (fn (x1, x2) => fn v => modify_def A_ empty x1 (updatea B_ x2 v));
 
-fun insert2a x = (fn (k1, k2) => insert2 (equal_list equal_char) (equal_list equal_char) (to_list k1, to_list k2)) x;
+fun insert2a x = (fn (k1, k2) => insert2 (equal_list equal_integer) (equal_list equal_integer) (to_list k1, to_list k2)) x;
 
 val var_select : abr_string = SS_base (ST "select");
 
@@ -16082,12 +16221,7 @@ fun print_astype_consts x = (start_map consts o map_class (fn isub_name => fn na
 
 val pRINT_astype_consts : (ocl_class -> 'a -> all_meta list * 'a) embedding_fun = Embedding_fun_info (SS_base (ST "Floor1_astype.print_astype_consts"), print_astype_consts);
 
-fun lowercase x = mapb (fn c => let
-                                  val n = nat_of_char c;
-                                in
-                                  (if less_nat n (nat_of_integer (97 : IntInf.int)) then char_of_nat (plus_nat n (nat_of_integer (32 : IntInf.int))) else c)
-                                end)
-                    x;
+fun lowercase x = mapb (fn n => (if n < (97 : IntInf.int) then n + (32 : IntInf.int) else n)) x;
 
 fun print_access_select x =
   (start_mapb definition o
@@ -16490,31 +16624,31 @@ val thy_class : (ocl_class, unit compiler_env_config_ext) embedding =
   in
     (Embed_theories o flatten)
       [[pRINT_infra_enum_synonym],
-        [txt_d (fn n_thy => [flattenb (SS_base (ST "\n   \\label{ex:")) (flattenb (n_thy (SS_base (ST "employee-design:uml"))) (SS_base (ST "} ")))]),
-          txt_aa (fn n_thy => [flattenb (SS_base (ST "\n   \\label{ex:")) (flattenb (n_thy (SS_base (ST "employee-analysis:uml"))) (SS_base (ST "} ")))]), section (SS_base (ST "Introduction")),
-          txtb [SS_base (ST "\n\n  For certain concepts like classes and class-types, only a generic\n  definition for its resulting semantics can be given. Generic means,\n  there is a function outside \\HOL that ``compiles'' a concrete,\n  closed-world class diagram into a ``theory'' of this data model,\n  consisting of a bunch of definitions for classes, accessors, method,\n  casts, and tests for actual types, as well as proofs for the\n  fundamental properties of these operations in this concrete data\n  model. ")],
-          txtb [SS_base (ST "\n   Such generic function or ``compiler'' can be implemented in\n  Isabelle on the \\ML level.  This has been done, for a semantics\n  following the open-world assumption, for \\UML 2.0\n  in~\\cite{brucker.ea:extensible:2008-b, brucker:interactive:2007}. In\n  this paper, we follow another approach for \\UML 2.4: we define the\n  concepts of the compilation informally, and present a concrete\n  example which is verified in Isabelle/\\HOL. ")],
+        [txt_d (fn n_thy => [flattenb (SS_base (ST "\n   \092label{ex:")) (flattenb (n_thy (SS_base (ST "employee-design:uml"))) (SS_base (ST "} ")))]),
+          txt_aa (fn n_thy => [flattenb (SS_base (ST "\n   \092label{ex:")) (flattenb (n_thy (SS_base (ST "employee-analysis:uml"))) (SS_base (ST "} ")))]), section (SS_base (ST "Introduction")),
+          txtb [SS_base (ST "\n\n  For certain concepts like classes and class-types, only a generic\n  definition for its resulting semantics can be given. Generic means,\n  there is a function outside \092HOL that ``compiles'' a concrete,\n  closed-world class diagram into a ``theory'' of this data model,\n  consisting of a bunch of definitions for classes, accessors, method,\n  casts, and tests for actual types, as well as proofs for the\n  fundamental properties of these operations in this concrete data\n  model. ")],
+          txtb [SS_base (ST "\n   Such generic function or ``compiler'' can be implemented in\n  Isabelle on the \092ML level.  This has been done, for a semantics\n  following the open-world assumption, for \092UML 2.0\n  in~\092cite{brucker.ea:extensible:2008-b, brucker:interactive:2007}. In\n  this paper, we follow another approach for \092UML 2.4: we define the\n  concepts of the compilation informally, and present a concrete\n  example which is verified in Isabelle/\092HOL. ")],
           subsection (SS_base (ST "Outlining the Example")),
-          txt_d (fn n_thy => [flattenb (SS_base (ST "\n   We are presenting here a ``design-model'' of the (slightly\nmodified) example Figure 7.3, page 20 of\nthe \\OCL standard~\\cite{omg:ocl:2012}. To be precise, this theory contains the formalization of\nthe data-part covered by the \\UML class model (see \\autoref{fig:"))
+          txt_d (fn n_thy => [flattenb (SS_base (ST "\n   We are presenting here a ``design-model'' of the (slightly\nmodified) example Figure 7.3, page 20 of\nthe \092OCL standard~\092cite{omg:ocl:2012}. To be precise, this theory contains the formalization of\nthe data-part covered by the \092UML class model (see \092autoref{fig:"))
                                 (flattenb (n_thy (SS_base (ST "person"))) (SS_base (ST "}):")))]),
-          txt_aa (fn n_thy => [flattenb (SS_base (ST "\n   We are presenting here an ``analysis-model'' of the (slightly\nmodified) example Figure 7.3, page 20 of\nthe \\OCL standard~\\cite{omg:ocl:2012}.\nHere, analysis model means that associations\nwere really represented as relation on objects on the state---as is\nintended by the standard---rather by pointers between objects as is\ndone in our ``design model''.\nTo be precise, this theory contains the formalization of the data-part\ncovered by the \\UML class model (see \\autoref{fig:"))
+          txt_aa (fn n_thy => [flattenb (SS_base (ST "\n   We are presenting here an ``analysis-model'' of the (slightly\nmodified) example Figure 7.3, page 20 of\nthe \092OCL standard~\092cite{omg:ocl:2012}.\nHere, analysis model means that associations\nwere really represented as relation on objects on the state---as is\nintended by the standard---rather by pointers between objects as is\ndone in our ``design model''.\nTo be precise, this theory contains the formalization of the data-part\ncovered by the \092UML class model (see \092autoref{fig:"))
                                  (flattenb (n_thy (SS_base (ST "person-ana"))) (SS_base (ST "}):")))]),
-          txt_raw_d (fn n_thy => [flattenb (SS_base (ST "\n\n\\begin{figure}\n  \\centering\\scalebox{.3}{\\includegraphics{figures/person.png}}%\n  \\caption{A simple \\UML class model drawn from Figure 7.3,\n  page 20 of~\\cite{omg:ocl:2012}. \\label{fig:"))
-                                    (flattenb (n_thy (SS_base (ST "person"))) (SS_base (ST "}}\n\\end{figure}\n")))]),
-          txt_raw_a (fn n_thy => [flattenb (SS_base (ST "\n\n\\begin{figure}\n  \\centering\\scalebox{.3}{\\includegraphics{figures/person.png}}%\n  \\caption{A simple \\UML class model drawn from Figure 7.3,\n  page 20 of~\\cite{omg:ocl:2012}. \\label{fig:"))
-                                    (flattenb (n_thy (SS_base (ST "person-ana"))) (SS_base (ST "}}\n\\end{figure}\n")))]),
-          txtb [SS_base (ST "\n   This means that the association (attached to the association class\n\\inlineocl{EmployeeRanking}) with the association ends \\inlineocl+boss+ and \\inlineocl+employees+ is implemented\nby the attribute  \\inlineocl+boss+ and the operation \\inlineocl+employees+ (to be discussed in the \\OCL part\ncaptured by the subsequent theory).\n")],
+          txt_raw_d (fn n_thy => [flattenb (SS_base (ST "\n\n\092begin{figure}\n  \092centering\092scalebox{.3}{\092includegraphics{figures/person.png}}%\n  \092caption{A simple \092UML class model drawn from Figure 7.3,\n  page 20 of~\092cite{omg:ocl:2012}. \092label{fig:"))
+                                    (flattenb (n_thy (SS_base (ST "person"))) (SS_base (ST "}}\n\092end{figure}\n")))]),
+          txt_raw_a (fn n_thy => [flattenb (SS_base (ST "\n\n\092begin{figure}\n  \092centering\092scalebox{.3}{\092includegraphics{figures/person.png}}%\n  \092caption{A simple \092UML class model drawn from Figure 7.3,\n  page 20 of~\092cite{omg:ocl:2012}. \092label{fig:"))
+                                    (flattenb (n_thy (SS_base (ST "person-ana"))) (SS_base (ST "}}\n\092end{figure}\n")))]),
+          txtb [SS_base (ST "\n   This means that the association (attached to the association class\n\092inlineocl{EmployeeRanking}) with the association ends \092inlineocl+boss+ and \092inlineocl+employees+ is implemented\nby the attribute  \092inlineocl+boss+ and the operation \092inlineocl+employees+ (to be discussed in the \092OCL part\ncaptured by the subsequent theory).\n")],
           section (SS_base (ST "The Construction of the Object Universe")),
           txtb [SS_base (ST "\n   Our data universe  consists in the concrete class diagram just of node's,\nand implicitly of the class object. Each class implies the existence of a class\ntype defined for the corresponding object representations as follows: ")],
           pRINT_infra_datatype_class_1, pRINT_infra_datatype_class_2, pRINT_infra_datatype_equiv_2of1, pRINT_infra_datatype_equiv_1of2,
           txtb [SS_base (ST "\n   Now, we construct a concrete ``universe of OclAny types'' by injection into a\nsum type containing the class types. This type of OclAny will be used as instance\nfor all respective type-variables. ")],
           pRINT_infra_datatype_universe,
-          txtb [SS_base (ST "\n   Having fixed the object universe, we can introduce type synonyms that exactly correspond\nto \\OCL types. Again, we exploit that our representation of \\OCL is a ``shallow embedding'' with a\none-to-one correspondance of \\OCL-types to types of the meta-language \\HOL. ")],
+          txtb [SS_base (ST "\n   Having fixed the object universe, we can introduce type synonyms that exactly correspond\nto \092OCL types. Again, we exploit that our representation of \092OCL is a ``shallow embedding'' with a\none-to-one correspondance of \092OCL-types to types of the meta-language \092HOL. ")],
           pRINT_infra_type_synonym_class, pRINT_infra_type_synonym_class_higher, pRINT_infra_type_synonym_class_rec, pRINT_infra_enum_syn,
-          txtb [SS_base (ST "\n   To reuse key-elements of the library like referential equality, we have\nto show that the object universe belongs to the type class ``oclany,'' \\ie,\n each class type has to provide a function @{term oid_of} yielding the Object ID (oid) of the object. ")],
+          txtb [SS_base (ST "\n   To reuse key-elements of the library like referential equality, we have\nto show that the object universe belongs to the type class ``oclany,'' \092ie,\n each class type has to provide a function @{term oid_of} yielding the Object ID (oid) of the object. ")],
           pRINT_infra_instantiation_class, pRINT_infra_instantiation_universe, section (SS_base (ST "Instantiation of the Generic Strict Equality")),
           txtb [SS_base (ST "\n   We instantiate the referential equality\non @{text \"Person\"} and @{text \"OclAny\"} ")], pRINT_instantia_def_strictrefeq, pRINT_instantia_lemmas_strictrefeq,
-          txtb [SS_base (ST "\n   For each Class \\emph{C}, we will have a casting operation \\inlineocl{.oclAsType($C$)},\n   a test on the actual type \\inlineocl{.oclIsTypeOf($C$)} as well as its relaxed form\n   \\inlineocl{.oclIsKindOf($C$)} (corresponding exactly to Java's \\verb+instanceof+-operator.\n")],
+          txtb [SS_base (ST "\n   For each Class \092emph{C}, we will have a casting operation \092inlineocl{.oclAsType($C$)},\n   a test on the actual type \092inlineocl{.oclIsTypeOf($C$)} as well as its relaxed form\n   \092inlineocl{.oclIsKindOf($C$)} (corresponding exactly to Java's \092verb+instanceof+-operator.\n")],
           txtb [SS_base (ST "\n   Thus, since we have two class-types in our concrete class hierarchy, we have\ntwo operations to declare and to provide two overloading definitions for the two static types.\n")]],
         flatten (map (fn (title, (body_def, (body_cp, (body_exec, (body_defined, (body_up, body_const)))))) =>
                        section title :: flatten [subsection_def :: body_def, subsection_cp :: body_cp, subsection_exec :: body_exec, subsection_defined :: body_defined, subsection_up :: body_up, subsection_const :: body_const])
@@ -16533,25 +16667,25 @@ val thy_class : (ocl_class, unit compiler_env_config_ext) embedding =
                           ([pRINT_iskindof_lemma_strict, pRINT_iskindof_lemmas_strict],
                             ([pRINT_iskindof_defined, pRINT_iskindof_defineda], ([pRINT_iskindof_up_eq_asty, pRINT_iskindof_up_larger, pRINT_iskindof_up_istypeof_unfold, pRINT_iskindof_up_istypeof, pRINT_iskindof_up_d_cast], []))))))]),
         [section (SS_base (ST "OclAllInstances")),
-          txtb [SS_base (ST "\n   To denote \\OCL-types occurring in \\OCL expressions syntactically---as, for example,  as\n``argument'' of \\inlineisar{oclAllInstances()}---we use the inverses of the injection\nfunctions into the object universes; we show that this is sufficient ``characterization.'' ")],
+          txtb [SS_base (ST "\n   To denote \092OCL-types occurring in \092OCL expressions syntactically---as, for example,  as\n``argument'' of \092inlineisar{oclAllInstances()}---we use the inverses of the injection\nfunctions into the object universes; we show that this is sufficient ``characterization.'' ")],
           pRINT_allinst_def_id, pRINT_allinst_lemmas_id, pRINT_allinst_astype, pRINT_allinst_exec, subsection (SS_base (ST "OclIsTypeOf")), pRINT_allinst_istypeof_pre, pRINT_allinst_istypeof, subsection (SS_base (ST "OclIsKindOf")),
           pRINT_allinst_iskindof_eq, pRINT_allinst_iskindof_larger, section (SS_base (ST "The Accessors")),
-          txt_d (fn n_thy => [flattenb (SS_base (ST "\n  \\label{sec:")) (flattenb (n_thy (SS_base (ST "edm-accessors"))) (SS_base (ST "}")))]),
-          txt_aa (fn n_thy => [flattenb (SS_base (ST "\n  \\label{sec:")) (flattenb (n_thy (SS_base (ST "eam-accessors"))) (SS_base (ST "}")))]), subsection_def,
-          txt_a [SS_base (ST "\n   We start with a oid for the association; this oid can be used\nin presence of association classes to represent the association inside an object,\npretty much similar to the \\inlineisar+Employee_DesignModel_UMLPart+, where we stored\nan \\verb+oid+ inside the class as ``pointer.'' ")],
+          txt_d (fn n_thy => [flattenb (SS_base (ST "\n  \092label{sec:")) (flattenb (n_thy (SS_base (ST "edm-accessors"))) (SS_base (ST "}")))]),
+          txt_aa (fn n_thy => [flattenb (SS_base (ST "\n  \092label{sec:")) (flattenb (n_thy (SS_base (ST "eam-accessors"))) (SS_base (ST "}")))]), subsection_def,
+          txt_a [SS_base (ST "\n   We start with a oid for the association; this oid can be used\nin presence of association classes to represent the association inside an object,\npretty much similar to the \092inlineisar+Employee_DesignModel_UMLPart+, where we stored\nan \092verb+oid+ inside the class as ``pointer.'' ")],
           pRINT_access_oid_uniq_ml, pRINT_access_oid_uniq,
-          txt_a [SS_base (ST "\n   From there on, we can already define an empty state which must contain\nfor $\\mathit{oid}_{Person}\\mathcal{BOSS}$ the empty relation (encoded as association list, since there are\nassociations with a Sequence-like structure).")],
+          txt_a [SS_base (ST "\n   From there on, we can already define an empty state which must contain\nfor $\092mathit{oid}_{Person}\092mathcal{BOSS}$ the empty relation (encoded as association list, since there are\nassociations with a Sequence-like structure).")],
           pRINT_access_eval_extract,
           txt_a [SS_base (ST "\n   The @{text pre_post}-parameter is configured with @{text fst} or\n@{text snd}, the @{text to_from}-parameter either with the identity @{term id} or\nthe following combinator @{text switch}: ")],
           pRINT_access_choose_ml, pRINT_access_choose, pRINT_access_deref_oid, pRINT_access_deref_assocs, txtb [SS_base (ST "\n   pointer undefined in state or not referencing a type conform object representation ")],
           pRINT_access_select, pRINT_access_select_obj, pRINT_access_dot_consts, pRINT_access_dot, pRINT_access_dot_lemmas_id, subsection_cp, pRINT_access_dot_cp_lemmas, pRINT_access_dot_lemma_cp, pRINT_access_dot_lemmas_cp,
           subsection_exec, pRINT_access_lemma_strict, subsection (SS_base (ST "Representation in States")), pRINT_access_def_mono, pRINT_access_is_repr, pRINT_access_repr_allinst, section (SS_base (ST "Towards the Object Instances")),
-          txt_d (fn n_thy => [flattenb (SS_base (ST "\n\nThe example we are defining in this section comes from the \\autoref{fig:")) (flattenb (n_thy (SS_base (ST "edm1_system-states"))) (SS_base (ST "}.\n")))]),
-          txt_raw_d (fn n_thy => [flattenb (SS_base (ST "\n\\begin{figure}\n\\includegraphics[width=\\textwidth]{figures/pre-post.pdf}\n\\caption{(a) pre-state $\\sigma_1$ and\n  (b) post-state $\\sigma_1'$.}\n\\label{fig:"))
-                                    (flattenb (n_thy (SS_base (ST "edm1_system-states"))) (SS_base (ST "}\n\\end{figure}\n")))]),
-          txt_aa (fn n_thy => [flattenb (SS_base (ST "\n\nThe example we are defining in this section comes from the \\autoref{fig:")) (flattenb (n_thy (SS_base (ST "eam1_system-states"))) (SS_base (ST "}.\n")))]),
-          txt_raw_a (fn n_thy => [flattenb (SS_base (ST "\n\\begin{figure}\n\\includegraphics[width=\\textwidth]{figures/pre-post.pdf}\n\\caption{(a) pre-state $\\sigma_1$ and\n  (b) post-state $\\sigma_1'$.}\n\\label{fig:"))
-                                    (flattenb (n_thy (SS_base (ST "eam1_system-states"))) (SS_base (ST "}\n\\end{figure}\n")))]),
+          txt_d (fn n_thy => [flattenb (SS_base (ST "\n\nThe example we are defining in this section comes from the \092autoref{fig:")) (flattenb (n_thy (SS_base (ST "edm1_system-states"))) (SS_base (ST "}.\n")))]),
+          txt_raw_d (fn n_thy => [flattenb (SS_base (ST "\n\092begin{figure}\n\092includegraphics[width=\092textwidth]{figures/pre-post.pdf}\n\092caption{(a) pre-state $\092sigma_1$ and\n  (b) post-state $\092sigma_1'$.}\n\092label{fig:"))
+                                    (flattenb (n_thy (SS_base (ST "edm1_system-states"))) (SS_base (ST "}\n\092end{figure}\n")))]),
+          txt_aa (fn n_thy => [flattenb (SS_base (ST "\n\nThe example we are defining in this section comes from the \092autoref{fig:")) (flattenb (n_thy (SS_base (ST "eam1_system-states"))) (SS_base (ST "}.\n")))]),
+          txt_raw_a (fn n_thy => [flattenb (SS_base (ST "\n\092begin{figure}\n\092includegraphics[width=\092textwidth]{figures/pre-post.pdf}\n\092caption{(a) pre-state $\092sigma_1$ and\n  (b) post-state $\092sigma_1'$.}\n\092label{fig:"))
+                                    (flattenb (n_thy (SS_base (ST "eam1_system-states"))) (SS_base (ST "}\n\092end{figure}\n")))]),
           pRINT_examp_def_st_defs, pRINT_astype_lemmas_id2]]
   end;
 
@@ -16683,9 +16817,9 @@ fun replace_gen f_res l c0 lby = let
 
 fun nsplit_f l c0 = replace_gen id l c0 [];
 
-fun escape_sml x = replace_charsa (fn xa => (if ((xa : char) = #"\"") then SS_base (ST "\\\"") else SS_base (STa [xa]))) x;
+fun escape_sml x = replace_integersa (fn n => (if n = (34 : IntInf.int) then SS_base (ST "\092\"") else SS_base (STa [n]))) x;
 
-fun is_special x = member equal_char [#" ", #"<", #">", #"^", #"_", #"=", #"-", #".", #"/", #"(", #")", #"{", #"}"] x;
+fun is_special x = member equal_integer ((map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) " <>^_=-./(){}") x;
 
 fun ap1 a v0 f1 v1 = a v0 [f1 v1];
 
@@ -16710,8 +16844,6 @@ fun co1 x = (fn a => x o a);
 fun co2 f g x1 x2 = f (g x1 x2);
 
 fun cIf x = (fn a => fn b => fn c => CIf0 (x, a, b, c));
-
-val char_escape : char = #"\t";
 
 fun ap16 a v0 f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 f11 f12 f13 f14 f15 f16 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14 v15 v16 =
   a v0 [f1 v1, f2 v2, f3 v3, f4 v4, f5 v5, f6 v6, f7 v7, f8 v8, f9 v9, f10 v10, f11 v11, f12 v12, f13 v13, f14 v14, f15 v15, f16 v16];
@@ -16983,7 +17115,7 @@ fun of_semi_method to_string to_nat expr =
       let
         val s_asm = (if asm then "(asm) " else "");
       in
-        (if equal_lista (equal_list equal_char) (map to_list l) [[#"0"]] then CodeConst.Printf.sprintf2 "subst %s%s" s_asm (of_semi_thm_attribute to_string s)
+        (if equal_lista equal_literal (map meta_of_logic l) ["0"] then CodeConst.Printf.sprintf2 "subst %s%s" s_asm (of_semi_thm_attribute to_string s)
           else CodeConst.Printf.sprintf3 "subst %s(%s) %s" s_asm (CodeConst.String.concat " " (map to_string l)) (of_semi_thm_attribute to_string s))
       end
     | Method_insert l => CodeConst.Printf.sprintf1 "insert %s" (of_semi_thm_l to_string l) | Method_plus t => CodeConst.Printf.sprintf1 "(%s)+" (CodeConst.String.concat ", " (mapa (of_semi_method to_string to_nat) t))
@@ -17264,9 +17396,9 @@ fun of_all_meta_embeddinga to_string to_nat env =
              | META_generic aa => of_ocl_generica to_string env aa));
 
 fun sml_escape x =
-  replace_charsa
-    (fn xa => (if ((xa : char) = #"\n") then SS_base (ST "\\n")
-                else (if ((xa : char) = #"\^E") then SS_base (ST "\\005") else (if ((xa : char) = #"\^F") then SS_base (ST "\\006") else (if ((xa : char) = #"\127") then SS_base (ST "\\127") else SS_base (STa [xa]))))))
+  replace_integersa
+    (fn xa => (if xa = (10 : IntInf.int) then SS_base (ST "\092n")
+                else (if xa = (5 : IntInf.int) then SS_base (ST "\092005") else (if xa = (6 : IntInf.int) then SS_base (ST "\092006") else (if xa = (127 : IntInf.int) then SS_base (ST "\092127") else SS_base (STa [xa]))))))
     x;
 
 fun of_string_b_a_s_e a b = (fn x => b (flattena [SS_base (ST "(META.ST \""), sml_escape (to_String x), SS_base (ST "\")")]));
@@ -17667,7 +17799,7 @@ fun of_TypeSign of_string of_Pair of_Nil of_Cons a b =
   rec_TypeSign (ap3 a (b (SS_base (ST "TypeSign"))) (of_Name of_string a b) (of_list of_Nil of_Cons a b (of_pair of_Pair a b (of_Name of_string a b) (of_Sort of_string of_Nil of_Cons a b))) (of_Type of_string of_Nil of_Cons a b));
 
 fun rec_Literal f1 f2 (Int x1) = f1 x1
-  | rec_Literal f1 f2 (Stringa x2) = f2 x2;
+  | rec_Literal f1 f2 (String x2) = f2 x2;
 
 fun of_Literal of_string of_nat a b = rec_Literal (ap1 a (b (SS_base (ST "Int"))) (of_nat a b)) (ap1 a (b (SS_base (ST "String"))) (of_string a b));
 
@@ -17855,6 +17987,8 @@ fun of_all_meta to_string to_nat env =
 
 fun term_string s = Term_basic [flattena [SS_base (ST "\""), s, SS_base (ST "\"")]];
 
+val integer_escape : int = (9 : IntInf.int);
+
 fun of_all_meta_lists to_string to_nat env l_thy =
   let
     val (th_beg, th_end) =
@@ -17868,7 +18002,7 @@ fun of_all_meta_lists to_string to_nat env l_thy =
                                           let
                                             val (l_thya, lg) = mapM (fn la => fn n => (of_all_meta to_string to_nat env la, succ (one_natural, plus_natural) n)) l Code_Numeral.zero_natural;
                                           in
-                                            ("" :: CodeConst.Printf.sprintf5 "%s(* %d ************************************ %d + %d *)%s" (to_string (if moreg env then SS_base (ST "") else SS_base (STa [char_escape])))
+                                            ("" :: CodeConst.Printf.sprintf5 "%s(* %d ************************************ %d + %d *)%s" (to_string (if moreg env then SS_base (ST "") else SS_base (STa [integer_escape])))
                                                      (to_nat (succ (one_natural, plus_natural) i)) (to_nat cpt) (to_nat lg) (case msg of NONE => "" | SOME msga => CodeConst.Printf.sprintf1 "  (* term %s *)" (to_string msga)) ::
                                                      l_thya,
                                               (succ (one_natural, plus_natural) i, Code_Numeral.plus_natural cpt lg))
@@ -17960,12 +18094,12 @@ fun cWhile x = (fn a => fn b => fn c => CWhile0 (x, a, b, c));
 
 val cXorOp : cBinaryOp = CXorOp0;
 
-fun textstr_of_str f_flatten f_char f_str str =
+fun textstr_of_str f_flatten f_integer f_str str =
   let
     val str0 = to_list str;
     val f_letter = (fn c => is_letter c orelse (is_digit c orelse is_special c));
     val _ = SS_base (ST "c");
-    val f_text = (fn a => (case a of Nsplit_text l => flattena [f_str (flattena [SS_base (ST "STR ''"), SS_base (STa l), SS_base (ST "''")])] | Nsplit_sep c => flattena [f_char c]));
+    val f_text = (fn a => (case a of Nsplit_text l => flattena [f_str (flattena [SS_base (ST "STR ''"), SS_base (STa l), SS_base (ST "''")])] | Nsplit_sep c => flattena [f_integer c]));
     val stra = (case nsplit_f str0 (not o f_letter) of [] => flattena [f_str (SS_base (ST "STR ''''"))] | [x] => f_text x
                  | x :: ab :: lista => flattenb (flattena (map (fn xa => flattenb (SS_base (ST "(")) (flattenb (f_text xa) (SS_base (ST ") # ")))) (x :: ab :: lista))) (SS_base (ST "[]")));
   in
@@ -18326,13 +18460,6 @@ fun clangCVersion x = ClangCVersion0 x;
 
 fun isabelle_apply s l = flattena [s, flattena (map (fn sa => flattena [SS_base (ST " ("), sa, SS_base (ST ")")]) l)];
 
-fun char_to_digit16 c = let
-                          val n = nat_of_char c;
-                          val f = nth [#"0", #"1", #"2", #"3", #"4", #"5", #"6", #"7", #"8", #"9", #"A", #"B", #"C", #"D", #"E", #"F"];
-                        in
-                          SS_base (STa [f (divide_nat n (nat_of_integer (16 : IntInf.int))), f (modulo_nat n (nat_of_integer (16 : IntInf.int)))])
-                        end;
-
 val builtinPosition : positiona = BuiltinPosition0;
 
 fun rec_ext_decl f1 f2 (FnDefn (x11, x12, x13, x14)) = f1 x11 x12 x13 x14
@@ -18370,6 +18497,13 @@ fun check_export_code f_writeln f_warning f_error f_raise l_report msg_last =
   in
     (if null l_err then () else f_raise (flattenb (nat_to_digit10 (size_list l_err)) msg_last))
   end;
+
+fun integer_to_digit16 x = let
+                             val f = nth ((map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) "0123456789ABCDEF") o nat_of_integer;
+                           in
+                             (fn xa => SS_base (STa [f (divide_integer xa (16 : IntInf.int)), f (modulo_integer xa (16 : IntInf.int))]))
+                           end
+                             x;
 
 fun rec_SourcePos f (Ta (x1, x2, x3)) = f x1 x2 x3;
 
@@ -18485,7 +18619,7 @@ val of_Paira : abr_string = SS_base (ST "Pair");
 
 val of_Somea : abr_string = SS_base (ST "Some");
 
-fun of_boola b = (fn a => (case a of true => b (SS_base (ST "True")) | false => b (SS_base (ST "False"))));
+fun of_boolb b = (fn a => (case a of true => b (SS_base (ST "True")) | false => b (SS_base (ST "False"))));
 
 fun of_lista a b f = (rec_list (b of_Nila) o co1 k) (ar2 a (b of_Consa) f);
 
@@ -18507,8 +18641,8 @@ fun of_optiona a b f = rec_option (b of_Nonea) (ap1 a (b of_Somea) f);
 
 fun of_string_gen s_flatten s_st0 s_st a b s =
   b let
-      val sa = textstr_of_str (fn c => flattenb (SS_base (ST "(")) (flattenb s_flatten (flattenb (SS_base (ST " ")) (flattenb c (SS_base (ST ")"))))))
-                 (fn x => s_st0 (flattena [SS_base (ST " ("), SS_base (ST "CHR 0x"), char_to_digit16 x, SS_base (ST ")")])) (fn c => s_st (flattena [SS_base (ST " ("), c, SS_base (ST ")")])) s;
+      val sa = textstr_of_str (fn c => flattenb (SS_base (ST "(")) (flattenb s_flatten (flattenb (SS_base (ST " ")) (flattenb c (SS_base (ST ")")))))) (fn x => s_st0 (flattena [SS_base (ST " 0x"), integer_to_digit16 x]))
+                 (fn c => s_st (flattena [SS_base (ST " ("), c, SS_base (ST ")")])) s;
     in
       flattena [SS_base (ST "("), sa, SS_base (ST ")")]
     end;
@@ -18517,7 +18651,7 @@ fun of_stringa x =
   of_string_gen (SS_base (ST "Init.S.flatten")) (fn s => flattena [SS_base (ST "(Init.ST0"), s, SS_base (ST ")")])
     (fn s => flattena [SS_base (ST "(Init.abr_string.SS_base (Init.string\092<^sub>b\092<^sub>a\092<^sub>s\092<^sub>e.ST"), s, SS_base (ST "))")]) x;
 
-fun rec_base_inttype f1 f2 f3 f4 f5 f6 f7 Char = f1
+fun rec_base_inttype f1 f2 f3 f4 f5 f6 f7 Charb = f1
   | rec_base_inttype f1 f2 f3 f4 f5 f6 f7 Short = f2
   | rec_base_inttype f1 f2 f3 f4 f5 f6 f7 Inta = f3
   | rec_base_inttype f1 f2 f3 f4 f5 f6 f7 Long = f4
@@ -18545,8 +18679,8 @@ fun of_string_b_a_s_ea a b s =
     (fn sa => flattena [SS_base (ST "(Init.string\092<^sub>b\092<^sub>a\092<^sub>s\092<^sub>e.ST"), sa, SS_base (ST ")")]) a b (to_String s);
 
 fun compiler_env_configa a b =
-  of_compiler_env_config id of_stringa of_string_b_a_s_ea of_nata of_unita of_boola of_Paira of_Nila of_Consa of_Nonea of_Somea a b
-    (fn aa => fn ba => of_paira aa ba (of_lista aa ba (of_all_meta_embedding id of_stringa of_nata of_unita of_boola of_Paira of_Nila of_Consa of_Nonea of_Somea aa ba)) (of_optiona aa ba (of_stringa aa ba)));
+  of_compiler_env_config id of_stringa of_string_b_a_s_ea of_nata of_unita of_boolb of_Paira of_Nila of_Consa of_Nonea of_Somea a b
+    (fn aa => fn ba => of_paira aa ba (of_lista aa ba (of_all_meta_embedding id of_stringa of_nata of_unita of_boolb of_Paira of_Nila of_Consa of_Nonea of_Somea aa ba)) (of_optiona aa ba (of_stringa aa ba)));
 
 fun isabelle_of_compiler_env_config x = compiler_env_configa x;
 

@@ -1,5 +1,5 @@
 (******************************************************************************
- * Generation of Language.C Grammar with ML Interface Binding
+ * Isabelle/C
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
@@ -39,7 +39,7 @@ chapter \<open>Isabelle/C\<close>
 section \<open>Definition of the Abstract Syntax Tree (from the Haskell Language.C project)\<close>
 
 theory C_Ast
-  imports "../C_Intro"
+  imports Main
 begin
 
 subsection \<open>Loading of the Generated AST\<close>
@@ -206,6 +206,7 @@ fun maybe def f = fn C_Ast.None => def | C_Ast.Some x => f x
 val Reversed = I
 (**)
 val From_string = C_Ast.SS_base o C_Ast.ST
+val From_char_hd = hd o C_Ast.explode
 (**)
 val Namea = C_Ast.name
 (**)

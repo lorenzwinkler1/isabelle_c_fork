@@ -1,5 +1,5 @@
 (******************************************************************************
- * Generation of Language.C Grammar with ML Interface Binding
+ * Isabelle/C
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
@@ -214,7 +214,7 @@ struct
   type 'a monad = arg -> 'a * arg
 
   (**)
-  val To_string0 = String.implode o to_list
+  val To_string0 = C_Ast.meta_of_logic
   fun reverse l = rev l
 
   fun report [] _ _ = I
@@ -561,14 +561,14 @@ end
 subsection \<open>Loading the Generic Grammar Simulator\<close>
 
 text \<open> The parser consists of a generic module
-\<^file>\<open>../copied_from_git/mlton/lib/mlyacc-lib/base.sig\<close>, which interprets an
+\<^file>\<open>../../mlton/lib/mlyacc-lib/base.sig\<close>, which interprets an
 automata-like format generated from ML-Yacc. \<close>
 
-ML_file "../copied_from_git/mlton/lib/mlyacc-lib/base.sig"
-ML_file "../copied_from_git/mlton/lib/mlyacc-lib/join.sml"
-ML_file "../copied_from_git/mlton/lib/mlyacc-lib/lrtable.sml"
-ML_file "../copied_from_git/mlton/lib/mlyacc-lib/stream.sml"
-ML_file "../copied_from_git/mlton/lib/mlyacc-lib/parser1.sml"
+ML_file "../../mlton/lib/mlyacc-lib/base.sig"
+ML_file "../../mlton/lib/mlyacc-lib/join.sml"
+ML_file "../../mlton/lib/mlyacc-lib/lrtable.sml"
+ML_file "../../mlton/lib/mlyacc-lib/stream.sml"
+ML_file "../../mlton/lib/mlyacc-lib/parser1.sml"
 
 subsection \<open>Loading the Generated Grammar (SML signature)\<close>
 
@@ -579,7 +579,7 @@ subsection \<open>Overloading Grammar Rules\<close>
 ML \<comment> \<open>\<^file>\<open>../generated/c_grammar_fun.grm.sml\<close>\<close> \<open>
 structure C_Grammar_Rule_Wrap_Overloading = struct
 open C_Grammar_Rule_Lib
-val To_string0 = String.implode o C_Ast.to_list
+val To_string0 = C_Ast.meta_of_logic
 
 val update_env =
  fn C_Transition.Bottom_up => (fn f => fn x => fn arg => ((), C_Env.map_env_tree (f x (#env_lang arg) #> #2) arg))

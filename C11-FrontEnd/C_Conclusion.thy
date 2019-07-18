@@ -1,5 +1,5 @@
 (******************************************************************************
- * Generation of Language.C Grammar with ML Interface Binding
+ * Isabelle/C
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
@@ -36,7 +36,7 @@
 
 (*<*)
 theory C_Conclusion
-  imports C.C_Main
+  imports C_Intro
 begin
 (*>*)
 

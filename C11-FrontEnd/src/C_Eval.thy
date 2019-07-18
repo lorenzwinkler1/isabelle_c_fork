@@ -1,5 +1,5 @@
 (******************************************************************************
- * Generation of Language.C Grammar with ML Interface Binding
+ * Isabelle/C
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
@@ -41,9 +41,9 @@ theory C_Eval
           C_Parser_Annotation
 begin
 
-subsection \<open>Evaluation Engine for the Core Language\<close> \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/thy_info.ML\<close>: \<^theory>\<open>C.C_Parser_Language\<close>\<close>
+subsection \<open>Evaluation Engine for the Core Language\<close> \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/thy_info.ML\<close>: \<^theory>\<open>Isabelle_C.C_Parser_Language\<close>\<close>
 
-ML \<comment> \<open>\<^theory>\<open>C.C_Environment\<close>\<close> \<open>
+ML \<comment> \<open>\<^theory>\<open>Isabelle_C.C_Environment\<close>\<close> \<open>
 structure C_Stack =
 struct
 type 'a stack_elem = (LALR_Table.state, 'a, Position.T) C_Env.stack_elem0
@@ -82,7 +82,7 @@ fun stack_exec env_dir data_put f =
 end
 \<close>
 
-ML \<comment> \<open>\<^theory>\<open>C.C_Lexer\<close>\<close> \<open>
+ML \<comment> \<open>\<^theory>\<open>Isabelle_C.C_Lexer\<close>\<close> \<open>
 structure C_Grammar_Lexer : ARG_LEXER1 =
 struct
 structure LALR_Lex_Instance =
@@ -186,7 +186,7 @@ fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
      | SOME (Right (C_Lex.Token ((pos1, pos2), (tok, src)))) =>
        case tok of
          C_Lex.Char (b, [c]) =>
-          return0 (C_Grammar.Tokens.cchar (CChar (String.sub (c,0)) b, pos1, pos2))
+          return0 (C_Grammar.Tokens.cchar (CChar (From_char_hd c) b, pos1, pos2))
        | C_Lex.String (b, s) =>
           return0 (C_Grammar.Tokens.cstr (CString0 (From_string (implode s), b), pos1, pos2))
        | C_Lex.Integer (i, repr, flag) =>
@@ -212,7 +212,7 @@ fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
           C_Grammar_Tokens.token_of_string
                           (C_Grammar.Tokens.error (pos1, pos2))
                           (ClangCVersion0 (From_string src))
-                          (CChar #"0" false)
+                          (CChar (From_char_hd "0") false)
                           (CFloat (From_string src))
                           (CInteger 0 DecRepr (Flags 0))
                           (CString0 (From_string src, false))
@@ -227,10 +227,10 @@ end
 \<close>
 
 text \<open> This is where the instancing of the parser functor (from
-\<^theory>\<open>C.C_Parser_Language\<close>) with the lexer (from
-\<^theory>\<open>C.C_Lexer\<close>) actually happens ... \<close>
+\<^theory>\<open>Isabelle_C.C_Parser_Language\<close>) with the lexer (from
+\<^theory>\<open>Isabelle_C.C_Lexer\<close>) actually happens ... \<close>
 
-ML \<comment> \<open>\<^theory>\<open>C.C_Parser_Language\<close>\<close> \<open>
+ML \<comment> \<open>\<^theory>\<open>Isabelle_C.C_Parser_Language\<close>\<close> \<open>
 structure C_Grammar_Parser =
   LALR_Parser_Join (structure LrParser = LALR_Parser_Eval
                     structure ParserData = C_Grammar.ParserData
@@ -318,7 +318,7 @@ fun eval env_lang err accept stream_lang =
 end
 \<close>
 
-subsection \<open>Full Evaluation Engine (Core Language + Annotation)\<close> \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/thy_info.ML\<close>: \<^theory>\<open>C.C_Parser_Language\<close>, \<^theory>\<open>C.C_Parser_Annotation\<close>\<close>
+subsection \<open>Full Evaluation Engine (Core Language + Annotation)\<close> \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/thy_info.ML\<close>: \<^theory>\<open>Isabelle_C.C_Parser_Language\<close>, \<^theory>\<open>Isabelle_C.C_Parser_Annotation\<close>\<close>
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_context.ML\<close>\<close>
 (*  Author:     Frédéric Tuong, Université Paris-Saclay *)

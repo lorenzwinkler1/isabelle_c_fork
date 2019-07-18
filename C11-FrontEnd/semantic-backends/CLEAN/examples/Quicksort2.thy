@@ -1,5 +1,5 @@
 (******************************************************************************
- * Generation of Language.C Grammar with ML Interface Binding
+ * Isabelle/C
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
@@ -40,6 +40,7 @@
  * the BSD 2-Clause license. Note that NO WARRANTY is provided.
  * See "LICENSE_BSD2.txt" for details.
  *
+ * @TAG(NICTA_BSD)
  *)
 
 theory Quicksort2
@@ -50,7 +51,7 @@ begin
 C \<open>
 #define MAXSIZE 100
 
-unsigned int A[100];
+unsigned int A[MAXSIZE];
 
 swap_A(unsigned long i,unsigned long j) {
   unsigned long tmp = A[i]; A[i] = A[j]; A[j] = tmp ;
