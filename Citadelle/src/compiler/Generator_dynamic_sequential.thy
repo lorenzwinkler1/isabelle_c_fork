@@ -44,7 +44,6 @@ section\<open>Dynamic Meta Embedding with Reflection\<close>
 theory Generator_dynamic_sequential
 imports Printer
         "../compiler_generic/isabelle_home/src/HOL/Isabelle_Main2"
-        "~~/src/HOL/Library/Old_Datatype"
   keywords (* OCL (USE tool) *)
            "Between"
            "Attributes" "Operations" "Constraints"
@@ -207,15 +206,6 @@ structure Outer_Syntax' = struct
                                                  | Toplevel'.Read_Write _ => I) tr thy)
   fun command name_pos comment parse =
     Outer_Syntax.command name_pos comment (parse >> (Toplevel.theory o command'))
-end
-
-structure Old_Datatype_Aux' = struct
-  fun default_config' n =
-    if n = 0 then
-      Old_Datatype_Aux.default_config
-    else
-      let val _ = warning "Type of datatype not available in this running version of Isabelle"
-      in Old_Datatype_Aux.default_config end
 end
 
 structure Resources' = struct
@@ -484,8 +474,7 @@ fun end' top =
 structure Cmd = struct open META open META_overload
 fun input_source ml = Input.source false (of_semi__term' ml) (Position.none, Position.none)
 
-fun datatype' top (Datatypea (version, l)) = 
-  case version of Datatype_new => #local_theory top NONE NONE
+fun datatype' top (Datatypea (version, l)) = \<^cancel>\<open>case version of Datatype_new =>\<close> #local_theory top NONE NONE
   (BNF_FP_Def_Sugar.co_datatype_cmd
     BNF_Util.Least_FP
     BNF_LFP.construct_lfp
@@ -497,14 +486,16 @@ fun datatype' top (Datatypea (version, l)) =
                                          , NoSyn)) l)
               , (To_binding "", To_binding "", To_binding ""))
             , [])) l)))
-  | _ => #theory top
-  ((snd oo Old_Datatype.add_datatype_cmd
-     (Old_Datatype_Aux'.default_config'
-       (case version of Datatype_old => 0 | Datatype_old_atomic => 1 | _ => 2)))
+  |> \<^cancel>\<open>| _ => #theory top\<close>
+  (\<^cancel>\<open>snd oo Old_Datatype.add_datatype_cmd\<close>
+     (tap
+       (fn _ => case version of Datatype_new => ()
+                              | _ => warning "Type of datatype not available in this running version of Isabelle")
+       ) \<^cancel>\<open>
     (map (fn ((n, v), l) =>
            ( (To_sbinding n, map (fn v => (To_string0 v, NONE)) v, NoSyn)
            , List.map (fn (n, l) => (To_sbinding n, List.map of_semi__typ l, NoSyn)) l))
-         l))
+         l)\<close>)
 
 fun type_synonym top (Type_synonym ((n, v), l)) = #theory top (fn thy => let val s_bind = To_sbinding n in
   (snd o Typedecl.abbrev_global
@@ -799,7 +790,7 @@ fun meta_command0 s_put f_get constraint source =
        (ML_Lex.read "let open META val ML = META.SML val "
         @ ML_Lex.read_set_range (Input.range_of source) name
         @ ML_Lex.read (" : " ^ constraint ^ " = ")
-        @ ML_Lex.read_source false source
+        @ ML_Lex.read_source source
         @ ML_Lex.read (" in Context.>> (Context.map_theory (" ^ s_put ^ " " ^ name ^ ")) end"))
   #> Context.map_theory_result (fn thy => (f_get thy, thy))
   #> fst
@@ -1088,7 +1079,7 @@ fun meta_command0 s_put f_get f_get0 constraint source =
        (ML_Lex.read "let open META val ML = META.SML val "
         @ ML_Lex.read_set_range (Input.range_of source) name
         @ ML_Lex.read (" : " ^ constraint ^ " = ")
-        @ ML_Lex.read_source false source
+        @ ML_Lex.read_source source
         @ ML_Lex.read (" in Context.>> (Context.map_theory (fn thy => " ^ s_put ^ " (" ^ name ^ " (" ^ f_get0 ^ " thy)) thy)) end"))
   #> Context.map_theory_result (fn thy => (f_get thy, thy))
   #> fst
@@ -1230,13 +1221,13 @@ fun thy_shallow l_obj get_all_meta_embed =
                 (K o K thy0)
                 (fn msg =>
                   let val () = disp_time msg ()
-                      fun in_self f lthy = lthy
-                                         |> Local_Theory.new_group
-                                         |> f
-                                         |> Local_Theory.reset_group
-                                            \<comment> \<open>Note: \<^ML>\<open>Local_Theory.reset\<close> is mandatory
-                                                   for the cases listed in \<^ML>\<open>Named_Target.switch\<close>.\<close>
-                                         |> Local_Theory.reset
+                      fun in_self f =
+                        \<comment> \<open>Note: This function is not equivalent to \<^ML>\<open>Local_Theory.subtarget\<close>.\<close>
+                        Local_Theory.new_group
+                        #> f
+                        #> Local_Theory.reset_group
+                        #> (fn lthy =>
+                            #1 (Named_Target.switch NONE (Context.Proof lthy)) lthy |> Context.the_proof)
                       fun not_used p _ = error ("not used " ^ Position.here p)
                       val context_of = I
                       fun proof' f = f true
