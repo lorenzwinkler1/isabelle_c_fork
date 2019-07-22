@@ -331,18 +331,18 @@ fun mk_pop_def name p rty sty =
 
 
 (* tests *)
-ML\<open>
-mk_push_def "qquicksort" @{here}  @{typ "'a local_quicksort_state_scheme"} @{theory};
-
+(*
+setup\<open>
+mk_push_def "qquicksort" @{here}  @{typ "'a local_quicksort_state_scheme"}
 \<close>
-ML\<open>
-mk_pop_def "qquicksort" @{here} @{typ "int"} @{typ "'a local_quicksort_state_scheme"} @{theory}
-
+setup\<open>
+mk_pop_def "qquicksort" @{here} @{typ "int"} @{typ "'a local_quicksort_state_scheme"}
 \<close>
+*)
 
 
-
-ML\<open>
+setup\<open>
+let
 fun mk_pop_def name p rty sty = 
     let val mty = StateMgt_core.MON_SE_T rty sty 
         val nameb =  mk_pop_name name p
@@ -353,9 +353,9 @@ fun mk_pop_def name p rty sty =
                         #2 oo Specification.definition' decl params prems spec)
     in cmd args true
     end;
-
-mk_pop_def "qquicksort" @{here} @{typ "int"} @{typ "'a local_quicksort_state_scheme"} 
-           ( @{context})
+in
+Named_Target.theory_map (mk_pop_def "qquicksort" @{here} @{typ "int"} @{typ "'a local_quicksort_state_scheme"})
+end
 \<close>
 
 definition pop_local_quicksort_state :: "(unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
