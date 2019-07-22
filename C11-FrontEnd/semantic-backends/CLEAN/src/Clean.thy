@@ -258,8 +258,6 @@ end
 *}
 
 ML{*
-val SPY = Unsynchronized.ref([]:(binding * typ * mixfix)list)
-
 fun read_parent NONE ctxt = (NONE, ctxt)
   | read_parent (SOME raw_T) ctxt =
       (case Proof_Context.read_typ_abbrev ctxt raw_T of
@@ -286,7 +284,6 @@ fun add_record_cmd overloaded is_global_kind (raw_params, binding) raw_parent ra
             if is_global_kind 
             then declare StateMgt_core.global_var (Binding.name_of f) thy'
             else declare StateMgt_core.local_var  (Binding.name_of f) thy'
-    val _ = (SPY := fields)
   in thy |> Record.add_record overloaded (params', binding) parent fields 
          |> (fn thy =>  List.foldr insert_var (thy) (fields)) 
   end;
@@ -299,20 +296,16 @@ fun typ_2_string_raw (Type(s,[])) = s
                                   
 
 fun new_state_record  is_global_kind (raw_params, binding)  raw_fields thy =
-    let val _ = writeln ("<Z " ^ (typ_2_string_raw (StateMgt_core.get_state_type_global thy)))
+    let val _ = fn _ => writeln ("<Z " ^ (typ_2_string_raw (StateMgt_core.get_state_type_global thy)))
         val raw_parent = SOME(typ_2_string_raw (StateMgt_core.get_state_type_global thy))
         fun upd_state_typ thy = let val t = Syntax.parse_typ(Proof_Context.init_global thy) 
                                                             (Binding.name_of binding)
-                                    val _ = writeln ("Z> "^(typ_2_string_raw t))
+                                    val _ = fn _ => writeln ("Z> "^(typ_2_string_raw t))
                                 in  StateMgt_core.upd_state_type_global(K t)(thy) end
     in  thy |> add_record_cmd {overloaded = false} is_global_kind 
                               (raw_params, binding) raw_parent raw_fields 
             |> upd_state_typ
     end
-
-val _ = new_state_record : bool ->
-      (string * string option) list * binding ->
-        (binding * string * mixfix) list -> theory -> theory
 
 val _ =
   Outer_Syntax.command @{command_keyword global_vars} "define global state record"
@@ -497,7 +490,6 @@ shows  "(\<sigma> \<Turnstile> (while\<^sub>C P do B\<^sub>1 od);-M) = (\<sigma>
 text\<open> Syntactic sugar via cartouches \<close>
 
 ML \<open>
-val SPY = Unsynchronized.ref(Bound 0)
   local
     fun app_sigma db tm ctxt = case tm of
         Const(name, _) => if StateMgt_core.is_program_variable name (Proof_Context.theory_of ctxt) 
@@ -534,7 +526,6 @@ val SPY = Unsynchronized.ref(Bound 0)
               SOME (pos, _) =>
               let val txt = Symbol_Pos.implode(content (s,pos))
                   val tm = Syntax.parse_term ctxt txt
-                  val _ = (SPY := tm)
                   val tr = transform_term tm ctxt
                   val ct = Syntax.check_term ctxt tr
               in
