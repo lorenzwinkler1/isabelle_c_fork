@@ -100,6 +100,8 @@ funct quicksort(lo::int, hi::int) returns unit
 
 global_vars state
     A :: "int list "
+
+
 ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory}; \<close>
 
 
@@ -228,11 +230,16 @@ definition partition_contract :: "nat \<Rightarrow> nat \<Rightarrow>  (nat,'a l
 
 subsection \<open>Encoding quicksort in CLEAN\<close>
 
+record a = 
+   b :: int
+
 local_vars  local_quicksort_state "unit"
     p  :: "nat"
 
 
-ML\<open> val (x,y) = StateMgt_core.get_data_global @{theory}; \<close>
+ML\<open> val (x,y) = StateMgt_core.get_data_global @{theory}; 
+Global_Theory.add_defs true;
+\<close>
 
 (*
 funct quicksort(lo::nat, hi::nat) returns unit
@@ -260,8 +267,81 @@ val H = (fn (((decl, spec), prems), params) =>
 val H = (fn (((decl, spec), prems), params) =>
         #2 oo Specification.definition' decl params prems spec);
 
+Global_Theory.add_defs true; 
+
+fun mk_push_name s p = Binding.name("push_local_"^s^"_state")
+fun mk_pop_name s p = Binding.make("pop_local_"^s^"_state",p)
+
+
+
+(* HOLogic extended *)
+
+fun mk_None ty = let val none = \<^const_name>\<open>Option.option.None\<close>
+                     val none_ty = ty --> Type(\<^type_name>\<open>option\<close>,[ty])
+                in  Const(none, none_ty)
+                end;
+fun mk_Some t = let val some = \<^const_name>\<open>Option.option.Some\<close> 
+                    val ty = fastype_of t
+                    val some_ty = ty --> Type(\<^type_name>\<open>option\<close>,[ty])
+                in  Const(some, some_ty) $  t
+                end;
+
+fun  mk_undefined (@{typ "unit"}) = Const (\<^const_name>\<open>Product_Type.Unity\<close>, \<^typ>\<open>unit\<close>)
+    |mk_undefined t               = Const (\<^const_name>\<open>HOL.undefined\<close>, t)
+
+fun meta_eq_const T = Const (\<^const_name>\<open>Pure.eq\<close>, T --> T --> propT);
+
+fun mk_meta_eq (t, u) = meta_eq_const (fastype_of t) $ t $ u;
+
+
+(* the meat *)
+
+fun push_eq name sty = 
+         let val rty = \<^typ>\<open>unit\<close>
+             val mty = StateMgt_core.MON_SE_T rty sty 
+         in  mk_meta_eq((Free(name, mty) $ Free("\<sigma>",sty)), 
+                         mk_Some ( HOLogic.mk_prod (mk_undefined rty,Free("\<sigma>", sty))))
+                          
+         end;
+
+
+fun pop_eq name rty sty = 
+         let val mty = StateMgt_core.MON_SE_T rty sty 
+         in  mk_meta_eq((Free(name, mty) $ Free("\<sigma>",sty)), 
+                         mk_Some ( HOLogic.mk_prod (mk_undefined rty,Free("\<sigma>", sty))))
+                          
+         end;
+
+
+fun mk_push_def name p  sty = 
+    let val nameb =  mk_push_name name p
+        val nameb_str = Binding.name_of nameb
+        val eq = push_eq nameb_str  sty
+    in #2 o Global_Theory.add_defs true [((nameb,eq),[])] 
+    end;
+
+fun mk_pop_def name p rty sty = 
+    let val nameb =  mk_pop_name name p
+        val nameb_str = Binding.name_of nameb
+        val eq = pop_eq nameb_str rty sty
+    in #2 o Global_Theory.add_defs true [((nameb,eq),[])] 
+    end;
+
 \<close>
-definition pop_local_quicksort_state :: "(unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E" 
+
+
+(* tests *)
+ML\<open>
+mk_push_def "qquicksort" @{here}  @{typ "'a local_quicksort_state_scheme"} @{theory};
+
+\<close>
+ML\<open>
+mk_pop_def "qquicksort" @{here} @{typ "int"} @{typ "'a local_quicksort_state_scheme"} @{theory}
+
+\<close>
+
+
+definition pop_local_quicksort_state :: "(unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
   where   "pop_local_quicksort_state \<sigma> = Some(hd(local_quicksort_state.result_value \<sigma>),
                        \<sigma>\<lparr>local_quicksort_state.p   := tl(local_quicksort_state.p \<sigma>), 
                          local_quicksort_state.result_value := 
