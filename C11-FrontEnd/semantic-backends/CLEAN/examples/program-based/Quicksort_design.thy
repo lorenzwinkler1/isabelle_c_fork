@@ -108,9 +108,8 @@ subsection \<open>Encoding swap in CLEAN\<close>
 (* for some strange reason, "result" is no longer a term. term "result" crashes. *)
 (* list-lifting should be automatic in local_vars. *)
 
-local_vars local_swap_state
-   tmp :: "int list" 
-   res :: "unit list"
+local_vars local_swap_state "unit"
+   tmp :: "int" 
 
 
 definition push_local_state_swap :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
@@ -119,8 +118,9 @@ definition push_local_state_swap :: "(unit,'a local_swap_state_scheme) MON\<^sub
 
 definition pop_local_state_swap :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
   where   "pop_local_state_swap \<sigma> = 
-                    Some(hd(local_swap_state.res \<sigma>), \<comment> \<open> recall : returns op value \<close>
-                                                     \<comment> \<open> which happens to be unit \<close>
+                    Some(hd(local_swap_state.result_value \<sigma>), 
+                                \<comment> \<open> recall : returns op value \<close>
+                                \<comment> \<open> which happens to be unit \<close>
                          \<sigma>\<lparr>local_swap_state.tmp:= tl( local_swap_state.tmp \<sigma>) \<rparr>)"
 
 
@@ -160,11 +160,10 @@ definition swap' :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a state_scheme)
 subsection \<open>Encoding partition in CLEAN\<close>
 
 (* recall: list-lifting should be automatic in local_vars. *)
-local_vars  local_partition_state
-    pivot  :: "int list"
-    i      :: "nat list"
-    j      :: "nat list"
-    res    :: "nat list"
+local_vars  local_partition_state "nat"
+    pivot  :: "int"
+    i      :: "nat"
+    j      :: "nat"
 
 (* this implies the definitions : *)
 definition push_local_partition_state :: "(unit, 'a local_partition_state_scheme) MON\<^sub>S\<^sub>E"
@@ -172,14 +171,16 @@ definition push_local_partition_state :: "(unit, 'a local_partition_state_scheme
                         \<sigma>\<lparr>local_partition_state.pivot := undefined # local_partition_state.pivot \<sigma>, 
                           local_partition_state.i     := undefined # local_partition_state.i \<sigma>, 
                           local_partition_state.j     := undefined # local_partition_state.j \<sigma>, 
-                          local_partition_state.res   := undefined # local_partition_state.res \<sigma> \<rparr>)"
+                          local_partition_state.result_value   
+                                           := undefined # local_partition_state.result_value \<sigma> \<rparr>)"
 
 definition pop_local_partition_state :: "(nat,'a local_partition_state_scheme) MON\<^sub>S\<^sub>E" 
-  where   "pop_local_partition_state \<sigma> = Some(hd(local_partition_state.res \<sigma>),
+  where   "pop_local_partition_state \<sigma> = Some(hd(local_partition_state.result_value \<sigma>),
                        \<sigma>\<lparr>local_partition_state.pivot := tl(local_partition_state.pivot \<sigma>), 
                          local_partition_state.i     := tl(local_partition_state.i \<sigma>), 
                          local_partition_state.j     := tl(local_partition_state.j \<sigma>), 
-                         local_partition_state.res   := tl(local_partition_state.res \<sigma>) \<rparr>)"
+                         local_partition_state.result_value := 
+                                                        tl(local_partition_state.result_value \<sigma>) \<rparr>)"
 
 
 definition partition_core :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a local_partition_state_scheme) MON\<^sub>S\<^sub>E"
@@ -197,7 +198,8 @@ definition partition_core :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a loca
                 od) ;-
                (assign_local j_update (\<lambda>\<sigma>. ((hd o j) \<sigma>) + 1)) ;-
                 call_2\<^sub>C (swap) (\<lambda>\<sigma>. (hd o i) \<sigma>) (\<lambda>\<sigma>. (hd o j) \<sigma>)  ;-
-                assign_local res_update (\<lambda>\<sigma>. (hd o i) \<sigma>)  \<comment> \<open> the meaning of the return stmt \<close>
+                assign_local result_value_update (\<lambda>\<sigma>. (hd o i) \<sigma>)  
+                \<comment> \<open> the meaning of the return stmt \<close>
                )"
 
 thm partition_core_def
@@ -226,9 +228,8 @@ definition partition_contract :: "nat \<Rightarrow> nat \<Rightarrow>  (nat,'a l
 
 subsection \<open>Encoding quicksort in CLEAN\<close>
 
-local_vars  local_quicksort_state
-    p  :: "nat list"
-    res:: "unit list"
+local_vars  local_quicksort_state "unit"
+    p  :: "nat"
 
 
 ML\<open> val (x,y) = StateMgt_core.get_data_global @{theory}; \<close>
@@ -250,12 +251,21 @@ funct quicksort(lo::nat, hi::nat) returns unit
 definition push_local_quicksort_state :: "(unit, 'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
   where   "push_local_quicksort_state \<sigma> = 
                  Some((), \<sigma>\<lparr>local_quicksort_state.p := undefined # local_quicksort_state.p \<sigma>,
-                            local_quicksort_state.res := undefined # local_quicksort_state.res \<sigma> \<rparr>)"
+                            local_quicksort_state.result_value := undefined # local_quicksort_state.result_value \<sigma> \<rparr>)"
 
+ML\<open>
+val H = (fn (((decl, spec), prems), params) =>
+        #2 oo Specification.definition_cmd decl params prems spec);
+
+val H = (fn (((decl, spec), prems), params) =>
+        #2 oo Specification.definition' decl params prems spec);
+
+\<close>
 definition pop_local_quicksort_state :: "(unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E" 
-  where   "pop_local_quicksort_state \<sigma> = Some(hd(local_quicksort_state.res \<sigma>),
+  where   "pop_local_quicksort_state \<sigma> = Some(hd(local_quicksort_state.result_value \<sigma>),
                        \<sigma>\<lparr>local_quicksort_state.p   := tl(local_quicksort_state.p \<sigma>), 
-                         local_quicksort_state.res := tl(local_quicksort_state.res \<sigma>) \<rparr>)"
+                         local_quicksort_state.result_value := 
+                                                      tl(local_quicksort_state.result_value \<sigma>) \<rparr>)"
 
 (* recursion not yet treated. Either axiomatazitation hack (super-dangerous) or 
    proper formalization via lfp. *)
