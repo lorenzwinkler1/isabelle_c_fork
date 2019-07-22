@@ -3,8 +3,8 @@
  * Burkhart Wolff and Chantal Keller, LRI, Univ. Paris-Sud, France
  ******************************************************************************)
 
-chapter {* The Clean Language *}
-text{* Pronounce : "C lean". *}
+chapter \<open>The Clean Language\<close>
+text\<open>Pronounce : "C lean".\<close>
 
 theory Clean
   imports Symbex_MonadSE
@@ -19,7 +19,7 @@ theory Clean
 *)
 begin
   
-text{* Clean is a minimalistic imperative language 
+text\<open>Clean is a minimalistic imperative language 
 with C-like control-flow operators based on a shallow embedding into the
 SE exception Monad theory formalized in @{theory "CLEAN_logic.MonadSE"}. It comprises:
 \begin{itemize}
@@ -33,10 +33,10 @@ SE exception Monad theory formalized in @{theory "CLEAN_logic.MonadSE"}. It comp
 \item parametric polymorphism might be added later; at present, states are
       restricted to be monmorphic.
 \item cartouche syntax for update operations.
-\end{itemize} *}
+\end{itemize}\<close>
   
   
-chapter {* Proof of concept for a monadic symbolic execution calculus for WHILE programs *}
+chapter \<open>Proof of concept for a monadic symbolic execution calculus for WHILE programs\<close>
 
 
 section\<open> Control-States  \<close>
@@ -177,7 +177,7 @@ translations
     
 section\<open> A Specialized Representation of States based on Records) \<close>
 
-ML{*
+ML\<open>
 
 structure StateMgt_core = 
 struct
@@ -245,19 +245,19 @@ val Const(name,Type("fun",a::R)) = Syntax.read_term @{context} "tm"
 *)
 end
 
-*}
+\<close>
 
 
-ML{* 
+ML\<open>
 local open StateMgt_core in
 
 val S = List.foldr (fn ((f,_,_), thy) 
                     => declare_state_variable_global global_var (Binding.name_of f) thy)  
 
 end
-*}
+\<close>
 
-ML{*
+ML\<open>
 fun read_parent NONE ctxt = (NONE, ctxt)
   | read_parent (SOME raw_T) ctxt =
       (case Proof_Context.read_typ_abbrev ctxt raw_T of
@@ -317,7 +317,7 @@ val _ =
     ((Parse.type_args_constrained -- Parse.binding) -- Scan.repeat1 Parse.const_binding
     >> (fn (x, z) => Toplevel.theory (new_state_record false x  z)));
 
-*}
+\<close>
 
 
 section\<open>Monadic Presentation of Assignments (based on Extensible Records) \<close>
@@ -632,7 +632,7 @@ next
       case True
       then show ?thesis
         apply(subst valid_bind'_cong)
-        using `\<not> exec_stop \<sigma>` apply simp_all
+        using \<open>\<not> exec_stop \<sigma>\<close> apply simp_all
         apply (auto simp: skip\<^sub>S\<^sub>E_def unit_SE_def)
           apply(subst while_C_def, simp)
          apply(subst bind'_cong)
@@ -650,14 +650,14 @@ next
            apply(subst  while_C_def)
            apply(subst  if_C_def)
            apply(subst  valid_bind'_cong)
-            apply (simp add: `\<not> exec_stop \<sigma>`)
+            apply (simp add: \<open>\<not> exec_stop \<sigma>\<close>)
            apply(subst  (2) valid_bind'_cong)
-            apply (simp add: `\<not> exec_stop \<sigma>`)
+            apply (simp add: \<open>\<not> exec_stop \<sigma>\<close>)
             apply(subst MonadSE.while_SE_unfold)
             apply(subst valid_bind'_cong)
             apply(subst bind'_cong)
              apply(subst if\<^sub>S\<^sub>E_cond_cong [of _ _ "\<lambda>_. True"])
-              apply(simp_all add:   `\<not> exec_stop \<sigma>` )
+              apply(simp_all add:   \<open>\<not> exec_stop \<sigma>\<close> )
             apply(subst bind_assoc', subst bind_assoc')
             proof(cases "c \<sigma>")
               case None
@@ -668,7 +668,7 @@ next
               case (Some a)
               then show "(\<sigma> \<Turnstile> c ;- ((while\<^sub>S\<^sub>E (\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> b \<sigma>) do c od);-unset_break);-M) =
                          (\<sigma> \<Turnstile> c ;- (while\<^sub>C b do c od) ;- unset_break ;- M)"
-                apply(insert `c \<sigma> = Some a`, subst (asm) surjective_pairing[of a])
+                apply(insert \<open>c \<sigma> = Some a\<close>, subst (asm) surjective_pairing[of a])
                 apply(subst exec_bind_SE_success2, assumption)
                 apply(subst exec_bind_SE_success2, assumption)
                 proof(cases "exec_stop (snd a)")
