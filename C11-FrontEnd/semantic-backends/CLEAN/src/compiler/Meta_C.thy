@@ -157,7 +157,7 @@ open IsabelleTermsTypes open HP_TermsTypes
 val mk_ptr_ty = I 
 val symbol_table = Free ("symbol_table", \<^typ>\<open>string => string word\<close>)
 end
-structure IntInfo = struct fun ity2wty _ = \<^typ>\<open>bool\<close> end
+structure IntInfo = struct fun ity2wty _ = \<^typ>\<open>int\<close> end
 \<close>
 \<comment> \<open>Not loaded: \<^file>\<open>../../../../../l4v/src/tools/c-parser/UMM_termstypes.ML\<close>\<close>
 \<comment> \<open>Not loaded: \<^file>\<open>../../../../../l4v/src/tools/c-parser/recursive_records/recursive_record_pp.ML\<close>\<close>
@@ -182,6 +182,10 @@ ML_file "toolkit/HPInter.ML"
 ML \<comment> \<open>\<^file>\<open>../../../../../l4v/src/tools/c-parser/isar_install.ML\<close>\<close> \<open>
 structure IsarInstall =
 struct
+
+val verbosity_level = ~1
+fun output_state (v, s) = if v <= verbosity_level then Output.state s else ()
+
 fun setup_feedback extra_output_filename = let
     val trace_extra = case extra_output_filename of
         NONE => K ()
@@ -194,7 +198,8 @@ fun setup_feedback extra_output_filename = let
   in
     Feedback.errorf := add_extra "ERROR: " (ignore o error);
     Feedback.warnf := add_extra "" warning;
-    Feedback.informf := add_extra "" (Output.tracing o Feedback.timestamp)
+    Feedback.informf := add_extra "" (Output.tracing o Feedback.timestamp);
+    Feedback.verbosity_level := verbosity_level
   end
 
 val _ = setup_feedback NONE
@@ -248,13 +253,13 @@ fun install_C_file0 ast env_lang =
   val (_, rcdinfo) = CalculateState.mk_thy_types cse false \<^theory>
   val ast = SyntaxTransforms.remove_embedded_fncalls cse ast
   (**)
-      val (_, vdecls, globs) =
+      val (_, vdecls, globs, local_rcd, global_rcd) =
           CalculateState.mk_thy_decls
             state {owners=owners,gstate_ty= \<^typ>\<open>bool\<close>,mstate_ty= \<^typ>\<open>bool\<close>} \<^theory>
-      val _ = Output.state ("Created locale for globals (" ^ "..." ^
+      val _ = output_state (0, "Created locale for globals (" ^ "..." ^
                        ")- with " ^ Int.toString (length globs) ^
                        " globals elements")
-      val _ = app (fn e => Output.state ("-- " ^ HPInter.asm_to_string (Syntax.string_of_term \<^context>) e))
+      val _ = app (fn e => output_state (0, "-- " ^ HPInter.asm_to_string (Syntax.string_of_term \<^context>) e))
                   globs
 
       val _ =
@@ -278,7 +283,7 @@ fun install_C_file0 ast env_lang =
       val fninfo : HPInter.fninfo list = HPInter.mk_fninfo \<^theory> cse toTranslateP ast
       (*val _ = writeln (\<^make_string> (ast, cse, ecenv, state, rcdinfo, vdecls, globs, fninfo))*)
   in
-    fninfo
+    (local_rcd, global_rcd, fninfo)
   end)
 
 end

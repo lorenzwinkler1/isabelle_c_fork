@@ -271,7 +271,7 @@ fun read_fields raw_fields ctxt =
     val ctxt' = fold Variable.declare_typ Ts ctxt;
   in (fields, ctxt') end;
 
-fun add_record_cmd overloaded is_global_kind (raw_params, binding) raw_parent raw_fields thy =
+fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) raw_parent raw_fields thy =
   let
     val ctxt = Proof_Context.init_global thy;
     val params = map (apsnd (Typedecl.read_constraint ctxt)) raw_params;
@@ -288,6 +288,9 @@ fun add_record_cmd overloaded is_global_kind (raw_params, binding) raw_parent ra
          |> (fn thy =>  List.foldr insert_var (thy) (fields)) 
   end;
 
+val add_record_cmd = add_record_cmd0 read_fields;
+val add_record_cmd' = add_record_cmd0 pair;
+
 
 fun typ_2_string_raw (Type(s,[])) = s
    |typ_2_string_raw (Type(s,_)) = error ("Illegal parameterized state type - not allowed in CLEAN:" 
@@ -295,7 +298,7 @@ fun typ_2_string_raw (Type(s,[])) = s
    |typ_2_string_raw _ = error "Illegal parameterized state type - not allowed in CLEAN." 
                                   
 
-fun new_state_record  is_global_kind (raw_params, binding)  raw_fields thy =
+fun new_state_record0 add_record_cmd is_global_kind (raw_params, binding)  raw_fields thy =
     let val _ = fn _ => writeln ("<Z " ^ (typ_2_string_raw (StateMgt_core.get_state_type_global thy)))
         val raw_parent = SOME(typ_2_string_raw (StateMgt_core.get_state_type_global thy))
         fun upd_state_typ thy = let val t = Syntax.parse_typ(Proof_Context.init_global thy) 
@@ -306,6 +309,9 @@ fun new_state_record  is_global_kind (raw_params, binding)  raw_fields thy =
                               (raw_params, binding) raw_parent raw_fields 
             |> upd_state_typ
     end
+
+val new_state_record = new_state_record0 add_record_cmd
+val new_state_record' = new_state_record0 add_record_cmd'
 
 val _ =
   Outer_Syntax.command @{command_keyword global_vars} "define global state record"
