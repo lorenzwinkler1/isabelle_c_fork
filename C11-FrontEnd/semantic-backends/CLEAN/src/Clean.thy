@@ -42,10 +42,8 @@ chapter \<open>Proof of concept for a monadic symbolic execution calculus for WH
 section\<open> Control-States  \<close>
   
 record  control_state = 
-          break_val  :: bool
-          return_val :: bool
-          
-typ "('a) control_state_ext"
+            break_status  :: bool
+            return_status :: bool
 
 ML\<open> 
 fun typ_2_string_raw (Type(s,S)) = 
@@ -58,26 +56,21 @@ typ_2_string_raw @{ typ "('a) control_state_ext"}
 \<close>
 
 
-record  mmm = "control_state" +
-       df :: "int"
-
-record mmk = "mmm" + dsf :: int 
-
 (* break quites innermost while or for, return quits an entire execution sequence. *)  
 definition break :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"
-  where   "break \<equiv> (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> break_val := True \<rparr>))"
+  where   "break \<equiv> (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> break_status := True \<rparr>))"
   
-definition unset_break :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"
-  where   "unset_break \<equiv> (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> break_val := False \<rparr>))"
+definition unset_break_status :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"
+  where   "unset_break_status \<equiv> (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> break_status := False \<rparr>))"
 
 definition return :: "'\<alpha> \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"    
-  where   "return x = (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> return_val := True \<rparr>))"
+  where   "return x = (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> return_status := True \<rparr>))"
     
-definition unset_return :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"    
-  where   "unset_return  = (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> return_val := False \<rparr>))"
+definition unset_return_status :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"    
+  where   "unset_return_status  = (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> return_status := False \<rparr>))"
     
 definition exec_stop :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool"
-  where   "exec_stop = (\<lambda> \<sigma>. break_val \<sigma> \<or> return_val \<sigma> )"
+  where   "exec_stop = (\<lambda> \<sigma>. break_status \<sigma> \<or> return_status \<sigma> )"
 
 text\<open> A "lifter" that embeds a state transformer into the state-exception monad. \<close>
 
@@ -113,10 +106,10 @@ definition block\<^sub>C :: "  (unit, ('\<sigma>_ext) control_state_ext)MON\<^su
   where   "block\<^sub>C push core pop \<equiv> (          \<comment> \<open>assumes break and return unset \<close> 
                                    push ;-   \<comment> \<open>create new instances of local variables \<close> 
                                    core ;-   \<comment> \<open>execute the body \<close>
-                                   unset_break ;-        \<comment> \<open>unset a potential break \<close>
-                                   unset_return;-    \<comment> \<open>unset a potential return break \<close>
-                                   (x \<leftarrow> pop;            \<comment> \<open>restore previous local var instances \<close>
-                                    unit\<^sub>S\<^sub>E(x)))"         \<comment> \<open>yield the return value \<close>
+                                   unset_break_status ;-    \<comment> \<open>unset a potential break \<close>
+                                   unset_return_status;-    \<comment> \<open>unset a potential return break \<close>
+                                   (x \<leftarrow> pop;           \<comment> \<open>restore previous local var instances \<close>
+                                    unit\<^sub>S\<^sub>E(x)))"        \<comment> \<open>yield the return value \<close>
     
 
 
@@ -163,9 +156,9 @@ translations
 definition while_C :: "(('\<sigma>_ext) control_state_ext \<Rightarrow> bool) 
                         \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E 
                         \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
-  where     "while_C c B \<equiv> (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>)
-                                 else ((MonadSE.while_SE (\<lambda> \<sigma>. \<not>exec_stop \<sigma> \<and> c \<sigma>) B) ;- 
-                                       unset_break) \<sigma>)"
+  where   "while_C c B \<equiv> (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>)
+                               else ((MonadSE.while_SE (\<lambda> \<sigma>. \<not>exec_stop \<sigma> \<and> c \<sigma>) B) ;- 
+                                     unset_break_status) \<sigma>)"
   
 syntax    (xsymbols)
           "_while_C" :: "['\<sigma> \<Rightarrow> bool, (unit, '\<sigma>)MON\<^sub>S\<^sub>E] \<Rightarrow> (unit, '\<sigma>)MON\<^sub>S\<^sub>E" 
@@ -173,7 +166,6 @@ syntax    (xsymbols)
 translations 
           "while\<^sub>C c do b od" == "CONST Clean.while_C c b"
 
-   
     
 section\<open> A Specialized Representation of States based on Records) \<close>
 
@@ -184,6 +176,11 @@ struct
 
 val control_stateT = Syntax.parse_typ @{context} "control_state"
 val control_stateTE = @{typ "('\<sigma>_ext)control_state_ext"};
+
+fun control_state_extT t = Type(@{type_name "Clean.control_state.control_state_ext"}, [t])
+
+fun optionT t = Type(@{type_name "Option.option"},[t]);
+fun MON_SE_T res state = state --> optionT(HOLogic.mk_prodT(res,state));
 
 fun merge_control_stateT (@{typ "control_state"},t) = t
    |merge_control_stateT (t, @{typ "control_state"}) = t
@@ -278,14 +275,16 @@ fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) 
     val ctxt1 = fold (Variable.declare_typ o TFree) params ctxt;
     val (parent, ctxt2) = read_parent raw_parent ctxt1;
     val (fields, ctxt3) = read_fields raw_fields ctxt2;
+    fun lift (a,b,c) =  (a, HOLogic.listT b, c)
+    val fields' = if is_global_kind then fields else map lift fields
     val params' = map (Proof_Context.check_tfree ctxt3) params;
     val declare = StateMgt_core.declare_state_variable_global
     fun insert_var ((f,_,_), thy') =           
             if is_global_kind 
             then declare StateMgt_core.global_var (Binding.name_of f) thy'
             else declare StateMgt_core.local_var  (Binding.name_of f) thy'
-  in thy |> Record.add_record overloaded (params', binding) parent fields 
-         |> (fn thy =>  List.foldr insert_var (thy) (fields)) 
+  in thy |> Record.add_record overloaded (params', binding) parent fields' 
+         |> (fn thy =>  List.foldr insert_var (thy) (fields')) 
   end;
 
 val add_record_cmd = add_record_cmd0 read_fields;
@@ -298,15 +297,18 @@ fun typ_2_string_raw (Type(s,[])) = s
    |typ_2_string_raw _ = error "Illegal parameterized state type - not allowed in CLEAN." 
                                   
 
-fun new_state_record0 add_record_cmd is_global_kind (raw_params, binding)  raw_fields thy =
+fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res_ty), raw_fields) thy =
     let val _ = fn _ => writeln ("<Z " ^ (typ_2_string_raw (StateMgt_core.get_state_type_global thy)))
         val raw_parent = SOME(typ_2_string_raw (StateMgt_core.get_state_type_global thy))
-        fun upd_state_typ thy = let val t = Syntax.parse_typ(Proof_Context.init_global thy) 
-                                                            (Binding.name_of binding)
+        fun upd_state_typ thy = let val ctxt = Proof_Context.init_global thy
+                                    val t = Syntax.parse_typ(ctxt) (Binding.name_of binding)
                                     val _ = fn _ => writeln ("Z> "^(typ_2_string_raw t))
                                 in  StateMgt_core.upd_state_type_global(K t)(thy) end
+        val raw_fields' = case res_ty of 
+                            NONE => raw_fields
+                          | SOME t => raw_fields @ [(Binding.make("result_value",@{here}),t, NoSyn)]
     in  thy |> add_record_cmd {overloaded = false} is_global_kind 
-                              (raw_params, binding) raw_parent raw_fields 
+                              (raw_params, binding) raw_parent raw_fields' 
             |> upd_state_typ
     end
 
@@ -315,13 +317,17 @@ val new_state_record' = new_state_record0 add_record_cmd'
 
 val _ =
   Outer_Syntax.command @{command_keyword global_vars} "define global state record"
-    ((Parse.type_args_constrained -- Parse.binding) -- Scan.repeat1 Parse.const_binding
-    >> (fn (x, z) => Toplevel.theory (new_state_record true x  z)));
+    ((Parse.type_args_constrained -- Parse.binding)
+    -- Scan.succeed NONE
+    -- Scan.repeat1 Parse.const_binding
+    >> (Toplevel.theory o new_state_record true));
 
 val _ =
   Outer_Syntax.command @{command_keyword local_vars} "define local state record"
-    ((Parse.type_args_constrained -- Parse.binding) -- Scan.repeat1 Parse.const_binding
-    >> (fn (x, z) => Toplevel.theory (new_state_record false x  z)));
+    ((Parse.type_args_constrained -- Parse.binding) 
+    -- (Parse.typ >> SOME)
+    -- Scan.repeat1 Parse.const_binding
+    >> (Toplevel.theory o new_state_record false));
 
 \<close>
 
@@ -593,7 +599,7 @@ lemma while\<^sub>C_skip [simp]: "(while\<^sub>C (\<lambda> x. False) do c od) =
   apply(rule ext)
   unfolding while_C_def skip\<^sub>S\<^sub>E_def unit_SE_def
   apply auto
-  unfolding exec_stop_def skip\<^sub>S\<^sub>E_def unset_break_def bind_SE'_def unit_SE_def bind_SE_def
+  unfolding exec_stop_def skip\<^sub>S\<^sub>E_def unset_break_status_def bind_SE'_def unit_SE_def bind_SE_def
   by simp
   
 
@@ -616,8 +622,9 @@ lemma break_while_skip [simp]: "break ;- (while\<^sub>C b do c od) = break"
   by simp
 
     
-lemma unset_break_idem [simp] : "( unset_break ;- unset_break ;- M) = (unset_break ;- M)"
-  apply(rule ext)  unfolding unset_break_def bind_SE'_def bind_SE_def by auto
+lemma unset_break_idem [simp] : 
+ "( unset_break_status ;- unset_break_status ;- M) = (unset_break_status ;- M)"
+  apply(rule ext)  unfolding unset_break_status_def bind_SE'_def bind_SE_def by auto
     
     
 method bound_while for n::nat = (simp only: while_k_SE [of n])
@@ -626,7 +633,7 @@ method bound_while for n::nat = (simp only: while_k_SE [of n])
 (* this still holds ... *)
 lemma exec_while\<^sub>C : 
 "(\<sigma> \<Turnstile> ((while\<^sub>C b do c od) ;- M)) = 
- (\<sigma> \<Turnstile> ((if\<^sub>C b then c ;- (while\<^sub>C b do c od) ;- unset_break else skip\<^sub>S\<^sub>E fi)  ;- M))"
+ (\<sigma> \<Turnstile> ((if\<^sub>C b then c ;- (while\<^sub>C b do c od) ;- unset_break_status else skip\<^sub>S\<^sub>E fi)  ;- M))"
 proof (cases "exec_stop \<sigma>")
   case True
   then show ?thesis 
@@ -647,7 +654,7 @@ next
           apply simp_all
         apply(subst if\<^sub>C_cond_cong [of _ _ "\<lambda>_. False"], simp add: )
         apply(subst exec_If\<^sub>C_If\<^sub>S\<^sub>E,simp_all)
-        by (simp add: exec_stop_def unset_break_def)
+        by (simp add: exec_stop_def unset_break_status_def)
     next
       case False
       have * : "b \<sigma>"  using False by auto
@@ -667,26 +674,26 @@ next
             apply(subst bind_assoc', subst bind_assoc')
             proof(cases "c \<sigma>")
               case None
-              then show "(\<sigma> \<Turnstile> c;-((while\<^sub>S\<^sub>E (\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> b \<sigma>) do c od);-unset_break);-M) =
-                         (\<sigma> \<Turnstile> c;-(while\<^sub>C b do c od) ;- unset_break ;- M)"
+              then show "(\<sigma> \<Turnstile> c;-((while\<^sub>S\<^sub>E (\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> b \<sigma>) do c od);-unset_break_status);-M) =
+                         (\<sigma> \<Turnstile> c;-(while\<^sub>C b do c od) ;- unset_break_status ;- M)"
                 by (simp add: bind_SE'_def exec_bind_SE_failure)
             next
               case (Some a)
-              then show "(\<sigma> \<Turnstile> c ;- ((while\<^sub>S\<^sub>E (\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> b \<sigma>) do c od);-unset_break);-M) =
-                         (\<sigma> \<Turnstile> c ;- (while\<^sub>C b do c od) ;- unset_break ;- M)"
+              then show "(\<sigma> \<Turnstile> c ;- ((while\<^sub>S\<^sub>E (\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> b \<sigma>) do c od);-unset_break_status);-M) =
+                         (\<sigma> \<Turnstile> c ;- (while\<^sub>C b do c od) ;- unset_break_status ;- M)"
                 apply(insert \<open>c \<sigma> = Some a\<close>, subst (asm) surjective_pairing[of a])
                 apply(subst exec_bind_SE_success2, assumption)
                 apply(subst exec_bind_SE_success2, assumption)
                 proof(cases "exec_stop (snd a)")
                   case True
-                  then show "(snd a \<Turnstile>((while\<^sub>S\<^sub>E (\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> b \<sigma>) do c od);-unset_break);-M)=
-                             (snd a \<Turnstile> (while\<^sub>C b do c od) ;- unset_break ;- M)"
+                  then show "(snd a \<Turnstile>((while\<^sub>S\<^sub>E (\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> b \<sigma>) do c od);-unset_break_status);-M)=
+                             (snd a \<Turnstile> (while\<^sub>C b do c od) ;- unset_break_status ;- M)"
                        by (metis (no_types, lifting) bind_assoc' exec_While\<^sub>C' exec_skip if_SE_D2' 
                                                   skip\<^sub>S\<^sub>E_def while_SE_unfold)
                 next
                   case False
-                  then show "(snd a \<Turnstile> ((while\<^sub>S\<^sub>E(\<lambda>\<sigma>. \<not>exec_stop \<sigma> \<and> b \<sigma>) do c od);-unset_break);-M)=
-                             (snd a \<Turnstile> (while\<^sub>C b do c od) ;- unset_break ;- M)"
+                  then show "(snd a \<Turnstile> ((while\<^sub>S\<^sub>E(\<lambda>\<sigma>. \<not>exec_stop \<sigma> \<and> b \<sigma>) do c od);-unset_break_status);-M)=
+                             (snd a \<Turnstile> (while\<^sub>C b do c od) ;- unset_break_status ;- M)"
                           unfolding  while_C_def
                           by(subst (2) valid_bind'_cong,simp)(simp)
                 qed       
@@ -697,7 +704,7 @@ qed
   
 corollary exec_while_k : 
 "(\<sigma> \<Turnstile> ((while_k (Suc n) b c) ;- M)) = 
- (\<sigma> \<Turnstile> ((if\<^sub>C b then c ;- (while_k n b c) ;- unset_break else skip\<^sub>S\<^sub>E fi)  ;- M))"
+ (\<sigma> \<Turnstile> ((if\<^sub>C b then c ;- (while_k n b c) ;- unset_break_status else skip\<^sub>S\<^sub>E fi)  ;- M))"
   by (metis exec_while\<^sub>C while_k_def)
     
 

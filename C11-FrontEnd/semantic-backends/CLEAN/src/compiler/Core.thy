@@ -108,14 +108,15 @@ fun new_state_record pos b (rcd_name, flds) =
     ( NONE
     , SML_apply ( b's \<^ML'>\<open>new_state_record'\<close>
                 , [ b's (if b then \<^ML'>\<open>true\<close> else \<^ML'>\<open>false\<close>)
-                  , b's (ML_Syntax.print_pair (ML_Syntax.print_list (ML_Syntax.print_pair ML_Syntax.print_string (ML_Syntax.print_option ML_Syntax.print_string)))
-                                              (ML_Syntax'.print_binding' pos)
-                                              ([], rcd_name))
-                  , b's (ML_Syntax.print_list (ML_Syntax'.print_pair3
-                                                ML_Syntax'.print_binding
-                                                ML_Syntax.print_typ
-                                                (fn NoSyn => \<^ML'>\<open>NoSyn\<close> | _ => error "Not implemented"))
-                                              flds)]))])
+                  , b's (ML_Syntax.print_pair
+                            (ML_Syntax.print_pair (ML_Syntax.print_pair (ML_Syntax.print_list (ML_Syntax.print_pair ML_Syntax.print_string (ML_Syntax.print_option ML_Syntax.print_string)))
+                                                                          (ML_Syntax'.print_binding' pos))
+                                                  (ML_Syntax.print_option ML_Syntax.print_typ))
+                            (ML_Syntax.print_list (ML_Syntax'.print_pair3
+                                                    ML_Syntax'.print_binding
+                                                    ML_Syntax.print_typ
+                                                    (fn NoSyn => \<^ML'>\<open>NoSyn\<close> | _ => error "Not implemented")))
+                            ((([], rcd_name), NONE), flds))]))])
 
 in
 

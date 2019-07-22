@@ -100,6 +100,8 @@ funct quicksort(lo::int, hi::int) returns unit
 
 global_vars state
     A :: "int list "
+
+
 ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory}; \<close>
 
 
@@ -108,9 +110,8 @@ subsection \<open>Encoding swap in CLEAN\<close>
 (* for some strange reason, "result" is no longer a term. term "result" crashes. *)
 (* list-lifting should be automatic in local_vars. *)
 
-local_vars local_swap_state
-   tmp :: "int list" 
-   res :: "unit list"
+local_vars local_swap_state "unit"
+   tmp :: "int" 
 
 
 definition push_local_state_swap :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
@@ -119,8 +120,9 @@ definition push_local_state_swap :: "(unit,'a local_swap_state_scheme) MON\<^sub
 
 definition pop_local_state_swap :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
   where   "pop_local_state_swap \<sigma> = 
-                    Some(hd(local_swap_state.res \<sigma>), \<comment> \<open> recall : returns op value \<close>
-                                                     \<comment> \<open> which happens to be unit \<close>
+                    Some(hd(local_swap_state.result_value \<sigma>), 
+                                \<comment> \<open> recall : returns op value \<close>
+                                \<comment> \<open> which happens to be unit \<close>
                          \<sigma>\<lparr>local_swap_state.tmp:= tl( local_swap_state.tmp \<sigma>) \<rparr>)"
 
 
@@ -160,11 +162,10 @@ definition swap' :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a state_scheme)
 subsection \<open>Encoding partition in CLEAN\<close>
 
 (* recall: list-lifting should be automatic in local_vars. *)
-local_vars  local_partition_state
-    pivot  :: "int list"
-    i      :: "nat list"
-    j      :: "nat list"
-    res    :: "nat list"
+local_vars  local_partition_state "nat"
+    pivot  :: "int"
+    i      :: "nat"
+    j      :: "nat"
 
 (* this implies the definitions : *)
 definition push_local_partition_state :: "(unit, 'a local_partition_state_scheme) MON\<^sub>S\<^sub>E"
@@ -172,14 +173,16 @@ definition push_local_partition_state :: "(unit, 'a local_partition_state_scheme
                         \<sigma>\<lparr>local_partition_state.pivot := undefined # local_partition_state.pivot \<sigma>, 
                           local_partition_state.i     := undefined # local_partition_state.i \<sigma>, 
                           local_partition_state.j     := undefined # local_partition_state.j \<sigma>, 
-                          local_partition_state.res   := undefined # local_partition_state.res \<sigma> \<rparr>)"
+                          local_partition_state.result_value   
+                                           := undefined # local_partition_state.result_value \<sigma> \<rparr>)"
 
 definition pop_local_partition_state :: "(nat,'a local_partition_state_scheme) MON\<^sub>S\<^sub>E" 
-  where   "pop_local_partition_state \<sigma> = Some(hd(local_partition_state.res \<sigma>),
+  where   "pop_local_partition_state \<sigma> = Some(hd(local_partition_state.result_value \<sigma>),
                        \<sigma>\<lparr>local_partition_state.pivot := tl(local_partition_state.pivot \<sigma>), 
                          local_partition_state.i     := tl(local_partition_state.i \<sigma>), 
                          local_partition_state.j     := tl(local_partition_state.j \<sigma>), 
-                         local_partition_state.res   := tl(local_partition_state.res \<sigma>) \<rparr>)"
+                         local_partition_state.result_value := 
+                                                        tl(local_partition_state.result_value \<sigma>) \<rparr>)"
 
 
 definition partition_core :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a local_partition_state_scheme) MON\<^sub>S\<^sub>E"
@@ -197,7 +200,8 @@ definition partition_core :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a loca
                 od) ;-
                (assign_local j_update (\<lambda>\<sigma>. ((hd o j) \<sigma>) + 1)) ;-
                 call_2\<^sub>C (swap) (\<lambda>\<sigma>. (hd o i) \<sigma>) (\<lambda>\<sigma>. (hd o j) \<sigma>)  ;-
-                assign_local res_update (\<lambda>\<sigma>. (hd o i) \<sigma>)  \<comment> \<open> the meaning of the return stmt \<close>
+                assign_local result_value_update (\<lambda>\<sigma>. (hd o i) \<sigma>)  
+                \<comment> \<open> the meaning of the return stmt \<close>
                )"
 
 thm partition_core_def
@@ -226,12 +230,16 @@ definition partition_contract :: "nat \<Rightarrow> nat \<Rightarrow>  (nat,'a l
 
 subsection \<open>Encoding quicksort in CLEAN\<close>
 
-local_vars  local_quicksort_state
-    p  :: "nat list"
-    res:: "unit list"
+record a = 
+   b :: int
+
+local_vars  local_quicksort_state "unit"
+    p  :: "nat"
 
 
-ML\<open> val (x,y) = StateMgt_core.get_data_global @{theory}; \<close>
+ML\<open> val (x,y) = StateMgt_core.get_data_global @{theory}; 
+Global_Theory.add_defs true;
+\<close>
 
 (*
 funct quicksort(lo::nat, hi::nat) returns unit
@@ -250,12 +258,111 @@ funct quicksort(lo::nat, hi::nat) returns unit
 definition push_local_quicksort_state :: "(unit, 'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
   where   "push_local_quicksort_state \<sigma> = 
                  Some((), \<sigma>\<lparr>local_quicksort_state.p := undefined # local_quicksort_state.p \<sigma>,
-                            local_quicksort_state.res := undefined # local_quicksort_state.res \<sigma> \<rparr>)"
+                            local_quicksort_state.result_value := undefined # local_quicksort_state.result_value \<sigma> \<rparr>)"
 
-definition pop_local_quicksort_state :: "(unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E" 
-  where   "pop_local_quicksort_state \<sigma> = Some(hd(local_quicksort_state.res \<sigma>),
+ML\<open>
+val H = (fn (((decl, spec), prems), params) =>
+        #2 oo Specification.definition_cmd decl params prems spec);
+
+val H' = (fn (((decl, spec), prems), params) =>
+        #2 oo Specification.definition' decl params prems spec);
+
+Global_Theory.add_defs true; 
+
+fun mk_push_name s p = Binding.name("push_local_"^s^"_state")
+fun mk_pop_name s p = Binding.make("pop_local_"^s^"_state",p)
+
+
+
+(* HOLogic extended *)
+
+fun mk_None ty = let val none = \<^const_name>\<open>Option.option.None\<close>
+                     val none_ty = ty --> Type(\<^type_name>\<open>option\<close>,[ty])
+                in  Const(none, none_ty)
+                end;
+fun mk_Some t = let val some = \<^const_name>\<open>Option.option.Some\<close> 
+                    val ty = fastype_of t
+                    val some_ty = ty --> Type(\<^type_name>\<open>option\<close>,[ty])
+                in  Const(some, some_ty) $  t
+                end;
+
+fun  mk_undefined (@{typ "unit"}) = Const (\<^const_name>\<open>Product_Type.Unity\<close>, \<^typ>\<open>unit\<close>)
+    |mk_undefined t               = Const (\<^const_name>\<open>HOL.undefined\<close>, t)
+
+fun meta_eq_const T = Const (\<^const_name>\<open>Pure.eq\<close>, T --> T --> propT);
+
+fun mk_meta_eq (t, u) = meta_eq_const (fastype_of t) $ t $ u;
+
+
+(* the meat *)
+
+fun push_eq name sty = 
+         let val rty = \<^typ>\<open>unit\<close>
+             val mty = StateMgt_core.MON_SE_T rty sty 
+         in  mk_meta_eq((Free(name, mty) $ Free("\<sigma>",sty)), 
+                         mk_Some ( HOLogic.mk_prod (mk_undefined rty,Free("\<sigma>", sty))))
+                          
+         end;
+
+
+fun pop_eq name rty sty = 
+         let val mty = StateMgt_core.MON_SE_T rty sty 
+         in  mk_meta_eq((Free(name, mty) $ Free("\<sigma>",sty)), 
+                         mk_Some ( HOLogic.mk_prod (mk_undefined rty,Free("\<sigma>", sty))))
+                          
+         end;
+
+
+fun mk_push_def name p  sty = 
+    let val nameb =  mk_push_name name p
+        val nameb_str = Binding.name_of nameb
+        val eq = push_eq nameb_str  sty
+    in #2 o Global_Theory.add_defs true [((nameb,eq),[])] 
+    end;
+
+fun mk_pop_def name p rty sty = 
+    let val nameb =  mk_pop_name name p
+        val nameb_str = Binding.name_of nameb
+        val eq = pop_eq nameb_str rty sty
+    in #2 o Global_Theory.add_defs true [((nameb,eq),[])] 
+    end;
+
+\<close>
+
+
+(* tests *)
+(*
+setup\<open>
+mk_push_def "qquicksort" @{here}  @{typ "'a local_quicksort_state_scheme"}
+\<close>
+setup\<open>
+mk_pop_def "qquicksort" @{here} @{typ "int"} @{typ "'a local_quicksort_state_scheme"}
+\<close>
+*)
+
+
+setup\<open>
+let
+fun mk_pop_def name p rty sty = 
+    let val mty = StateMgt_core.MON_SE_T rty sty 
+        val nameb =  mk_pop_name name p
+        val nameb_str = Binding.name_of nameb
+        val eq = pop_eq nameb_str rty sty
+        val args = (((SOME(nameb,SOME mty,NoSyn),(Binding.empty_atts,eq)),[]),[])
+        val cmd = (fn (((decl, spec), prems), params) =>
+                        #2 oo Specification.definition' decl params prems spec)
+    in cmd args true
+    end;
+in
+Named_Target.theory_map (mk_pop_def "qquicksort" @{here} @{typ "int"} @{typ "'a local_quicksort_state_scheme"})
+end
+\<close>
+
+definition pop_local_quicksort_state :: "(unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "pop_local_quicksort_state \<sigma> = Some(hd(local_quicksort_state.result_value \<sigma>),
                        \<sigma>\<lparr>local_quicksort_state.p   := tl(local_quicksort_state.p \<sigma>), 
-                         local_quicksort_state.res := tl(local_quicksort_state.res \<sigma>) \<rparr>)"
+                         local_quicksort_state.result_value := 
+                                                      tl(local_quicksort_state.result_value \<sigma>) \<rparr>)"
 
 (* recursion not yet treated. Either axiomatazitation hack (super-dangerous) or 
    proper formalization via lfp. *)
