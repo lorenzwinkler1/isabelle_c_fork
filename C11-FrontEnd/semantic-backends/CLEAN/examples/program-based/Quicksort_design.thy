@@ -264,7 +264,7 @@ ML\<open>
 val H = (fn (((decl, spec), prems), params) =>
         #2 oo Specification.definition_cmd decl params prems spec);
 
-val H = (fn (((decl, spec), prems), params) =>
+val H' = (fn (((decl, spec), prems), params) =>
         #2 oo Specification.definition' decl params prems spec);
 
 Global_Theory.add_defs true; 
@@ -340,6 +340,23 @@ mk_pop_def "qquicksort" @{here} @{typ "int"} @{typ "'a local_quicksort_state_sch
 
 \<close>
 
+
+
+ML\<open>
+fun mk_pop_def name p rty sty = 
+    let val mty = StateMgt_core.MON_SE_T rty sty 
+        val nameb =  mk_pop_name name p
+        val nameb_str = Binding.name_of nameb
+        val eq = pop_eq nameb_str rty sty
+        val args = (((SOME(nameb,SOME mty,NoSyn),(Binding.empty_atts,eq)),[]),[])
+        val cmd = (fn (((decl, spec), prems), params) =>
+                        #2 oo Specification.definition' decl params prems spec)
+    in cmd args true
+    end;
+
+mk_pop_def "qquicksort" @{here} @{typ "int"} @{typ "'a local_quicksort_state_scheme"} 
+           ( @{context})
+\<close>
 
 definition pop_local_quicksort_state :: "(unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
   where   "pop_local_quicksort_state \<sigma> = Some(hd(local_quicksort_state.result_value \<sigma>),
