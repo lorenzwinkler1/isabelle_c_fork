@@ -3,8 +3,8 @@
  * Burkhart Wolff and Chantal Keller, LRI, Univ. Paris-Sud, France
  ******************************************************************************)
 
-chapter \<open>The Clean Language \<close>
-text\<open> Pronounce : "C lean". \<close>
+chapter \<open>The Clean Language\<close>
+text\<open>Pronounce : "C lean".\<close>
 
 theory Clean
   imports Symbex_MonadSE
@@ -19,7 +19,7 @@ theory Clean
 *)
 begin
   
-text\<open> Clean is a minimalistic imperative language 
+text\<open>Clean is a minimalistic imperative language 
 with C-like control-flow operators based on a shallow embedding into the
 SE exception Monad theory formalized in @{theory "CLEAN_logic.MonadSE"}. It comprises:
 \begin{itemize}
@@ -33,13 +33,10 @@ SE exception Monad theory formalized in @{theory "CLEAN_logic.MonadSE"}. It comp
 \item parametric polymorphism might be added later; at present, states are
       restricted to be monmorphic.
 \item cartouche syntax for update operations.
-\end{itemize} \<close>
+\end{itemize}\<close>
   
-
-text\<open>Weil Baustelle: @{file "$ISABELLE_HOME/src/Pure/ROOT.ML"}\<close> 
-
-
-chapter \<open> Proof of concept for a monadic symbolic execution calculus for WHILE programs \<close>
+  
+chapter \<open>Proof of concept for a monadic symbolic execution calculus for WHILE programs\<close>
 
 
 section\<open> Control-States  \<close>
@@ -47,9 +44,6 @@ section\<open> Control-States  \<close>
 record  control_state = 
             break_status  :: bool
             return_status :: bool
-          
-ML\<open> 
-\<close>
 
 ML\<open> 
 fun typ_2_string_raw (Type(s,S)) = 
@@ -255,8 +249,6 @@ end
 
 
 ML\<open>
-val SPY = Unsynchronized.ref([]:(binding * typ * mixfix)list)
-
 fun read_parent NONE ctxt = (NONE, ctxt)
   | read_parent (SOME raw_T) ctxt =
       (case Proof_Context.read_typ_abbrev ctxt raw_T of
@@ -270,7 +262,7 @@ fun read_fields raw_fields ctxt =
     val ctxt' = fold Variable.declare_typ Ts ctxt;
   in (fields, ctxt') end;
 
-fun add_record_cmd overloaded is_global_kind (raw_params, binding) raw_parent raw_fields thy =
+fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) raw_parent raw_fields thy =
   let
     val ctxt = Proof_Context.init_global thy;
     val params = map (apsnd (Typedecl.read_constraint ctxt)) raw_params;
@@ -285,10 +277,12 @@ fun add_record_cmd overloaded is_global_kind (raw_params, binding) raw_parent ra
             if is_global_kind   
             then declare StateMgt_core.global_var (Binding.name_of f) thy'
             else declare StateMgt_core.local_var  (Binding.name_of f) thy'
-    val _ = (SPY := fields')
   in thy |> Record.add_record overloaded (params', binding) parent fields' 
          |> (fn thy =>  List.foldr insert_var (thy) (fields')) 
   end;
+
+val add_record_cmd = add_record_cmd0 read_fields;
+val add_record_cmd' = add_record_cmd0 pair;
 
 
 fun typ_2_string_raw (Type(s,[])) = s
@@ -297,36 +291,37 @@ fun typ_2_string_raw (Type(s,[])) = s
    |typ_2_string_raw _ = error "Illegal parameterized state type - not allowed in CLEAN." 
                                   
 
-fun new_state_record  is_global_kind (raw_params, binding) res_ty raw_fields  thy =
-    let val _ = writeln ("<Z " ^ (typ_2_string_raw (StateMgt_core.get_state_type_global thy)))
+fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res_ty), raw_fields) thy =
+    let val _ = fn _ => writeln ("<Z " ^ (typ_2_string_raw (StateMgt_core.get_state_type_global thy)))
         val raw_parent = SOME(typ_2_string_raw (StateMgt_core.get_state_type_global thy))
         fun upd_state_typ thy = let val ctxt = Proof_Context.init_global thy
                                     val t = Syntax.parse_typ(ctxt) (Binding.name_of binding)
-                                    val _ = writeln ("Z> "^(typ_2_string_raw t))
+                                    val _ = fn _ => writeln ("Z> "^(typ_2_string_raw t))
                                 in  StateMgt_core.upd_state_type_global(K t)(thy) end
         val raw_fields' = case res_ty of 
-                               "" => raw_fields
-                            | t =>  raw_fields @ [(Binding.make("result_value",@{here}),t, NoSyn)]
+                            NONE => raw_fields
+                          | SOME t => raw_fields @ [(Binding.make("result_value",@{here}),t, NoSyn)]
     in  thy |> add_record_cmd {overloaded = false} is_global_kind 
                               (raw_params, binding) raw_parent raw_fields' 
             |> upd_state_typ
     end
 
-val _ = new_state_record : bool ->
-      (string * string option) list * binding ->
-         string  -> (binding * string * mixfix) list  -> theory -> theory
+val new_state_record = new_state_record0 add_record_cmd
+val new_state_record' = new_state_record0 add_record_cmd'
 
 val _ =
   Outer_Syntax.command @{command_keyword global_vars} "define global state record"
-    ((Parse.type_args_constrained -- Parse.binding) -- Scan.repeat1 Parse.const_binding
-    >> (fn (x, z) => Toplevel.theory (new_state_record true x "" z)));
+    ((Parse.type_args_constrained -- Parse.binding)
+    -- Scan.succeed NONE
+    -- Scan.repeat1 Parse.const_binding
+    >> (Toplevel.theory o new_state_record true));
 
 val _ =
   Outer_Syntax.command @{command_keyword local_vars} "define local state record"
     ((Parse.type_args_constrained -- Parse.binding) 
-    -- Parse.typ 
+    -- (Parse.typ >> SOME)
     -- Scan.repeat1 Parse.const_binding
-    >> (fn ((x, y), z) => Toplevel.theory (new_state_record false x y z)));
+    >> (Toplevel.theory o new_state_record false));
 
 \<close>
 
@@ -501,7 +496,6 @@ shows  "(\<sigma> \<Turnstile> (while\<^sub>C P do B\<^sub>1 od);-M) = (\<sigma>
 text\<open> Syntactic sugar via cartouches \<close>
 
 ML \<open>
-val SPY = Unsynchronized.ref(Bound 0)
   local
     fun app_sigma db tm ctxt = case tm of
         Const(name, _) => if StateMgt_core.is_program_variable name (Proof_Context.theory_of ctxt) 
@@ -538,7 +532,6 @@ val SPY = Unsynchronized.ref(Bound 0)
               SOME (pos, _) =>
               let val txt = Symbol_Pos.implode(content (s,pos))
                   val tm = Syntax.parse_term ctxt txt
-                  val _ = (SPY := tm)
                   val tr = transform_term tm ctxt
                   val ct = Syntax.check_term ctxt tr
               in
@@ -646,7 +639,7 @@ next
       case True
       then show ?thesis
         apply(subst valid_bind'_cong)
-        using `\<not> exec_stop \<sigma>` apply simp_all
+        using \<open>\<not> exec_stop \<sigma>\<close> apply simp_all
         apply (auto simp: skip\<^sub>S\<^sub>E_def unit_SE_def)
           apply(subst while_C_def, simp)
          apply(subst bind'_cong)
@@ -664,14 +657,14 @@ next
            apply(subst  while_C_def)
            apply(subst  if_C_def)
            apply(subst  valid_bind'_cong)
-            apply (simp add: `\<not> exec_stop \<sigma>`)
+            apply (simp add: \<open>\<not> exec_stop \<sigma>\<close>)
            apply(subst  (2) valid_bind'_cong)
-            apply (simp add: `\<not> exec_stop \<sigma>`)
+            apply (simp add: \<open>\<not> exec_stop \<sigma>\<close>)
             apply(subst MonadSE.while_SE_unfold)
             apply(subst valid_bind'_cong)
             apply(subst bind'_cong)
              apply(subst if\<^sub>S\<^sub>E_cond_cong [of _ _ "\<lambda>_. True"])
-              apply(simp_all add:   `\<not> exec_stop \<sigma>` )
+              apply(simp_all add:   \<open>\<not> exec_stop \<sigma>\<close> )
             apply(subst bind_assoc', subst bind_assoc')
             proof(cases "c \<sigma>")
               case None
@@ -682,7 +675,7 @@ next
               case (Some a)
               then show "(\<sigma> \<Turnstile> c ;- ((while\<^sub>S\<^sub>E (\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> b \<sigma>) do c od);-unset_break_status);-M) =
                          (\<sigma> \<Turnstile> c ;- (while\<^sub>C b do c od) ;- unset_break_status ;- M)"
-                apply(insert `c \<sigma> = Some a`, subst (asm) surjective_pairing[of a])
+                apply(insert \<open>c \<sigma> = Some a\<close>, subst (asm) surjective_pairing[of a])
                 apply(subst exec_bind_SE_success2, assumption)
                 apply(subst exec_bind_SE_success2, assumption)
                 proof(cases "exec_stop (snd a)")

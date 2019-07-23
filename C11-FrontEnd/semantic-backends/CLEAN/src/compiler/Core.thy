@@ -41,23 +41,100 @@
 
 theory Core
   imports Meta_C
+          "../Clean"
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../../../Citadelle/src/compiler/Core.thy\<close>\<close>
 
-ML\<open>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_syntax.ML\<close>\<close> \<open>
+structure ML_Syntax' =
+struct
+fun make_pos s (theory_name, cmd) = theory_name ^ Int.toString cmd ^ "_" ^ s
+fun print_pair3 f1 f2 f3 (x, y, z) = "(" ^ f1 x ^ ", " ^ f2 y ^ ", " ^ f3 z ^ ")";
+fun print_binding b = ML_Syntax.make_binding (Binding.name_of b, Binding.pos_of b)
+fun print_binding' pos b = ML_Syntax.make_binding (make_pos (Binding.name_of b) pos, Binding.pos_of b)
+end
+\<close>
+
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_antiquotations.ML\<close>\<close>
+   \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/document_antiquotations.ML\<close>\<close> \<open>
+structure ML_Antiquotations' =
+struct
+fun ml_enclose bg en source =
+  ML_Lex.read bg @ ML_Lex.read_source source @ ML_Lex.read en;
+
+val _ = Theory.setup
+ (ML_Antiquotation.inline_embedded \<^binding>\<open>ML'\<close>
+    (Scan.peek (fn context => 
+      Args.text_input >> (fn text =>
+      let val _ = ML_Context.eval_in (SOME (Context.proof_of context))
+                                     ML_Compiler.flags
+                                     (Input.pos_of text)
+                                     (ml_enclose "fn _ => (" ");" text)
+      in #1 (Input.source_content text) end))
+     >> ML_Syntax.print_string))
+end
+\<close>
+
+ML \<comment> \<open>\<^file>\<open>../../../../generated/c_ast.ML\<close>\<close> \<open>
+structure T =
+struct
+open C_Ast
+local
+val s = SS_base o ST
+in
+val setup = Theory_setup o Setup
+fun definition v1 v2 v3 = Theory_definition (Definitiona (Term_rewrite (v1, s v2, v3)))
+val one = META_semi_theories o Theories_one
+val locale = META_semi_theories o Theories_locale
+end
+end
+\<close>
+
+ML \<comment> \<open>\<^file>\<open>../../../../../Citadelle/src/compiler/Core.thy\<close>\<close> \<open>
 structure CLEAN_Core =
 struct
 open C_Ast
 
-fun compile ast env_lang =
-  IsarInstall.install_C_file0 ast env_lang
-  |> rev
-  |> map
-     (fn function =>
-       [ META_semi_theories (Theories_one (Theory_definition (Definitiona (Term_rewrite (Term_basic [SS_base (ST ("pop_" ^ #fname function))], SS_base (ST "\<equiv>"), Term_basic [SS_base (ST "()")])))))
-       , META_semi_theories (Theories_one (Theory_definition (Definitiona (Term_rewrite (Term_basic [SS_base (ST ("push_" ^ #fname function))], SS_base (ST "\<equiv>"), Term_basic [SS_base (ST "()")])))))
-       , META_semi_theories (Theories_one (Theory_definition (Definitiona (Term_rewrite (Term_basic [SS_base (ST ("core_" ^ #fname function))], SS_base (ST "\<equiv>"), Term_basic [SS_base (ST "()")])))))])
-  |> concat
+local
+val s = SS_base o ST
+fun b x = Term_basic [x]
+fun b' x = SML_basic [x]
+val bs = b o s
+val b's = b' o s
+
+fun new_state_record pos b (rcd_name, flds) =
+ T.setup
+  (SML_top
+   [SML_val_fun
+    ( NONE
+    , SML_apply ( b's \<^ML'>\<open>new_state_record'\<close>
+                , [ b's (if b then \<^ML'>\<open>true\<close> else \<^ML'>\<open>false\<close>)
+                  , b's (ML_Syntax.print_pair
+                            (ML_Syntax.print_pair (ML_Syntax.print_pair (ML_Syntax.print_list (ML_Syntax.print_pair ML_Syntax.print_string (ML_Syntax.print_option ML_Syntax.print_string)))
+                                                                          (ML_Syntax'.print_binding' pos))
+                                                  (ML_Syntax.print_option ML_Syntax.print_typ))
+                            (ML_Syntax.print_list (ML_Syntax'.print_pair3
+                                                    ML_Syntax'.print_binding
+                                                    ML_Syntax.print_typ
+                                                    (fn NoSyn => \<^ML'>\<open>NoSyn\<close> | _ => error "Not implemented")))
+                            ((([], rcd_name), NONE), flds))]))])
+
+in
+
+fun compile ast env_lang pos =
+  let val (local_rcd, global_rcd, fninfo) = IsarInstall.install_C_file0 ast env_lang
+  in 
+    [ T.one (new_state_record pos true global_rcd)
+    , T.one (new_state_record pos false local_rcd)
+    , T.locale ( Semi_locale_ext (s (ML_Syntax'.make_pos "C" pos), [], ())
+               , [map (fn function =>
+                        [ T.definition (bs ("pop_" ^ #fname function)) "\<equiv>" (bs "()")
+                        , T.definition (bs ("push_" ^ #fname function)) "\<equiv>" (bs "()")
+                        , T.definition (bs ("core_" ^ #fname function)) "\<equiv>" (bs "()")])
+                      (rev fninfo)
+                  |> flat])]
+  end
+
+end
 end
 \<close>
 

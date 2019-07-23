@@ -79,7 +79,9 @@ sig
       theory ->
       theory *
       (nm_info * typ * int ctype option * var_sort) list *
-      (typ,term,thm list)Element.ctxt list
+      (typ,term,thm list)Element.ctxt list *
+      (binding * (binding * typ * mixfix) list) *
+      (binding * (binding * typ * mixfix) list)
 (*
   val gen_umm_types_file : csenv -> string -> unit
 *)
@@ -609,13 +611,14 @@ end
 fun simple s = {isa_name = MString.mk s, src_name = s, alias = false}
 
 fun pretty_recdef thy nm vars =
+  informStr (0,
     Pretty.big_list
         ("Defining record: " ^ nm ^ " =")
         (map (fn (nm,ity,_,_) =>
                  Pretty.str (MString.dest (#isa_name nm) ^ " :: " ^
                              Syntax.string_of_typ (thy2ctxt thy) ity))
              vars)
-    |> Pretty.string_of |> tracing;
+    |> Pretty.string_of);
 
 fun categorise_globals (alladdressed, popglobs) l = let
   fun recurse (acc as (ut, ns, ad)) l =
@@ -672,7 +675,7 @@ fun mk_thy_decls state {owners,mstate_ty=pmstate_ty,gstate_ty} thy = let
       val fullrecname = Sign.intern_type thy NameGeneration.global_ext_type
       val thy'' = (*MemoryModelExtras.check_global_record_type fullrecname*) thy
     in
-      (thy'', locale_params owners)
+      (thy'', locale_params owners, (bnm NameGeneration.global_rcd_name, gflds))
     end
     val lvars = (simple global_exn_var_name,
                  c_exntype_ty, NONE,
@@ -759,13 +762,15 @@ fun mk_thy_decls state {owners,mstate_ty=pmstate_ty,gstate_ty} thy = let
                       (SOME([TFree("'g", ["HOL.type"])], "StateSpace.state"))
                       lflds*) thy
         in
-          (thy, Sign.intern_type thy NameGeneration.local_rcd_name)
+          ( thy
+          , fn _ => Sign.intern_type thy NameGeneration.local_rcd_name
+          , (bnm NameGeneration.local_rcd_name, lflds))
         end
-    val (thy, _) = mk_locals_rcd thy
+    val (thy, _, local_rcd) = mk_locals_rcd thy
     val thy = mk_locals_aliases thy
-    val (thy, globs) = mk_globals_rcd thy
+    val (thy, globs, global_rcd) = mk_globals_rcd thy
   in
-    (thy, lvars @ gvars, globs)
+    (thy, lvars @ gvars, globs, local_rcd, global_rcd)
   end
 in
   declare_vars thy
