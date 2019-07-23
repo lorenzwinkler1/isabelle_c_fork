@@ -69,8 +69,8 @@ definition break :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub
 definition unset_break_status :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"
   where   "unset_break_status \<equiv> (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> break_status := False \<rparr>))"
 
-definition return :: "'\<alpha> \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"    
-  where   "return x = (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> return_status := True \<rparr>))"
+definition set_return :: "'\<alpha> \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"    
+  where   "set_return x = (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> return_status := True \<rparr>))"
     
 definition unset_return_status :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"    
   where   "unset_return_status  = (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> return_status := False \<rparr>))"
@@ -96,7 +96,8 @@ fun      assign_global :: "(('a  \<Rightarrow> 'a ) \<Rightarrow> '\<sigma>_ext 
 
 
 fun      map_hd :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a list \<Rightarrow> 'a list" 
-  where "map_hd f (a#S) = f a # S"
+  where "map_hd f [] = []"
+      | "map_hd f (a#S) = f a # S"
 
 
 fun      assign_local :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
@@ -212,11 +213,20 @@ val map_data        = Data.map;
 val get_data_global = Data.get o Context.Theory;
 val map_data_global = Context.theory_map o map_data;
 
-val get_state_type          = snd o get_data
-val get_state_type_global   = snd o get_data_global
-fun upd_state_type f        = map_data (fn (tab,t) => (tab, f t))
-fun upd_state_type_global f = map_data_global (fn (tab,t) => (tab, f t))
+val get_state_type             = snd o get_data
+val get_state_type_global      = snd o get_data_global
+val get_state_field_tab        = fst o get_data
+val get_state_field_tab_global = fst o get_data_global
+fun upd_state_type f           = map_data (fn (tab,t) => (tab, f t))
+fun upd_state_type_global f    = map_data_global (fn (tab,t) => (tab, f t))
 
+fun fetch_state_field (ln,X) = let val a::b:: _  = rev (Long_Name.explode ln) in ((b,a),X) end;
+
+fun filter_name name ln = let val ((a,b),X) = fetch_state_field ln
+                          in  if a = name then SOME((a,b),X) else NONE end;
+
+fun filter_attr_of name thy = let val tabs = get_state_field_tab_global thy
+                              in  map_filter (filter_name name) (Symtab.dest tabs) end;
 
 fun is_program_variable name thy = Symtab.defined((fst o get_data_global) thy) name
 
@@ -224,41 +234,25 @@ fun is_global_program_variable name thy = case Symtab.lookup((fst o get_data_glo
                                              SOME(global_var _) => true
                                            | _ => false
 
-fun is_local_program_variable name thy = case Symtab.lookup((fst o get_data_global) thy) name of
-                                             SOME(local_var _) => true
-                                           | _ => false
+fun is_local_program_variable name thy = not(is_global_program_variable name thy)
 
 fun declare_state_variable_global f field thy  =  
-             let val Const(name,Type("fun",ty::_)) = Syntax.read_term_global thy field
+             let val Const(name,ty) = Syntax.read_term_global thy field
              in  (map_data_global (apfst (Symtab.update_new(name,f ty))) (thy)
                  handle Symtab.DUP _ => error("multiple declaration of global var"))
              end;
 
 fun declare_state_variable_local f field ctxt  = 
-             let val Const(name,Type("fun",ty::_)) = Syntax.read_term_global 
-                                                        (Context.theory_of ctxt) field
+             let val Const(name,ty) = Syntax.read_term_global  (Context.theory_of ctxt) field
              in  (map_data (apfst (Symtab.update_new(name,f ty)))(ctxt)
                  handle Symtab.DUP _ => error("multiple declaration of global var"))
              end;
-(*
 
-fun declare_state_variable_local field ctxt  = (map_data (apfst(fn {tab=t,maxano=x} => 
-
-val Const(name,Type("fun",a::R)) = Syntax.read_term @{context} "tm"
-*)
 end
 
 \<close>
 
 
-ML\<open> 
-local open StateMgt_core in
-
-val S = List.foldr (fn ((f,_,_), thy) 
-                    => declare_state_variable_global global_var (Binding.name_of f) thy)  
-
-end
-\<close>
 
 ML\<open>
 val SPY = Unsynchronized.ref([]:(binding * typ * mixfix)list)
@@ -288,7 +282,7 @@ fun add_record_cmd overloaded is_global_kind (raw_params, binding) raw_parent ra
     val params' = map (Proof_Context.check_tfree ctxt3) params;
     val declare = StateMgt_core.declare_state_variable_global
     fun insert_var ((f,_,_), thy') =           
-            if is_global_kind 
+            if is_global_kind   
             then declare StateMgt_core.global_var (Binding.name_of f) thy'
             else declare StateMgt_core.local_var  (Binding.name_of f) thy'
     val _ = (SPY := fields')
