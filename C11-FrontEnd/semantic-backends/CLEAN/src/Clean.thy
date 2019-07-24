@@ -343,9 +343,9 @@ local open StateMgt_core
             val eq = push_eq name nameb_str rty sty lthy
             val mty = StateMgt_core.MON_SE_T rty sty 
             val args = (((SOME(nameb,SOME mty,NoSyn),(Binding.empty_atts,eq)),[]),[])
-      val _ = writeln ("HURX"^name)
+      val _ = fn _ => writeln ("HURX"^name)
             val lthy' = cmd args true lthy
-      val _ = writeln ("HURX'"^name)
+      val _ = fn _ => writeln ("HURX'"^name)
         in lthy'
         end;
     
@@ -354,7 +354,7 @@ local open StateMgt_core
         let val mty = StateMgt_core.MON_SE_T rty sty 
             val nameb =  mk_pop_name name p
           val nameb_str = Binding.name_of nameb
-            val _ = writeln nameb_str
+            val _ = fn _ => writeln nameb_str
             val eq = pop_eq name nameb_str rty sty lthy
             val args = (((SOME(nameb,SOME mty,NoSyn),(Binding.empty_atts,eq)),[]),[])
         in cmd args true lthy
@@ -378,7 +378,7 @@ fun read_fields raw_fields ctxt =
 fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) raw_parent raw_fields thy =
   let
     val name = Binding.name_of binding
-    val _ = writeln ("XXX"^name)
+    val _ = fn _ => writeln ("XXX"^name)
     val pos = Binding.pos_of binding
     val ctxt = Proof_Context.init_global thy;
     val params = map (apsnd (Typedecl.read_constraint ctxt)) raw_params;
@@ -425,7 +425,7 @@ fun typ_2_string_raw (Type(s,[])) = s
                                   
 
 fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res_ty), raw_fields) thy =
-    let val _ = writeln ("<Z " ^ (typ_2_string_raw (StateMgt_core.get_state_type_global thy)))
+    let val _ = fn _ => writeln ("<Z " ^ (typ_2_string_raw (StateMgt_core.get_state_type_global thy)))
         val raw_parent = SOME(typ_2_string_raw (StateMgt_core.get_state_type_global thy))
         val name = Binding.name_of binding
         val pos = Binding.pos_of binding
