@@ -37,6 +37,7 @@
 theory CLEAN_backend_old
   imports "../semantic-backends/CLEAN/src/compiler/Generator_dynamic_sequential"
 begin
+no_notation unit_SE ("(result _)" 8)
 definition "UINT_MAX = 0"
 definition "n = 0"
 definition "result = 0"
