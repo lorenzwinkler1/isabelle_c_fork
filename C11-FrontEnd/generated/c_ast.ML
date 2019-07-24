@@ -174,7 +174,7 @@ structure C_Ast : sig
   datatype function_Kind = Definition | Primrec | Fun | Function_Sorry
   datatype typea = Typea of name * typea list | Func of typea * typea | TVar of name | NoType
   datatype typeSign = TypeSign of name * (name * name list) list * typea
-  datatype literal = Int of Code_Numeral.natural | String of abr_string
+  datatype literal = Int of Code_Numeral.natural | Stringa of abr_string
   datatype term = Literal of literal | Const of name | Abs of name * term | App of term * term | If of term * term * term | Let of (term * term) list * term | Case of term * (term * term) list |
     ListCompr of term * listComprFragment list | RecConstr of name * (name * term) list | RecUpdate of term * (name * term) list | DoBlock of abr_string * doBlockFragment list * abr_string | Parenthesized of term
   and doBlockFragment = DoGenerator of term * term | DoQualifier of term | DoLetStmt of (term * term) list
@@ -431,11 +431,9 @@ structure C_Ast : sig
   val wrap : 'a -> sourcePos -> sourcePos -> 'a region_Wrap
   val bogwrap : 'a -> 'a region_Wrap
   val ebogwrap : expr_node -> expr
-  val map2 : ('a -> 'b -> 'c) -> 'a list -> 'b list -> 'c list
   val of_boola : 'a zero_neq_one -> bool -> 'a
   val integer_of_char : char -> int
   val show_intFlag : cIntFlag -> abr_string
-  val sgn_integer : int -> int
   val apsnd : ('a -> 'b) -> 'c * 'a -> 'c * 'b
   val divmod_integer : int -> int -> int * int
   val snd : 'a * 'b -> 'b
@@ -1834,6 +1832,7 @@ structure C_Ast : sig
   val holThyLocale_header : 'a semi_locale_ext -> ((semi_terma * semi_typ) list * (abr_string * semi_terma) option) list
   val holThyLocale_name : 'a semi_locale_ext -> abr_string
   val string_concat_map : string -> ('a -> string) -> 'a list -> string
+  val of_semi_theories0 : (abr_string -> string) -> ('a -> semi_theory -> string) -> 'a -> semi_theories -> string
   val of_e_n_v_semi_theories : (abr_string -> string) -> (Code_Numeral.natural -> CodeType.mlInt) -> 'a compiler_env_config_ext -> semi_theories -> string
   val of_boot_generation_syntax : 'a -> boot_generation_syntax -> string
   val of_ocl_def_basea : (abr_string -> string) -> ocl_def_base -> string
@@ -4021,7 +4020,7 @@ datatype typea = Typea of name * typea list | Func of typea * typea | TVar of na
 
 datatype typeSign = TypeSign of name * (name * name list) list * typea;
 
-datatype literal = Int of Code_Numeral.natural | String of abr_string;
+datatype literal = Int of Code_Numeral.natural | Stringa of abr_string;
 
 datatype term = Literal of literal | Const of name | Abs of name * term | App of term * term | If of term * term * term | Let of (term * term) list * term | Case of term * (term * term) list | ListCompr of term * listComprFragment list
   | RecConstr of name * (name * term) list | RecUpdate of term * (name * term) list | DoBlock of abr_string * doBlockFragment list * abr_string | Parenthesized of term
@@ -4389,7 +4388,7 @@ fun map f l = rev (foldl (fn la => fn x => f x :: la) [] l);
 
 fun replace_integers f s1 s s2 =
   flattenb s1 (flattenb (case s of NONE => SS_base (ST "")
-                          | SOME sa => flattena (map f ((map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) sa)))
+                          | SOME sa => flattena (map f ((List.map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) sa)))
                 s2);
 
 fun map_gena replace g = (fn a => (case a of ST s => replace (SS_base (ST "")) (SOME s) (SS_base (ST "")) | STa s => flattena (map g s)));
@@ -4473,7 +4472,7 @@ fun ident_struct_type0 s = flattena [s, SS_base (ST "_C")];
 
 fun less_eq_nat m n = integer_of_nat m <= integer_of_nat n;
 
-fun foldl_one f accu = foldl f accu o (map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode);
+fun foldl_one f accu = foldl f accu o (List.map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode);
 
 fun foldlb f accu = (fn a => (case a of ST aa => foldl_one f accu aa | STa aa => foldl f accu aa));
 
@@ -8402,7 +8401,7 @@ fun decl_spec_ty l_decl_spec =
 
 fun ident_struct_const x = (fn Ident0 (s, _, _) => pref_ident (flattena [s, SS_base (ST "_C")])) x;
 
-fun meta_of_logic x = ((String.implode o map (fn k => if 0 <= k andalso k < 128 then (Char.chr o IntInf.toInt) k else raise Fail "Non-ASCII character in literal")) o to_list) x;
+fun meta_of_logic x = ((String.implode o List.map (fn k => if 0 <= k andalso k < 128 then (Char.chr o IntInf.toInt) k else raise Fail "Non-ASCII character in literal")) o to_list) x;
 
 fun not_yet_supported x = (warning o meta_of_logic) x;
 
@@ -8417,10 +8416,6 @@ fun wrap x = comp2 (fn a => Tb (x, a)) (fn a => fn b => T (a, b));
 fun bogwrap x = wrap x bogus bogus;
 
 fun ebogwrap x = (E o bogwrap) x;
-
-fun map2 f (x :: xs) (y :: ys) = f x y :: map2 f xs ys
-  | map2 f xs [] = []
-  | map2 f [] ys = [];
 
 fun of_boola A_ true = one (one_zero_neq_one A_)
   | of_boola A_ false = zero (zero_zero_neq_one A_);
@@ -8437,19 +8432,21 @@ fun integer_of_char (Chara (b0, b1, b2, b3, b4, b5, b6, b7)) =
 
 fun show_intFlag x = (fn a => (case a of FlagUnsigned0 => SS_base (ST "u") | FlagLong0 => SS_base (ST "l") | FlagLongLong0 => SS_base (ST "ll") | FlagImag0 => SS_base (ST "i"))) x;
 
-fun sgn_integer k = (if k = (0 : IntInf.int) then (0 : IntInf.int) else (if k < (0 : IntInf.int) then (~1 : IntInf.int) else (1 : IntInf.int)));
-
 fun apsnd f (x, y) = (x, f y);
 
 fun divmod_integer k l =
   (if k = (0 : IntInf.int) then ((0 : IntInf.int), (0 : IntInf.int))
-    else (if l = (0 : IntInf.int) then ((0 : IntInf.int), k)
-           else (apsnd o (fn a => fn b => a * b) o sgn_integer) l
-                  (if sgn_integer k = sgn_integer l then Integer.div_mod (abs k) (abs l) else let
-                                                                                                val (r, s) = Integer.div_mod (abs k) (abs l);
-                                                                                              in
-                                                                                                (if s = (0 : IntInf.int) then (~ r, (0 : IntInf.int)) else (~ r - (1 : IntInf.int), abs l - s))
-                                                                                              end)));
+    else (if (0 : IntInf.int) < l then (if (0 : IntInf.int) < k then Integer.div_mod (abs k) (abs l) else let
+                                                                                                            val (r, s) = Integer.div_mod (abs k) (abs l);
+                                                                                                          in
+                                                                                                            (if s = (0 : IntInf.int) then (~ r, (0 : IntInf.int)) else (~ r - (1 : IntInf.int), l - s))
+                                                                                                          end)
+           else (if l = (0 : IntInf.int) then ((0 : IntInf.int), k)
+                  else apsnd (fn a => ~ a) (if k < (0 : IntInf.int) then Integer.div_mod (abs k) (abs l) else let
+                                                                                                                val (r, s) = Integer.div_mod (abs k) (abs l);
+                                                                                                              in
+                                                                                                                (if s = (0 : IntInf.int) then (~ r, (0 : IntInf.int)) else (~ r - (1 : IntInf.int), ~ l - s))
+                                                                                                              end))));
 
 fun snd (x1, x2) = x2;
 
@@ -8488,8 +8485,9 @@ fun to_bl A_ w = bin_to_bl (len_of A_ Type) (uint A_ w);
 
 fun constant x =
   (bogwrap o (fn a => (case a of CIntConst0 (CInteger0 (i, repr, Flags0 flags), _) =>
-                                NUMCONST (i, flattena (concat (rev (map2 (fn flag => fn aa => (case aa of true => [show_intFlag flag] | false => [])) [FlagImag0, FlagLongLong0, FlagLong0, FlagUnsigned0]
-                                                                     (to_bl (len0_bit0 (len0_bit0 len0_num1)) (word_of_int (len0_bit0 (len0_bit0 len0_num1)) (Int_of_integer flags)))))),
+                                NUMCONST (i, flattena (concat (rev (mapa (fn aa => (case aa of (xa, true) => [show_intFlag xa] | (_, false) => []))
+                                                                     (zip [FlagImag0, FlagLongLong0, FlagLong0, FlagUnsigned0]
+                                                                       (to_bl (len0_bit0 (len0_bit0 len0_num1)) (word_of_int (len0_bit0 (len0_bit0 len0_num1)) (Int_of_integer flags))))))),
                                            (case repr of DecRepr0 => DEC | HexRepr0 => HEX | OctalRepr0 => OCT))
                         | CCharConst0 (CChar0 (c, _), _) => NUMCONST (integer_of_char c, SS_base (ST ""), DEC) | CFloatConst0 (_, _) => let
                     val _ = not_yet_supported (flattena [SS_base (ST "Float not yet supported (String returned)")]);
@@ -8616,7 +8614,7 @@ fun char_of_integer k = let
                           Chara (b0, b1, b2, b3, b4, b5, b6, aa)
                         end;
 
-fun explode s = mapa char_of_integer ((map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) s);
+fun explode s = mapa char_of_integer ((List.map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) s);
 
 fun scan_upto_b_i_n_d enda ts = or (bind3 enda (fn a => ([], a))) (fn a => (case a of [] => Inl (explode "did not find the end-marker") | t :: aa => bindd (scan_upto_b_i_n_d enda) (fn (res1, res2) => returna (t :: res1, res2)) aa)) ts;
 
@@ -10471,7 +10469,7 @@ fun print_ctxt_is_name_at_post x = let
                                    end
                                      x;
 
-fun to_lista x = (fn a => (case a of ST aa => (map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) aa | STa l => l)) x;
+fun to_lista x = (fn a => (case a of ST aa => (List.map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) aa | STa l => l)) x;
 
 fun fold_Const f accu expr = (case expr of Consta (s, _) => f accu s | Free (_, _) => accu | Var (_, _) => accu | Bound _ => accu | Absa (_, _, a) => fold_Const f accu a | Appa (term1, a) => fold_Const f (fold_Const f accu term1) a);
 
@@ -10617,7 +10615,7 @@ fun get_class_hierarchy_aux l_res (OclClass (name, l_attr, dataty)) = let
 
 fun get_class_hierarchya x = get_class_hierarchy_aux [] x;
 
-fun ascii_of_literal x = (hd o (map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode)) x;
+fun ascii_of_literal x = (hd o (List.map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode)) x;
 
 fun is_letter x = let
                     val int_A = ascii_of_literal "A";
@@ -10638,7 +10636,7 @@ fun is_digit x = let
                    x;
 
 fun isub x = replace_integersa let
-                                 val is_und = member equal_integer ((map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) "_");
+                                 val is_und = member equal_integer ((List.map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) "_");
                                in
                                  (fn c => (if is_letter c orelse (is_digit c orelse is_und c) then flattenb (SS_base (ST "\092<^sub>")) (SS_base (STa [c])) else add_0 c))
                                end
@@ -13560,7 +13558,7 @@ fun lex_list_cons (Lexical_ext (lex_list_cons, lex_bool_false, lex_string, more)
 
 fun lex_string (Lexical_ext (lex_list_cons, lex_bool_false, lex_string, more)) = lex_string;
 
-fun hsk_literal str = (fn a => (case a of Int n => Term_basic [natural_to_digit10 n] | String aa => str aa));
+fun hsk_literal str = (fn a => (case a of Int n => Term_basic [natural_to_digit10 n] | Stringa aa => str aa));
 
 fun hsk_term lexi names t =
   (case t of Literal a => hsk_literal (lex_string lexi) a
@@ -16158,7 +16156,7 @@ fun print_access_is_repr x =
                                     fix_let [v_r, v_typeoid]
                                       [(term_pat vs_t,
                                          Term_rewrite (f_ss v_r, SS_base (ST "\092<in>"),
-                                                        term_binop (term_parenthesis (term_binop (b (SS_base (ST "Some"))) (SS_base (ST "o")) (b (print_astype_from_universe_name name_to)))) (SS_base (ST "`"))
+                                                        term_binop (term_lam (SS_base (ST "x")) (fn xa => term_app (SS_base (ST "Some")) [term_app (print_astype_from_universe_name name_to) [b xa]])) (SS_base (ST "`"))
                                                           (a (SS_base (ST "ran")) (a (SS_base (ST "heap")) (a var_in_when_state (b var_tau)))))),
                                         (term_pat vs_sel_any,
                                           term_app (if attr_tya then var_select_object_sequence_any else var_select_object_set_any) [term_app (print_access_deref_oid_name isub_name_to) [b var_in_when_state, b var_reconst_basetype]])]
@@ -16819,7 +16817,7 @@ fun nsplit_f l c0 = replace_gen id l c0 [];
 
 fun escape_sml x = replace_integersa (fn n => (if n = (34 : IntInf.int) then SS_base (ST "\092\"") else SS_base (STa [n]))) x;
 
-fun is_special x = member equal_integer ((map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) " <>^_=-./(){}") x;
+fun is_special x = member equal_integer ((List.map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) " <>^_=-./(){}") x;
 
 fun ap1 a v0 f1 v1 = a v0 [f1 v1];
 
@@ -17292,16 +17290,22 @@ fun holThyLocale_name (Semi_locale_ext (holThyLocale_name, holThyLocale_header, 
 
 fun string_concat_map s f l = CodeConst.String.concat s (map f l);
 
-fun of_e_n_v_semi_theories to_string to_nat env =
-  (fn a => (case a of Theories_one aa => of_e_n_v_semi_theory to_string to_nat env aa
-             | Theories_locale (data, l) =>
-               CodeConst.Printf.sprintf3 "locale %s =\n%s\nbegin\n%s\nend" (to_string (holThyLocale_name data))
-                 (string_concat_map "\n"
-                   (fn (l_fix, o_assum) =>
-                     CodeConst.Printf.sprintf2 "%s%s" (string_concat_map "\n" (fn (e, ty) => CodeConst.Printf.sprintf2 "fixes \"%s\" :: \"%s\"" (of_semi_terma to_string e) (of_semi_typ to_string ty)) l_fix)
-                       (case o_assum of NONE => "" | SOME (name, e) => CodeConst.Printf.sprintf2 "\nassumes %s: \"%s\"" (to_string name) (of_semi_terma to_string e)))
-                   (holThyLocale_header data))
-                 (string_concat_map "\n\n" (string_concat_map "\n\n" (of_e_n_v_semi_theory to_string to_nat env)) l)));
+fun of_semi_theories0 to_string =
+  (fn of_semi_theory => fn env => fn a =>
+    (case a of Theories_one aa => of_semi_theory env aa
+      | Theories_locale (data, l) =>
+        CodeConst.Printf.sprintf3 "locale %s%s\nbegin\n%s\nend" (to_string (holThyLocale_name data))
+          (case holThyLocale_header data of [] => ""
+            | aa :: lista =>
+              CodeConst.Printf.sprintf1 " =\n%s"
+                (string_concat_map "\n"
+                  (fn (l_fix, o_assum) =>
+                    CodeConst.Printf.sprintf2 "%s%s" (string_concat_map "\n" (fn (e, ty) => CodeConst.Printf.sprintf2 "fixes \"%s\" :: \"%s\"" (of_semi_terma to_string e) (of_semi_typ to_string ty)) l_fix)
+                      (case o_assum of NONE => "" | SOME (name, e) => CodeConst.Printf.sprintf2 "\nassumes %s: \"%s\"" (to_string name) (of_semi_terma to_string e)))
+                  (aa :: lista)))
+          (string_concat_map "\n\n" (string_concat_map "\n\n" (of_semi_theory env)) l)));
+
+fun of_e_n_v_semi_theories to_string to_nat = of_semi_theories0 to_string (of_e_n_v_semi_theory to_string to_nat);
 
 fun of_boot_generation_syntax uu = (fn Boot_generation_syntax mode => CodeConst.Printf.sprintf1 "generation_syntax [ shallow%s ]" let
               val f = CodeConst.Printf.sprintf1 " (generation_semantics [ %s ])";
@@ -17799,7 +17803,7 @@ fun of_TypeSign of_string of_Pair of_Nil of_Cons a b =
   rec_TypeSign (ap3 a (b (SS_base (ST "TypeSign"))) (of_Name of_string a b) (of_list of_Nil of_Cons a b (of_pair of_Pair a b (of_Name of_string a b) (of_Sort of_string of_Nil of_Cons a b))) (of_Type of_string of_Nil of_Cons a b));
 
 fun rec_Literal f1 f2 (Int x1) = f1 x1
-  | rec_Literal f1 f2 (String x2) = f2 x2;
+  | rec_Literal f1 f2 (Stringa x2) = f2 x2;
 
 fun of_Literal of_string of_nat a b = rec_Literal (ap1 a (b (SS_base (ST "Int"))) (of_nat a b)) (ap1 a (b (SS_base (ST "String"))) (of_string a b));
 
@@ -18499,7 +18503,7 @@ fun check_export_code f_writeln f_warning f_error f_raise l_report msg_last =
   end;
 
 fun integer_to_digit16 x = let
-                             val f = nth ((map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) "0123456789ABCDEF") o nat_of_integer;
+                             val f = nth ((List.map (fn c => let val k = Char.ord c in if k < 128 then IntInf.fromInt k else raise Fail "Non-ASCII character in literal" end)  o String.explode) "0123456789ABCDEF") o nat_of_integer;
                            in
                              (fn xa => SS_base (STa [f (divide_integer xa (16 : IntInf.int)), f (modulo_integer xa (16 : IntInf.int))]))
                            end
