@@ -50,10 +50,10 @@ C \<open>
 #define SQRT_UINT_MAX 65536
 int k = 0;
 unsigned int is_prime(unsigned int n)
-//@ PRE_CLEAN \<open>n \<le> UINT_MAX\<close>
-//@ POST_CLEAN \<open>result \<noteq> 0 \<longleftrightarrow>             \
-   normalize n = n \<and> n \<noteq> 0 \<and> \<not>n dvd 1 \<and>   \
- (\<forall>a b. n dvd (a * b) \<longrightarrow> n dvd a \<or> n dvd b)\<close>
+//@ pre\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N \<open>n \<le> UINT_MAX\<close>
+//@ definition "prime (p :: nat) =         \
+       (1 < p \<and> (\<forall> n \<in> {2..<p}. \<not> n dvd p))"
+//@ post\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N \<open>result \<noteq> 0 \<longleftrightarrow> prime n\<close>
 { if (n < 2) return 0;
   for (unsigned i = 2; i < SQRT_UINT_MAX
                        && i * i <= n; i++) {
