@@ -656,8 +656,4 @@ val _ = Theory.setup ((* 1 '@' *)
 end
 \<close>
 
-section \<open>Miscellaneous\<close>
-
-declare [[C_export_file_exist = false]]
-
 end
