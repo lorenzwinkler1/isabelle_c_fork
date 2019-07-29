@@ -656,4 +656,20 @@ val _ = Theory.setup ((* 1 '@' *)
 end
 \<close>
 
+section \<open>Miscellaneous\<close>
+
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_options.ML\<close>\<close>
+(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Title:      Pure/ML/ml_options.ML
+    Author:     Makarius
+
+ML configuration options.
+*)
+\<open>
+structure C_Options' =
+struct
+val generate_logical_files = Attrib.setup_config_bool @{binding generate_logical_files} (K true);
+end
+\<close>
+
 end
