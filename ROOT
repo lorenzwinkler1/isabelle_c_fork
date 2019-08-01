@@ -43,7 +43,6 @@ session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres_logic +
     "semantic-backends/AutoCorres/src/Backend"
 
 session Isabelle_C_AutoCorres_examples in "C11-FrontEnd" = Isabelle_C_AutoCorres +
-  options [document = pdf, document_output = "generated"]
   sessions
     "HOL-Computational_Algebra"
   theories
@@ -53,9 +52,6 @@ session Isabelle_C_AutoCorres_examples in "C11-FrontEnd" = Isabelle_C_AutoCorres
     "semantic-backends/AutoCorres/examples/Parse_for_loop"
     "semantic-backends/AutoCorres/examples/Quicksort"
     "semantic-backends/AutoCorres/examples/TestSEL4"
-  document_files
-    "root.tex"
-    "root.bib"
 
 session Isabelle_C_CLEAN in "C11-FrontEnd" = Isabelle_C +
   sessions
@@ -64,22 +60,14 @@ session Isabelle_C_CLEAN in "C11-FrontEnd" = Isabelle_C +
     "semantic-backends/CLEAN/src/Backend"
 
 session Isabelle_C_CLEAN_examples in "C11-FrontEnd" = Isabelle_C_CLEAN +
-  options [document = pdf, document_output = "generated"]
   theories
     "semantic-backends/CLEAN/examples/IsPrime_sqrt_outside"
     "semantic-backends/CLEAN/examples/Quicksort2"
     "semantic-backends/CLEAN/examples/Quicksort"
-  document_files
-    "root.tex"
-    "root.bib"
 
 session Isabelle_C_README in "C11-FrontEnd" = HOL +
-  options [document = pdf, document_output = "generated"]
   theories
     "../README"
-  document_files
-    "root.tex"
-    "root.bib"
 
 session Isabelle_C_archive in "C11-FrontEnd" = Isabelle_C_AutoCorres +
   options [quick_and_dirty]
