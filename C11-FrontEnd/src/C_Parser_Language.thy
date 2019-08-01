@@ -214,7 +214,7 @@ struct
   type 'a monad = arg -> 'a * arg
 
   (**)
-  val To_string0 = C_Ast.meta_of_logic
+  val To_string0 = meta_of_logic
   fun reverse l = rev l
 
   fun report [] _ _ = I
