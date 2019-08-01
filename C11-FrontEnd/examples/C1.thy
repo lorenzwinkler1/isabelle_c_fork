@@ -283,8 +283,7 @@ declare [[C_parser_trace = false]]
 
 ML\<open>
 val C = tap o C_Module.C
-val C' = C_Module.C' (fn _ => fn _ => fn pos =>
-                       tap (fn _ => warning ("Parser: No matching grammar rule " ^ Position.here pos)))
+val C' = C_Module.C'
 \<close>
 
 C \<comment> \<open>Nesting C code without propagating the C environment\<close> \<open>
@@ -489,5 +488,27 @@ if then else ;
 #define FOO  00 0 "" ((
 FOO(FOO(a,b,c))
 #endif\<close>
+
+C \<comment> \<open>Header-names in directives\<close> \<open>
+#define F <stdio.h>
+#define G "stdio\h" // expecting an error whenever expanded
+#define H "stdio_h" // can be used anywhere without errors
+int f = /*F*/ "";
+int g = /*G*/ "";
+int h =   H   "";
+
+#include F
+\<close>
+
+C \<comment> \<open>Parsing tokens as directives only when detecting space symbols before \<open>#\<close>\<close> \<open>/*
+ */ \
+    \
+
+ //
+         #  /*
+*/   define /**/ \
+ a
+a a /*#include <>*/ // must not be considered as a directive
+\<close>
 
 end

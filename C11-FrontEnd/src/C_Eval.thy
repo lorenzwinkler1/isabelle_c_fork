@@ -58,24 +58,26 @@ structure Data_Lang = Generic_Data
    val extend = K empty
    val merge = K empty)
 
-structure Data_Tree_Args =
+structure Data_Tree_Args : GENERIC_DATA_ARGS =
 struct
-  type T = C_Position.reports_text
-  val empty = []
+  type T = C_Position.reports_text * C_Env.error_lines
+  val empty = ([], [])
   val extend = I
-  val merge = op @
+  fun merge ((l11, l12), (l21, l22)) = (l11 @ l21, l12 @ l22)
 end
 
 structure Data_Tree = Generic_Data (Data_Tree_Args)
 
 fun setmp_tree f context =
   let val x = Data_Tree.get context
-      val context = f (Data_Tree.put [] context)
+      val context = f (Data_Tree.put Data_Tree_Args.empty context)
   in (Data_Tree.get context, Data_Tree.put x context) end
 
-fun stack_exec0 f {context, reports_text} =
-  let val (reports_text', context) = setmp_tree f context
-  in {context = context, reports_text = append reports_text' reports_text} end
+fun stack_exec0 f {context, reports_text, error_lines} =
+  let val ((reports_text', error_lines'), context) = setmp_tree f context
+  in { context = context
+     , reports_text = append reports_text' reports_text
+     , error_lines = append error_lines' error_lines } end
 
 fun stack_exec env_dir data_put f =
   stack_exec0 (Data_Lang.put (apsnd (C_Env.map_env_directives (K env_dir)) data_put) #> f)
@@ -136,19 +138,33 @@ fun advance_hook stack = (fn f => fn (arg, stack_ml) => f (#stream_hook arg) (ar
 
 fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
   let val (token, arg) = C_Env_Ext.map_stream_lang' (fn [] => (NONE, []) | x :: xs => (SOME x, xs)) arg
-      fun return0' f x =
-        let val (arg, stack_ml) = f stack (arg, stack_ml)
-        in (x, ((stack, stack_ml, stack_pos, stack_tree), arg)) end
-      val return0 = return0' advance_hook
+      fun return0' f =
+        (arg, stack_ml)
+        |> advance_hook stack
+        |> f
+        |> (fn (arg, stack_ml) => rpair ((stack, stack_ml, stack_pos, stack_tree), arg))
+      val return0 = return0' I
+      val encoding = fn C_Lex.Encoding_L => true | _ => false
       open C_Ast
+      fun token_err pos1 pos2 src =
+        C_Grammar_Tokens.token_of_string
+          (C_Grammar.Tokens.error (pos1, pos2))
+          (ClangCVersion0 (From_string src))
+          (CChar (From_char_hd "0") false)
+          (CFloat (From_string src))
+          (CInteger 0 DecRepr (Flags 0))
+          (CString0 (From_string src, false))
+          (Ident (From_string src, 0, OnlyPos NoPosition (NoPosition, 0)))
+          src
+          pos1
+          pos2
+          src
       open C_Scan
   in
     case token
     of NONE => 
         return0'
-          (fn stack => 
-            advance_hook stack
-            #> tap (fn (arg, _) => 
+          (tap (fn (arg, _) => 
               fold (uncurry
                      (fn pos => 
                        fold_rev (fn (syms, _, _) => fn () =>
@@ -184,44 +200,38 @@ fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
      | SOME (Right (tok as C_Lex.Token (_, (C_Lex.Directive _, _)))) =>
         makeLexer ((stack, stack_ml, stack_pos, stack_tree), C_Env_Ext.map_stream_ignored (cons (Right tok)) arg)
      | SOME (Right (C_Lex.Token ((pos1, pos2), (tok, src)))) =>
-       case tok of
-         C_Lex.Char (b, [c]) =>
-          return0 (C_Grammar.Tokens.cchar (CChar (From_char_hd c) b, pos1, pos2))
-       | C_Lex.String (b, s) =>
-          return0 (C_Grammar.Tokens.cstr (CString0 (From_string (implode s), b), pos1, pos2))
-       | C_Lex.Integer (i, repr, flag) =>
-          return0 (C_Grammar.Tokens.cint
-                    ( CInteger i repr
-                        (C_Lex.read_bin (fold (fn flag => map (fn (bit, flag0) => (if flag = flag0 then "1" else bit, flag0)))
-                                              flag
-                                              ([FlagUnsigned, FlagLong, FlagLongLong, FlagImag] |> rev |> map (pair "0"))
-                                         |> map #1)
-                         |> Flags)
-                    , pos1
-                    , pos2))
-       | C_Lex.Ident => 
-          let val (name, arg) = C_Grammar_Rule_Lib.getNewName arg
-              val ident0 = C_Grammar_Rule_Lib.mkIdent (C_Grammar_Rule_Lib.posOf' false (pos1, pos2)) src name
-          in return0
-               (if C_Grammar_Rule_Lib.isTypeIdent src arg then
-                  C_Grammar.Tokens.tyident (ident0, pos1, pos2)
-                else
-                  C_Grammar.Tokens.ident (ident0, pos1, pos2))
-          end
-       | _ => 
-          C_Grammar_Tokens.token_of_string
-                          (C_Grammar.Tokens.error (pos1, pos2))
-                          (ClangCVersion0 (From_string src))
-                          (CChar (From_char_hd "0") false)
-                          (CFloat (From_string src))
-                          (CInteger 0 DecRepr (Flags 0))
-                          (CString0 (From_string src, false))
-                          (Ident (From_string src, 0, OnlyPos NoPosition (NoPosition, 0)))
-                          src
-                          pos1
-                          pos2
-                          src
-          |> return0
+      case tok of 
+        C_Lex.String (C_Lex.Encoding_file (SOME err), _) =>
+        return0' (apfst (C_Env.map_env_tree (C_Env.map_error_lines (cons (err ^ Position.here pos1)))))
+                 (token_err pos1 pos2 src)
+      | _ =>
+        return0
+          (case tok of
+             C_Lex.Char (b, [c]) =>
+              C_Grammar.Tokens.cchar (CChar (From_char_hd c) (encoding b), pos1, pos2)
+           | C_Lex.String (b, s) =>
+              C_Grammar.Tokens.cstr (CString0 (From_string (implode s), encoding b), pos1, pos2)
+           | C_Lex.Integer (i, repr, flag) =>
+              C_Grammar.Tokens.cint
+               ( CInteger i repr
+                   (C_Lex.read_bin (fold (fn flag => map (fn (bit, flag0) => (if flag = flag0 then "1" else bit, flag0)))
+                                         flag
+                                         ([FlagUnsigned, FlagLong, FlagLongLong, FlagImag] |> rev |> map (pair "0"))
+                                    |> map #1)
+                    |> Flags)
+               , pos1
+               , pos2)
+           | C_Lex.Float s =>
+              C_Grammar.Tokens.cfloat (CFloat (From_string (implode (map #1 s))), pos1, pos2)
+           | C_Lex.Ident => 
+              let val (name, arg) = C_Grammar_Rule_Lib.getNewName arg
+                  val ident0 = C_Grammar_Rule_Lib.mkIdent (C_Grammar_Rule_Lib.posOf' false (pos1, pos2)) src name
+              in if C_Grammar_Rule_Lib.isTypeIdent src arg then
+                   C_Grammar.Tokens.tyident (ident0, pos1, pos2)
+                 else
+                   C_Grammar.Tokens.ident (ident0, pos1, pos2)
+              end
+           | _ => token_err pos1 pos2 src)
   end
 end
 \<close>
@@ -418,8 +428,9 @@ fun markup_directive_define def in_direct ps (name, id) =
       (map (fn pos => Markup.properties (Position.entity_properties_of def id pos) entity) ps)
   end
 
-fun eval env err accept ants {context, reports_text} =
-  let fun scan_comment tag pos (antiq as {explicit, body, ...}) cts =
+fun eval env err accept (ants, ants_err) {context, reports_text, error_lines} =
+  let val error_lines = ants_err error_lines
+      fun scan_comment tag pos (antiq as {explicit, body, ...}) cts =
            let val (res, l_comm) = scan_antiq context body
            in 
              Left
@@ -461,9 +472,9 @@ fun eval env err accept ants {context, reports_text} =
                                                   @ maps (maps (C_Token.reports (C_Thy_Header.get_keywords (Context.theory_of context)))) (l :: map #2 ls)
                                               | _ => [])
                                             ants);
-      val _ = C_Lex.check ants_none;
+      val error_lines = C_Lex.check ants_none error_lines;
 
-      val ((ants, {context, reports_text}), env) =
+      val ((ants, {context, reports_text, error_lines}), env) =
         C_Env_Ext.map_env_directives'
           (fn env_dir =>
             let val (ants, (env_dir, env_tree)) =
@@ -520,7 +531,7 @@ fun eval env err accept ants {context, reports_text} =
                   | _ => pair (Right (Left tok))
                 end
                 ants
-                (env_dir, {context = context, reports_text = reports_text})
+                (env_dir, {context = context, reports_text = reports_text, error_lines = error_lines})
             in ((ants, env_tree), env_dir) end)
           env
 
@@ -536,7 +547,11 @@ fun eval env err accept ants {context, reports_text} =
       val () = if Config.get ctxt C_Options.lexer_trace andalso Context_Position.is_visible ctxt
                then print (map_filter (fn Right x => SOME x | _ => NONE) ants_stack)
                else ()
-  in C_Language.eval env err accept ants_stack {context = context, reports_text = reports_text} end
+  in C_Language.eval env
+                     err
+                     accept
+                     ants_stack
+                     {context = context, reports_text = reports_text, error_lines = error_lines} end
 
 
 (* derived versions *)
@@ -544,13 +559,10 @@ fun eval env err accept ants {context, reports_text} =
 fun eval' env err accept ants =
   Context.>> (fn context =>
                C_Env_Ext.context_map
-                 let val tap_report = tap (Position.reports_text o #reports_text)
-                                      #> (C_Env.empty_env_tree o #context)
-                 in eval (env context)
-                         (fn env_lang => fn stack => fn pos => tap_report #> err env_lang stack pos)
-                         (fn env_lang => fn stack => accept env_lang stack #> tap_report)
-                         ants
-                 end
+                 (eval (env context) err accept ants
+                  #> tap (Position.reports_text o #reports_text)
+                  #> tap (#error_lines #> (fn [] => () | l => error (cat_lines (rev l))))
+                  #> (C_Env.empty_env_tree o #context))
                  context)
 end;
 
