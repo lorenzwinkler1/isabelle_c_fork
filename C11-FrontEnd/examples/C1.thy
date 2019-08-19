@@ -277,6 +277,49 @@ i jj = jj;
 j j = jj;
 \<close>
 
+C \<comment> \<open>Nesting type definitions\<close> \<open>
+typedef int j;
+j a = 0;
+typedef int k;
+int main (int c) {
+  j b = 0;
+  typedef int k;
+  typedef k l;
+  k a = c;
+  l a = 0;
+}
+k a = a;
+\<close>
+
+C \<comment> \<open>Reporting \<open>enum\<close>\<close> \<open>
+enum a b; // bound case: undeclared
+enum a {aaa}; // define case
+enum a {aaa}; // define case: redefined
+enum a _; // bound case
+
+__thread (f ( enum a,  enum a vv));
+
+enum a /* \<leftarrow>\<comment> \<open>\<^ML>\<open>C_Grammar_Rule_Wrap_Overloading.function_definition4\<close>\<close>*/ f (enum a a) {
+}
+
+__thread enum a /* \<leftarrow>\<comment> \<open>\<^ML>\<open>C_Grammar_Rule_Wrap_Overloading.declaration_specifier2\<close>\<close>*/ f (enum a a) {
+  enum c {ccc}; // define case
+  __thread enum c f (enum c a) {
+    return 0;
+  }
+  enum c /* \<leftarrow>\<comment> \<open>\<^ML>\<open>C_Grammar_Rule_Wrap_Overloading.nested_function_definition2\<close>\<close>*/ f (enum c a) {
+    return 0;
+  }
+  return 0;
+}
+
+enum z {zz}; // define case
+int main (enum z *x) /* \<leftarrow>\<comment> \<open>\<^ML>\<open>C_Grammar_Rule_Wrap_Overloading.parameter_type_list2\<close>\<close>*/ {
+  return zz; }
+int main (enum a *x, ...) /* \<leftarrow>\<comment> \<open>\<^ML>\<open>C_Grammar_Rule_Wrap_Overloading.parameter_type_list3\<close>\<close>*/ {
+  return zz; }
+\<close>
+
 subsubsection \<open>2\<close>
 
 declare [[C_parser_trace = false]]
@@ -432,6 +475,35 @@ int main3 () { main2 (); }
 
 declare [[C_starting_env = empty]]
 
+subsubsection \<open>7\<close>
+
+C \<open>int f (int z);\<close>
+C \<open>int * f (int z);\<close>
+C \<open>int (* f) (int z /* \<leftarrow>\<comment> \<open>\<^ML>\<open>C_Grammar_Rule_Wrap_Overloading.declarator1\<close>\<close>*/);\<close>
+C \<open>typedef int (* f) (int z);\<close>
+C \<open>int f (int z) {}\<close>
+C \<open>int * f (int z) {return z;}\<close>
+C \<open>int ((* f) (int z1, int z2)) {return z1 + z2;}\<close>
+C \<open>int (* (* f) (int z1, int z2)) {return z1 + z2;}\<close>
+C \<open>typedef int (* f) (int z); f uuu (int b) {return b;};\<close>
+C \<open>typedef int (* (* f) (int z, int z)) (int a); f uuu (int b) {return b;};\<close>
+C \<open>struct z { int (* f) (int z); int (* (* ff) (int z)) (int a); };\<close>
+C \<open>double (* (* f (int a /* \<leftarrow>\<comment> \<open>\<^ML>\<open>C_Grammar_Rule_Wrap_Overloading.declarator1\<close>\<close>*/)) (int a, double d)) (char a);\<close>
+C \<open>double (* (((* f) []) (int a)) (int b, double c)) (char d) {int a = b + c + d;}\<close>
+C \<open>double ((*((f) (int a))) (int a /* \<leftarrow>\<comment> \<open>\<^ML>\<open>C_Grammar_Rule_Lib.doFuncParamDeclIdent\<close>\<close>*/, double)) (char c) {int a = 0;}\<close>
+
+C \<comment> \<open>Nesting functions\<close> \<open>
+double (* (* f (int a)) (int a, double)) (char c) {
+double (* (* f (int a)) (double a, int a)) (char) {
+  return a;
+}
+}
+\<close>
+
+C \<comment> \<open>Old function syntax\<close> \<open>
+f (x) int x; {return x;}
+\<close>
+
 subsection \<open>General commands\<close>
 
 locale zz begin definition "z' = ()"
@@ -509,6 +581,14 @@ C \<comment> \<open>Parsing tokens as directives only when detecting space symbo
 */   define /**/ \
  a
 a a /*#include <>*/ // must not be considered as a directive
+\<close>
+
+C \<comment> \<open>Universal character names in identifiers and Isabelle symbols\<close> \<open>
+#include <stdio.h>
+int main () {
+  char * ó\<^url>ò = "ó\<^url>ò";
+  printf ("%s", ó\<^url>ò);
+}
 \<close>
 
 end

@@ -875,9 +875,19 @@ val many1_blanks_no_line = many1 C_Symbol.is_ascii_blank_no_line
 
 (* identifiers *)
 
+val scan_ident_sym =
+  let val hex = one' Symbol.is_ascii_hex
+  in   one' C_Symbol.is_identletter
+    || $$$ "\\" @@@ $$$ "u" @@@ hex @@@ hex @@@ hex @@@ hex
+    || $$$ "\\" @@@ $$$ "U" @@@ hex @@@ hex @@@ hex @@@ hex @@@ hex @@@ hex @@@ hex @@@ hex
+    || one' Symbol.is_symbolic
+    || one' Symbol.is_control
+    || one' Symbol.is_utf8
+  end
+  
 val scan_ident =
-      one C_Symbol.is_identletter
-  ::: many (fn s => C_Symbol.is_identletter s orelse Symbol.is_ascii_digit s);
+      scan_ident_sym
+  @@@ Scan.repeats (scan_ident_sym || one' Symbol.is_ascii_digit);
 
 val keywords_ident =
   map_filter
@@ -1050,20 +1060,19 @@ fun scan_escape s0 =
   end
 
 fun scan_str s0 =
-     Scan.one (fn (s, _) => Symbol.not_eof s andalso s <> s0 andalso s <> "\\")
+     Scan.unless newline (Scan.one (fn (s, _) => Symbol.not_eof s andalso s <> s0 andalso s <> "\\"))
      >> (fn s => [#1 s])
+  || Scan.ahead newline |-- !!! "bad newline" Scan.fail
   || $$ "\\" |-- !!! "bad escape character" (scan_escape s0);
-
-fun scan_gap xs = ($$ "\\" -- scan_blanks1 -- $$ "\\" >> K []) xs;
 
 fun scan_string0 s0 msg repeats =
   Scan.optional ($$ "L" >> K Encoding_L) Encoding_default --
     (Scan.ahead ($$ s0) |--
       !!! ("unclosed " ^ msg ^ " literal")
-        ($$ s0 |-- repeats (scan_gap || scan_str s0) --| $$ s0))
+        ($$ s0 |-- repeats (scan_str s0) --| $$ s0))
 
 fun recover_string0 s0 repeats =
-  opt ($$$ "L") @@@ $$$ s0 @@@ repeats (scan_gap || Scan.permissive (Scan.trace (scan_str s0) >> #2));
+  opt ($$$ "L") @@@ $$$ s0 @@@ repeats (Scan.permissive (Scan.trace (scan_str s0) >> #2));
 in
 
 val scan_char = scan_string0 "'" "char" Scan.repeats1
