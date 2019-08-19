@@ -99,7 +99,7 @@ funct quicksort(lo::int, hi::int) returns unit
 
 
 global_vars state
-    A :: "int list "
+    A :: "int list"
 
 
 ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
@@ -111,12 +111,13 @@ subsection \<open>Encoding swap in CLEAN\<close>
 (* for some strange reason, "result" is no longer a term. term "result" crashes. *)
 (* list-lifting should be automatic in local_vars. *)
 
+
 local_vars local_swap_state "unit"
    tmp :: "int" 
 ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
     StateMgt_core.get_state_field_tab_global @{theory}\<close>
 
-
+find_theorems (150) name:"swap"
 
 definition push_local_state_swap :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
   where   "push_local_state_swap \<sigma> = 
@@ -256,11 +257,6 @@ funct quicksort(lo::nat, hi::nat) returns unit
       
 *)
 
-(* this implies the definitions : *)
-definition push_local_quicksort_state :: "(unit, 'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "push_local_quicksort_state \<sigma> = 
-                 Some((), \<sigma>\<lparr>local_quicksort_state.p := undefined # local_quicksort_state.p \<sigma>,
-                            local_quicksort_state.result_value := undefined # local_quicksort_state.result_value \<sigma> \<rparr>)"
 
 ML\<open>
  HOLogic.listT ;
@@ -272,13 +268,6 @@ ML\<open>
 \<close>
 
 ML\<open>
-val H = (fn (((decl, spec), prems), params) =>
-        #2 oo Specification.definition_cmd decl params prems spec);
-
-
-val H' = (fn (((decl, spec), prems), params) =>
-        #2 oo Specification.definition' decl params prems spec);
-
 
 (* HOLogic extended *)
 
@@ -311,38 +300,54 @@ fun mk_meta_eq (t, u) = meta_eq_const (fastype_of t) $ t $ u;
 
 
 (* the meat *)
-local
+local open StateMgt_core
 
     fun get_result_value_conf name thy = 
-            let val  S = StateMgt_core.filter_attr_of name thy
+            let val  S = filter_attr_of name thy
             in  hd(filter (fn ((a,b),c) => b = "result_value") S) 
                 handle _ => error("internal error: get_result_value_conf") end; 
 
 
 
     fun mk_lookup_result_value_term name sty thy =
-        let val ((prefix,name),StateMgt_core.local_var(ty)) = get_result_value_conf name thy;
+        let val ((prefix,name),local_var(Type("fun", [_,ty]))) = get_result_value_conf name thy;
             val long_name = Sign.intern_const  thy (prefix^"."^name)
-            val term = Const(long_name, ty)
+            val term = Const(long_name, sty --> ty)
         in  mk_hdT (term $ Free("\<sigma>",sty)) end
 
 
     fun mk_push_name s p = Binding.name("push_local_"^s^"_state")
-    fun mk_pop_name s p = Binding.make("pop_local_"^s^"_state",p)
+    fun mk_pop_name s p  = Binding.make("pop_local_"^s^"_state",p)
+
+    fun  map_to_update sty is_pop thy ((struct_name, attr_name), local_var (Type("fun",[_,ty]))) term = 
+           let val tlT = if is_pop then Const(\<^const_name>\<open>List.tl\<close>, ty --> ty)
+                         else Const(\<^const_name>\<open>List.Cons\<close>, dest_listTy ty --> ty --> ty)
+                              $ mk_undefined (dest_listTy ty)
+               val update_name = Sign.intern_const  thy (struct_name^"."^attr_name^"_update")
+           in (Const(update_name, (ty --> ty) --> sty --> sty) $ tlT) $ term end
+       | map_to_update _ _ _ ((_, _),_) _ = error("internal error map_to_update")     
     
-    fun push_eq name rty sty = 
-             let val mty = StateMgt_core.MON_SE_T rty sty 
-             in  mk_meta_eq((Free(name, mty) $ Free("\<sigma>",sty)), 
-                             mk_Some ( HOLogic.mk_prod (mk_undefined rty,Free("\<sigma>", sty))))
+    in fun construct_update is_pop name sty thy = 
+           let val long_name = "local_"^name^"_state"
+               val attrS = StateMgt_core.filter_attr_of long_name thy
+           in  fold (map_to_update sty is_pop thy) (attrS) (Free("\<sigma>",sty)) end
+
+    fun push_eq name name_op rty sty lthy = 
+             let val mty = MON_SE_T rty sty 
+                 val thy = Proof_Context.theory_of lthy
+                 val term = construct_update false name sty thy
+             in  mk_meta_eq((Free(name_op, mty) $ Free("\<sigma>",sty)), 
+                             mk_Some ( HOLogic.mk_prod (mk_undefined rty,term)))
                               
              end;
     
-    
     fun pop_eq name name_op rty sty lthy = 
-             let val mty = StateMgt_core.MON_SE_T rty sty 
-                 val res_access = mk_lookup_result_value_term ("local_"^name^"_state") sty (Proof_Context.theory_of lthy)
+             let val mty = MON_SE_T rty sty 
+                 val thy = Proof_Context.theory_of lthy
+                 val res_access = mk_lookup_result_value_term ("local_"^name^"_state") sty thy
+                 val term = construct_update true name sty thy                 
              in  mk_meta_eq((Free(name_op, mty) $ Free("\<sigma>",sty)), 
-                             mk_Some ( HOLogic.mk_prod (res_access,Free("\<sigma>", sty))))
+                             mk_Some ( HOLogic.mk_prod (res_access,term)))
                               
              end;
     
@@ -350,50 +355,58 @@ local
     val cmd = (fn (((decl, spec), prems), params) =>
                             #2 oo Specification.definition' decl params prems spec)
     
-in 
 
-fun mk_push_def name p  sty = 
-    let val nameb =  mk_push_name name p
-        val nameb_str = Binding.name_of nameb
-        val rty = \<^typ>\<open>unit\<close>
-        val eq = push_eq nameb_str rty sty
-        val mty = StateMgt_core.MON_SE_T rty sty 
-        val args = (((SOME(nameb,SOME mty,NoSyn),(Binding.empty_atts,eq)),[]),[])
-    in cmd args true
-    end;
-
-
-fun mk_pop_def name p rty sty lthy = 
-    let val mty = StateMgt_core.MON_SE_T rty sty 
-        val nameb =  mk_pop_name name p
-        val nameb_str = Binding.name_of nameb
-        val _ = writeln nameb_str
-        val eq = pop_eq name nameb_str rty sty lthy
-        val args = (((SOME(nameb,SOME mty,NoSyn),(Binding.empty_atts,eq)),[]),[])
-    in cmd args true lthy
-    end;
+    fun mk_push_def name p  sty lthy = 
+        let val nameb =  mk_push_name name p
+            val nameb_str = Binding.name_of nameb
+            val rty = \<^typ>\<open>unit\<close>
+            val eq = push_eq name nameb_str rty sty lthy
+            val mty = StateMgt_core.MON_SE_T rty sty 
+            val args = (((SOME(nameb,SOME mty,NoSyn),(Binding.empty_atts,eq)),[]),[])
+        in cmd args true lthy
+        end;
+    
+    
+    fun mk_pop_def name p rty sty lthy = 
+        let val mty = StateMgt_core.MON_SE_T rty sty 
+            val nameb =  mk_pop_name name p
+            val nameb_str = Binding.name_of nameb
+            val _ = writeln nameb_str
+            val eq = pop_eq name nameb_str rty sty lthy
+            val args = (((SOME(nameb,SOME mty,NoSyn),(Binding.empty_atts,eq)),[]),[])
+        in cmd args true lthy
+        end;
 
 end
 
 
 \<close>
 
-ML\<open>
-val t = @{term "hd(local_quicksort_state.result_value \<sigma>)"};
+ 
 
-StateMgt_core.filter_attr_of "local_quicksort_state" @{theory};
-StateMgt_core.get_state_field_tab_global @{theory};
+ML\<open>
+construct_update true  "quicksort" @{typ "'a local_quicksort_state_scheme"} @{theory};
+construct_update false "quicksort" @{typ "'a local_quicksort_state_scheme"} @{theory};
+@{term "List.Cons"}
+
 \<close>
 
-setup\<open>Named_Target.theory_map (mk_push_def "qquicksort" @{here} @{typ "'a local_quicksort_state_scheme"})\<close>
-
-setup\<open>Named_Target.theory_map (mk_pop_def "quicksort" @{here} @{typ "unit"} @{typ "'a local_quicksort_state_scheme"})\<close>
-
-
-term "(local_quicksort_state.result_value_update tl) o (local_quicksort_state.p_update tl) "
+setup\<open>Named_Target.theory_map (mk_push_def "quicksort" @{here} @{typ "'a local_quicksort_state_scheme"})\<close>
+setup\<open>Named_Target.theory_map (mk_pop_def "quicksort" @{here} @{typ "unit"} @{typ "'b local_quicksort_state_scheme"})\<close>
 
 
-find_theorems name: "pop_local_quicksort_state"
+
+thm pop_local_quicksort_state_def
+thm push_local_quicksort_state_def
+
+(* this implies the definitions : *)
+definition push_local_quicksort_state' :: "(unit, 'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "push_local_quicksort_state' \<sigma> = 
+                 Some((), \<sigma>\<lparr>local_quicksort_state.p := undefined # local_quicksort_state.p \<sigma>,
+                            local_quicksort_state.result_value := undefined # local_quicksort_state.result_value \<sigma> \<rparr>)"
+
+
+
 
 definition pop_local_quicksort_state' :: "(unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
   where   "pop_local_quicksort_state' \<sigma> = Some(hd(local_quicksort_state.result_value \<sigma>),
