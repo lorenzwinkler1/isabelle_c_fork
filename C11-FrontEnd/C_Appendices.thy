@@ -256,9 +256,9 @@ always properly enriched with declared variable information at any time, because
 
 subsubsection \<open>Example\<close>
 
-text \<open> As illustration, \<^ML>\<open>C_Grammar_Rule_Lib.markup_var true\<close> is
+text \<open> As illustration, \<^ML>\<open>C_Grammar_Rule_Lib.markup_var o C_Ast.Left\<close> is
 (implicitly) called by a rule code while a variable being declared is encountered. Later, a call to
-\<^ML>\<open>C_Grammar_Rule_Lib.markup_var false\<close> in
+\<^ML>\<open>C_Grammar_Rule_Lib.markup_var o C_Ast.Right\<close> in
 \<^ML_structure>\<open>C_Grammar_Rule_Wrap\<close> (actually, in
 \<^ML_structure>\<open>C_Grammar_Rule_Wrap_Overloading\<close>) is made after the execution of
 another rule code to signal the position of a variable in use, together with the information
@@ -278,9 +278,9 @@ variable being declared is global or not is implemented in
 \<^ML>\<open>C_Grammar_Rule_Lib.doFuncParamDeclIdent\<close>. The two functions come from
 \<^url>\<open>https://github.com/visq/language-c/blob/master/src/Language/C/Parser/Parser.y\<close>
 (so do any functions in \<^ML_structure>\<open>C_Grammar_Rule_Lib\<close>). Ultimately, they are
-both calling \<^ML>\<open>C_Grammar_Rule_Lib.markup_var true\<close> at some point.
+both calling \<^ML>\<open>C_Grammar_Rule_Lib.markup_var o C_Ast.Left\<close> at some point.
 \<^item> \<^bold>\<open>Retrieving the information at use time\<close>
-\<^ML>\<open>C_Grammar_Rule_Lib.markup_var false\<close> is only called by
+\<^ML>\<open>C_Grammar_Rule_Lib.markup_var o C_Ast.Right\<close> is only called by
 \<^ML>\<open>C_Grammar_Rule_Wrap.primary_expression1\<close>, while treating a variable being
 already declared. In particular the second argument of
 \<^ML>\<open>C_Grammar_Rule_Lib.markup_var\<close> is just provided by what has been computed by the
@@ -438,7 +438,6 @@ text \<open>
     @{attribute_def C_parser_trace} & : & \<open>attribute\<close> & default \<open>false\<close> \\
     @{attribute_def C_ML_verbose} & : & \<open>attribute\<close> & default \<open>true\<close> \\
     @{attribute_def C_starting_env} & : & \<open>attribute\<close> & default \<open>empty\<close> \\
-    @{attribute_def C_export_file_exist} & : & \<open>attribute\<close> & default \<open>true\<close> \\
   \end{tabular}
 
   \<^rail>\<open>
@@ -483,12 +482,13 @@ text \<open>
   is understood as being processed by
   \<^theory_text>\<open>C\<close> instead of \<^theory_text>\<open>ML\<close>.
 
-  \<^descr> \<^theory_text>\<open>C_export_file\<close> dumps all
-  existing previous C code to \<open>T.c\<close>, where
-  \<open>T.thy\<close> is the name of the current working theory. The
-  dump is actually restricted to \<open>T\<close> (parent theories are
-  ignored).
-\<close>
+  \<^descr> \<^theory_text>\<open>C_export_file\<close> is similar to
+  \<^theory_text>\<open>generate_file fic = \<open>code\<close>
+    export_generated_files fic\<close>, except that
+    \<^item> \<open>code\<close> refers to the dump of all existing previous C code in the current
+    theory (parent theories are ignored),
+    \<^item> and ML antiquotations in \<open>code\<close> are not analyzed by
+    \<^theory_text>\<open>generate_file\<close>. \<close>
 
 text \<open>
 
@@ -509,10 +509,6 @@ text \<open>
   command (e.g., \<^theory_text>\<open>C_file\<close>,
   \<^theory_text>\<open>C\<close>) initialized with the environment of
   the previous C command if existing.
-
-  \<^descr> @{attribute_def C_export_file_exist} makes \<^theory_text>\<open>C_export_file\<close>
-  raise either an error, or just an information message informing about the existence of the target
-  file.
 \<close>
 
 subsection \<open>Inner Syntax Commands\<close>
@@ -657,15 +653,15 @@ argument. However some difficulties are happening: in contrast to ML, it is a wi
 practice in C to write directives in a C file, and use a preprocessor tool to determine the final
 source code to really take in consideration as ``compilation starting point'', or ``prover IDE
 support point''. This actually generates a new challenge for the Isabelle document model, since one
-popular directive is \<^C>\<open>#include <file>
-\<close> to refer to a specific source code file to copy-paste inside the source containing that
-directive, and to replace it. In an ideal setting, end-users would hope to see \<open>file\<close>
-be automatically loaded and subsequently automatically managed, but to our view, making this
-behavior happen using a native Isabelle 2018 version appears to be not possible (without touching
-its source code). The next part is going to develop on this limitation in more
-detail. \<^footnote>\<open>In comparison with the ML language, ML antiquotations can also refer to
-external files, for example in formal comments. Unfortunately, the problem is still present in ML:
-files referred to when using this technique are not loaded in the document model.\<close> \<close>
+popular directive is \<^C>\<open>#include <file>\<close> to refer to a specific source code file to
+copy-paste inside the source containing that directive, and to replace it. In an ideal setting,
+end-users would hope to see \<open>file\<close> be automatically loaded and subsequently
+automatically managed, but to our view, making this behavior happen using a native Isabelle 2018
+version appears to be not possible (without touching its source code). The next part is going to
+develop on this limitation in more detail. \<^footnote>\<open>In comparison with the ML language, ML
+antiquotations can also refer to external files, for example in formal comments. Unfortunately, the
+problem is still present in ML: files referred to when using this technique are not loaded in the
+document model.\<close> \<close>
 
 subsubsection \<open>The Document Model\<close>
 
@@ -726,12 +722,11 @@ text \<open>
   \<^theory_text>\<open>bibtex_file\<close>, \<^theory_text>\<open>ML_file\<close>.
   \<^item> In terms of recursivity, for the case of a chain of sub-documents of the form (theory
   file: \<^theory_text>\<open>C_file\<close>) \<open>\<Longrightarrow>\<close> (C file0:
-  \<^C>\<open>#include <file1.c>
-  \<close>) \<open>\<Longrightarrow>\<close> (C file1: \<^C>\<open>#include <file2.c>
-  \<close>) \<open>\<Longrightarrow>\<close> (C file2: \<^C>\<open>#include <file3.c>
-  \<close>), we ideally expect a modification in \<open>file3.c\<close> be taken into account in all
-  ancestor files including the initial theory, provoking the associated command of the theory be
-  reevaluated.
+  \<^C>\<open>#include <file1.c>\<close>) \<open>\<Longrightarrow>\<close> (C file1:
+  \<^C>\<open>#include <file2.c>\<close>) \<open>\<Longrightarrow>\<close> (C file2:
+  \<^C>\<open>#include <file3.c>\<close>), we ideally expect a modification in
+  \<open>file3.c\<close> be taken into account in all ancestor files including the initial theory,
+  provoking the associated command of the theory be reevaluated.
   \<^item> When a theory is depending on other theories (such as \<^theory>\<open>Isabelle_C.C_Eval\<close>
   depending on \<^theory>\<open>Isabelle_C.C_Parser_Language\<close> and
   \<^theory>\<open>Isabelle_C.C_Parser_Annotation\<close>), modifying the list of theories in importation
@@ -775,11 +770,11 @@ make the error disappear at the position it is indicating can be detailed as fol
   semantically processed at parsing time.
 
   For example, whereas the code \<^C>\<open>#define i int
-  i a;\<close> succeeds, replacing its first line with the directive \<^C>\<open>#include <file.c>
-  \<close> will not initially work, even if \<open>file.c\<close> contains
-  \<^C>\<open>#define i int\<close>, as the former directive has been left for semantic back-end
-  treatment. One way of solving this would be to modify the C code in input for it to be already
-  preprocessed (without directives, for example the C example of
+  i a;\<close> succeeds, replacing its first line with the directive
+  \<^C>\<open>#include <file.c>\<close> will not initially work, even if \<open>file.c\<close>
+  contains \<^C>\<open>#define i int\<close>, as the former directive has been left for semantic
+  back-end treatment. One way of solving this would be to modify the C code in input for it to be
+  already preprocessed (without directives, for example the C example of
   \<^file>\<open>semantic-backends/AutoCorres/examples/TestSEL4.thy\<close> is already provided as
   preprocessed). Another way would be adding a specific new semantic back-end implementing the
   automation of the preprocessing task (as done in

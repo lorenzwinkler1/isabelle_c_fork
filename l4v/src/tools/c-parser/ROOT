@@ -19,6 +19,7 @@ session "Simpl-VCG" = Word_Lib +
 
 session CParser = "Simpl-VCG" +
   sessions
+    (* To optimize the overall compilation time, the session taking the longest time to compile is put as a direct dependence of CParser, instead of being listed here. *)
     "HOL-Library"
     "HOL-Word"
     "Lib"

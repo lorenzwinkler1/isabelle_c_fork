@@ -37,6 +37,7 @@
 theory CLEAN_backend_old
   imports "../semantic-backends/CLEAN/src/compiler/Generator_dynamic_sequential"
 begin
+no_notation unit_SE ("(result _)" 8)
 definition "UINT_MAX = 0"
 definition "n = 0"
 definition "result = 0"
@@ -65,17 +66,22 @@ val scan_opt_colon = Scan.option (C_Parse.$$$ ":")
 val scan_colon = C_Parse.$$$ ":" >> SOME
 val show = tap (fn s => Syntax.read_term @{context} s)
 
+val opt_modes =
+  Scan.optional (\<^keyword>\<open>(\<close> |-- Parse.!!! (Scan.repeat1 Parse.name --| \<^keyword>\<open>)\<close>)) [];
+
+fun toplevel _ = C_Inner_Toplevel.keep''
 \<close>
 
 
 ML \<open>fun command keyword f =
-    C_Annotation.command' keyword ""
-      (K (Scan.option (C_Parse.$$$ ":")
-          -- (C_Parse.term >> (show #> f))
-          >> K C_Transition.Never))\<close>
-setup \<open>command ("PRE_CLEAN", \<^here>) Spec
-    #> command ("POST_CLEAN", \<^here>) End_spec
-    #> command ("INV_CLEAN", \<^here>) Invariant\<close>
+  C_Inner_Syntax.command0
+    (toplevel f o C_Inner_Isar_Cmd.print_term)
+    (C_Token.syntax' (opt_modes -- Parse.term))
+    C_Transition.Bottom_up
+    keyword\<close>
+setup \<open>command ("pre\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N", \<^here>) Spec
+    #> command ("post\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N", \<^here>) End_spec
+    #> command ("inv\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N", \<^here>) Invariant\<close>
 
 
 ML\<open>

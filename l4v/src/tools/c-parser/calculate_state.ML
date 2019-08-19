@@ -486,8 +486,12 @@ fun mk_thy_types cse install thy = let
 
   val thy = List.foldl rcddecls_phase0 thy sorted_structs
 
-  (* Yuck, sorry *)
-  val _ = gen_umm_types_file cse outfilnameN
+  val _ =
+    if Config.get (Proof_Context.init_global thy) C_Options'.generate_logical_files then
+      ()
+    else
+      (* Yuck, sorry *)
+      gen_umm_types_file cse outfilnameN
 
   val arrays = List.filter (fn (_, sz) => sz <> 0)
                            (Binaryset.listItems (get_array_mentions cse))

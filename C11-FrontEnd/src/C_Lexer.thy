@@ -55,33 +55,9 @@ from a raw string: \<^ML_type>\<open>Position.T -> string -> 'token list\<close>
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/General/scan.ML\<close>\<close> \<open>
 structure C_Scan =
 struct
-open Basic_Symbol_Pos;
-
 datatype ('a, 'b) either = Left of 'a | Right of 'b
 
-val err_prefix = "C lexical error: ";
-
-fun !!! msg = Symbol_Pos.!!! (fn () => err_prefix ^ msg);
 fun opt x = Scan.optional x [];
-fun opt'' x = Scan.optional (x >> K true) false;
-fun one f = Scan.one (f o Symbol_Pos.symbol)
-fun many f = Scan.many (f o Symbol_Pos.symbol)
-fun many1 f = Scan.many1 (f o Symbol_Pos.symbol)
-val one' = Scan.single o one
-fun scan_full mem msg scan =
-  scan --| (Scan.ahead (one' (not o mem)) || !!! msg Scan.fail)
-fun this_string s =
-  (fold (fn s0 => uncurry (fn acc => one (fn s1 => s0 = s1) >> (fn x => x :: acc)))
-        (Symbol.explode s)
-   o pair [])
-  >> rev
-val one_not_eof = Scan.one (Symbol.not_eof o #1)
-fun unless_eof scan = Scan.unless scan one_not_eof >> single
-val repeats_one_not_eof = Scan.repeats o unless_eof
-val newline =   $$$ "\n"
-             || $$$ "\^M" @@@ $$$ "\n"
-             || $$$ "\^M"
-val repeats_until_nl = repeats_one_not_eof newline
 end
 \<close>
 
@@ -135,12 +111,54 @@ ML \<comment> \<open>\<^file>\<open>~~/src/Pure/General/symbol_pos.ML\<close>\<c
 Symbols with explicit position information.
 *)
 \<open>
+structure C_Basic_Symbol_Pos =   (*not open by default*)
+struct
+open Basic_Symbol_Pos;
+
+fun one f = Scan.one (f o Symbol_Pos.symbol)
+fun many f = Scan.many (f o Symbol_Pos.symbol)
+fun many1 f = Scan.many1 (f o Symbol_Pos.symbol)
+val one' = Scan.single o one
+fun scan_full !!! mem msg scan =
+  scan --| (Scan.ahead (one' (not o mem)) || !!! msg Scan.fail)
+fun this_string s =
+  (fold (fn s0 => uncurry (fn acc => one (fn s1 => s0 = s1) >> (fn x => x :: acc)))
+        (Symbol.explode s)
+   o pair [])
+  >> rev
+val one_not_eof = Scan.one (Symbol.not_eof o #1)
+fun unless_eof scan = Scan.unless scan one_not_eof >> single
+val repeats_one_not_eof = Scan.repeats o unless_eof
+val newline =   $$$ "\n"
+             || $$$ "\^M" @@@ $$$ "\n"
+             || $$$ "\^M"
+val repeats_until_nl = repeats_one_not_eof newline
+end
+
 structure C_Symbol_Pos =
 struct
+
+(* basic scanners *)
+
 val !!! = Symbol_Pos.!!!
+
+fun !!!! text scan =
+  let
+    fun get_pos [] = " (end-of-input)"
+      | get_pos ((_, pos) :: _) = Position.here pos;
+
+    fun err ((_, syms), msg) = fn () =>
+      text () ^ get_pos syms ^
+      Markup.markup Markup.no_report (" at " ^ Symbol.beginning 10 (map Symbol_Pos.symbol syms)) ^
+      (case msg of NONE => "" | SOME m => "\n" ^ m ());
+  in Scan.!! err scan end;
+
 val $$ = Symbol_Pos.$$
+
 val $$$ = Symbol_Pos.$$$
+
 val ~$$$ = Symbol_Pos.~$$$
+
 
 (* scan string literals *)
 
@@ -169,10 +187,11 @@ in
 
 fun scan_string_qq_multi err_prefix stop = scan_strs "\"" err_prefix "the comment delimiter" stop;
 fun scan_string_bq_multi err_prefix stop = scan_strs "`" err_prefix "the comment delimiter" stop;
-fun scan_string_qq_inline err_prefix = scan_strs "\"" err_prefix "the same line" C_Scan.newline;
-fun scan_string_bq_inline err_prefix = scan_strs "`" err_prefix "the same line" C_Scan.newline;
+fun scan_string_qq_inline err_prefix = scan_strs "\"" err_prefix "the same line" C_Basic_Symbol_Pos.newline;
+fun scan_string_bq_inline err_prefix = scan_strs "`" err_prefix "the same line" C_Basic_Symbol_Pos.newline;
 
 end;
+
 
 (* nested text cartouches *)
 
@@ -195,7 +214,8 @@ fun scan_cartouche err_prefix err_suffix stop =
       (Scan.provide is_none (SOME 0) (scan_cartouche_depth stop));
 
 fun scan_cartouche_multi err_prefix stop = scan_cartouche err_prefix "the comment delimiter" stop;
-fun scan_cartouche_inline err_prefix = scan_cartouche err_prefix "the same line" C_Scan.newline;
+fun scan_cartouche_inline err_prefix = scan_cartouche err_prefix "the same line" C_Basic_Symbol_Pos.newline;
+
 
 (* C-style comments *)
 
@@ -219,13 +239,13 @@ fun scan_comment err_prefix =
   Scan.ahead ($$ par_l -- $$ "*") |--
     !!! (fn () => err_prefix ^ "unclosed comment")
       ($$$ par_l @@@ $$$ "*" @@@ scan_cmts @@@ $$$ "*" @@@ $$$ par_r)
-  || $$$ "/" @@@ $$$ "/" @@@ C_Scan.repeats_until_nl;
+  || $$$ "/" @@@ $$$ "/" @@@ C_Basic_Symbol_Pos.repeats_until_nl;
 
 fun scan_comment_no_nest err_prefix =
   Scan.ahead ($$ par_l -- $$ "*") |--
     !!! (fn () => err_prefix ^ "unclosed comment")
       ($$$ par_l @@@ $$$ "*" @@@ Scan.repeats (scan_body1 || scan_body2) @@@ $$$ "*" @@@ $$$ par_r)
-  || $$$ "/" @@@ $$$ "/" @@@ C_Scan.repeats_until_nl;
+  || $$$ "/" @@@ $$$ "/" @@@ C_Basic_Symbol_Pos.repeats_until_nl;
 
 val recover_comment =
   $$$ par_l @@@ $$$ "*" @@@ Scan.repeats (scan_body1 || scan_body2);
@@ -257,7 +277,7 @@ type antiq = { explicit: bool
 
 (* scan *)
 
-open Basic_Symbol_Pos;
+open C_Basic_Symbol_Pos;
 
 local
 
@@ -283,10 +303,10 @@ val scan_antiq_body_multi_recover =
 val scan_antiq_body_inline =
   Scan.trace (C_Symbol_Pos.scan_string_qq_inline err_prefix || C_Symbol_Pos.scan_string_bq_inline err_prefix) >> #2 ||
   C_Symbol_Pos.scan_cartouche_inline err_prefix ||
-  C_Scan.unless_eof C_Scan.newline;
+  unless_eof newline;
 
 val scan_antiq_body_inline_recover =
-  C_Scan.unless_eof C_Scan.newline;
+  unless_eof newline;
 
 fun control_name sym = (case Symbol.decode sym of Symbol.Control name => name);
 
@@ -376,7 +396,6 @@ val lexer_trace = Attrib.setup_config_bool @{binding C_lexer_trace} (K false);
 val parser_trace = Attrib.setup_config_bool @{binding C_parser_trace} (K false);
 val ML_verbose = Attrib.setup_config_bool @{binding C_ML_verbose} (K true);
 val starting_env = Attrib.setup_config_string @{binding C_starting_env} (K "empty");
-val export_file_exist = Attrib.setup_config_bool @{binding C_export_file_exist} (K true);
 
 end
 \<close>
@@ -393,6 +412,8 @@ structure C_Lex =
 struct
 
 open C_Scan;
+open C_Basic_Symbol_Pos;
+
 
 (** keywords **)
 
@@ -558,18 +579,23 @@ datatype token_kind_comment =
    Comment_formal of C_Antiquote.antiq
  | Comment_suspicious of (bool * string * ((Position.T * Markup.T) * string) list) option
 
+datatype token_kind_encoding =
+   Encoding_L
+ | Encoding_default
+ | Encoding_file of string (* error message *) option
+
 datatype token_kind =
   Keyword | Ident | Type_ident | GnuC | ClangC |
   (**)
-  Char of bool * Symbol.symbol list |
+  Char of token_kind_encoding * Symbol.symbol list |
   Integer of int * C_Ast.CIntRepr * C_Ast.CIntFlag list |
-  Float |
-  String of bool * Symbol.symbol list |
-  File of bool * Symbol.symbol list |
+  Float of Symbol_Pos.T list |
+  String of token_kind_encoding * Symbol.symbol list |
+  File of token_kind_encoding * Symbol.symbol list |
   (**)
   Space | Comment of token_kind_comment | Sharp of int |
   (**)
-  Error of string * token_group | Directive of token_kind_directive | EOF
+  Unknown | Error of string * token_group | Directive of token_kind_directive | EOF
 
 and token_kind_directive = Inline of token_group (* a not yet analyzed directive *)
                          | Include of token_group
@@ -709,31 +735,44 @@ val token_list_of =
   end
 
 local
-  fun warn0 pos l s =
-    if exists (not o Symbol.is_printable) l then
-      app (fn (s, pos) =>
-            if Symbol.is_printable s
-            then ()
-            else Output.information ("Not printable character " ^ @{make_string} (ord s, s) ^ Position.here pos))
-                                    (Symbol_Pos.explode (s, pos))
-    else ()
+
+fun warn0 pos l s =
+  if exists (not o Symbol.is_printable) l then
+    app (fn (s, pos) =>
+          if Symbol.is_printable s
+          then ()
+          else Output.information ("Not printable character " ^ @{make_string} (ord s, s) ^ Position.here pos))
+                                  (Symbol_Pos.explode (s, pos))
+  else ()
+
+fun unknown pos = Output.information ("Unknown symbol" ^ Position.here pos)
+
+val app_directive =
+      app (fn Token (_, (Error (msg, _), _)) => warning msg
+            | Token ((pos, _), (Unknown, _)) => unknown pos
+            | _ => ())
+
 in
 val warn = fn
     Token ((pos, _), (Char (_, l), s)) => warn0 pos l s
   | Token ((pos, _), (String (_, l), s)) => warn0 pos l s
   | Token ((pos, _), (File (_, l), s)) => warn0 pos l s
+  | Token ((pos, _), (Unknown, _)) => unknown pos
   | Token (_, (Comment (Comment_suspicious (SOME (explicit, msg, _))), _)) => (if explicit then warning else tracing) msg
   | Token ((pos, _), (Directive (Inline _), _)) => warning ("Ignored directive" ^ Position.here pos)
-  | Token (_, (Directive (kind as Conditional _), _)) => 
-      app (fn Token (_, (Error (msg, _), _)) => warning msg | _ => ())
-          (token_list_of kind)
+  | Token (_, (Directive (kind as Conditional _), _)) => app_directive (token_list_of kind)
+  | Token (_, (Directive (Define (_, _, _, Group1 (_, toks4))), _)) => app_directive toks4
+  | Token (_, (Directive (Include (Group2 (_, _, toks))), _)) =>
+    (case toks of [Token (_, (String _, _))] => ()
+                | [Token (_, (File _, _))] => ()
+                | _ => Output.information ("Expecting at least and at most one file" ^ Position.here (Position.range_position (pos_of (hd toks), end_pos_of (List.last toks)))))
   | _ => ();
 end
 
 fun check_error tok =
   case kind_of tok of
-    Error (msg, _) => SOME msg
-  | _ => NONE;
+    Error (msg, _) => [msg]
+  | _ => [];
 
 (* markup *)
 
@@ -742,11 +781,12 @@ local
 val token_kind_markup0 =
  fn Char _ => (Markup.ML_char, "")
   | Integer _ => (Markup.ML_numeral, "")
-  | Float => (Markup.ML_numeral, "")
+  | Float _ => (Markup.ML_numeral, "")
   | ClangC => (Markup.ML_numeral, "")
   | String _ => (Markup.ML_string, "")
   | File _ => (Markup.ML_string, "")
   | Sharp _ => (Markup.antiquote, "")
+  | Unknown => (Markup.intensify, "")
   | Error (msg, _) => (Markup.bad (), msg)
   | _ => (Markup.empty, "");
 
@@ -822,13 +862,32 @@ val token_report = token_report0
 end;
 
 
+
 (** scanners **)
+
+val err_prefix = "C lexical error: ";
+
+fun !!! msg = Symbol_Pos.!!! (fn () => err_prefix ^ msg);
+
+fun !!!! msg = C_Symbol_Pos.!!!! (fn () => err_prefix ^ msg);
+
+val many1_blanks_no_line = many1 C_Symbol.is_ascii_blank_no_line
 
 (* identifiers *)
 
+val scan_ident_sym =
+  let val hex = one' Symbol.is_ascii_hex
+  in   one' C_Symbol.is_identletter
+    || $$$ "\\" @@@ $$$ "u" @@@ hex @@@ hex @@@ hex @@@ hex
+    || $$$ "\\" @@@ $$$ "U" @@@ hex @@@ hex @@@ hex @@@ hex @@@ hex @@@ hex @@@ hex @@@ hex
+    || one' Symbol.is_symbolic
+    || one' Symbol.is_control
+    || one' Symbol.is_utf8
+  end
+  
 val scan_ident =
-      one C_Symbol.is_identletter
-  ::: many (fn s => C_Symbol.is_identletter s orelse Symbol.is_ascii_digit s);
+      scan_ident_sym
+  @@@ Scan.repeats (scan_ident_sym || one' Symbol.is_ascii_digit);
 
 val keywords_ident =
   map_filter
@@ -861,7 +920,9 @@ val read_hex =
 
 local
 open C_Ast
+val length = List.length
 open C_Scan
+open C_Basic_Symbol_Pos
 val many_digit = many Symbol.is_ascii_digit
 val many1_digit = many1 Symbol.is_ascii_digit
 val many_hex = many Symbol.is_ascii_hex
@@ -879,7 +940,8 @@ val scan_suffix_int =
   end
 
 val scan_suffix_gnu_int0 = scan_suffix_gnu FlagImag
-val scan_suffix_gnu_int = scan_full (member (op =) (raw_explode "uUlLij"))
+val scan_suffix_gnu_int = scan_full !!!
+                                    (member (op =) (raw_explode "uUlLij"))
                                     "Invalid integer constant suffix"
                                     (   scan_suffix_int @@@ opt scan_suffix_gnu_int0
                                      || scan_suffix_gnu_int0 @@@ opt scan_suffix_int)
@@ -888,10 +950,17 @@ fun scan_intgnu x =
   x -- opt scan_suffix_gnu_int
   >> (fn ((s1', read, repr), l) => (read (map (Symbol_Pos.content o single) s1'), repr, l))
 
-val scan_intoct = scan_intgnu ($$ "0" |-- (   many (fn x => x = "0")
-                                              >> (fn xs => (xs, read_dec, DecRepr))
-                                           || many C_Symbol.is_ascii_oct
-                                              >> (fn xs => (xs, read_oct, OctalRepr))))
+val scan_intoct = scan_intgnu ($$ "0" |--
+                               scan_full
+                                 !!!
+                                 Symbol.is_ascii_digit
+                                 "Invalid digit in octal constant"
+                                 (Scan.max
+                                   (fn ((xs2, _, _), (xs1, _, _)) => length xs2 < length xs1)
+                                   (many C_Symbol.is_ascii_oct
+                                      >> (fn xs => (xs, read_oct, OctalRepr)))
+                                   (many (fn x => x = "0")
+                                      >> (fn xs => (xs, read_dec, DecRepr)))))
 val scan_intdec = scan_intgnu (one C_Symbol.is_ascii_digit1 -- many Symbol.is_ascii_digit
                                >> (fn (x, xs) => (x :: xs, read_dec, DecRepr)))
 val scan_inthex = scan_intgnu (($$ "0" -- ($$ "x" || $$ "X")) |-- many1_hex
@@ -904,7 +973,8 @@ val scan_exppart = scan_signpart "e" "E"
 
 val scan_suffix_float = $$$ "f" || $$$ "F" || $$$ "l" || $$$ "L"
 val scan_suffix_gnu_float0 = Scan.trace (scan_suffix_gnu ()) >> #2
-val scan_suffix_gnu_float = scan_full (member (op =) (raw_explode "fFlLij"))
+val scan_suffix_gnu_float = scan_full !!!
+                                      (member (op =) (raw_explode "fFlLij"))
                                       "Invalid float constant suffix"
                                       (   scan_suffix_float @@@ opt scan_suffix_gnu_float0
                                        || scan_suffix_gnu_float0 @@@ opt scan_suffix_float)
@@ -926,7 +996,10 @@ in
 val scan_int = scan_inthex
             || scan_intoct
             || scan_intdec
-             
+
+val recover_int =
+     many1 (fn s => Symbol.is_ascii_hex s orelse member (op =) (raw_explode "xXuUlLij") s)
+
 val scan_float = scan_floatdec
               || scan_floathex
               || scan_floatfail @@@ !!! "Hexadecimal floating constant requires an exponent" Scan.fail
@@ -954,6 +1027,16 @@ val escape_char = [ ("n", #"\n")
                   , ("?", #"?")
                   , ("'", #"'")
                   , ("\"", #"\"") ]
+
+val _ = \<comment> \<open>printing a ML function translating code point from \<^ML_type>\<open>int -> string\<close>\<close>
+ fn _ => 
+  app (fn (x0, x) => writeln (" | "
+                              ^ string_of_int (Char.ord x)
+                              ^ " => \"\\\\"
+                              ^ (if exists (fn x1 => x0 = x1) ["\"", "\\"] then "\\" ^ x0 else x0)
+                              ^ "\""))
+      escape_char
+
 fun scan_escape s0 =
   let val oct = one' C_Symbol.is_ascii_oct
       val hex = one' Symbol.is_ascii_hex
@@ -977,32 +1060,46 @@ fun scan_escape s0 =
   end
 
 fun scan_str s0 =
-     Scan.one (fn (s, _) => Symbol.not_eof s andalso s <> s0 andalso s <> "\\")
+     Scan.unless newline (Scan.one (fn (s, _) => Symbol.not_eof s andalso s <> s0 andalso s <> "\\"))
      >> (fn s => [#1 s])
+  || Scan.ahead newline |-- !!! "bad newline" Scan.fail
   || $$ "\\" |-- !!! "bad escape character" (scan_escape s0);
 
-fun scan_gap xs = ($$ "\\" -- scan_blanks1 -- $$ "\\" >> K []) xs;
-
 fun scan_string0 s0 msg repeats =
-  opt'' ($$ "L") --
+  Scan.optional ($$ "L" >> K Encoding_L) Encoding_default --
     (Scan.ahead ($$ s0) |--
       !!! ("unclosed " ^ msg ^ " literal")
-        ($$ s0 |-- repeats (scan_gap || scan_str s0) --| $$ s0))
+        ($$ s0 |-- repeats (scan_str s0) --| $$ s0))
 
 fun recover_string0 s0 repeats =
-  opt ($$$ "L") @@@ $$$ s0 @@@ repeats (scan_gap || Scan.permissive (Scan.trace (scan_str s0) >> #2));
+  opt ($$$ "L") @@@ $$$ s0 @@@ repeats (Scan.permissive (Scan.trace (scan_str s0) >> #2));
 in
 
 val scan_char = scan_string0 "'" "char" Scan.repeats1
 val scan_string = scan_string0 "\"" "string" Scan.repeats
+fun scan_string' src =
+  case
+    Source.source
+      Symbol_Pos.stopper
+      (Scan.recover (Scan.bulk (!!! "bad input" scan_string >> K NONE))
+                    (fn msg => C_Basic_Symbol_Pos.one_not_eof >> K [SOME msg]))
+      (Source.of_list src)
+    |> Source.exhaust
+  of
+      [NONE] => NONE
+    | [] => SOME "Empty input"
+    | l => case map_filter I l of msg :: _ => SOME msg
+                                | _ => SOME "More than one string"
 val scan_file =
-  let fun scan s_l s_r =
+  let fun scan !!! s_l s_r =
     Scan.ahead ($$ s_l) |--
-        !!! ("unclosed file literal")
-          ($$ s_l |-- Scan.repeats (Scan.one (fn (s, _) => Symbol.not_eof s andalso s <> s_r) >> (fn s => [#1 s])) --| $$ s_r)
+          !!!
+          ($$ s_l |-- Scan.repeats (Scan.unless newline (Scan.one (fn (s, _) => Symbol.not_eof s andalso s <> s_r) >> (fn s => [#1 s]))) --| $$ s_r)
   in
-     scan "\"" "\"" >> pair false
-  || scan "<" ">" >> pair true
+     Scan.trace (scan (!!! ("unclosed file literal")) "\"" "\"") >> (fn (s, src) => String (Encoding_file (scan_string' src), s))
+  || scan I \<comment> \<open>Due to conflicting symbols, raising \<^ML>\<open>Symbol_Pos.!!!\<close> here will not let a potential
+                legal \<^ML>\<open>"<"\<close> symbol be tried and parsed as a \<^emph>\<open>keyword\<close>.\<close>
+            "<" ">" >> (fn s => File (Encoding_default, s))
   end
 
 val recover_char = recover_string0 "'" Scan.repeats1
@@ -1012,14 +1109,7 @@ end;
 
 (* scan tokens *)
 
-fun check input =
-  case fold (fn tok =>
-              let val () = warn tok
-              in case check_error tok of SOME s => cons s | NONE => I end)
-            input
-            []
-  of [] => ()
-   | l => error (cat_lines (rev l))
+val check = fold (tap warn #> fold cons o check_error)
 
 local
 
@@ -1035,33 +1125,36 @@ val comments =
                || Scan.fail_with (fn _ => fn _ => msg))
   || C_Symbol_Pos.scan_comment_no_nest err_prefix >> token (Comment (Comment_suspicious NONE))
 
-fun scan_fragment blanks =
-     scan_token scan_char Char
-  || scan_token scan_string String
-  || blanks >> token Space
+fun scan_fragment blanks comments sharps non_blanks =
+     non_blanks (scan_token scan_char Char)
+  || non_blanks (scan_token scan_string String)
+  || blanks
   || comments
-  || Scan.max token_leq (Scan.literal lexicon >> token Keyword)
-                        (   scan_clangversion >> token ClangC
-                         || scan_float >> token Float
-                         || scan_token scan_int Integer
-                         || scan_ident >> token Ident)
+  || non_blanks sharps
+  || non_blanks (Scan.max token_leq (Scan.literal lexicon >> token Keyword)
+                                    (   scan_clangversion >> token ClangC
+                                     || scan_token scan_float Float
+                                     || scan_token scan_int Integer
+                                     || scan_ident >> token Ident))
+  || non_blanks (Scan.one (Symbol.is_printable o #1) >> single >> token Unknown)
 
 (* scan tokens, directive part *)
 
+val scan_sharp1 = $$$ "#"
+val scan_sharp2 = $$$ "#" @@@ $$$ "#"
+
 val scan_directive =
-  let val many1_no_eol = many1 C_Symbol.is_ascii_blank_no_line
-      val blanks = Scan.repeat (many1_no_eol >> token Space || comments)
-      val f_filter = fn Token (_, (Space, _)) => true
+  let val f_filter = fn Token (_, (Space, _)) => true
                       | Token (_, (Comment _, _)) => true
                       | Token (_, (Error _, _)) => true
-                      | _ => false in
-        ($$$ "#" >> (single o token (Sharp 1)))
-    @@@ (   (   blanks @@@ (scan_ident >> token Ident >> single)
-            @@@ blanks @@@ (scan_token scan_file File >> single)
-            @@@ blanks) --| Scan.ahead newline
-         || Scan.repeat (   $$$ "#" @@@ $$$ "#" >> token (Sharp 2)
-                         || $$$ "#" >> token (Sharp 1)
-                         || scan_fragment many1_no_eol))
+                      | _ => false
+      val sharp1 = scan_sharp1 >> token (Sharp 1)
+  in    (sharp1 >> single)
+    @@@ Scan.repeat (   scan_token scan_file I
+                     || scan_fragment (many1_blanks_no_line >> token Space)
+                                      comments
+                                      (scan_sharp2 >> token (Sharp 2) || sharp1)
+                                      I)
     >> (fn tokens => Inline (Group1 (filter f_filter tokens, filter_out f_filter tokens)))
   end
 
@@ -1103,9 +1196,9 @@ val not_cond =
                                                       :: (tok2 as Token (_, (Ident, "include")))
                                                       :: toks)))
                         , s)) =>
-              Token (pos, ( case toks of [Token (_, (File _, _))] =>
-                              Directive (Include (Group2 (toks_bl, [tok1, tok2], toks)))
-                            | _ => Error ("Expecting at least and at most one file" ^ Position.here (end_pos_of tok2), Group2 (toks_bl, [tok1, tok2], toks))
+              Token (pos, ( case toks of [] =>
+                              Error ("Expecting at least one file" ^ Position.here (end_pos_of tok2), Group2 (toks_bl, [tok1, tok2], toks))
+                            | _ => Directive (Include (Group2 (toks_bl, [tok1, tok2], toks)))
                           , s))
           | Token (pos, ( Directive (Inline (Group1 ( toks_bl
                                                     , (tok1 as Token (_, (Sharp _, _)))
@@ -1124,10 +1217,16 @@ val not_cond =
                                    else if key = (*( *)")" then Left (rev (tok2 :: toks_bl), rev (tok1 :: toks_acc), toks)
                                    else Right ("Expecting a colon delimiter or a closing parenthesis" ^ Position.here (#1 pos2))
                                | Token (pos1, (Ident, _)) :: _ => Right ("Expecting a colon delimiter or a closing parenthesis" ^ Position.here (#2 pos1))
-                               | _ => Right ("Expecting an identifier" ^ Position.here (#2 pos))
+                               | (tok1 as Token (_, (Keyword, key1))) :: (tok2 as Token (pos2, (Keyword, key2))) :: toks =>
+                                   if key1 = "..." then
+                                     if key2 = (*( *)")" then Left (rev (tok2 :: toks_bl), rev (tok1 :: toks_acc), toks)
+                                     else Right ("Expecting a closing parenthesis" ^ Position.here (#1 pos2))
+                                   else
+                                     Right ("Expecting an identifier or the keyword '...'" ^ Position.here (#2 pos))
+                               | _ => Right ("Expecting an identifier or the keyword '...'" ^ Position.here (#2 pos))
                           in case
                               case toks of
-                                (tok1 as Token (_, (Ident, _))) :: (tok2 as Token (_, (Keyword, (*( *)")"))) :: toks => Left ([tok2], [tok1], toks)
+                                (tok2 as Token (_, (Keyword, (*( *)")"))) :: toks => Left ([tok2], [], toks)
                               | _ => take_prefix' [] [] pos toks
                              of Left (toks_bl, toks_acc, toks) => Left (SOME (Group1 (tok3' :: toks_bl, toks_acc)), Group1 ([], toks))
                               | Right x => Right x
@@ -1226,14 +1325,27 @@ end
 
 (* scan tokens, main *)
 
-val scan_ml = scan_token scan_directive Directive
-           || scan_fragment scan_blanks1;
+val scan_ml =
+  Scan.depend
+    let
+      fun non_blanks st scan = scan >> pair st 
+      fun scan_frag st =
+        scan_fragment (   C_Basic_Symbol_Pos.newline >> token Space >> pair true
+                       || many1_blanks_no_line >> token Space >> pair st)
+                      (non_blanks st comments)
+                      ((scan_sharp2 || scan_sharp1) >> token Keyword)
+                      (non_blanks false)
+    in
+      fn true => scan_token scan_directive Directive >> pair false || scan_frag true
+       | false => scan_frag false
+    end;
 
 fun recover msg =
  (recover_char ||
   recover_string ||
   Symbol_Pos.recover_cartouche ||
   C_Symbol_Pos.recover_comment ||
+  recover_int ||
   one' Symbol.not_eof)
   >> token (Error (msg, Group1 ([], [])));
 
@@ -1247,7 +1359,7 @@ fun reader scan syms =
           val pos2 = Position.advance Symbol.space pos1;
         in [Token (Position.range (pos1, pos2), (Space, Symbol.space))] end;
 
-    val backslash1 = $$$ "\\" @@@ many C_Symbol.is_ascii_blank_no_line @@@ C_Scan.newline
+    val backslash1 = $$$ "\\" @@@ many C_Symbol.is_ascii_blank_no_line @@@ C_Basic_Symbol_Pos.newline
     val backslash2 = Scan.one (not o Symbol_Pos.is_eof)
 
     val input0 =
@@ -1261,19 +1373,25 @@ fun reader scan syms =
       Source.of_list syms
       |> Source.source Symbol_Pos.stopper (Scan.bulk (backslash1 >> K NONE || backslash2 >> SOME))
       |> Source.map_filter I
-      |> Source.source Symbol_Pos.stopper
-                       (Scan.recover (Scan.bulk (!!! "bad input" scan)) (fn msg => recover msg >> single))
+      |> Source.source' true
+                        Symbol_Pos.stopper
+                        (Scan.recover (Scan.bulk (!!!! "bad input" scan))
+                                      (fn msg => Scan.lift (recover msg) >> single))
       |> Source.source stopper scan_directive_cond
       |> Source.exhaust
       |> (fn input => input @ termination);
 
     val _ = app (fn pos => Output.information ("Backslash newline" ^ Position.here pos)) input0
     val _ = Position.reports_text (map (fn pos => ((pos, Markup.intensify), "")) input0);
-    val _ = check input1;
-  in input1
+  in (input1, check input1)
 end;
 
 in
+
+fun op @@ ((input1, f_error_lines1), (input2, f_error_lines2)) =
+  (input1 @ input2, f_error_lines1 #> f_error_lines2)
+
+val read_init = ([], I)
 
 fun read text = (reader scan_ml o Symbol_Pos.explode) (text, Position.none);
 

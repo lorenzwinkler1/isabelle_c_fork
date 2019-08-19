@@ -41,7 +41,7 @@
 
 theory Core
   imports Meta_C
-          "../Clean"
+          CLEAN_logic.Clean
 begin
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_syntax.ML\<close>\<close> \<open>

@@ -48,8 +48,7 @@ val _ = Theory.setup (   command C_Transition.Bottom_up ("\<simeq>setup", \<^her
                       #> command C_Transition.Top_down ("\<simeq>setup\<Down>", \<^here>))
 end
 
-val C' = C_Module.C' (fn _ => fn _ => fn pos =>
-                       tap (fn _ => warning ("Parser: No matching grammar rule " ^ Position.here pos)))
+val C' = C_Module.C'
 
 fun C opt = case opt of NONE => C' (C_Module.env (Context.the_generic_context ()))
                       | SOME env => C' env

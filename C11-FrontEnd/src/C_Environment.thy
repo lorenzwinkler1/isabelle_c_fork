@@ -85,12 +85,16 @@ ML \<comment> \<open>\<^file>\<open>~~/src/Pure/context.ML\<close>\<close> \<ope
 structure C_Env = struct
 datatype 'a parse_status = Parsed of 'a | Previous_in_stack
 
-type markup_ident = { global : bool (*true: global*)
+type markup_global = bool (*true: global*)
+
+type markup_ident = { global : markup_global
                     , params : C_Ast.CDerivedDeclr list
                     , ret : C_Ast.CDeclSpec list parse_status }
 
-type var_table = { tyidents : (Position.T list * serial) Symtab.table
-                 , idents : (Position.T list * serial * markup_ident) Symtab.table }
+type 'a markup_store = Position.T list * serial * 'a
+
+type var_table = { tyidents : markup_global markup_store Symtab.table (*ident name*) Symtab.table (*internal namespace*)
+                 , idents : markup_ident markup_store Symtab.table (*ident name*) }
 
 type 'antiq_language_list stream = ('antiq_language_list, C_Lex.token) C_Scan.either list
 
@@ -104,8 +108,11 @@ type env_lang = { var_table : var_table \<comment> \<open>current active table i
          during the lexing process.
          Another pass on the parsed tree is required. *)
 
+type error_lines = string list
+
 type env_tree = { context : Context.generic
-                , reports_text : C_Position.reports_text }
+                , reports_text : C_Position.reports_text
+                , error_lines : error_lines }
 
 type rule_static = (env_tree -> env_lang * env_tree) option
 
@@ -228,11 +235,32 @@ fun map_env_directives f {var_table, scopes, namesupply, stream_ignored, env_dir
 
 (**)
 
-fun map_context f {context, reports_text} =
-                     {context = f context, reports_text = reports_text}
+fun map_context f {context, reports_text, error_lines} =
+                     {context = f context, reports_text = reports_text, error_lines = error_lines}
 
-fun map_reports_text f {context, reports_text} =
-                     {context = context, reports_text = f reports_text}
+fun map_reports_text f {context, reports_text, error_lines} =
+                     {context = context, reports_text = f reports_text, error_lines = error_lines}
+
+fun map_error_lines f {context, reports_text, error_lines} =
+                     {context = context, reports_text = reports_text, error_lines = f error_lines}
+
+(**)
+
+fun map_env_lang_tree f {env_lang, env_tree, rule_output, rule_input, stream_hook, stream_lang} =
+                let val (env_lang, env_tree) = f env_lang env_tree
+                in {env_lang = env_lang, env_tree = env_tree, rule_output = rule_output, 
+                    rule_input = rule_input, stream_hook = stream_hook, stream_lang = stream_lang}
+                end
+
+fun map_env_lang_tree' f {env_lang, env_tree, rule_output, rule_input, stream_hook, stream_lang} =
+                let val (res, (env_lang, env_tree)) = f env_lang env_tree
+                in (res, {env_lang = env_lang, env_tree = env_tree, rule_output = rule_output, 
+                    rule_input = rule_input, stream_hook = stream_hook, stream_lang = stream_lang})
+                end
+
+(**)
+
+fun get_scopes (t : env_lang) = #scopes t
 
 (**)
 
@@ -241,7 +269,7 @@ val empty_env_lang : env_lang =
          scopes = [], namesupply = 0, stream_ignored = [],
          env_directives = Symtab.empty}
 fun empty_env_tree context =
-        {context = context, reports_text = []}
+        {context = context, reports_text = [], error_lines = []}
 val empty_rule_output : rule_output = 
         {output_pos = NONE, output_vacuous = true, output_env = NONE}
 fun make env_lang stream_lang env_tree =
@@ -262,6 +290,10 @@ fun string_of (env_lang : env_lang) =
                  , ("scopes", map (fn (id, i) => (Option.map (fn C_Ast.Ident0 (i, _, _) => C_Ast.meta_of_logic i) id, dest i)) (#scopes env_lang))
                  , ("namesupply", #namesupply env_lang)
                  , ("stream_ignored", #stream_ignored env_lang)) end
+
+val namespace_typedef = "typedef"
+val namespace_tag = "tag"
+val namespace_enum = namespace_tag
 
 (**)
 
@@ -285,8 +317,17 @@ ML \<comment> \<open>\<^file>\<open>~~/src/Pure/context.ML\<close>\<close> \<ope
 structure C_Env_Ext =
 struct
 
-fun map_tyidents f = C_Env.map_env_lang (C_Env.map_var_table (C_Env.map_tyidents f))
-fun map_idents f = C_Env.map_env_lang (C_Env.map_var_table (C_Env.map_idents f))
+local
+fun map_tyidents' f = C_Env.map_var_table (C_Env.map_tyidents f)
+fun map_tyidents f = C_Env.map_env_lang (map_tyidents' f)
+in
+fun map_tyidents_typedef f = map_tyidents (Symtab.map_default (C_Env.namespace_typedef, Symtab.empty) f)
+fun map_tyidents_enum f = map_tyidents (Symtab.map_default (C_Env.namespace_enum, Symtab.empty) f)
+fun map_tyidents'_typedef f = map_tyidents' (Symtab.map_default (C_Env.namespace_typedef, Symtab.empty) f)
+fun map_tyidents'_enum f = map_tyidents' (Symtab.map_default (C_Env.namespace_enum, Symtab.empty) f)
+end
+fun map_idents' f = C_Env.map_var_table (C_Env.map_idents f)
+fun map_idents f = C_Env.map_env_lang (map_idents' f)
 
 (**)
 
@@ -297,7 +338,22 @@ fun map_stream_ignored f = C_Env.map_env_lang (C_Env.map_stream_ignored f)
 
 (**)
 
-fun get_tyidents (t:C_Env.T) = #env_lang t |> #var_table |> #tyidents
+local
+fun get_tyidents' namespace (env_lang : C_Env.env_lang) =
+  case Symtab.lookup (env_lang |> #var_table |> #tyidents) namespace of
+    NONE => Symtab.empty
+  | SOME t => t
+
+fun get_tyidents namespace (t : C_Env.T) = get_tyidents' namespace (#env_lang t)
+in
+val get_tyidents_typedef = get_tyidents C_Env.namespace_typedef
+val get_tyidents_enum = get_tyidents C_Env.namespace_enum
+val get_tyidents'_typedef = get_tyidents' C_Env.namespace_typedef
+val get_tyidents'_enum = get_tyidents' C_Env.namespace_enum
+end
+
+fun get_idents (t:C_Env.T) = #env_lang t |> #var_table |> #idents
+fun get_idents' (env:C_Env.env_lang) = env |> #var_table |> #idents
 
 (**)
 
@@ -343,8 +399,11 @@ fun map_stream_lang' f {env_lang, env_tree, rule_output, rule_input, stream_hook
 fun context_map (f : C_Env.env_tree -> C_Env.env_tree) =
   C_Env.empty_env_tree #> f #> #context
 
+(**)
 
-end 
+fun list_lookup tab name = flat (map (fn (x, _, _) => x) (the_list (Symtab.lookup tab name)))
+
+end
 
 \<close>
 

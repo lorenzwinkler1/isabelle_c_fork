@@ -658,6 +658,18 @@ end
 
 section \<open>Miscellaneous\<close>
 
-declare [[C_export_file_exist = false]]
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_options.ML\<close>\<close>
+(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Title:      Pure/ML/ml_options.ML
+    Author:     Makarius
+
+ML configuration options.
+*)
+\<open>
+structure C_Options' =
+struct
+val generate_logical_files = Attrib.setup_config_bool @{binding generate_logical_files} (K true);
+end
+\<close>
 
 end

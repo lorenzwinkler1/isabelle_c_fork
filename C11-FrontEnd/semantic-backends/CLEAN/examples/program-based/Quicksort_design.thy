@@ -393,7 +393,10 @@ construct_update false "quicksort" @{typ "'a local_quicksort_state_scheme"} @{th
 
 setup\<open>Named_Target.theory_map (mk_push_def "quicksort" @{here} @{typ "'a local_quicksort_state_scheme"})\<close>
 setup\<open>Named_Target.theory_map (mk_pop_def "quicksort" @{here} @{typ "unit"} @{typ "'b local_quicksort_state_scheme"})\<close>
+<<<<<<< HEAD
+=======
 
+>>>>>>> 9d4f1fd7b73196e351b8d51c73b8b4a251213348
 
 
 thm pop_local_quicksort_state_def
@@ -405,6 +408,18 @@ definition push_local_quicksort_state' :: "(unit, 'a local_quicksort_state_schem
                  Some((), \<sigma>\<lparr>local_quicksort_state.p := undefined # local_quicksort_state.p \<sigma>,
                             local_quicksort_state.result_value := undefined # local_quicksort_state.result_value \<sigma> \<rparr>)"
 
+<<<<<<< HEAD
+thm pop_local_quicksort_state_def
+thm push_local_quicksort_state_def
+
+(* this implies the definitions : *)
+definition push_local_quicksort_state' :: "(unit, 'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "push_local_quicksort_state' \<sigma> = 
+                 Some((), \<sigma>\<lparr>local_quicksort_state.p := undefined # local_quicksort_state.p \<sigma>,
+                            local_quicksort_state.result_value := undefined # local_quicksort_state.result_value \<sigma> \<rparr>)"
+
+=======
+>>>>>>> 9d4f1fd7b73196e351b8d51c73b8b4a251213348
 
 
 
