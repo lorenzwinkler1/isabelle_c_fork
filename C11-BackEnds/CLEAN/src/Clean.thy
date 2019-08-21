@@ -337,7 +337,7 @@ val SPY3 =  Unsynchronized.ref (@{typ "unit"})
             val eq = push_eq binding name (Binding.name_of name_pushop) rty sty lthy
             val _ = (SPY := eq)
             val mty = StateMgt_core.MON_SE_T rty sty 
-            val args = (SOME(name_pushop,SOME mty,NoSyn),(Binding.empty_atts,eq),[],[])
+            val args = (NONE (* SOME(name_pushop,SOME mty,NoSyn) *),(Binding.empty_atts,eq),[],[])
       val _ = (fn _ => writeln ("HURX"^name^":"^ (Binding.name_of name_pushop))) ()
             val lthy' = cmd args true lthy
       val _ = (fn _ => writeln ("HURX'"^name)) ()
@@ -364,7 +364,7 @@ val SPY3 =  Unsynchronized.ref (@{typ "unit"})
             val nameb_str = Binding.name_of nameb
             val _ = writeln nameb_str
             val eq = pop_eq binding name nameb_str rty sty lthy
-            val args = (SOME(nameb,SOME mty,NoSyn),(Binding.empty_atts,eq),[],[])
+            val args = (NONE (* SOME(nameb,SOME mty,NoSyn) *),(Binding.empty_atts,eq),[],[])
         in cmd args true lthy
         end;
 
@@ -417,10 +417,10 @@ fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) 
                      val _ = (SPY2 := sty)
                      val _ = (SPY3 := rty)
                  in thy
-(*
+
                     |> Named_Target.theory_map (mk_push_def binding sty) 
                     |> Named_Target.theory_map (mk_pop_def  binding rty sty) 
- *)                                                            
+                                                            
                  end
             else thy
   in thy |> Record.add_record overloaded (params', binding) parent fields' 

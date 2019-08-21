@@ -35,14 +35,17 @@
  ******************************************************************************)
 
 session AutoCorres_logic in "C11-FrontEnd/semantic-backends/AutoCorres" = AutoCorres +
+  options [document = false]
   theories
     "src/README"
 
 session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres_logic +
+  options [document = false]
   theories
     "semantic-backends/AutoCorres/src/Backend"
 
 session Isabelle_C_AutoCorres_examples in "C11-FrontEnd" = Isabelle_C_AutoCorres +
+  options [document = false]
   sessions
     "HOL-Computational_Algebra"
   theories
@@ -54,23 +57,24 @@ session Isabelle_C_AutoCorres_examples in "C11-FrontEnd" = Isabelle_C_AutoCorres
     "semantic-backends/AutoCorres/examples/TestSEL4"
 
 session Isabelle_C_CLEAN in "C11-FrontEnd" = Isabelle_C +
-  sessions
-    CLEAN_logic
+  options [document = false]
   theories
     "semantic-backends/CLEAN/src/Backend"
 
 session Isabelle_C_CLEAN_examples in "C11-FrontEnd" = Isabelle_C_CLEAN +
+  options [document = false]
   theories
     "semantic-backends/CLEAN/examples/IsPrime_sqrt_outside"
     "semantic-backends/CLEAN/examples/Quicksort2"
     "semantic-backends/CLEAN/examples/Quicksort"
 
 session Isabelle_C_README in "C11-FrontEnd" = HOL +
+  options [document = false]
   theories
     "../README"
 
 session Isabelle_C_archive in "C11-FrontEnd" = Isabelle_C_AutoCorres +
-  options [quick_and_dirty]
+  options [quick_and_dirty,document = false]
   sessions
     CLEAN_logic
     "HOL-Computational_Algebra"
