@@ -34,11 +34,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-session CLEAN_logic = HOL +
+session CLEAN = HOL +
   theories
     "src/Clean"
 
-session CLEAN_examples = CLEAN_logic +
+session CLEAN_examples = CLEAN +
   theories
-    "examples/program-based/Quicksort_design"
-    "examples/program-based/SquareRoot_test"
+    "examples/Quicksort_concept"
+    "examples/SquareRoot_concept"
