@@ -39,23 +39,19 @@ theory README imports Main begin
 section \<open>Global git structure of the Isabelle/C project\<close>
 
 text \<open>
-The  \<^verbatim>\<open>Isabelle/C\<close> project consists of four components,
-where two of them represent AFP submissions.
+The Isabelle/C project consists of four components, where two of them represent AFP submissions.
 
-\begin{verbatim}
-- C11-FrontEnd  (AFP)
-- C11-BackEnds  
--- C11-BackEnd-Clean (AFP, dependent on C11-FrontEnd)
--- C11-BackEnd-AutoCorres 
---- Slightly modified version of AutoCorres Library
---- Adapter to C11-FrontEnd
--- C11-BackEnd-CLEAN
---- Clean + Library
---- CleanAdapter
-- Citadelle (Own Model-based Framework Generating The Granmmars and the AST§ of C11-FrontEnd)
-
-\end{verbatim}
-
+\<^item> - C11-FrontEnd  (AFP)
+\<^item> - C11-BackEnds  
+\<^item> -- C11-BackEnd Clean (AFP, dependent on C11-FrontEnd)
+\<^item> -- C11-BackEnd AutoCorres 
+\<^item> --- Slightly modified version of AutoCorres Library
+\<^item> --- Adapter to C11-FrontEnd
+\<^item> -- C11-BackEnd-CLEAN
+\<^item> --- Clean + Library
+\<^item> --- CleanAdapter
+\<^item> - Citadelle (Own Model-based Framework Generating The Granmmars and the AST of
+C11-FrontEnd)
 \<close>
 
 section \<open>Isabelle/C\<close>
