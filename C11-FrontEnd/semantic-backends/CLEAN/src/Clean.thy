@@ -288,21 +288,12 @@ local open StateMgt_core
                 handle _ => error("internal error: get_result_value_conf") end; 
 
 
-
     fun mk_lookup_result_value_term name sty thy =
         let val ((prefix,name),local_var(Type("fun", [_,ty]))) = get_result_value_conf name thy;
             val long_name = Sign.intern_const  thy (prefix^"."^name)
             val term = Const(long_name, sty --> ty)
         in  mk_hdT (term $ Free("\<sigma>",sty)) end
 
-
-<<<<<<< HEAD
-    fun mk_push_name s p = Binding.name("push_"^s)
-    fun mk_pop_name s p  = Binding.make("pop_"^s,p)
-=======
-    fun mk_push_name s p = Binding.name("push_local_"^s^"_state")
-    fun mk_pop_name s p  = Binding.make("pop_local_"^s^"_state",p)
->>>>>>> 9d4f1fd7b73196e351b8d51c73b8b4a251213348
 
     fun  map_to_update sty is_pop thy ((struct_name, attr_name), local_var (Type("fun",[_,ty]))) term = 
            let val tlT = if is_pop then Const(\<^const_name>\<open>List.tl\<close>, ty --> ty)
@@ -311,77 +302,74 @@ local open StateMgt_core
                val update_name = Sign.intern_const  thy (struct_name^"."^attr_name^"_update")
            in (Const(update_name, (ty --> ty) --> sty --> sty) $ tlT) $ term end
        | map_to_update _ _ _ ((_, _),_) _ = error("internal error map_to_update")     
-    
-    in fun construct_update is_pop name sty thy = 
+
+    fun mk_local_state_name binding = Binding.prefix_name "local_" (Binding.suffix_name "_state" binding)  
+    fun mk_global_state_name binding = Binding.prefix_name "global_" (Binding.suffix_name "_state" binding)  
+
+    in fun construct_update is_pop binding name sty thy = 
            let val long_name = "local_"^name^"_state"
+               val long_name = Binding.name_of(mk_local_state_name binding)
                val attrS = StateMgt_core.filter_attr_of long_name thy
            in  fold (map_to_update sty is_pop thy) (attrS) (Free("\<sigma>",sty)) end
 
-    fun push_eq name name_op rty sty lthy = 
+            
+    fun cmd (decl, spec, prems, params) = #2 oo Specification.definition' decl params prems spec
+
+    fun mk_push_name binding = Binding.prefix_name "push_" binding
+
+    fun push_eq binding name name_op rty sty lthy = 
              let val mty = MON_SE_T rty sty 
                  val thy = Proof_Context.theory_of lthy
-                 val term = construct_update false name sty thy
+                 val term = construct_update false binding name sty thy
              in  mk_meta_eq((Free(name_op, mty) $ Free("\<sigma>",sty)), 
                              mk_Some ( HOLogic.mk_prod (mk_undefined rty,term)))
                               
              end;
-    
-    fun pop_eq name name_op rty sty lthy = 
+
+val SPY = Unsynchronized.ref (Bound 0)
+val SPY1 = Unsynchronized.ref (Binding.empty)
+val SPY2 =  Unsynchronized.ref (@{typ "unit"})
+val SPY3 =  Unsynchronized.ref (@{typ "unit"})
+
+    fun mk_push_def binding  sty lthy =
+        let val name:bstring = Binding.name_of binding 
+            val name_pushop =  mk_push_name binding
+            val rty = \<^typ>\<open>unit\<close>
+            val eq = push_eq binding name (Binding.name_of name_pushop) rty sty lthy
+            val _ = (SPY := eq)
+            val mty = StateMgt_core.MON_SE_T rty sty 
+            val args = (SOME(name_pushop,SOME mty,NoSyn),(Binding.empty_atts,eq),[],[])
+      val _ = (fn _ => writeln ("HURX"^name^":"^ (Binding.name_of name_pushop))) ()
+            val lthy' = cmd args true lthy
+      val _ = (fn _ => writeln ("HURX'"^name)) ()
+        in lthy'
+        end;
+
+    fun mk_pop_name binding = Binding.prefix_name "pop_"  binding
+
+    fun pop_eq  binding name name_op rty sty lthy = 
              let val mty = MON_SE_T rty sty 
                  val thy = Proof_Context.theory_of lthy
                  val res_access = mk_lookup_result_value_term ("local_"^name^"_state") sty thy
-                 val term = construct_update true name sty thy                 
+                 val term = construct_update true binding name sty thy                 
              in  mk_meta_eq((Free(name_op, mty) $ Free("\<sigma>",sty)), 
                              mk_Some ( HOLogic.mk_prod (res_access,term)))
                               
              end;
-    
-    
-    val cmd = (fn (((decl, spec), prems), params) =>
-                            #2 oo Specification.definition' decl params prems spec)
-    
 
-    fun mk_push_def name p  sty lthy = 
-<<<<<<< HEAD
-        let val name_bdg =  mk_push_name name p 
-            val name_bdg_str = (Binding.name_of name_bdg )
-            val rty = \<^typ>\<open>unit\<close>
-            val eq = push_eq name name_bdg_str rty sty lthy
+
+    fun mk_pop_def binding rty sty lthy = 
+        let val name:bstring = Binding.name_of binding 
             val mty = StateMgt_core.MON_SE_T rty sty 
-            val args = (((SOME(name_bdg,SOME mty,NoSyn),(Binding.empty_atts,eq)),[]),[])
-      val _ = writeln ("HURX"^name^":"^name_bdg_str)
-            val lthy' = cmd args true lthy
-      val _ = writeln ("HURX'"^name)
-=======
-        let val nameb =  mk_push_name name p
+            val nameb =  mk_pop_name binding
             val nameb_str = Binding.name_of nameb
-            val rty = \<^typ>\<open>unit\<close>
-            val eq = push_eq name nameb_str rty sty lthy
-            val mty = StateMgt_core.MON_SE_T rty sty 
-            val args = (((SOME(nameb,SOME mty,NoSyn),(Binding.empty_atts,eq)),[]),[])
-      val _ = fn _ => writeln ("HURX"^name)
-            val lthy' = cmd args true lthy
-      val _ = fn _ => writeln ("HURX'"^name)
->>>>>>> 9d4f1fd7b73196e351b8d51c73b8b4a251213348
-        in lthy'
-        end;
-    
-    
-    fun mk_pop_def name p rty sty lthy = 
-        let val mty = StateMgt_core.MON_SE_T rty sty 
-            val nameb =  mk_pop_name name p
-          val nameb_str = Binding.name_of nameb
-<<<<<<< HEAD
             val _ = writeln nameb_str
-=======
-            val _ = fn _ => writeln nameb_str
->>>>>>> 9d4f1fd7b73196e351b8d51c73b8b4a251213348
-            val eq = pop_eq name nameb_str rty sty lthy
-            val args = (((SOME(nameb,SOME mty,NoSyn),(Binding.empty_atts,eq)),[]),[])
+            val eq = pop_eq binding name nameb_str rty sty lthy
+            val args = (SOME(nameb,SOME mty,NoSyn),(Binding.empty_atts,eq),[],[])
         in cmd args true lthy
         end;
 
-end
+
 
 fun read_parent NONE ctxt = (NONE, ctxt)
   | read_parent (SOME raw_T) ctxt =
@@ -398,13 +386,6 @@ fun read_fields raw_fields ctxt =
 
 fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) raw_parent raw_fields thy =
   let
-    val name = Binding.name_of binding
-<<<<<<< HEAD
-    val _ = writeln ("XXX"^name)
-=======
-    val _ = fn _ => writeln ("XXX"^name)
->>>>>>> 9d4f1fd7b73196e351b8d51c73b8b4a251213348
-    val pos = Binding.pos_of binding
     val ctxt = Proof_Context.init_global thy;
     val params = map (apsnd (Typedecl.read_constraint ctxt)) raw_params;
     val ctxt1 = fold (Variable.declare_typ o TFree) params ctxt;
@@ -414,15 +395,11 @@ fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) 
     val fields' = if is_global_kind then fields else map lift fields
     val params' = map (Proof_Context.check_tfree ctxt3) params;
     val declare = StateMgt_core.declare_state_variable_global
-<<<<<<< HEAD
     fun upd_state_typ thy = let val ctxt = Proof_Context.init_global thy
+                                val name = Binding.name_of binding
+                                val _ = writeln ("upd_state_typ XXX"^name)
                                 val ty = Syntax.parse_typ ctxt name
                             in  StateMgt_core.upd_state_type_global(K ty)(thy) end
-=======
-        fun upd_state_typ thy = let val ctxt = Proof_Context.init_global thy
-                                    val ty = Syntax.parse_typ ctxt name
-                                in  StateMgt_core.upd_state_type_global(K ty)(thy) end
->>>>>>> 9d4f1fd7b73196e351b8d51c73b8b4a251213348
     fun insert_var ((f,_,_), thy) =           
             if is_global_kind   
             then declare StateMgt_core.global_var (Binding.name_of f) thy
@@ -430,20 +407,21 @@ fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) 
     fun define_push_pop thy = 
             if not is_global_kind 
             then let val ctxt = Proof_Context.init_global thy;
-                     val sty = Syntax.parse_typ ctxt ("'a "^name^"_scheme")
+                     val name = Binding.name_of binding
+                     val ty_repr1 = "'a "^name^"_scheme"
+                     val ty_bind =  Binding.prefix_name "'a " (Binding.suffix_name "_scheme" binding)
+                     val ty_repr2 = Binding.name_of ty_bind
+                     val _ = writeln ("define_push_pop XXX"^name^":"^ty_repr1^":"^ty_repr2)
+                     val sty = Syntax.parse_typ ctxt (ty_repr1)
                      val rty = dest_listTy (#2(hd( fields')))
+                     val _ = (SPY1 := binding)
+                     val _ = (SPY2 := sty)
+                     val _ = (SPY3 := rty)
                  in thy
-<<<<<<< HEAD
-
-                    |> Named_Target.theory_map (mk_push_def name pos sty) 
-                    |> Named_Target.theory_map (mk_pop_def  name pos rty sty) 
-                               
-=======
 (*
-                    |> Named_Target.theory_map (mk_push_def name pos sty)
-                    |> Named_Target.theory_map (mk_pop_def  name pos rty sty)
- *)                              
->>>>>>> 9d4f1fd7b73196e351b8d51c73b8b4a251213348
+                    |> Named_Target.theory_map (mk_push_def binding sty) 
+                    |> Named_Target.theory_map (mk_pop_def  binding rty sty) 
+ *)                                                            
                  end
             else thy
   in thy |> Record.add_record overloaded (params', binding) parent fields' 
@@ -452,8 +430,6 @@ fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) 
          |> define_push_pop 
   end;
 
-val add_record_cmd = add_record_cmd0 read_fields;
-val add_record_cmd' = add_record_cmd0 pair;
 
 
 fun typ_2_string_raw (Type(s,[])) = s
@@ -464,28 +440,27 @@ fun typ_2_string_raw (Type(s,[])) = s
 
 fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res_ty), raw_fields) thy =
     let val _ = writeln ("<Z " ^ (typ_2_string_raw (StateMgt_core.get_state_type_global thy)))
+        val binding = if is_global_kind 
+                      then mk_global_state_name binding
+                      else mk_local_state_name binding
         val raw_parent = SOME(typ_2_string_raw (StateMgt_core.get_state_type_global thy))
-<<<<<<< HEAD
-        val name = Binding.print binding (* Binding.name_of binding *)
-        val _ = writeln ("<ZZ " ^ name)
-=======
-        val name = Binding.name_of binding
->>>>>>> 9d4f1fd7b73196e351b8d51c73b8b4a251213348
         val pos = Binding.pos_of binding
         fun upd_state_typ thy = let val ctxt = Proof_Context.init_global thy
-                                    val ty = Syntax.parse_typ ctxt name
+                                    val name:bstring = Binding.name_of binding 
+                                    val _ = writeln ("<ZZ " ^ name)
+                                    val ty = Syntax.parse_typ ctxt name (* or: Binding.print name ? *)
                                 in  StateMgt_core.upd_state_type_global(K ty)(thy) end
         val raw_fields' = case res_ty of 
                             NONE => raw_fields
                           | SOME t => raw_fields @ [(Binding.make("result_value",pos),t, NoSyn)]
     in  thy |> add_record_cmd {overloaded = false} is_global_kind 
                               (raw_params, binding) raw_parent raw_fields' 
-<<<<<<< HEAD
             |> upd_state_typ 
-=======
-(*            |> upd_state_typ *)
->>>>>>> 9d4f1fd7b73196e351b8d51c73b8b4a251213348
+
     end
+
+val add_record_cmd = add_record_cmd0 read_fields;
+val add_record_cmd' = add_record_cmd0 pair;
 
 val new_state_record  = new_state_record0 add_record_cmd
 val new_state_record' = new_state_record0 add_record_cmd'
@@ -503,7 +478,7 @@ val _ =
     -- (Parse.typ >> SOME)
     -- Scan.repeat1 Parse.const_binding
     >> (Toplevel.theory o new_state_record false));
-
+end
 \<close>
 
 

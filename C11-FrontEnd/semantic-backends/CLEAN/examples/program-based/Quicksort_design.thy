@@ -112,10 +112,28 @@ subsection \<open>Encoding swap in CLEAN\<close>
 (* list-lifting should be automatic in local_vars. *)
 
 
-local_vars local_swap_state "unit"
+local_vars swap "unit"
    tmp :: "int" 
 ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
-    StateMgt_core.get_state_field_tab_global @{theory}\<close>
+    StateMgt_core.get_state_field_tab_global @{theory};
+    val binding = !SPY1;
+    val sty = !SPY2;
+    val rty = !SPY3; 
+    Named_Target.theory_map;
+    val lthy = (Named_Target.init "" @{theory}); 
+    Syntax.read_typ_global  @{theory} "'a Quicksort_design.local_swap_state_scheme";
+ \<close>
+
+ML\<open>
+            val name:bstring = Binding.name_of binding 
+            val name_pushop =  mk_push_name binding
+            val rty = \<^typ>\<open>unit\<close>
+            val eq = push_eq binding name (Binding.name_of name_pushop) rty sty lthy
+            val _ = (SPY := eq)
+            val mty = StateMgt_core.MON_SE_T rty sty 
+            val args = (SOME(name_pushop,SOME mty,NoSyn),(Binding.empty_atts,eq),[],[]);
+cmd args false lthy
+\<close>
 
 find_theorems (150) name:"swap"
 
