@@ -34,8 +34,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-
-
 session AutoCorres_logic in "C11-FrontEnd/semantic-backends/AutoCorres" = AutoCorres +
   theories
     "src/README"

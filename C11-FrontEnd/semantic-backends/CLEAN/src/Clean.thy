@@ -312,7 +312,6 @@ local open StateMgt_core
                val attrS = StateMgt_core.filter_attr_of long_name thy
            in  fold (map_to_update sty is_pop thy) (attrS) (Free("\<sigma>",sty)) end
 
-            
     fun cmd (decl, spec, prems, params) = #2 oo Specification.definition' decl params prems spec
 
     fun mk_push_name binding = Binding.prefix_name "push_" binding

@@ -107,7 +107,7 @@ int main(void)
 
    return 0;
 }
-o
+
 #endif
 \<close>
 

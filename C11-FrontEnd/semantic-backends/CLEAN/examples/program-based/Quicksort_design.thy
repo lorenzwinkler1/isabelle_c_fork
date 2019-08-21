@@ -111,7 +111,6 @@ subsection \<open>Encoding swap in CLEAN\<close>
 (* for some strange reason, "result" is no longer a term. term "result" crashes. *)
 (* list-lifting should be automatic in local_vars. *)
 
-
 local_vars swap "unit"
    tmp :: "int" 
 ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
@@ -131,11 +130,10 @@ ML\<open>
             val eq = push_eq binding name (Binding.name_of name_pushop) rty sty lthy
             val _ = (SPY := eq)
             val mty = StateMgt_core.MON_SE_T rty sty 
-            val args = (SOME(name_pushop,SOME mty,NoSyn),(Binding.empty_atts,eq),[],[]);
+            val args = (NONE (*SOME(name_pushop,SOME mty,NoSyn)*),(Binding.empty_atts,eq),[],[]);
 cmd args false lthy
 \<close>
 
-find_theorems (150) name:"swap"
 
 definition push_local_state_swap :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
   where   "push_local_state_swap \<sigma> = 
@@ -411,10 +409,7 @@ construct_update false "quicksort" @{typ "'a local_quicksort_state_scheme"} @{th
 
 setup\<open>Named_Target.theory_map (mk_push_def "quicksort" @{here} @{typ "'a local_quicksort_state_scheme"})\<close>
 setup\<open>Named_Target.theory_map (mk_pop_def "quicksort" @{here} @{typ "unit"} @{typ "'b local_quicksort_state_scheme"})\<close>
-<<<<<<< HEAD
-=======
 
->>>>>>> 9d4f1fd7b73196e351b8d51c73b8b4a251213348
 
 
 thm pop_local_quicksort_state_def
@@ -426,18 +421,6 @@ definition push_local_quicksort_state' :: "(unit, 'a local_quicksort_state_schem
                  Some((), \<sigma>\<lparr>local_quicksort_state.p := undefined # local_quicksort_state.p \<sigma>,
                             local_quicksort_state.result_value := undefined # local_quicksort_state.result_value \<sigma> \<rparr>)"
 
-<<<<<<< HEAD
-thm pop_local_quicksort_state_def
-thm push_local_quicksort_state_def
-
-(* this implies the definitions : *)
-definition push_local_quicksort_state' :: "(unit, 'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "push_local_quicksort_state' \<sigma> = 
-                 Some((), \<sigma>\<lparr>local_quicksort_state.p := undefined # local_quicksort_state.p \<sigma>,
-                            local_quicksort_state.result_value := undefined # local_quicksort_state.result_value \<sigma> \<rparr>)"
-
-=======
->>>>>>> 9d4f1fd7b73196e351b8d51c73b8b4a251213348
 
 
 
