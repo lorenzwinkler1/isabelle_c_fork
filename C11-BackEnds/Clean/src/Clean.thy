@@ -21,7 +21,7 @@ begin
   
 text\<open>Clean is a minimalistic imperative language 
 with C-like control-flow operators based on a shallow embedding into the
-SE exception Monad theory formalized in @{theory "CLEAN_logic.MonadSE"}. It comprises:
+SE exception Monad theory formalized in @{theory "Clean.MonadSE"}. It comprises:
 \begin{itemize}
 \item C-like control flow with \verb+break+ and \verb+return+.
 \item global variables.
@@ -282,6 +282,8 @@ fun mk_meta_eq (t, u) = meta_eq_const (fastype_of t) $ t $ u;
 (* the meat *)
 local open StateMgt_core
 
+
+
     fun get_result_value_conf name thy = 
             let val  S = filter_attr_of name thy
             in  hd(filter (fn ((a,b),c) => b = "result_value") S) 
@@ -306,51 +308,48 @@ local open StateMgt_core
     fun mk_local_state_name binding = Binding.prefix_name "local_" (Binding.suffix_name "_state" binding)  
     fun mk_global_state_name binding = Binding.prefix_name "global_" (Binding.suffix_name "_state" binding)  
 
-    in fun construct_update is_pop binding name sty thy = 
-           let val long_name = "local_"^name^"_state"
-               val long_name = Binding.name_of(mk_local_state_name binding)
+    in fun construct_update is_pop binding sty thy = 
+           let val long_name = Binding.name_of( binding)
+               val _ = writeln ("construct_update : "^long_name)
                val attrS = StateMgt_core.filter_attr_of long_name thy
            in  fold (map_to_update sty is_pop thy) (attrS) (Free("\<sigma>",sty)) end
 
     fun cmd (decl, spec, prems, params) = #2 oo Specification.definition' decl params prems spec
 
-    fun mk_push_name binding = Binding.prefix_name "push_" binding
-
-    fun push_eq binding name name_op rty sty lthy = 
-             let val mty = MON_SE_T rty sty 
-                 val thy = Proof_Context.theory_of lthy
-                 val term = construct_update false binding name sty thy
-             in  mk_meta_eq((Free(name_op, mty) $ Free("\<sigma>",sty)), 
-                             mk_Some ( HOLogic.mk_prod (mk_undefined rty,term)))
-                              
-             end;
 
 val SPY = Unsynchronized.ref (Bound 0)
 val SPY1 = Unsynchronized.ref (Binding.empty)
 val SPY2 =  Unsynchronized.ref (@{typ "unit"})
 val SPY3 =  Unsynchronized.ref (@{typ "unit"})
 
-    fun mk_push_def binding  sty lthy =
-        let val name:bstring = Binding.name_of binding 
-            val name_pushop =  mk_push_name binding
+    fun mk_push_name binding = Binding.prefix_name "push_" binding
+
+    fun push_eq binding  name_op rty sty lthy = 
+             let val mty = MON_SE_T rty sty 
+                 val thy = Proof_Context.theory_of lthy
+                 val term = construct_update false binding sty thy
+             in  mk_meta_eq((Free(name_op, mty) $ Free("\<sigma>",sty)), 
+                             mk_Some ( HOLogic.mk_prod (mk_undefined rty,term)))
+                              
+             end;
+
+    fun mk_push_def binding sty lthy =
+        let val name_pushop =  mk_push_name binding
             val rty = \<^typ>\<open>unit\<close>
-            val eq = push_eq binding name (Binding.name_of name_pushop) rty sty lthy
-            val _ = (SPY := eq)
+            val eq = push_eq binding  (Binding.name_of name_pushop) rty sty lthy
             val mty = StateMgt_core.MON_SE_T rty sty 
-            val args = (NONE (* SOME(name_pushop,SOME mty,NoSyn) *),(Binding.empty_atts,eq),[],[])
-      val _ = (fn _ => writeln ("HURX"^name^":"^ (Binding.name_of name_pushop))) ()
+            val args = (SOME(name_pushop,NONE (* SOME mty *),NoSyn), (Binding.empty_atts,eq),[],[])
             val lthy' = cmd args true lthy
-      val _ = (fn _ => writeln ("HURX'"^name)) ()
         in lthy'
         end;
 
     fun mk_pop_name binding = Binding.prefix_name "pop_"  binding
 
-    fun pop_eq  binding name name_op rty sty lthy = 
+    fun pop_eq  binding name_op rty sty lthy = 
              let val mty = MON_SE_T rty sty 
                  val thy = Proof_Context.theory_of lthy
-                 val res_access = mk_lookup_result_value_term ("local_"^name^"_state") sty thy
-                 val term = construct_update true binding name sty thy                 
+                 val res_access = mk_lookup_result_value_term (Binding.name_of binding) sty thy
+                 val term = construct_update true binding  sty thy                 
              in  mk_meta_eq((Free(name_op, mty) $ Free("\<sigma>",sty)), 
                              mk_Some ( HOLogic.mk_prod (res_access,term)))
                               
@@ -358,13 +357,12 @@ val SPY3 =  Unsynchronized.ref (@{typ "unit"})
 
 
     fun mk_pop_def binding rty sty lthy = 
-        let val name:bstring = Binding.name_of binding 
-            val mty = StateMgt_core.MON_SE_T rty sty 
-            val nameb =  mk_pop_name binding
-            val nameb_str = Binding.name_of nameb
-            val _ = writeln nameb_str
-            val eq = pop_eq binding name nameb_str rty sty lthy
-            val args = (NONE (* SOME(nameb,SOME mty,NoSyn) *),(Binding.empty_atts,eq),[],[])
+        let val mty = StateMgt_core.MON_SE_T rty sty 
+            val name_op =  mk_pop_name binding
+            val _ = writeln ("mk_pop_def : "^ Binding.name_of name_op )
+            val eq = pop_eq binding (Binding.name_of name_op) rty sty lthy
+            val _ = (SPY:=eq)
+            val args = (SOME(name_op,NONE(* SOME mty *),NoSyn),(Binding.empty_atts,eq),[],[])
         in cmd args true lthy
         end;
 

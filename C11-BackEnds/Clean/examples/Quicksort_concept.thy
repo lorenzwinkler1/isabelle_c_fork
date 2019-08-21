@@ -34,8 +34,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-theory Quicksort_design
-  imports CLEAN_logic.Clean
+theory Quicksort_concept
+  imports Clean.Clean
 begin
 
 (*
@@ -114,30 +114,33 @@ subsection \<open>Encoding swap in CLEAN\<close>
 local_vars swap "unit"
    tmp :: "int" 
 
-(*
+ML\<open>
+    val rty = !SPY3; 
+!SPY\<close>
+
 ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
-    StateMgt_core.get_state_field_tab_global @{theory};
+    val tab = StateMgt_core.get_state_field_tab_global @{theory};
     val binding = !SPY1;
     val sty = !SPY2;
     val rty = !SPY3; 
     Named_Target.theory_map;
     val lthy = (Named_Target.init "" @{theory}); 
-    Syntax.read_typ_global  @{theory} "'a Quicksort_design.local_swap_state_scheme";
+    Syntax.read_typ_global  @{theory} "'a Quicksort_concept.local_swap_state_scheme";
  \<close>
 
 ML\<open>
             val name:bstring = Binding.name_of binding 
             val name_pushop =  mk_push_name binding
             val rty = \<^typ>\<open>unit\<close>
-            val eq = push_eq binding name (Binding.name_of name_pushop) rty sty lthy
+            val eq = push_eq binding  (Binding.name_of name_pushop) rty sty lthy
             val _ = (SPY := eq)
             val mty = StateMgt_core.MON_SE_T rty sty 
             val args = (NONE (*SOME(name_pushop,SOME mty,NoSyn)*),(Binding.empty_atts,eq),[],[]);
-cmd args false lthy
+(* cmd args false lthy *)
 \<close>
-*)
 
-find_theorems name:push
+
+find_theorems name:pop name:Quicksort_concept
 
 definition push_local_state_swap :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
   where   "push_local_state_swap \<sigma> = 
