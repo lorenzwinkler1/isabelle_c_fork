@@ -47,7 +47,7 @@ theory TestSEL4
 imports
   Isabelle_C_AutoCorres.Backend
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/TestSEL4.thy\<close>\<close>
+\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/TestSEL4.thy\<close>\<close>
 
 declare [[allow_underscore_idents]]
 declare [[ML_print_depth = 500]] \<comment> \<open>Any number large enough for @{command install_C_file}
@@ -60,7 +60,7 @@ declare [[ML_print_depth = 500]] \<comment> \<open>Any number large enough for @
 
 install_C_file all_parsing no_cpp parse_then_stop
                \<comment> \<open>The following file can be meanwhile CTRL-clicked on it:\<close>
-               \<open>../../../../l4v/generated/spec/cspec/c/build/ARM/kernel_all.c_pp\<close>
+               \<open>../../../l4v/generated/spec/cspec/c/build/ARM/kernel_all.c_pp\<close>
 (*19 s on MacOS i7 processor. 27,9 kloc, 790 kb. Just parsing, no semantic backend ectivated.*)
 
 

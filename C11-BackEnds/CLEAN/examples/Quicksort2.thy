@@ -46,7 +46,7 @@
 theory Quicksort2
   imports Isabelle_C_CLEAN.Backend
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
+\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
 
 C \<open>
 #define MAXSIZE 100

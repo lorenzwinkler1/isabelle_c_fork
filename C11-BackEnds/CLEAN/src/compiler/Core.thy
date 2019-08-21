@@ -74,7 +74,7 @@ val _ = Theory.setup
 end
 \<close>
 
-ML \<comment> \<open>\<^file>\<open>../../../../generated/c_ast.ML\<close>\<close> \<open>
+ML \<comment> \<open>\<^file>\<open>../../../../C11-FrontEnd/generated/c_ast.ML\<close>\<close> \<open>
 structure T =
 struct
 open C_Ast
@@ -89,7 +89,7 @@ end
 end
 \<close>
 
-ML \<comment> \<open>\<^file>\<open>../../../../../Citadelle/src/compiler/Core.thy\<close>\<close> \<open>
+ML \<comment> \<open>\<^file>\<open>../../../../Citadelle/src/compiler/Core.thy\<close>\<close> \<open>
 structure CLEAN_Core =
 struct
 open C_Ast

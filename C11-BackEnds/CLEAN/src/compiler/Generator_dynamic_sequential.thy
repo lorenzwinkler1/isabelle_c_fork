@@ -41,8 +41,8 @@
 
 theory Generator_dynamic_sequential
   imports Core
-          "../../../../../Citadelle/src/compiler_generic/isabelle_home/src/Tools/Code/Isabelle_code_runtime"
-          "../../../../../Citadelle/src/compiler_generic/isabelle_home/src/Pure/Isar/Isabelle_typedecl"
+          "../../../../Citadelle/src/compiler_generic/isabelle_home/src/Tools/Code/Isabelle_code_runtime"
+          "../../../../Citadelle/src/compiler_generic/isabelle_home/src/Pure/Isar/Isabelle_typedecl"
   keywords (* Language (added) *)
            "self"
            "with_only"
@@ -65,7 +65,7 @@ theory Generator_dynamic_sequential
 
            :: thy_decl
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../../../Citadelle/src/compiler/Generator_dynamic_sequential.thy\<close>\<close>
+\<comment> \<open>Derived from: \<^file>\<open>../../../../Citadelle/src/compiler/Generator_dynamic_sequential.thy\<close>\<close>
 
 section \<open>\<close>
 

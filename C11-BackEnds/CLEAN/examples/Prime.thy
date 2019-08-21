@@ -43,7 +43,7 @@
  * @TAG(NICTA_BSD)
  *)
 
-theory Prime imports "../../../archive/CLEAN_backend_old"
+theory Prime imports "../../../C11-FrontEnd/archive/CLEAN_backend_old"
 begin
 declare [[CLEAN_on]]
 C \<open>

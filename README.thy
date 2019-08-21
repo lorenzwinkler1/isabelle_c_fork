@@ -35,9 +35,11 @@
  ******************************************************************************)
 
 theory README imports Main begin
-section \<open>Global git structure of the Isabelle C11 project\<close>
+
+section \<open>Global git structure of the Isabelle/C project\<close>
+
 text \<open>
-The  \<^verbatim>\<open>isabelle_c\<close> consists of four components,
+The  \<^verbatim>\<open>Isabelle/C\<close> project consists of four components,
 where two of them represent AFP submissions.
 
 \begin{verbatim}
@@ -55,7 +57,6 @@ where two of them represent AFP submissions.
 \end{verbatim}
 
 \<close>
-
 
 section \<open>Isabelle/C\<close>
 
@@ -77,8 +78,8 @@ directory provided to \<^verbatim>\<open>isabelle jedit -d\<close>, because they
 other projects (such as \<open>l4v\<close>):
 
 \<^item> \<^verbatim>\<open>export L4V_ARCH = ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be made in \<^file>\<open>~/.isabelle/etc/settings\<close>\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l CParser\<close> \<^file>\<open>C11-FrontEnd/semantic-backends/AutoCorres/examples/TestSEL4.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l AutoCorres\<close> \<^file>\<open>C11-FrontEnd/semantic-backends/AutoCorres/examples/IsPrime_integrated.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l CParser\<close> \<^file>\<open>C11-BackEnds/AutoCorres/examples/TestSEL4.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l AutoCorres\<close> \<^file>\<open>C11-BackEnds/AutoCorres/examples/IsPrime_integrated.thy\<close>
 \<close>
 
 text \<open>
