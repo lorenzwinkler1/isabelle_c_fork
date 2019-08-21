@@ -775,10 +775,10 @@ make the error disappear at the position it is indicating can be detailed as fol
   contains \<^C>\<open>#define i int\<close>, as the former directive has been left for semantic
   back-end treatment. One way of solving this would be to modify the C code in input for it to be
   already preprocessed (without directives, for example the C example of
-  \<^verbatim>\<open>semantic-backends/AutoCorres/examples/TestSEL4.thy\<close> is already provided as
+  \<^file>\<open>../C11-BackEnds/AutoCorres/examples/TestSEL4.thy\<close> is already provided as
   preprocessed). Another way would be adding a specific new semantic back-end implementing the
   automation of the preprocessing task (as done in
-  \<^verbatim>\<open>semantic-backends/AutoCorres/examples/IsPrime_integrated.thy\<close>, where the
+  \<^file>\<open>../C11-BackEnds/AutoCorres/examples/IsPrime_integrated.thy\<close>, where the
   back-end explicitly makes a call to \<open>cpp\<close> at run-time).
   
   \<^item> Ultimately, modifying the grammar with new rules cancelling the exception would only work

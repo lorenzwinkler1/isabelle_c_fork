@@ -34,56 +34,52 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-session AutoCorres_logic in "C11-FrontEnd/semantic-backends/AutoCorres" = AutoCorres +
-  options [document = false]
+session AutoCorres_logic in "C11-BackEnds/AutoCorres" = AutoCorres +
   theories
     "src/README"
 
-session Isabelle_C_AutoCorres in "C11-FrontEnd" = AutoCorres_logic +
-  options [document = false]
+session Isabelle_C_AutoCorres = AutoCorres_logic +
   theories
-    "semantic-backends/AutoCorres/src/Backend"
+    "C11-BackEnds/AutoCorres/src/Backend"
 
-session Isabelle_C_AutoCorres_examples in "C11-FrontEnd" = Isabelle_C_AutoCorres +
-  options [document = false]
+session Isabelle_C_AutoCorres_examples = Isabelle_C_AutoCorres +
   sessions
     "HOL-Computational_Algebra"
   theories
-    "semantic-backends/AutoCorres/examples/IsPrime_integrated"
-    "semantic-backends/AutoCorres/examples/IsPrime_linear_outside"
-    "semantic-backends/AutoCorres/examples/IsPrime_sqrt_outside"
-    "semantic-backends/AutoCorres/examples/Parse_for_loop"
-    "semantic-backends/AutoCorres/examples/Quicksort"
-    "semantic-backends/AutoCorres/examples/TestSEL4"
+    "C11-BackEnds/AutoCorres/examples/IsPrime_integrated"
+    "C11-BackEnds/AutoCorres/examples/IsPrime_linear_outside"
+    "C11-BackEnds/AutoCorres/examples/IsPrime_sqrt_outside"
+    "C11-BackEnds/AutoCorres/examples/Parse_for_loop"
+    "C11-BackEnds/AutoCorres/examples/Quicksort"
+    "C11-BackEnds/AutoCorres/examples/TestSEL4"
 
-session Isabelle_C_CLEAN in "C11-FrontEnd" = Isabelle_C +
-  options [document = false]
+session Isabelle_C_CLEAN = Isabelle_C +
+  sessions
+    CLEAN_logic
   theories
-    "semantic-backends/CLEAN/src/Backend"
+    "C11-BackEnds/CLEAN/src/Backend"
 
-session Isabelle_C_CLEAN_examples in "C11-FrontEnd" = Isabelle_C_CLEAN +
-  options [document = false]
+session Isabelle_C_CLEAN_examples = Isabelle_C_CLEAN +
   theories
-    "semantic-backends/CLEAN/examples/IsPrime_sqrt_outside"
-    "semantic-backends/CLEAN/examples/Quicksort2"
-    "semantic-backends/CLEAN/examples/Quicksort"
+    "C11-BackEnds/CLEAN/examples/IsPrime_sqrt_outside"
+    "C11-BackEnds/CLEAN/examples/Quicksort2"
+    "C11-BackEnds/CLEAN/examples/Quicksort"
 
 session Isabelle_C_README in "C11-FrontEnd" = HOL +
-  options [document = false]
   theories
     "../README"
 
-session Isabelle_C_archive in "C11-FrontEnd" = Isabelle_C_AutoCorres +
-  options [quick_and_dirty,document = false]
+session Isabelle_C_archive = Isabelle_C_AutoCorres +
+  options [quick_and_dirty]
   sessions
     CLEAN_logic
     "HOL-Computational_Algebra"
   theories
-    "archive/C0"
-    "archive/Clean_old"
-    "archive/IsPrime_sqrt2_outside"
-    "archive/IsPrime_sqrt_outside"
-    "semantic-backends/AutoCorres/examples/program-based/Example1"
-    "semantic-backends/AutoCorres/examples/program-based/Example2"
-    "semantic-backends/AutoCorres/examples/program-based/Example3"
-    "semantic-backends/CLEAN/examples/Prime"
+    "C11-FrontEnd/archive/C0"
+    "C11-FrontEnd/archive/Clean_old"
+    "C11-FrontEnd/archive/IsPrime_sqrt2_outside"
+    "C11-FrontEnd/archive/IsPrime_sqrt_outside"
+    "C11-BackEnds/AutoCorres/examples/program-based/Example1"
+    "C11-BackEnds/AutoCorres/examples/program-based/Example2"
+    "C11-BackEnds/AutoCorres/examples/program-based/Example3"
+    "C11-BackEnds/CLEAN/examples/Prime"

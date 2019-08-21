@@ -48,7 +48,7 @@ imports
   Isabelle_C_AutoCorres.Backend
   "HOL-Library.Multiset"
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
+\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
 
 
 section\<open>The Quicksort Algorithm in Isabelle/C \<close>

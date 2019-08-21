@@ -35,27 +35,24 @@
  ******************************************************************************)
 
 theory README imports Main begin
-section \<open>Global git structure of the Isabelle C11 project\<close>
+
+section \<open>Global git structure of the Isabelle/C project\<close>
+
 text \<open>
-The  \<^verbatim>\<open>isabelle_c\<close> consists of four components,
-where two of them represent AFP submissions.
+The Isabelle/C project consists of four components, where two of them represent AFP submissions.
 
-\begin{verbatim}
-- C11-FrontEnd  (AFP)
-- C11-BackEnds  
--- C11-BackEnd-Clean (AFP, dependent on C11-FrontEnd)
--- C11-BackEnd-AutoCorres 
---- Slightly modified version of AutoCorres Library
---- Adapter to C11-FrontEnd
--- C11-BackEnd-CLEAN
---- Clean + Library
---- CleanAdapter
-- Citadelle (Own Model-based Framework Generating The Granmmars and the AST§ of C11-FrontEnd)
-
-\end{verbatim}
-
+\<^item> - C11-FrontEnd  (AFP)
+\<^item> - C11-BackEnds  
+\<^item> -- C11-BackEnd Clean (AFP, dependent on C11-FrontEnd)
+\<^item> -- C11-BackEnd AutoCorres 
+\<^item> --- Slightly modified version of AutoCorres Library
+\<^item> --- Adapter to C11-FrontEnd
+\<^item> -- C11-BackEnd-CLEAN
+\<^item> --- Clean + Library
+\<^item> --- CleanAdapter
+\<^item> - Citadelle (Own Model-based Framework Generating The Granmmars and the AST of
+C11-FrontEnd)
 \<close>
-
 
 section \<open>Isabelle/C\<close>
 
@@ -77,8 +74,8 @@ directory provided to \<^verbatim>\<open>isabelle jedit -d\<close>, because they
 other projects (such as \<open>l4v\<close>):
 
 \<^item> \<^verbatim>\<open>export L4V_ARCH = ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be made in \<^file>\<open>~/.isabelle/etc/settings\<close>\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l CParser\<close> \<^file>\<open>C11-FrontEnd/semantic-backends/AutoCorres/examples/TestSEL4.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l AutoCorres\<close> \<^file>\<open>C11-FrontEnd/semantic-backends/AutoCorres/examples/IsPrime_integrated.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l CParser\<close> \<^file>\<open>C11-BackEnds/AutoCorres/examples/TestSEL4.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l AutoCorres\<close> \<^file>\<open>C11-BackEnds/AutoCorres/examples/IsPrime_integrated.thy\<close>
 \<close>
 
 text \<open>

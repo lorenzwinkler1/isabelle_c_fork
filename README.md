@@ -1,6 +1,24 @@
 <div class="source">
 
 ``` {.source}
+section ‹Global git structure of the Isabelle/C project›
+
+text ‹
+The Isabelle/C project consists of four components, where two of them represent AFP submissions.
+
+▪ - C11-FrontEnd  (AFP)
+▪ - C11-BackEnds  
+▪ -- C11-BackEnd Clean (AFP, dependent on C11-FrontEnd)
+▪ -- C11-BackEnd AutoCorres 
+▪ --- Slightly modified version of AutoCorres Library
+▪ --- Adapter to C11-FrontEnd
+▪ -- C11-BackEnd-CLEAN
+▪ --- Clean + Library
+▪ --- CleanAdapter
+▪ - Citadelle (Own Model-based Framework Generating The Granmmars and the AST of
+C11-FrontEnd)
+›
+
 section ‹Isabelle/C›
 
 text ‹
@@ -21,8 +39,8 @@ directory provided to ▩‹isabelle jedit -d›, because they might depend on
 other projects (such as ‹l4v›):
 
 ▪ ▩‹export L4V_ARCH = ARM› ∗‹‹#› the same effect can be made in 🗏‹~/.isabelle/etc/settings››
-▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l CParser› 🗏‹C11-FrontEnd/semantic-backends/AutoCorres/examples/TestSEL4.thy›
-▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l AutoCorres› 🗏‹C11-FrontEnd/semantic-backends/AutoCorres/examples/IsPrime_integrated.thy›
+▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l CParser› 🗏‹C11-BackEnds/AutoCorres/examples/TestSEL4.thy›
+▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l AutoCorres› 🗏‹C11-BackEnds/AutoCorres/examples/IsPrime_integrated.thy›
 ›
 
 text ‹

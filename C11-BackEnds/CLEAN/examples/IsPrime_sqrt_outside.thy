@@ -51,7 +51,7 @@ annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
 theory IsPrime_sqrt_outside
   imports Isabelle_C_CLEAN.Backend
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
+\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
 section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
 
