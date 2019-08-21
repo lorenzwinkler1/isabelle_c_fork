@@ -113,6 +113,8 @@ subsection \<open>Encoding swap in CLEAN\<close>
 
 local_vars swap "unit"
    tmp :: "int" 
+
+(*
 ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
     StateMgt_core.get_state_field_tab_global @{theory};
     val binding = !SPY1;
@@ -133,7 +135,9 @@ ML\<open>
             val args = (NONE (*SOME(name_pushop,SOME mty,NoSyn)*),(Binding.empty_atts,eq),[],[]);
 cmd args false lthy
 \<close>
+*)
 
+find_theorems name:push
 
 definition push_local_state_swap :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
   where   "push_local_state_swap \<sigma> = 
