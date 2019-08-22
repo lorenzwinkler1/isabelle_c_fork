@@ -292,7 +292,7 @@ local open StateMgt_core
 
     fun mk_lookup_result_value_term name sty thy =
         let val ((prefix,name),local_var(Type("fun", [_,ty]))) = get_result_value_conf name thy;
-            val long_name = Sign.intern_const  thy (prefix^"."^name)
+            val long_name = Sign.intern_const thy (prefix^"."^name)
             val term = Const(long_name, sty --> ty)
         in  mk_hdT (term $ Free("\<sigma>",sty)) end
 
@@ -410,7 +410,7 @@ fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) 
                      val ty_repr2 = Binding.name_of ty_bind
                      val _ = writeln ("define_push_pop XXX"^name^":"^ty_repr1^":"^ty_repr2)
                      val sty = Syntax.parse_typ ctxt (ty_repr1)
-                     val rty = dest_listTy (#2(hd( fields')))
+                     val rty = dest_listTy (#2(hd(rev fields')))
                      val _ = (SPY1 := binding)
                      val _ = (SPY2 := sty)
                      val _ = (SPY3 := rty)
@@ -430,8 +430,8 @@ fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) 
 
 
 fun typ_2_string_raw (Type(s,[])) = s
-   |typ_2_string_raw (Type(s,_)) = error ("Illegal parameterized state type - not allowed in CLEAN:" 
-                                          ^ s) 
+   |typ_2_string_raw (Type(s,_)) = 
+                         error ("Illegal parameterized state type - not allowed in CLEAN:"  ^ s) 
    |typ_2_string_raw _ = error "Illegal parameterized state type - not allowed in CLEAN." 
                                   
 
@@ -449,7 +449,7 @@ fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res
                                 in  StateMgt_core.upd_state_type_global(K ty)(thy) end
         val raw_fields' = case res_ty of 
                             NONE => raw_fields
-                          | SOME t => raw_fields @ [(Binding.make("result_value",pos),t, NoSyn)]
+                          | SOME res_ty => raw_fields @ [(Binding.make("result_value",pos),res_ty, NoSyn)]
     in  thy |> add_record_cmd {overloaded = false} is_global_kind 
                               (raw_params, binding) raw_parent raw_fields' 
             |> upd_state_typ 
