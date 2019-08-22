@@ -1384,7 +1384,7 @@ end
 section \<open>Setup of \<^theory_text>\<open>C\<close> commands\<close>
 
 ML \<comment> \<open>\<^theory>\<open>Isabelle_C.C_Command\<close>\<close> \<open>
-val clean_C99 = Attrib.setup_config_bool @{binding CLEAN_C99} (K false)
+val clean_C99 = Attrib.setup_config_bool @{binding Clean_C99} (K false)
 
 val _ =
   Theory.setup
@@ -1392,7 +1392,7 @@ val _ =
       (C_Module.Data_Accept.put
         (fn ast => fn env_lang => fn context =>
           if Config.get (Context.proof_of context) clean_C99 then
-            let val l_meta = CLEAN_Core.compile ast env_lang (Context.theory_name (Context.theory_of context), length (C_Module.Data_In_Source.get context))
+            let val l_meta = Clean_Core.compile ast env_lang (Context.theory_name (Context.theory_of context), length (C_Module.Data_In_Source.get context))
             in Context.map_theory
                 (Outer_Syntax'.command'
                   (outer_syntax_commands''''

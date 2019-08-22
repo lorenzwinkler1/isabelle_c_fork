@@ -34,8 +34,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-theory CLEAN_backend_old
-  imports "../../C11-BackEnds/CLEAN/src/compiler/Generator_dynamic_sequential"
+theory Clean_backend_old
+  imports "../../C11-BackEnds/Clean/src/compiler/Generator_dynamic_sequential"
 begin
 no_notation unit_SE ("(result _)" 8)
 definition "UINT_MAX = 0"
@@ -85,6 +85,6 @@ setup \<open>command ("pre\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N", \<^here>) S
 
 
 ML\<open>
-val lexer_trace = Attrib.setup_config_bool @{binding CLEAN_on} (K false);
+val lexer_trace = Attrib.setup_config_bool @{binding Clean_on} (K false);
 \<close>
 end

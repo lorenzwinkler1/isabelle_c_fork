@@ -43,48 +43,24 @@
  * @TAG(NICTA_BSD)
  *)
 
-chapter\<open>A Sqrt Prime Sample Proof\<close>
-
-text\<open>This example is used to demonstrate Isabelle/C/CLEAN in a version that keeps
-annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
-
-theory IsPrime_sqrt_outside
-  imports Isabelle_C_CLEAN.Backend
+theory Prime imports "../../../C11-FrontEnd/archive/Clean_backend_old"
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
-
-section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
-
-text\<open> This C code contains a function that determines if the given number 
-      @{term n} is prime.
-
-      It returns 0 if @{term n}  is composite, or non-zero if @{term n}  is prime.
- 
-      This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
-
-
-
+declare [[Clean_on]]
 C \<open>
-// @ CLEAN
-
 #define SQRT_UINT_MAX 65536
-
+int k = 0;
 unsigned int is_prime(unsigned int n)
-{
-    /* Numbers less than 2 are not primes. */
-    if (n < 2)
-        return 0;
-
-    /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX), whichever comes first. */
-    /* Find the first non-trivial factor of 'n' less than sqrt(n). */
-
-    for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++) {
-        if (n % i == 0)
-            return 0; 
-    }
-
-    /* No factors. */
-    return 1;
+//@ pre\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N \<open>n \<le> UINT_MAX\<close>
+//@ definition "prime (p :: nat) =         \
+       (1 < p \<and> (\<forall> n \<in> {2..<p}. \<not> n dvd p))"
+//@ post\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N \<open>result \<noteq> 0 \<longleftrightarrow> prime n\<close>
+{ if (n < 2) return 0;
+  for (unsigned i = 2; i < SQRT_UINT_MAX
+                       && i * i <= n; i++) {
+    if (n % i == 0) return 0;
+    k++;
+  }
+  return 1;
 }\<close>
 
 end

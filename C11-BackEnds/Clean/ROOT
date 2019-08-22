@@ -33,48 +33,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(*
- * Copyright 2014, NICTA
- *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- *)
 
-theory Quicksort2
-  imports Isabelle_C_CLEAN.Backend
-begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
+session Clean_logic = HOL +
+  theories
+    "src/Clean"
 
-C \<open>
-#define MAXSIZE 100
-
-unsigned int A[MAXSIZE];
-
-swap_A(unsigned long i,unsigned long j) {
-  unsigned long tmp = A[i]; A[i] = A[j]; A[j] = tmp ;
-}
-
-unsigned long partition(unsigned long lo,unsigned long hi){ 
-  unsigned long  pivot = A[hi];
-  unsigned long  i = lo;
-  for(unsigned long j = lo; j < hi; j++){ 
-     if(A[j] < pivot) { swap_A(i, j); i++;}
-     swap_A(i, j);
-  };
-  return i;
-}
-
-quicksort(unsigned long lo,unsigned long hi) {
-    if( lo < hi) {
-        p = partition(A, lo, hi);
-        quicksort(A, lo, p - 1);
-        quicksort(A, p + 1, hi);
-     }
-}
-
-\<close>
-
-end
+session Clean_examples = Clean_logic +
+  theories
+    "examples/program-based/Quicksort_design"
+    "examples/program-based/SquareRoot_test"

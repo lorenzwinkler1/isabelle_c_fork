@@ -43,24 +43,72 @@
  * @TAG(NICTA_BSD)
  *)
 
-theory Prime imports "../../../C11-FrontEnd/archive/CLEAN_backend_old"
+theory Quicksort
+  imports Isabelle_C_Clean.Backend
 begin
-declare [[CLEAN_on]]
+\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
+
 C \<open>
-#define SQRT_UINT_MAX 65536
-int k = 0;
-unsigned int is_prime(unsigned int n)
-//@ pre\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N \<open>n \<le> UINT_MAX\<close>
-//@ definition "prime (p :: nat) =         \
-       (1 < p \<and> (\<forall> n \<in> {2..<p}. \<not> n dvd p))"
-//@ post\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N \<open>result \<noteq> 0 \<longleftrightarrow> prime n\<close>
-{ if (n < 2) return 0;
-  for (unsigned i = 2; i < SQRT_UINT_MAX
-                       && i * i <= n; i++) {
-    if (n % i == 0) return 0;
-    k++;
-  }
-  return 1;
-}\<close>
+//@ declare [[Clean_C99]]
+
+#ifdef TEST
+#include <stdio.h>
+#include <stdlib.h>
+#endif
+
+// unsigned int b[100];
+
+unsigned long partition(unsigned int *a, unsigned long n)
+{
+   // assume n != 0
+
+   unsigned long pivot_idx = 0;
+
+   for (unsigned long i = 1; i < n; i++) {
+      if (a[i] < a[pivot_idx]) {
+         unsigned int pivot = a[pivot_idx];
+         a[pivot_idx] = a[i];
+         pivot_idx++;
+         a[i] = a[pivot_idx];
+         a[pivot_idx] = pivot;
+      }
+   }
+
+   return pivot_idx;
+}
+
+void quicksort(unsigned int *a, unsigned long n)
+{
+   if (n > 1) {
+      unsigned long pivot_idx = partition(a, n);
+      quicksort(a, pivot_idx);
+      quicksort(a + pivot_idx + 1, n - pivot_idx - 1);
+   }
+}
+
+#ifdef TEST
+
+int main(void)
+{
+   unsigned int sz;
+   scanf("%u", &sz);
+   unsigned int *a = malloc(sz * sizeof(unsigned int));
+   for (unsigned int i = 0; i < sz; i++) {
+      scanf("%u", a+i);
+   }
+
+   quicksort(a, sz);
+
+   for (unsigned int i = 0; i < sz; i++) {
+      if (i) putchar(' ');
+      printf("%u", a[i]);
+   }
+   printf("\n");
+
+   return 0;
+}
+
+#endif
+\<close>
 
 end

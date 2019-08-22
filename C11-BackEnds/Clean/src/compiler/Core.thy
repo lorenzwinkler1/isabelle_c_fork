@@ -41,7 +41,7 @@
 
 theory Core
   imports Meta_C
-          CLEAN_logic.Clean
+          Clean_logic.Clean
 begin
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_syntax.ML\<close>\<close> \<open>
@@ -90,7 +90,7 @@ end
 \<close>
 
 ML \<comment> \<open>\<^file>\<open>../../../../Citadelle/src/compiler/Core.thy\<close>\<close> \<open>
-structure CLEAN_Core =
+structure Clean_Core =
 struct
 open C_Ast
 

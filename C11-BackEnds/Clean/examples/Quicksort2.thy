@@ -43,72 +43,38 @@
  * @TAG(NICTA_BSD)
  *)
 
-theory Quicksort
-  imports Isabelle_C_CLEAN.Backend
+theory Quicksort2
+  imports Isabelle_C_Clean.Backend
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
 
 C \<open>
-//@ declare [[CLEAN_C99]]
+#define MAXSIZE 100
 
-#ifdef TEST
-#include <stdio.h>
-#include <stdlib.h>
-#endif
+unsigned int A[MAXSIZE];
 
-// unsigned int b[100];
-
-unsigned long partition(unsigned int *a, unsigned long n)
-{
-   // assume n != 0
-
-   unsigned long pivot_idx = 0;
-
-   for (unsigned long i = 1; i < n; i++) {
-      if (a[i] < a[pivot_idx]) {
-         unsigned int pivot = a[pivot_idx];
-         a[pivot_idx] = a[i];
-         pivot_idx++;
-         a[i] = a[pivot_idx];
-         a[pivot_idx] = pivot;
-      }
-   }
-
-   return pivot_idx;
+swap_A(unsigned long i,unsigned long j) {
+  unsigned long tmp = A[i]; A[i] = A[j]; A[j] = tmp ;
 }
 
-void quicksort(unsigned int *a, unsigned long n)
-{
-   if (n > 1) {
-      unsigned long pivot_idx = partition(a, n);
-      quicksort(a, pivot_idx);
-      quicksort(a + pivot_idx + 1, n - pivot_idx - 1);
-   }
+unsigned long partition(unsigned long lo,unsigned long hi){ 
+  unsigned long  pivot = A[hi];
+  unsigned long  i = lo;
+  for(unsigned long j = lo; j < hi; j++){ 
+     if(A[j] < pivot) { swap_A(i, j); i++;}
+     swap_A(i, j);
+  };
+  return i;
 }
 
-#ifdef TEST
-
-int main(void)
-{
-   unsigned int sz;
-   scanf("%u", &sz);
-   unsigned int *a = malloc(sz * sizeof(unsigned int));
-   for (unsigned int i = 0; i < sz; i++) {
-      scanf("%u", a+i);
-   }
-
-   quicksort(a, sz);
-
-   for (unsigned int i = 0; i < sz; i++) {
-      if (i) putchar(' ');
-      printf("%u", a[i]);
-   }
-   printf("\n");
-
-   return 0;
+quicksort(unsigned long lo,unsigned long hi) {
+    if( lo < hi) {
+        p = partition(A, lo, hi);
+        quicksort(A, lo, p - 1);
+        quicksort(A, p + 1, hi);
+     }
 }
 
-#endif
 \<close>
 
 end

@@ -35,7 +35,7 @@
  ******************************************************************************)
 
 theory Quicksort_design
-  imports CLEAN_logic.Clean
+  imports Clean_logic.Clean
 begin
 
 (*
@@ -106,7 +106,7 @@ ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
     StateMgt_core.get_state_field_tab_global @{theory}\<close>
 
 
-subsection \<open>Encoding swap in CLEAN\<close>
+subsection \<open>Encoding swap in Clean\<close>
 
 (* for some strange reason, "result" is no longer a term. term "result" crashes. *)
 (* list-lifting should be automatic in local_vars. *)
@@ -180,7 +180,7 @@ definition swap' :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a state_scheme)
 (* Note that all local variables are single-assigned in swap, the entire local var definition
    can be ommitted *) 
 
-subsection \<open>Encoding partition in CLEAN\<close>
+subsection \<open>Encoding partition in Clean\<close>
 
 (* recall: list-lifting should be automatic in local_vars. *)
 local_vars  local_partition_state "nat"
@@ -249,7 +249,7 @@ definition partition_contract :: "nat \<Rightarrow> nat \<Rightarrow>  (nat,'a l
      \<close>
 *)         
 
-subsection \<open>Encoding quicksort in CLEAN\<close>
+subsection \<open>Encoding quicksort in Clean\<close>
 
 record a = 
    b :: int

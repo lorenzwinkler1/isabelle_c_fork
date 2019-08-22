@@ -47,7 +47,7 @@ The Isabelle/C project consists of four components, where two of them represent 
 \<^item> -- C11-BackEnd AutoCorres 
 \<^item> --- Slightly modified version of AutoCorres Library
 \<^item> --- Adapter to C11-FrontEnd
-\<^item> -- C11-BackEnd-CLEAN
+\<^item> -- C11-BackEnd-Clean
 \<^item> --- Clean + Library
 \<^item> --- CleanAdapter
 \<^item> - Citadelle (Own Model-based Framework Generating The Granmmars and the AST of

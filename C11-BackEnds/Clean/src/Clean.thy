@@ -21,7 +21,7 @@ begin
   
 text\<open>Clean is a minimalistic imperative language 
 with C-like control-flow operators based on a shallow embedding into the
-SE exception Monad theory formalized in @{theory "CLEAN_logic.MonadSE"}. It comprises:
+SE exception Monad theory formalized in @{theory "Clean_logic.MonadSE"}. It comprises:
 \begin{itemize}
 \item C-like control flow with \verb+break+ and \verb+return+.
 \item global variables.
@@ -185,7 +185,7 @@ fun MON_SE_T res state = state --> optionT(HOLogic.mk_prodT(res,state));
 
 fun merge_control_stateT (@{typ "control_state"},t) = t
    |merge_control_stateT (t, @{typ "control_state"}) = t
-   |merge_control_stateT (t, t') = if (t = t') then t else error"can not merge CLEAN state"
+   |merge_control_stateT (t, t') = if (t = t') then t else error"can not merge Clean state"
 
 datatype var_kind = global_var of typ | local_var of typ
 
@@ -432,9 +432,9 @@ fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) 
 
 
 fun typ_2_string_raw (Type(s,[])) = s
-   |typ_2_string_raw (Type(s,_)) = error ("Illegal parameterized state type - not allowed in CLEAN:" 
+   |typ_2_string_raw (Type(s,_)) = error ("Illegal parameterized state type - not allowed in Clean:" 
                                           ^ s) 
-   |typ_2_string_raw _ = error "Illegal parameterized state type - not allowed in CLEAN." 
+   |typ_2_string_raw _ = error "Illegal parameterized state type - not allowed in Clean." 
                                   
 
 fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res_ty), raw_fields) thy =
