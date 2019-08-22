@@ -164,6 +164,7 @@ shows "\<sigma>\<^sub>R \<Turnstile>assert\<^sub>S\<^sub>E \<open>i * i \<le> a 
   
   apply(insert annotated_program)
 
+
 txt\<open>Automatically unrolls the loop 10 times using branch coverage criterion\<close>
 apply (mcdc_and_loop_coverage "Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc 0)))))))))")
 (* Takes 22s for 100 unrollings *)

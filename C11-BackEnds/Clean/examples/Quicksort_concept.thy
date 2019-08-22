@@ -307,22 +307,26 @@ funct quicksort(lo::int, hi::int) returns unit
       else Skip\<close>
       
 *)
+find_theorems name : "wfrec"
+find_theorems name : "curry"
+term "wfrec R (\<lambda>f. \<lambda>(a,b). g f   )"
+term " (curry f)"
 
-axiomatization  quicksort_core :: "nat \<Rightarrow> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
-           and  quicksort      :: "nat \<Rightarrow> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E" 
+definition quicksort_core :: "   (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E)
+                              \<Rightarrow> (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E)"
+  where   "quicksort_core \<equiv> \<lambda>quicksortT. \<lambda>(lo, hi). 
+                            ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
+                              then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call_2\<^sub>C (partition) (\<lambda>\<sigma>. lo) (\<lambda>\<sigma>. hi) ;
+                                    assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
+                                    call_2\<^sub>C (curry quicksortT) (\<lambda>\<sigma>. lo) (\<lambda>\<sigma>. (hd o p) \<sigma> - 1) ;-
+                                    call_2\<^sub>C (curry quicksortT) (\<lambda>\<sigma>. (hd o p) \<sigma> + 1) (\<lambda>\<sigma>. hi)  
+                              else skip\<^sub>S\<^sub>E 
+                              fi))"
 
-  where  core: "quicksort_core lo hi \<equiv> 
-                  ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
-                    then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call_2\<^sub>C (partition) (\<lambda>\<sigma>. lo) (\<lambda>\<sigma>. hi) ;
-                          assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
-                          call_2\<^sub>C (quicksort) (\<lambda>\<sigma>. lo) (\<lambda>\<sigma>. (hd o p) \<sigma> - 1)  ;-
-                          call_2\<^sub>C (quicksort) (\<lambda>\<sigma>. (hd o p) \<sigma> + 1) (\<lambda>\<sigma>. hi)  
-                    else skip\<^sub>S\<^sub>E 
-                    fi))"
 
-
-  and   block: "quicksort lo hi \<equiv> block\<^sub>C push_local_quicksort_state 
-                                         (quicksort_core lo hi) 
+definition quicksort 
+  where block: "quicksort lo hi \<equiv> block\<^sub>C push_local_quicksort_state 
+                                         (curry (wfrec undefined quicksort_core) lo hi) 
                                          pop_local_quicksort_state"
 
 (* bric a brac *)
