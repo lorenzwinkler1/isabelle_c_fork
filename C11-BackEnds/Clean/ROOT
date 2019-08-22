@@ -40,5 +40,5 @@ session Clean = HOL +
 
 session Clean_examples = Clean +
   theories
-    "examples/program-based/Quicksort_design"
-    "examples/program-based/SquareRoot_test"
+    "examples/Quicksort_concept"
+    "examples/SquareRoot_concept"

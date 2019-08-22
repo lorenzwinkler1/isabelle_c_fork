@@ -1,11 +1,11 @@
 (*****************************************************************************
- * SquareRoot_test.thy --- Example of monadic symbolic execution for a WHILE program.
+ * SquareRoot_concept.thy --- Example of monadic symbolic execution for a WHILE program.
  * Burkhart Wolff and Chantal Keller, LRI, Univ. Paris-Sud, France
  ******************************************************************************)
 
 chapter {* Proof of concept for a monadic symbolic execution calculus for WHILE programs *}
 
-theory SquareRoot_test
+theory SquareRoot_concept
 imports Clean.Clean
 begin
 
