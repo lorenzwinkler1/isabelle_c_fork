@@ -55,7 +55,7 @@ session Isabelle_C_AutoCorres_examples = Isabelle_C_AutoCorres +
 
 session Isabelle_C_Clean = Isabelle_C +
   sessions
-    Clean_logic
+    Clean
   theories
     "C11-BackEnds/Clean/src/Backend"
 
@@ -72,7 +72,7 @@ session Isabelle_C_README in "C11-FrontEnd" = HOL +
 session Isabelle_C_archive = Isabelle_C_AutoCorres +
   options [quick_and_dirty]
   sessions
-    Clean_logic
+    Clean
     "HOL-Computational_Algebra"
   theories
     "C11-FrontEnd/archive/C0"

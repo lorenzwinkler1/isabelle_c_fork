@@ -21,7 +21,7 @@ begin
   
 text\<open>Clean is a minimalistic imperative language 
 with C-like control-flow operators based on a shallow embedding into the
-SE exception Monad theory formalized in @{theory "Clean_logic.MonadSE"}. It comprises:
+SE exception Monad theory formalized in @{theory "Clean.MonadSE"}. It comprises:
 \begin{itemize}
 \item C-like control flow with \verb+break+ and \verb+return+.
 \item global variables.

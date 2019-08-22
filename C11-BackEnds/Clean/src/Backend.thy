@@ -35,7 +35,7 @@
  ******************************************************************************)
 
 theory Backend
-  imports Clean_logic.Clean
+  imports Clean.Clean
           "compiler/Generator_dynamic_sequential"
 begin
 generation_syntax [ deep [in self], shallow ]

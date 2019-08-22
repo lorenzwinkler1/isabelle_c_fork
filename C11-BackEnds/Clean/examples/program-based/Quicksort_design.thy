@@ -35,7 +35,7 @@
  ******************************************************************************)
 
 theory Quicksort_design
-  imports Clean_logic.Clean
+  imports Clean.Clean
 begin
 
 (*
