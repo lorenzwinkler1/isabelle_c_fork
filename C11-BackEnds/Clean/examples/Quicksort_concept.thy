@@ -127,7 +127,7 @@ definition push_local_swap_state' :: "(unit,'a local_swap_state_scheme) MON\<^su
 
 definition pop_local_swap_state' :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
   where   "pop_local_swap_state' \<sigma> = 
-                    Some(hd(local_swap_state.result_value \<sigma>), 
+                    Some(hd(local_swap_state.ret__void \<sigma>), 
                                 \<comment> \<open> recall : returns op value \<close>
                                 \<comment> \<open> which happens to be unit \<close>
                          \<sigma>\<lparr>local_swap_state.tmp:= tl( local_swap_state.tmp \<sigma>) \<rparr>)"
@@ -184,16 +184,16 @@ definition push_local_partition_state' :: "(unit, 'a local_partition_state_schem
                         \<sigma>\<lparr>local_partition_state.pivot := undefined # local_partition_state.pivot \<sigma>, 
                           local_partition_state.i     := undefined # local_partition_state.i \<sigma>, 
                           local_partition_state.j     := undefined # local_partition_state.j \<sigma>, 
-                          local_partition_state.result_value   
-                                           := undefined # local_partition_state.result_value \<sigma> \<rparr>)"
+                          local_partition_state.ret__void   
+                                           := undefined # local_partition_state.ret__void \<sigma> \<rparr>)"
 
 definition pop_local_partition_state' :: "(nat,'a local_partition_state_scheme) MON\<^sub>S\<^sub>E" 
-  where   "pop_local_partition_state' \<sigma> = Some(hd(local_partition_state.result_value \<sigma>),
+  where   "pop_local_partition_state' \<sigma> = Some(hd(local_partition_state.ret__void \<sigma>),
                        \<sigma>\<lparr>local_partition_state.pivot := tl(local_partition_state.pivot \<sigma>), 
                          local_partition_state.i     := tl(local_partition_state.i \<sigma>), 
                          local_partition_state.j     := tl(local_partition_state.j \<sigma>), 
-                         local_partition_state.result_value := 
-                                                        tl(local_partition_state.result_value \<sigma>) \<rparr>)"
+                         local_partition_state.ret__void := 
+                                                        tl(local_partition_state.ret__void \<sigma>) \<rparr>)"
 
 
 definition partition_core :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a local_partition_state_scheme) MON\<^sub>S\<^sub>E"
@@ -211,7 +211,7 @@ definition partition_core :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a loca
                 od) ;-
                (assign_local j_update (\<lambda>\<sigma>. ((hd o j) \<sigma>) + 1)) ;-
                 call_2\<^sub>C (swap) (\<lambda>\<sigma>. (hd o i) \<sigma>) (\<lambda>\<sigma>. (hd o j) \<sigma>)  ;-
-                assign_local result_value_update (\<lambda>\<sigma>. (hd o i) \<sigma>)  
+                assign_local ret__void_update (\<lambda>\<sigma>. (hd o i) \<sigma>)  
                 \<comment> \<open> the meaning of the return stmt \<close>
                )"
 
@@ -281,16 +281,16 @@ thm push_local_quicksort_state_def
 definition push_local_quicksort_state' :: "(unit, 'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
   where   "push_local_quicksort_state' \<sigma> = 
                  Some((), \<sigma>\<lparr>local_quicksort_state.p := undefined # local_quicksort_state.p \<sigma>,
-                            local_quicksort_state.result_value := undefined # local_quicksort_state.result_value \<sigma> \<rparr>)"
+                            local_quicksort_state.ret__void := undefined # local_quicksort_state.ret__void \<sigma> \<rparr>)"
 
 
 
 
 definition pop_local_quicksort_state' :: "(unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "pop_local_quicksort_state' \<sigma> = Some(hd(local_quicksort_state.result_value \<sigma>),
+  where   "pop_local_quicksort_state' \<sigma> = Some(hd(local_quicksort_state.ret__void \<sigma>),
                        \<sigma>\<lparr>local_quicksort_state.p   := tl(local_quicksort_state.p \<sigma>), 
-                         local_quicksort_state.result_value := 
-                                                      tl(local_quicksort_state.result_value \<sigma>) \<rparr>)"
+                         local_quicksort_state.ret__void := 
+                                                      tl(local_quicksort_state.ret__void \<sigma>) \<rparr>)"
 
 (* recursion not yet treated. Either axiomatazitation hack (super-dangerous) or 
    proper formalization via lfp. *)
