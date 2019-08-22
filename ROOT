@@ -34,12 +34,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-session AutoCorres_logic in "C11-BackEnds/AutoCorres" = AutoCorres +
+session Isabelle_C_AutoCorres = AutoCorres +
   theories
-    "src/README"
-
-session Isabelle_C_AutoCorres = AutoCorres_logic +
-  theories
+    "C11-BackEnds/AutoCorres/src/README"
     "C11-BackEnds/AutoCorres/src/Backend"
 
 session Isabelle_C_AutoCorres_examples = Isabelle_C_AutoCorres +
