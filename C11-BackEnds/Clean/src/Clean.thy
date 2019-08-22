@@ -63,12 +63,13 @@ definition break :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub
 definition unset_break_status :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"
   where   "unset_break_status \<equiv> (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> break_status := False \<rparr>))"
 
-definition set_return :: "'\<alpha> \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"    
-  where   "set_return x = (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> return_status := True \<rparr>))"
+definition set_return_status :: " (unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"    
+  where   "set_return_status = (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> return_status := True \<rparr>))"
     
 definition unset_return_status :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"    
   where   "unset_return_status  = (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> return_status := False \<rparr>))"
-    
+
+
 definition exec_stop :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool"
   where   "exec_stop = (\<lambda> \<sigma>. break_status \<sigma> \<or> return_status \<sigma> )"
 
@@ -104,6 +105,17 @@ text\<open>Semantically, the difference between \<^emph>\<open>global\<close> an
      following lemma shows. However, the distinction matters for the pretty-printing setup of Clean.\<close>
 lemma "assign_local upd rhs = assign_global (upd o map_hd) rhs " by simp
 
+text\<open>The return command in C-like languages is represented basically by an assignment to a local
+variable \<^verbatim>\<open>result_value\<close> (see below in the Clean-package generation). Plus a setting of the 
+\<^term>\<open>return_status\<close> ... Note that a return may appear after a break and should have no effect
+in this case ...\<close>
+
+definition return\<^sub>C :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
+                      \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
+                      \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "return\<^sub>C upd rhs = assign_local upd rhs ;- 
+                            (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>) 
+                                                else set_return_status \<sigma>)" 
 
 definition block\<^sub>C :: "  (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E
                      \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E  
@@ -118,7 +130,8 @@ definition block\<^sub>C :: "  (unit, ('\<sigma>_ext) control_state_ext)MON\<^su
                                     unit\<^sub>S\<^sub>E(x)))"        \<comment> \<open>yield the return value \<close>
     
 
-
+(* Is this the right approach to handle calls of ops with multiple arguments ? Or better
+   some appropriate currying principle ? *) 
 definition call_0\<^sub>C :: "('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E \<Rightarrow> ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
   where   "call_0\<^sub>C M = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some(undefined, \<sigma>) else M \<sigma>)"
 
@@ -200,17 +213,17 @@ type state_field_tab = var_kind Symtab.table
 
 structure Data = Generic_Data
 (
-  type T       = (state_field_tab * typ) 
-  val  empty   = (Symtab.empty,control_stateT)
-  val  extend  = I
-  fun  merge((s1,t1),(s2,t2))  = (Symtab.merge (op =)(s1,s2),merge_control_stateT(t1,t2))
+  type T                      = (state_field_tab * typ) 
+  val  empty                  = (Symtab.empty,control_stateT)
+  val  extend                 = I
+  fun  merge((s1,t1),(s2,t2)) = (Symtab.merge (op =)(s1,s2),merge_control_stateT(t1,t2))
 );
 
 
-val get_data        = Data.get o Context.Proof;
-val map_data        = Data.map;
-val get_data_global = Data.get o Context.Theory;
-val map_data_global = Context.theory_map o map_data;
+val get_data                   = Data.get o Context.Proof;
+val map_data                   = Data.map;
+val get_data_global            = Data.get o Context.Theory;
+val map_data_global            = Context.theory_map o map_data;
 
 val get_state_type             = snd o get_data
 val get_state_type_global      = snd o get_data_global
@@ -219,13 +232,13 @@ val get_state_field_tab_global = fst o get_data_global
 fun upd_state_type f           = map_data (fn (tab,t) => (tab, f t))
 fun upd_state_type_global f    = map_data_global (fn (tab,t) => (tab, f t))
 
-fun fetch_state_field (ln,X) = let val a::b:: _  = rev (Long_Name.explode ln) in ((b,a),X) end;
+fun fetch_state_field (ln,X)   = let val a::b:: _  = rev (Long_Name.explode ln) in ((b,a),X) end;
 
-fun filter_name name ln = let val ((a,b),X) = fetch_state_field ln
-                          in  if a = name then SOME((a,b),X) else NONE end;
+fun filter_name name ln        = let val ((a,b),X) = fetch_state_field ln
+                                 in  if a = name then SOME((a,b),X) else NONE end;
 
-fun filter_attr_of name thy = let val tabs = get_state_field_tab_global thy
-                              in  map_filter (filter_name name) (Symtab.dest tabs) end;
+fun filter_attr_of name thy    = let val tabs = get_state_field_tab_global thy
+                                 in  map_filter (filter_name name) (Symtab.dest tabs) end;
 
 fun is_program_variable name thy = Symtab.defined((fst o get_data_global) thy) name
 
@@ -648,7 +661,7 @@ ML \<open>
   local
     fun app_sigma db tm ctxt = case tm of
         Const(name, _) => if StateMgt_core.is_program_variable name (Proof_Context.theory_of ctxt) 
-                          then tm $ (Bound db) (* lifting *)
+                          then tm $ (Bound db) (* lambda lifting *)
                           else tm              (* no lifting *)
       | Free _ => tm
       | Var _ => tm
@@ -773,10 +786,11 @@ lemma unset_break_idem [simp] :
 method bound_while for n::nat = (simp only: while_k_SE [of n])
 
 
-(* this still holds ... *)
+text\<open>Somewhat amazingly, this unfolding lemma crucial for symbolic execution still holds ... 
+     Even in the presence of break or return...\<close> 
 lemma exec_while\<^sub>C : 
 "(\<sigma> \<Turnstile> ((while\<^sub>C b do c od) ;- M)) = 
- (\<sigma> \<Turnstile> ((if\<^sub>C b then c ;- (while\<^sub>C b do c od) ;- unset_break_status else skip\<^sub>S\<^sub>E fi)  ;- M))"
+ (\<sigma> \<Turnstile> ((if\<^sub>C b then c ;- ((while\<^sub>C b do c od) ;- unset_break_status) else skip\<^sub>S\<^sub>E fi)  ;- M))"
 proof (cases "exec_stop \<sigma>")
   case True
   then show ?thesis 
