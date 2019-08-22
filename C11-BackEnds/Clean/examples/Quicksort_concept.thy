@@ -91,8 +91,8 @@ funct quicksort(lo::int, hi::int) returns unit
      local_vars p :: int     
      \<open>if\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N \<open>lo < hi\<close> then
         p := partition(lo, hi) ;-
-        quicksort(A, lo, p - 1) ;-
-        quicksort(A, p + 1, hi)
+        quicksort(A, lo, \<open>p - 1\<close>) ;-
+        quicksort(A, \<open>p + 1\<close>, hi)
       else Skip\<close>
       
 *)
@@ -117,6 +117,8 @@ local_vars swap "unit"
 (* Has the effect: *)
 thm push_local_swap_state_def
 thm pop_local_swap_state_def
+ML\<open>StateMgt_core.get_state_field_tab_global @{theory}\<close>
+
 
 (* Thus, the internal functionality in \<open>local_vars\<close> is the construction of the two definitions *)
 definition push_local_swap_state' :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"

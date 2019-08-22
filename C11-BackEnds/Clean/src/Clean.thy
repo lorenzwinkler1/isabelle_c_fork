@@ -100,6 +100,11 @@ fun      assign_local :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigm
   where "assign_local upd rhs = assign(\<lambda>\<sigma>. ((upd o map_hd) (%_. rhs \<sigma>)) \<sigma>)"
 
 
+text\<open>Semantically, the difference between \<^emph>\<open>global\<close> and \<^emph>\<open>local\<close> is rather unimpressive as the 
+     following lemma shows. However, the distinction matters for the pretty-printing setup of Clean.\<close>
+lemma "assign_local upd rhs = assign_global (upd o map_hd) rhs " by simp
+
+
 definition block\<^sub>C :: "  (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E
                      \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E  
                      \<Rightarrow> ('\<alpha>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E
@@ -645,8 +650,10 @@ assumes "exec_stop \<sigma>"
 shows  "(\<sigma> \<Turnstile> (while\<^sub>C P do B\<^sub>1 od);-M) = (\<sigma> \<Turnstile> M)"    
   unfolding while_C_def MonadSE.if_SE_def Symbex_MonadSE.valid_SE_def MonadSE.bind_SE'_def bind_SE_def
   apply simp using assms by blast    
-    
-text\<open> Syntactic sugar via cartouches \<close>
+
+
+
+section\<open> Syntactic sugar support via cartouches for global and local variables \<close>
 
 ML \<open>
   local
