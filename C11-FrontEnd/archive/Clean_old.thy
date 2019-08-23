@@ -7,7 +7,7 @@ chapter {* The Clean Language *}
 text{* Pronounce : "C lean". *}
 
 theory Clean_old
-  imports CLEAN_logic.Symbex_MonadSE
+  imports Clean.Symbex_MonadSE
           "~~/src/HOL/Eisbach/Eisbach"
 (*  keywords "global_vars" "local_vars" :: thy_decl 
      and "funct" :: thy_decl
@@ -20,7 +20,7 @@ begin
   
 text{* Clean is a minimalistic imperative language 
 with C-like control-flow operators based on a shallow embedding into the
-SE exception Monad theory formalized in @{theory "CLEAN_logic.MonadSE"}. It comprises:
+SE exception Monad theory formalized in @{theory "Clean.MonadSE"}. It comprises:
 \begin{itemize}
 \item C-like control flow with \verb+break+ and \verb+return+.
 \item global variables.

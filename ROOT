@@ -34,12 +34,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-session AutoCorres_logic in "C11-BackEnds/AutoCorres" = AutoCorres +
+session Isabelle_C_AutoCorres = AutoCorres +
   theories
-    "src/README"
-
-session Isabelle_C_AutoCorres = AutoCorres_logic +
-  theories
+    "C11-BackEnds/AutoCorres/src/README"
     "C11-BackEnds/AutoCorres/src/Backend"
 
 session Isabelle_C_AutoCorres_examples = Isabelle_C_AutoCorres +
@@ -53,17 +50,17 @@ session Isabelle_C_AutoCorres_examples = Isabelle_C_AutoCorres +
     "C11-BackEnds/AutoCorres/examples/Quicksort"
     "C11-BackEnds/AutoCorres/examples/TestSEL4"
 
-session Isabelle_C_CLEAN = Isabelle_C +
+session Isabelle_C_Clean = Isabelle_C +
   sessions
-    CLEAN_logic
+    Clean
   theories
-    "C11-BackEnds/CLEAN/src/Backend"
+    "C11-BackEnds/Clean/src/Backend"
 
-session Isabelle_C_CLEAN_examples = Isabelle_C_CLEAN +
+session Isabelle_C_Clean_examples = Isabelle_C_Clean +
   theories
-    "C11-BackEnds/CLEAN/examples/IsPrime_sqrt_outside"
-    "C11-BackEnds/CLEAN/examples/Quicksort2"
-    "C11-BackEnds/CLEAN/examples/Quicksort"
+    "C11-BackEnds/Clean/examples/IsPrime_sqrt_outside"
+    "C11-BackEnds/Clean/examples/Quicksort2"
+    "C11-BackEnds/Clean/examples/Quicksort"
 
 session Isabelle_C_README in "C11-FrontEnd" = HOL +
   theories
@@ -72,7 +69,7 @@ session Isabelle_C_README in "C11-FrontEnd" = HOL +
 session Isabelle_C_archive = Isabelle_C_AutoCorres +
   options [quick_and_dirty]
   sessions
-    CLEAN_logic
+    Clean
     "HOL-Computational_Algebra"
   theories
     "C11-FrontEnd/archive/C0"
@@ -82,4 +79,4 @@ session Isabelle_C_archive = Isabelle_C_AutoCorres +
     "C11-BackEnds/AutoCorres/examples/program-based/Example1"
     "C11-BackEnds/AutoCorres/examples/program-based/Example2"
     "C11-BackEnds/AutoCorres/examples/program-based/Example3"
-    "C11-BackEnds/CLEAN/examples/Prime"
+    "C11-BackEnds/Clean/examples/Prime"

@@ -44,7 +44,7 @@
  *)
 
 theory Quicksort2
-  imports Isabelle_C_CLEAN.Backend
+  imports Isabelle_C_Clean.Backend
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
 

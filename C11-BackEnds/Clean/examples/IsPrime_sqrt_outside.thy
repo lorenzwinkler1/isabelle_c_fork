@@ -45,11 +45,11 @@
 
 chapter\<open>A Sqrt Prime Sample Proof\<close>
 
-text\<open>This example is used to demonstrate Isabelle/C/CLEAN in a version that keeps
+text\<open>This example is used to demonstrate Isabelle/C/Clean in a version that keeps
 annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
 
 theory IsPrime_sqrt_outside
-  imports Isabelle_C_CLEAN.Backend
+  imports Isabelle_C_Clean.Backend
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
@@ -65,7 +65,7 @@ text\<open> This C code contains a function that determines if the given number
 
 
 C \<open>
-// @ CLEAN
+// @ Clean
 
 #define SQRT_UINT_MAX 65536
 

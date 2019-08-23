@@ -199,7 +199,7 @@ fun MON_SE_T res state = state --> optionT(HOLogic.mk_prodT(res,state));
 
 fun merge_control_stateT (@{typ "control_state"},t) = t
    |merge_control_stateT (t, @{typ "control_state"}) = t
-   |merge_control_stateT (t, t') = if (t = t') then t else error"can not merge CLEAN state"
+   |merge_control_stateT (t, t') = if (t = t') then t else error"can not merge Clean state"
 
 datatype var_kind = global_var of typ | local_var of typ
 
@@ -260,7 +260,67 @@ end
 
 \<close>
 
+ML \<comment> \<open>\<^file>\<open>../../../l4v/src/tools/c-parser/MString.ML\<close>\<close> \<open>
+(*
+ * Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Copyright 2014, NICTA
+ *
+ * This software may be distributed and modified according to the terms of
+ * the BSD 2-Clause license. Note that NO WARRANTY is provided.
+ * See "LICENSE_BSD2.txt" for details.
+ *
+ * @TAG(NICTA_BSD)
+ *)
 
+structure MString =
+struct
+  type t = string
+  fun mk s = s
+  fun dest s = s
+  fun destPP s = "MV(" ^ s ^ ")"
+  val compare = String.compare
+end
+\<close>
+
+ML \<comment> \<open>\<^file>\<open>../../../l4v/src/tools/c-parser/name_generation.ML\<close>\<close> \<open>
+(*
+ * Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Copyright 2014, NICTA
+ *
+ * This software may be distributed and modified according to the terms of
+ * the BSD 2-Clause license. Note that NO WARRANTY is provided.
+ * See "LICENSE_BSD2.txt" for details.
+ *
+ * @TAG(NICTA_BSD)
+ *)
+
+structure NameGeneration =
+struct
+
+fun embret_var_name (f,i) =
+    if i < 1 then raise Fail "embret_var_name: i < 1"
+    else if i = 1 then MString.mk ("ret__" ^ f)
+    else MString.mk (f ^ "_eret_" ^ Int.toString i)
+
+fun dest_embret s0 =
+  let
+    val s = MString.dest s0
+  in
+    if String.isPrefix "ret__" s then
+      SOME (String.extract(s,5,NONE), 1)
+    else let
+        open Substring
+        val (pfx, digsfx) = splitr Char.isDigit (full s)
+      in
+        if isEmpty digsfx then NONE
+        else if isSuffix "_eret_" pfx then
+          SOME (string (trimr 6 pfx), Option.valOf (Int.fromString (string digsfx)))
+        else
+          NONE
+      end
+  end
+end
+\<close>
 
 ML\<open>
 (* HOLogic extended *)
@@ -298,8 +358,8 @@ local open StateMgt_core
 
 fun get_result_value_conf name thy = 
         let val  S = filter_attr_of name thy
-        in  hd(filter (fn ((a,b),c) => b = "result_value") S) 
-            handle _ => error("internal error: get_result_value_conf") end; 
+        in  hd(filter (fn ((_,b),_) => is_some (NameGeneration.dest_embret b)) S) 
+            handle Empty => error "internal error: get_result_value_conf " end; 
 
 
 fun mk_lookup_result_value_term name sty thy =
@@ -437,8 +497,8 @@ fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) 
 
 fun typ_2_string_raw (Type(s,[])) = s
    |typ_2_string_raw (Type(s,_)) = 
-                         error ("Illegal parameterized state type - not allowed in CLEAN:"  ^ s) 
-   |typ_2_string_raw _ = error "Illegal parameterized state type - not allowed in CLEAN." 
+                         error ("Illegal parameterized state type - not allowed in Clean:"  ^ s) 
+   |typ_2_string_raw _ = error "Illegal parameterized state type - not allowed in Clean." 
                                   
 
 fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res_ty), raw_fields) thy =
@@ -452,7 +512,7 @@ fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res
                                 in  StateMgt_core.upd_state_type_global(K ty)(thy) end
         val raw_fields' = case res_ty of 
                             NONE => raw_fields
-                          | SOME res_ty => raw_fields @ [(Binding.make("result_value",pos),res_ty, NoSyn)]
+                          | SOME res_ty => raw_fields @ [(Binding.make(NameGeneration.embret_var_name ("void", 1),pos),res_ty, NoSyn)]
     in  thy |> add_record_cmd {overloaded = false} is_global_kind 
                               (raw_params, binding) raw_parent raw_fields' 
             |> upd_state_typ 
