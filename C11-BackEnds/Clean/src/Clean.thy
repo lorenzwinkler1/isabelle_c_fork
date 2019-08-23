@@ -8,15 +8,11 @@ text\<open>Pronounce : "C lean".\<close>
 
 theory Clean
   imports Symbex_MonadSE
-          "~~/src/HOL/Eisbach/Eisbach"
   keywords "global_vars" "local_vars" :: thy_decl 
-(*
-     and "funct" :: thy_decl
+     and "pre" "post" "local_variables" "returns" "variant" 
+     and "function_spec" :: thy_goal
+     and "rec_function_spec"   :: thy_goal
 
-     and "pre" "post" (* "local_vars" *)
-     and "returns" 
-     and "end_funct" :: thy_goal
-*)
 begin
   
 text\<open>Clean is a minimalistic imperative language 
@@ -470,19 +466,87 @@ val new_state_record  = new_state_record0 add_record_cmd
 val new_state_record' = new_state_record0 add_record_cmd'
 
 val _ =
-  Outer_Syntax.command @{command_keyword global_vars} "define global state record"
-    ((Parse.type_args_constrained -- Parse.binding)
+  Outer_Syntax.command 
+      \<^command_keyword>\<open>global_vars\<close>   
+      "define global state record"
+      ((Parse.type_args_constrained -- Parse.binding)
     -- Scan.succeed NONE
     -- Scan.repeat1 Parse.const_binding
     >> (Toplevel.theory o new_state_record true));
+;
 
 val _ =
-  Outer_Syntax.command @{command_keyword local_vars} "define local state record"
-    ((Parse.type_args_constrained -- Parse.binding) 
+  Outer_Syntax.command 
+      \<^command_keyword>\<open>local_vars\<close>  
+      "define local state record"
+      ((Parse.type_args_constrained -- Parse.binding) 
     -- (Parse.typ >> SOME)
     -- Scan.repeat1 Parse.const_binding
-    >> (Toplevel.theory o new_state_record false));
+    >> (Toplevel.theory o new_state_record false))
+;
 end
+\<close>
+
+
+ML \<open> 
+structure Function_Specification_Parser  = 
+  struct
+
+    type funct_spec_src = {    
+        binding:  binding,                   (* name *)
+        params: (string*string) list,        (* parameters and their type*)
+        ret_ty: string option,               (* return type *)
+        locals: (binding*string*mixfix)list, (* local variables *)
+        pre_src: string,                     (* precondition src *)
+        post_src: string,                    (* postcondition src *)
+        variant_src: string,                 (* variant src *)
+        body_src: string * Position.T        (* body src *)
+      }
+
+    val parse_arg_decl = Parse.name -- (Parse.$$$ "::" |-- Parse.typ)
+
+    val parse_param_decls = Args.parens (Parse.enum "," parse_arg_decl)
+      
+    val parse_returns_clause = Scan.option (\<^keyword>\<open>returns\<close> |--  Parse.typ) 
+    
+    val parse_proc_spec = (
+          Parse.binding 
+       -- parse_param_decls
+       -- parse_returns_clause
+      --| \<^keyword>\<open>pre\<close>             -- Parse.term 
+      --| \<^keyword>\<open>post\<close>            -- Parse.term 
+      --| \<^keyword>\<open>variant\<close>         -- Parse.term 
+      --| \<^keyword>\<open>local_variables\<close> -- (Scan.repeat1 Parse.const_binding)
+      --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.cartouche>>cartouche)) 
+      ) >> (fn (((((((binding,params),ret_ty),pre_src),post_src),variant_src),locals),body_src) => 
+        {
+          binding = binding, 
+          params=params, 
+          ret_ty=ret_ty, 
+          pre_src=pre_src, 
+          post_src=post_src, 
+          variant_src=variant_src,
+          locals=locals,
+          body_src=body_src} : funct_spec_src
+        )
+    
+   fun checkNsem_function_spec x thy = (warning "function_spec not yet implemented; ignored";thy)
+   fun checkNsem_rec_function_spec x thy = (warning "rec_function_spec not yet implemented; ignored";thy)
+   
+   
+   val _ =
+     Outer_Syntax.command 
+         \<^command_keyword>\<open>function_spec\<close>   
+         "define global state record"
+         (parse_proc_spec >> (Toplevel.theory o checkNsem_function_spec));
+   
+   val _ =
+     Outer_Syntax.command 
+         \<^command_keyword>\<open>rec_function_spec\<close>   
+         "define global state record"
+         (parse_proc_spec >> (Toplevel.theory o checkNsem_rec_function_spec));
+       
+  end
 \<close>
 
 
@@ -783,7 +847,6 @@ lemma unset_break_idem [simp] :
   apply(rule ext)  unfolding unset_break_status_def bind_SE'_def bind_SE_def by auto
     
     
-method bound_while for n::nat = (simp only: while_k_SE [of n])
 
 
 text\<open>Somewhat amazingly, this unfolding lemma crucial for symbolic execution still holds ... 
@@ -866,38 +929,6 @@ corollary exec_while_k :
     
 
 lemmas exec_while_kD = exec_while_k[THEN iffD1]
-
-named_theorems memory_theory
-method memory_theory = (simp only: memory_theory MonadSE.bind_assoc')
-method norm = (auto dest!: assert_D)
-
-(* Remark: if instead of a recursive call, we use "+", this corresponds to recursing only on the
-   first goal, and thus does not work with nested loops *)
-method loop_coverage_steps methods simp_mid =
-  ((ematch assume_E')
-    | (ematch if_SE_execE'', simp_mid?)
-    | (dmatch exec_while_kD)
-    | (dmatch exec_skipD)
-    | (dmatch exec_assignD')
-  ); (loop_coverage_steps simp_mid)?
-method loop_coverage for n::nat methods simp_mid simp_end =
-       (bound_while n)?, loop_coverage_steps simp_mid, simp_end?
-  
-method branch_and_loop_coverage for n::nat uses mt = loop_coverage n memory_theory simp_all
-method mcdc_and_loop_coverage for n::nat = loop_coverage n auto auto
-
-
-(* method mcdc_and_loop_coverage for n::nat = loop_coverage n norm norm *)
-
-method loop_coverage_positive_branch_steps =
-  ((ematch assume_E')
-    | (ematch if_SE_execE''_pos, memory_theory?)
-    | (dmatch exec_while_kD, ematch if_SE_execE'', memory_theory?)
-    | (dmatch exec_skipD)
-    | (dmatch exec_assignD')
-  ); loop_coverage_positive_branch_steps?
-method loop_coverage_positive_branch for n::nat =
-  (bound_while n)?, loop_coverage_positive_branch_steps, simp_all?
 
 end
 

@@ -111,6 +111,21 @@ subsection \<open>Encoding swap in CLEAN\<close>
 (* for some strange reason, "result" is no longer a term. term "result" crashes. *)
 (* list-lifting should be automatic in local_vars. *)
 
+function_spec swap () 
+pre    "a"
+post    "b"
+variant "c"
+local_variables  tmp :: "int" 
+defines \<open>True\<close>
+
+rec_function_spec swap () returns "x"
+pre    "a"
+post    "b"
+variant "c"
+local_variables  tmp :: "int" 
+defines \<open>True\<close>
+
+
 local_vars swap "unit"
    tmp :: "int" 
 

@@ -37,6 +37,7 @@
 session Clean = HOL +
   theories
     "src/Clean"
+    "src/CleanTest"
 
 session Clean_examples = Clean +
   theories
