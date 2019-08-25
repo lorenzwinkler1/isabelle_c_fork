@@ -80,10 +80,10 @@ definition assign :: "(('\<sigma>_ext) control_state_scheme  \<Rightarrow>
 
 (* todo: rename assign to trans2mon combinator; since it will be used for calls as well *)
 
-fun      assign_global :: "(('a  \<Rightarrow> 'a ) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
+definition  assign_global :: "(('a  \<Rightarrow> 'a ) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
                       \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
                       \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
-  where "assign_global upd rhs = assign(\<lambda>\<sigma>. ((upd) (%_. rhs \<sigma>)) \<sigma>)"
+  where    "assign_global upd rhs = assign(\<lambda>\<sigma>. ((upd) (%_. rhs \<sigma>)) \<sigma>)"
 
 
 fun      map_hd :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a list \<Rightarrow> 'a list" 
@@ -91,15 +91,16 @@ fun      map_hd :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a list \<Rightarrow> 'a
       | "map_hd f (a#S) = f a # S"
 
 
-fun      assign_local :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
+definition  assign_local :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
                       \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
                       \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
-  where "assign_local upd rhs = assign(\<lambda>\<sigma>. ((upd o map_hd) (%_. rhs \<sigma>)) \<sigma>)"
+  where    "assign_local upd rhs = assign(\<lambda>\<sigma>. ((upd o map_hd) (%_. rhs \<sigma>)) \<sigma>)"
 
 
 text\<open>Semantically, the difference between \<^emph>\<open>global\<close> and \<^emph>\<open>local\<close> is rather unimpressive as the 
      following lemma shows. However, the distinction matters for the pretty-printing setup of Clean.\<close>
-lemma "assign_local upd rhs = assign_global (upd o map_hd) rhs " by simp
+lemma "assign_local upd rhs = assign_global (upd o map_hd) rhs "
+      unfolding assign_local_def assign_global_def by simp
 
 text\<open>The return command in C-like languages is represented basically by an assignment to a local
 variable \<^verbatim>\<open>result_value\<close> (see below in the Clean-package generation). Plus a setting of the 
@@ -135,6 +136,13 @@ definition call_1\<^sub>C :: "( '\<alpha> \<Rightarrow> ('\<rho>, ('\<sigma>_ext
                        ((('\<sigma>_ext) control_state_ext) \<Rightarrow> '\<alpha>) \<Rightarrow>                        
                       ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
   where   "call_1\<^sub>C M A\<^sub>1 = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some(undefined, \<sigma>) else M (A\<^sub>1 \<sigma>) \<sigma>)"
+
+text\<open>The generic version using tupling is identical with @{term \<open>call_1\<^sub>C\<close>}.\<close>
+
+definition call\<^sub>C :: "( '\<alpha> \<Rightarrow> ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E) \<Rightarrow>
+                       ((('\<sigma>_ext) control_state_ext) \<Rightarrow> '\<alpha>) \<Rightarrow>                        
+                      ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
+  where   "call\<^sub>C = call_1\<^sub>C"
 
 
 definition call_2\<^sub>C :: "( '\<alpha> \<Rightarrow> '\<beta> \<Rightarrow> ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E) \<Rightarrow>
@@ -553,17 +561,17 @@ structure Function_Specification_Parser  =
   struct
 
     type funct_spec_src = {    
-        binding:  binding,                   (* name *)
-        params: (string*string) list,        (* parameters and their type*)
-        ret_ty: string option,               (* return type *)
-        locals: (binding*string*mixfix)list, (* local variables *)
-        pre_src: string,                     (* precondition src *)
-        post_src: string,                    (* postcondition src *)
-        variant_src: string,                 (* variant src *)
-        body_src: string * Position.T        (* body src *)
+        binding:  binding,                         (* name *)
+        params: ((string*Position.T)*string) list, (* parameters and their type*)
+        ret_ty: string option,                     (* return type *)
+        locals: (binding*string*mixfix)list,       (* local variables *)
+        pre_src: string,                           (* precondition src *)
+        post_src: string,                          (* postcondition src *)
+        variant_src: string,                       (* variant src *)
+        body_src: string * Position.T              (* body src *)
       }
 
-    val parse_arg_decl = Parse.name -- (Parse.$$$ "::" |-- Parse.typ)
+    val parse_arg_decl = (Parse.position Parse.name) -- (Parse.$$$ "::" |-- Parse.typ)
 
     val parse_param_decls = Args.parens (Parse.enum "," parse_arg_decl)
       
@@ -590,8 +598,14 @@ structure Function_Specification_Parser  =
           body_src=body_src} : funct_spec_src
         )
     
-   fun checkNsem_function_spec x thy = (warning "function_spec not yet implemented; ignored";thy)
-   fun checkNsem_rec_function_spec x thy = (warning "rec_function_spec not yet implemented; ignored";thy)
+   fun checkNsem_function_spec ({ binding ,  params,  ret_ty,  pre_src,  post_src, 
+                                  variant_src,  locals, body_src} : funct_spec_src
+                               ) thy = 
+       let   
+       in    (warning "function_spec not yet implemented; ignored";thy) end
+
+   fun checkNsem_rec_function_spec (x:funct_spec_src) thy = 
+           (warning "rec_function_spec not yet implemented; ignored";thy)
    
    
    val _ =
@@ -640,7 +654,7 @@ by (simp add: assign_def assms exec_bind_SE_success bind_SE'_def)
 lemma non_exec_assign_global  : 
 assumes "\<not> exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign_global upd rhs; M)) = ((upd (\<lambda>_. rhs \<sigma>) \<sigma>) \<Turnstile>  M)"
-by(simp add: non_exec_assign assms)
+by(simp add: assign_global_def non_exec_assign assms)
 
 lemma non_exec_assign_global'  : 
 assumes "\<not> exec_stop \<sigma>"
@@ -651,17 +665,17 @@ shows   "(\<sigma> \<Turnstile> (assign_global upd rhs;- M)) = ((upd (\<lambda>_
 lemma exec_assign_global  : 
 assumes "exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign_global upd rhs; M)) = ( \<sigma> \<Turnstile>  M)"
-  by (simp add: assign_def assms exec_bind_SE_success)
+  by (simp add: assign_global_def assign_def assms exec_bind_SE_success)
 
 lemma exec_assign_global'  : 
 assumes "exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> (assign_global upd rhs;- M)) = ( \<sigma> \<Turnstile>  M)"
-  by (simp add:  assign_def assms exec_bind_SE_success bind_SE'_def)
+  by (simp add: assign_global_def assign_def assms exec_bind_SE_success bind_SE'_def)
 
 lemma non_exec_assign_local  : 
 assumes "\<not> exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign_local upd rhs; M)) = ((upd (map_hd (\<lambda>_. rhs \<sigma>)) \<sigma>) \<Turnstile>  M)"
-  by(simp add: non_exec_assign assms)
+  by(simp add: assign_local_def non_exec_assign assms)
 
 lemma non_exec_assign_local'  : 
 assumes "\<not> exec_stop \<sigma>"
@@ -672,12 +686,12 @@ shows   "(\<sigma> \<Turnstile> (assign_local upd rhs;- M)) = ((upd (map_hd (\<l
 lemma exec_assign_local  : 
 assumes "exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign_local upd rhs; M)) = ( \<sigma> \<Turnstile>  M)"
-  by (simp add: assign_def assms exec_bind_SE_success)
+  by (simp add: assign_local_def assign_def assms exec_bind_SE_success)
 
 lemma exec_assign_local'  : 
 assumes "exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> (assign_global upd rhs;- M)) = ( \<sigma> \<Turnstile>  M)"
-  by (simp add:  assign_def assms exec_bind_SE_success bind_SE'_def)
+  by (simp add: assign_global_def assign_def assms exec_bind_SE_success bind_SE'_def)
 
 
 lemmas exec_assignD = exec_assign[THEN iffD1]
@@ -711,7 +725,7 @@ shows   "(\<sigma> \<Turnstile> (call_0\<^sub>C M;- M')) = (\<sigma> \<Turnstile
 
 lemma non_exec_call_1  : 
 assumes "\<not> exec_stop \<sigma>"
-shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> (call_1\<^sub>C M A\<^sub>1); M')) = (\<sigma> \<Turnstile> M (A\<^sub>1 \<sigma>);- M')"
+shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> (call_1\<^sub>C M A\<^sub>1); M' x)) = (\<sigma> \<Turnstile> (x \<leftarrow> M (A\<^sub>1 \<sigma>); M' x))"
   by (simp add: assms bind_SE'_def bind_SE_def call_1\<^sub>C_def valid_SE_def)
 
 lemma non_exec_call_1'  : 
@@ -719,15 +733,38 @@ assumes "\<not> exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> call_1\<^sub>C M A\<^sub>1;- M') = (\<sigma> \<Turnstile>  M (A\<^sub>1 \<sigma>);- M')"
   by (simp add: assms bind_SE'_def non_exec_call_1)
 
+
 lemma exec_call_1  : 
 assumes "exec_stop \<sigma>"
-shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> call_1\<^sub>C M A\<^sub>1; M')) = (\<sigma> \<Turnstile>  M')"
+shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> call_1\<^sub>C M A\<^sub>1; M' x)) = (\<sigma> \<Turnstile>  M' undefined)"
   by (simp add: assms call_1\<^sub>C_def exec_bind_SE_success)
 
 lemma exec_call_1'  : 
 assumes "exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> (call_1\<^sub>C M A\<^sub>1;- M')) = (\<sigma> \<Turnstile>  M')"
   by (simp add: assms bind_SE'_def exec_call_1)
+
+
+lemma non_exec_call  : 
+assumes "\<not> exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> (call\<^sub>C M A\<^sub>1); M' x)) = (\<sigma> \<Turnstile> (x \<leftarrow> M (A\<^sub>1 \<sigma>); M' x))"
+  by (simp add: assms call\<^sub>C_def bind_SE'_def bind_SE_def call_1\<^sub>C_def valid_SE_def)
+
+lemma non_exec_call'  : 
+assumes "\<not> exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> call\<^sub>C M A\<^sub>1;- M') = (\<sigma> \<Turnstile>  M (A\<^sub>1 \<sigma>);- M')"
+  by (simp add: assms call\<^sub>C_def bind_SE'_def non_exec_call_1)
+
+
+lemma exec_call  : 
+assumes "exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> call\<^sub>C M A\<^sub>1; M' x)) = (\<sigma> \<Turnstile>  M' undefined)"
+  by (simp add: assms call\<^sub>C_def call_1\<^sub>C_def exec_bind_SE_success)
+
+lemma exec_call'  : 
+assumes "exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> (call\<^sub>C M A\<^sub>1;- M')) = (\<sigma> \<Turnstile>  M')"
+  by (simp add: assms call\<^sub>C_def bind_SE'_def exec_call_1)
 
 
 lemma non_exec_call_2  : 
@@ -905,8 +942,24 @@ lemma break_while_skip [simp]: "break ;- (while\<^sub>C b do c od) = break"
 lemma unset_break_idem [simp] : 
  "( unset_break_status ;- unset_break_status ;- M) = (unset_break_status ;- M)"
   apply(rule ext)  unfolding unset_break_status_def bind_SE'_def bind_SE_def by auto
+
+lemma return_cancel1_idem [simp] : 
+ "( return\<^sub>C X E ;- assign_global X E' ;- M) = ( return\<^sub>C X E ;- M)"
+  apply(rule ext, rename_tac "\<sigma>")  
+  unfolding unset_break_status_def bind_SE'_def bind_SE_def
+            assign_def return\<^sub>C_def assign_global_def assign_local_def
+  apply(case_tac "exec_stop \<sigma>")
+  apply auto
+  by (simp add: exec_stop_def set_return_status_def)
     
-    
+lemma return_cancel2_idem [simp] : 
+ "( return\<^sub>C X E ;- assign_local X E' ;- M) = ( return\<^sub>C X E ;- M)"
+    apply(rule ext, rename_tac "\<sigma>")  
+  unfolding unset_break_status_def bind_SE'_def bind_SE_def
+            assign_def return\<^sub>C_def assign_global_def assign_local_def
+  apply(case_tac "exec_stop \<sigma>")
+   apply auto
+  by (simp add: exec_stop_def set_return_status_def)
 
 
 text\<open>Somewhat amazingly, this unfolding lemma crucial for symbolic execution still holds ... 

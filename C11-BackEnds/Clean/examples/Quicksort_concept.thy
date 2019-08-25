@@ -101,7 +101,7 @@ funct quicksort(lo::int, hi::int) returns unit
 global_vars state
     A :: "int list"
 
-
+(* see the effect on the internal table : *)
 ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
     StateMgt_core.get_state_field_tab_global @{theory}\<close>
 
@@ -161,21 +161,23 @@ definition swap_core :: "nat => nat =>  (unit,'a local_swap_state_scheme) MON\<^
 *)
 
 (* a block manages the "dynamically" created fresh instances for the local variables of swap *)
-definition swap :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "swap i j \<equiv> block\<^sub>C push_local_swap_state (swap_core i j) pop_local_swap_state"
+definition swap :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "swap \<equiv> \<lambda>(i,j). block\<^sub>C push_local_swap_state (swap_core i j) pop_local_swap_state"
         
-(* TODO : model the contract language. *)
-definition swap_contract :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "swap_contract i j \<equiv> undefined "
+definition swap_pre :: "nat \<times> nat \<Rightarrow> 'a local_swap_state_scheme \<Rightarrow>   bool"
+  where   "swap_pre \<equiv> \<lambda>(i,j). \<lambda>\<sigma>.  True "
+
+definition swap_post :: "nat \<times> nat \<Rightarrow> unit \<Rightarrow> 'a local_swap_state_scheme \<Rightarrow>  bool"
+  where   "swap_post \<equiv> \<lambda>(i,j). \<lambda> res. \<lambda>\<sigma>.  True"   
 
 (* NOTE: If local variables were only used in single-assignment style, it is possible
    to drastically simplify the encoding. These variables were not stored in the state,
    just kept as part of the monadic calculation. The simplifications refer both to 
    calculation as well as well as symbolic execution and deduction. *) 
 
-
-definition swap' :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a global_state_state_scheme) MON\<^sub>S\<^sub>E"
-    where "swap' i j \<equiv> (tmp \<leftarrow>  yield\<^sub>C (\<lambda>\<sigma>. A \<sigma> ! i) ;
+(* alternative, optimized version *)
+definition swap' :: "nat \<times> nat \<Rightarrow>  (unit,'a global_state_state_scheme) MON\<^sub>S\<^sub>E"
+    where "swap' \<equiv> \<lambda>(i,j). (tmp \<leftarrow>  yield\<^sub>C (\<lambda>\<sigma>. A \<sigma> ! i) ;
                           ((assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
                            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) (tmp)))))" 
 (* Note that all local variables are single-assigned in swap, the entire local var definition
@@ -211,21 +213,21 @@ definition pop_local_partition_state' :: "(nat,'a local_partition_state_scheme) 
                                                         tl(local_partition_state.ret__void \<sigma>) \<rparr>)"
 
 
-definition partition_core :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a local_partition_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "partition_core lo hi \<equiv> 
+definition partition_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_partition_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "partition_core  \<equiv> \<lambda>(lo,hi).
               ((assign_local pivot_update (\<lambda>\<sigma>. A \<sigma> ! hi ))   ;- 
                (assign_local i_update (\<lambda>\<sigma>. lo )) ;-
  
                (assign_local j_update (\<lambda>\<sigma>. lo )) ;-
                (while\<^sub>C (\<lambda>\<sigma>. (hd o j) \<sigma> \<le> hi - 1 ) 
                 do (if\<^sub>C (\<lambda>\<sigma>. A \<sigma> ! (hd o j) \<sigma> < (hd o pivot)\<sigma> ) 
-                    then  call_2\<^sub>C (swap) (\<lambda>\<sigma>. (hd o i) \<sigma>) (\<lambda>\<sigma>. (hd o j) \<sigma>)  ;-
+                    then  call\<^sub>C (swap) (\<lambda>\<sigma>. ((hd o i) \<sigma>,  (hd o j) \<sigma>))  ;-
                           assign_local i_update (\<lambda>\<sigma>. ((hd o i) \<sigma>) + 1)
                     else skip\<^sub>S\<^sub>E 
                     fi) 
                 od) ;-
                (assign_local j_update (\<lambda>\<sigma>. ((hd o j) \<sigma>) + 1)) ;-
-                call_2\<^sub>C (swap) (\<lambda>\<sigma>. (hd o i) \<sigma>) (\<lambda>\<sigma>. (hd o j) \<sigma>)  ;-
+                call\<^sub>C (swap) (\<lambda>\<sigma>. ((hd o i) \<sigma>,  (hd o j) \<sigma>))  ;-
                 assign_local ret__void_update (\<lambda>\<sigma>. (hd o i) \<sigma>)  
                 \<comment> \<open> the meaning of the return stmt \<close>
                )"
@@ -233,14 +235,16 @@ definition partition_core :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a loca
 thm partition_core_def
 
 (* a block manages the "dynamically" created fresh instances for the local variables of swap *)
-definition partition :: "nat \<Rightarrow> nat \<Rightarrow>  (nat,'a local_partition_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "partition lo hi \<equiv> block\<^sub>C push_local_partition_state 
-                                    (partition_core lo hi) 
-                                    pop_local_partition_state"
+definition partition :: "nat \<times> nat \<Rightarrow>  (nat,'a local_partition_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "partition  \<equiv> \<lambda>(lo,hi). block\<^sub>C push_local_partition_state 
+                                   (partition_core (lo,hi)) 
+                                   pop_local_partition_state"
         
-(* TODO : model the contract language. *)
-definition partition_contract :: "nat \<Rightarrow> nat \<Rightarrow>  (nat,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "partition_contract lo hi \<equiv> undefined "
+definition partition_pre :: "nat \<times> nat \<Rightarrow> 'a local_partition_state_scheme \<Rightarrow>   bool"
+  where   "partition_pre \<equiv> \<lambda>(i,j). \<lambda>\<sigma>.  True "
+
+definition partition_post :: "nat \<times> nat \<Rightarrow> nat \<Rightarrow> 'a local_partition_state_scheme \<Rightarrow>  bool"
+  where   "partition_post \<equiv> \<lambda>(i,j). \<lambda> res. \<lambda>\<sigma>.  True"   
 
 (*
     \<open>\<open>pivot := A!hi\<close> ;-
@@ -327,22 +331,31 @@ find_theorems name : "curry"
 term "wfrec R (\<lambda>f. \<lambda>(a,b). g f   )"
 term " (curry f)"
 
+definition quicksort_pre :: "nat \<times> nat \<Rightarrow> 'a local_quicksort_state_scheme \<Rightarrow>   bool"
+  where   "quicksort_pre \<equiv> \<lambda>(i,j). \<lambda>\<sigma>.  True "
+
+definition quicksort_post :: "nat \<times> nat \<Rightarrow> unit \<Rightarrow> 'a local_quicksort_state_scheme \<Rightarrow>  bool"
+  where   "quicksort_post \<equiv> \<lambda>(i,j). \<lambda> res. \<lambda>\<sigma>.  True"   
+
+
+
 definition quicksort_core :: "   (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E)
                               \<Rightarrow> (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E)"
   where   "quicksort_core \<equiv> \<lambda>quicksortT. \<lambda>(lo, hi). 
                             ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
-                              then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call_2\<^sub>C (partition) (\<lambda>\<sigma>. lo) (\<lambda>\<sigma>. hi) ;
+                              then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C (partition) (\<lambda>\<sigma>. (lo, hi)) ;
                                     assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
-                                    call_2\<^sub>C (curry quicksortT) (\<lambda>\<sigma>. lo) (\<lambda>\<sigma>. (hd o p) \<sigma> - 1) ;-
-                                    call_2\<^sub>C (curry quicksortT) (\<lambda>\<sigma>. (hd o p) \<sigma> + 1) (\<lambda>\<sigma>. hi)  
+                                    call\<^sub>C (quicksortT) (\<lambda>\<sigma>. (lo, (hd o p) \<sigma> - 1)) ;-
+                                    call\<^sub>C (quicksortT) (\<lambda>\<sigma>. ((hd o p) \<sigma> + 1, hi))  
                               else skip\<^sub>S\<^sub>E 
                               fi))"
 
 
+
 definition quicksort 
-  where block: "quicksort lo hi \<equiv> block\<^sub>C push_local_quicksort_state 
-                                         (curry (wfrec undefined quicksort_core) lo hi) 
-                                         pop_local_quicksort_state"
+  where block: "quicksort order \<equiv> \<lambda>(lo, hi). block\<^sub>C push_local_quicksort_state 
+                                                 ( (wfrec order quicksort_core) (lo,hi)) 
+                                              pop_local_quicksort_state"
 
 (* bric a brac *)
 term "Clean.syntax_assign"
