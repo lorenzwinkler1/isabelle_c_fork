@@ -352,10 +352,11 @@ definition quicksort_core :: "   (nat \<times> nat \<Rightarrow> (unit,'a local_
 
 term " ((quicksort_core X) (lo,hi))"
 
-definition quicksort 
-  where block: "quicksort order \<equiv> wfrec order (\<lambda>X. \<lambda>(lo, hi). block\<^sub>C push_local_quicksort_state 
-                                                                      ((quicksort_core X) (lo,hi)) 
-                                                                      pop_local_quicksort_state)"
+definition quicksort :: " ((nat \<times> nat) \<times> (nat \<times> nat)) set \<Rightarrow>
+                           (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E)"
+  where   "quicksort order \<equiv> wfrec order (\<lambda>X. \<lambda>(lo, hi). block\<^sub>C push_local_quicksort_state 
+                                                                (quicksort_core X (lo,hi)) 
+                                                                pop_local_quicksort_state)"
 
 (* bric a brac *)
 term "Clean.syntax_assign"
