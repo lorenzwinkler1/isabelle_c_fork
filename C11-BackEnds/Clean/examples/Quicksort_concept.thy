@@ -341,21 +341,21 @@ definition quicksort_post :: "nat \<times> nat \<Rightarrow> unit \<Rightarrow> 
 
 definition quicksort_core :: "   (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E)
                               \<Rightarrow> (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E)"
-  where   "quicksort_core \<equiv> \<lambda>quicksortT. \<lambda>(lo, hi). 
+  where   "quicksort_core \<equiv> \<lambda>quicksort. \<lambda>(lo, hi). 
                             ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
-                              then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C (partition) (\<lambda>\<sigma>. (lo, hi)) ;
+                              then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C partition (\<lambda>\<sigma>. (lo, hi)) ;
                                     assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
-                                    call\<^sub>C (quicksortT) (\<lambda>\<sigma>. (lo, (hd o p) \<sigma> - 1)) ;-
-                                    call\<^sub>C (quicksortT) (\<lambda>\<sigma>. ((hd o p) \<sigma> + 1, hi))  
+                                    call\<^sub>C quicksort (\<lambda>\<sigma>. (lo, (hd o p) \<sigma> - 1)) ;-
+                                    call\<^sub>C quicksort (\<lambda>\<sigma>. ((hd o p) \<sigma> + 1, hi))  
                               else skip\<^sub>S\<^sub>E 
                               fi))"
 
-
+term " ((quicksort_core X) (lo,hi))"
 
 definition quicksort 
-  where block: "quicksort order \<equiv> \<lambda>(lo, hi). block\<^sub>C push_local_quicksort_state 
-                                                 ( (wfrec order quicksort_core) (lo,hi)) 
-                                              pop_local_quicksort_state"
+  where block: "quicksort order \<equiv> wfrec order (\<lambda>X. \<lambda>(lo, hi). block\<^sub>C push_local_quicksort_state 
+                                                                      ((quicksort_core X) (lo,hi)) 
+                                                                      pop_local_quicksort_state)"
 
 (* bric a brac *)
 term "Clean.syntax_assign"
