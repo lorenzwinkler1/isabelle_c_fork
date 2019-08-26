@@ -365,6 +365,8 @@ fun mk_meta_eq (t, u) = meta_eq_const (fastype_of t) $ t $ u;
 (* the meat *)
 local open StateMgt_core
 
+fun mk_result_name x = "result_value"
+
 fun get_result_value_conf name thy = 
         let val  S = filter_attr_of name thy
         in  hd(filter (fn ((_,b),_) => is_some (NameGeneration.dest_embret b)) S) 
@@ -399,10 +401,11 @@ in fun construct_update is_pop binding sty thy =
 fun cmd (decl, spec, prems, params) = #2 oo Specification.definition' decl params prems spec
 
 
-val SPY = Unsynchronized.ref (Bound 0)
+val SPY  = Unsynchronized.ref (Bound 0)
 val SPY1 = Unsynchronized.ref (Binding.empty)
 val SPY2 =  Unsynchronized.ref (@{typ "unit"})
 val SPY3 =  Unsynchronized.ref (@{typ "unit"})
+
 
 fun mk_push_name binding = Binding.prefix_name "push_" binding
 
@@ -461,7 +464,7 @@ fun read_fields raw_fields ctxt =
     val ctxt' = fold Variable.declare_typ Ts ctxt;
   in (fields, ctxt') end;
 
-fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) raw_parent raw_fields thy =
+fun add_record_cmd0 read_fields overloaded is_global_kind raw_params binding raw_parent raw_fields thy =
   let
     val ctxt = Proof_Context.init_global thy;
     val params = map (apsnd (Typedecl.read_constraint ctxt)) raw_params;
@@ -483,8 +486,7 @@ fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) 
             if not is_global_kind 
             then let val ctxt = Proof_Context.init_global thy;
                      val ty_bind =  Binding.prefix_name "'a " (Binding.suffix_name "_scheme" binding)
-                     val ty_repr2 = Binding.name_of ty_bind
-                     val sty = Syntax.parse_typ ctxt (ty_repr2)
+                     val sty = Syntax.parse_typ ctxt (Binding.name_of ty_bind)
                      val rty = dest_listTy (#2(hd(rev fields')))
                  (*  val _ = (SPY1 := binding)
                      val _ = (SPY2 := sty)
@@ -507,9 +509,9 @@ fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) 
 fun typ_2_string_raw (Type(s,[])) = s
    |typ_2_string_raw (Type(s,_)) = 
                          error ("Illegal parameterized state type - not allowed in Clean:"  ^ s) 
-   |typ_2_string_raw _ = error "Illegal parameterized state type - not allowed in Clean." 
+   |typ_2_string_raw _ = error  "Illegal parameterized state type - not allowed in Clean." 
                                   
-
+             
 fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res_ty), raw_fields) thy =
     let val binding = if is_global_kind 
                       then mk_global_state_name binding
@@ -519,17 +521,18 @@ fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res
         fun upd_state_typ thy = let val ctxt = Proof_Context.init_global thy
                                     val ty = Syntax.parse_typ ctxt (Binding.name_of binding)
                                 in  StateMgt_core.upd_state_type_global(K ty)(thy) end
+        val result_binding = Binding.make(NameGeneration.embret_var_name ("void", 1),pos)
         val raw_fields' = case res_ty of 
                             NONE => raw_fields
-                          | SOME res_ty => raw_fields @ [(Binding.make(NameGeneration.embret_var_name ("void", 1),pos),res_ty, NoSyn)]
+                          | SOME res_ty => raw_fields @ [(result_binding,res_ty, NoSyn)]
     in  thy |> add_record_cmd {overloaded = false} is_global_kind 
-                              (raw_params, binding) raw_parent raw_fields' 
+                              raw_params binding raw_parent raw_fields' 
             |> upd_state_typ 
 
     end
 
-val add_record_cmd = add_record_cmd0 read_fields;
-val add_record_cmd' = add_record_cmd0 pair;
+val add_record_cmd    = add_record_cmd0 read_fields;
+val add_record_cmd'   = add_record_cmd0 pair;
 
 val new_state_record  = new_state_record0 add_record_cmd
 val new_state_record' = new_state_record0 add_record_cmd'
@@ -563,7 +566,7 @@ structure Function_Specification_Parser  =
 
     type funct_spec_src = {    
         binding:  binding,                         (* name *)
-        params: ((string*Position.T)*string) list, (* parameters and their type*)
+        params: (binding*string) list, (* parameters and their type*)
         ret_ty: string option,                     (* return type *)
         locals: (binding*string*mixfix)list,       (* local variables *)
         pre_src: string,                           (* precondition src *)
@@ -572,7 +575,16 @@ structure Function_Specification_Parser  =
         body_src: string * Position.T              (* body src *)
       }
 
-    val parse_arg_decl = (Parse.position Parse.name) -- (Parse.$$$ "::" |-- Parse.typ)
+    type funct_spec_sem = {    
+        params: (binding*typ) list,                (* parameters and their type*)
+        ret_ty: typ,                               (* return type *)
+        pre: term,                                 (* precondition  *)
+        post: term,                                (* postcondition  *)
+        variant: term option                       (* variant  *)
+      }
+
+
+    val parse_arg_decl = Parse.binding -- (Parse.$$$ "::" |-- Parse.typ)
 
     val parse_param_decls = Args.parens (Parse.enum "," parse_arg_decl)
       
@@ -598,15 +610,46 @@ structure Function_Specification_Parser  =
           locals=locals,
           body_src=body_src} : funct_spec_src
         )
+
+   fun read_params params ctxt =
+     let
+       val Ts = Syntax.read_typs ctxt (map snd params);
+       val params' = map2 (fn (x, _) => fn T => (x, T)) params Ts;
+       val ctxt' = fold Variable.declare_typ Ts ctxt;
+     in (params', ctxt') end;
+   
+   fun read_result (SOME ret_ty) ctxt = 
+          let val [ty] = Syntax.read_typs ctxt [ret_ty]
+              val ctxt' = Variable.declare_typ ty ctxt           
+          in  (ty, ctxt') end
+      |read_result (NONE) ctxt = (@{typ unit}, ctxt) 
+      
+
+   fun read_function_spec ({ binding ,  params,  ret_ty,  pre_src,  post_src, 
+                                  variant_src, ...} : funct_spec_src
+                               ) ctxt =
+       let val (params', ctxt') = read_params params ctxt
+           val (rty, ctxt'') = read_result ret_ty ctxt' 
+           val pre_term = Syntax.read_term ctxt'' pre_src
+           val post_term = Syntax.read_term ctxt'' post_src
+           val variant = Option.map (Syntax.read_term ctxt'')  variant_src
+       in ({params = params',ret_ty = rty,pre = pre_term,post = post_term,variant = variant},ctxt'') end 
     
-   fun checkNsem_function_spec ({ binding ,  params,  ret_ty,  pre_src,  post_src, 
-                                  variant_src=SOME x,  locals, body_src} : funct_spec_src
-                               ) thy = error "No measure required in non-recursive call"
-      |checkNsem_function_spec ({ binding ,  params,  ret_ty,  pre_src,  post_src, 
-                                  variant_src=NONE,  locals, body_src} : funct_spec_src
+   fun checkNsem_function_spec ({variant_src=SOME _, ...} : funct_spec_src) _ = 
+                               error "No measure required in non-recursive call"
+      |checkNsem_function_spec (args as {binding , params, ret_ty, pre_src, post_src, 
+                                  variant_src=NONE, locals, body_src} : funct_spec_src
                                ) thy = 
-       let   
-       in    (warning "function_spec not yet implemented; ignored";thy) end
+       let   val ctxt =  Proof_Context.init_global thy
+             val ({params,ret_ty,pre,post,variant},ctxt') =  read_function_spec args ctxt
+             val args_typ = HOLogic.mk_tupleT(map snd params)
+             val ctxt'' = Proof_Context.background_theory 
+                              (new_state_record false ((([],binding), NONE),locals))
+                              (ctxt')
+             val ty_bind =  Binding.prefix_name "'a " (Binding.suffix_name "_scheme" binding)
+             val sty = Syntax.parse_typ ctxt (Binding.name_of ty_bind)
+             val mty = StateMgt_core.MON_SE_T ret_ty sty 
+       in    (Proof_Context.theory_of ctxt'') end
 
    fun checkNsem_rec_function_spec ({ binding ,  params,  ret_ty,  pre_src,  post_src, 
                                   variant_src,  locals, body_src} : funct_spec_src
@@ -614,19 +657,18 @@ structure Function_Specification_Parser  =
         let val _ = case variant_src of 
                       NONE => warning ("no measure provided; measure parameterized")
                      |SOME _ => ()
-        in   (warning "rec_function_spec not yet implemented; ignored";thy) end
-   
+        in   (warning "rec_function_spec not yet implemented; ignored";thy) end 
    
    val _ =
      Outer_Syntax.command 
          \<^command_keyword>\<open>function_spec\<close>   
-         "define global state record"
+         "define Clean function specification"
          (parse_proc_spec >> (Toplevel.theory o checkNsem_function_spec));
    
    val _ =
      Outer_Syntax.command 
          \<^command_keyword>\<open>rec_function_spec\<close>   
-         "define global state record"
+         "define recursive Clean function specification"
          (parse_proc_spec >> (Toplevel.theory o checkNsem_rec_function_spec));
        
   end

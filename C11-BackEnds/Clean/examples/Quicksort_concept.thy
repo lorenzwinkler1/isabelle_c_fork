@@ -114,12 +114,12 @@ subsection \<open>Encoding swap in Clean\<close>
 (* some syntax tests *)
 
 function_spec swap () 
-pre          "a"
-post         "b"
+pre          "True \<longrightarrow> True "
+post         "a \<and> b"
 local_vars   tmp :: "int" 
 defines      \<open>True\<close>
 
-rec_function_spec swap () returns "x"
+rec_function_spec swap () returns "unit"
 pre          "a"
 post         "b"
 variant      "c"
@@ -149,10 +149,10 @@ definition pop_local_swap_state' :: "(unit,'a local_swap_state_scheme) MON\<^sub
                          \<sigma>\<lparr>local_swap_state.tmp:= tl( local_swap_state.tmp \<sigma>) \<rparr>)"
 
 
-definition swap_core :: "nat \<Rightarrow> nat \<Rightarrow>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
-    where "swap_core i j \<equiv> ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
+definition swap_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
+    where "swap_core  \<equiv> (\<lambda>(i,j). ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
                             (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
-                            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>))))" 
+                            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>)))))" 
 thm swap_core_def
 (* future input cartouche syntax should be: 
 definition swap_core :: "nat => nat =>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
@@ -163,7 +163,7 @@ definition swap_core :: "nat => nat =>  (unit,'a local_swap_state_scheme) MON\<^
 
 (* a block manages the "dynamically" created fresh instances for the local variables of swap *)
 definition swap :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "swap \<equiv> \<lambda>(i,j). block\<^sub>C push_local_swap_state (swap_core i j) pop_local_swap_state"
+  where   "swap \<equiv> \<lambda>(i,j). block\<^sub>C push_local_swap_state (swap_core (i,j)) pop_local_swap_state"
         
 definition swap_pre :: "nat \<times> nat \<Rightarrow> 'a local_swap_state_scheme \<Rightarrow>   bool"
   where   "swap_pre \<equiv> \<lambda>(i,j). \<lambda>\<sigma>.  True "
