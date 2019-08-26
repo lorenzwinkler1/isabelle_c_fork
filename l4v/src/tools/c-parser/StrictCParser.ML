@@ -102,11 +102,12 @@ fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (input : inp
                       #> tap (fn _ =>
                               Synchronized.change
                                 last_parsed'
-                                (K (C_Ast.main (ast, ( map_filter (fn C_Scan.Left {body_begin, body, body_end, range, ...} =>
-                                                                      SOME (C_Grammar_Rule_Lib.make_comment body_begin body body_end range)
-                                                                    | _ => NONE)
-                                                                  (#stream_ignored env_lang |> rev)
-                                                     , [])))))))
+                                (K (C_Ast.main ( ast |> C_Grammar_Rule.start_happy1 |> the
+                                               , ( map_filter (fn C_Scan.Left {body_begin, body, body_end, range, ...} =>
+                                                                  SOME (C_Grammar_Rule_Lib.make_comment body_begin body body_end range)
+                                                                | _ => NONE)
+                                                              (#stream_ignored env_lang |> rev)
+                                                 , [])))))))
               |> C_exec cpped_input
               |> pair (Synchronized.value last_parsed') o Context.theory_map (C_Module.Data_Accept.put f_accept)
           end)
