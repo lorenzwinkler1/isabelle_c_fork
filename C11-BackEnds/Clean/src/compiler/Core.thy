@@ -44,6 +44,68 @@ theory Core
           Clean.Clean
 begin
 
+ML \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/MString.ML\<close>\<close> \<open>
+(*
+ * Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Copyright 2014, NICTA
+ *
+ * This software may be distributed and modified according to the terms of
+ * the BSD 2-Clause license. Note that NO WARRANTY is provided.
+ * See "LICENSE_BSD2.txt" for details.
+ *
+ * @TAG(NICTA_BSD)
+ *)
+
+structure MString =
+struct
+  type t = string
+  fun mk s = s
+  fun dest s = s
+  fun destPP s = "MV(" ^ s ^ ")"
+  val compare = String.compare
+end
+\<close>
+
+ML \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/name_generation.ML\<close>\<close> \<open>
+(*
+ * Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Copyright 2014, NICTA
+ *
+ * This software may be distributed and modified according to the terms of
+ * the BSD 2-Clause license. Note that NO WARRANTY is provided.
+ * See "LICENSE_BSD2.txt" for details.
+ *
+ * @TAG(NICTA_BSD)
+ *)
+
+structure NameGeneration =
+struct
+
+fun embret_var_name (f,i) =
+    if i < 1 then raise Fail "embret_var_name: i < 1"
+    else if i = 1 then MString.mk ("ret__" ^ f)
+    else MString.mk (f ^ "_eret_" ^ Int.toString i)
+
+fun dest_embret s0 =
+  let
+    val s = MString.dest s0
+  in
+    if String.isPrefix "ret__" s then
+      SOME (String.extract(s,5,NONE), 1)
+    else let
+        open Substring
+        val (pfx, digsfx) = splitr Char.isDigit (full s)
+      in
+        if isEmpty digsfx then NONE
+        else if isSuffix "_eret_" pfx then
+          SOME (string (trimr 6 pfx), Option.valOf (Int.fromString (string digsfx)))
+        else
+          NONE
+      end
+  end
+end
+\<close>
+
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_syntax.ML\<close>\<close> \<open>
 structure ML_Syntax' =
 struct
@@ -122,10 +184,10 @@ in
 
 fun compile ast env_lang pos =
   let val (local_rcd, global_rcd, fninfo) = IsarInstall.install_C_file0 ast env_lang
+      val _ = [ T.one (new_state_record pos true global_rcd)
+              , T.one (new_state_record pos false local_rcd) ]
   in 
-    [ T.one (new_state_record pos true global_rcd)
-    , T.one (new_state_record pos false local_rcd)
-    , T.locale ( Semi_locale_ext (s (ML_Syntax'.make_pos "C" pos), [], ())
+    [ T.locale ( Semi_locale_ext (s (ML_Syntax'.make_pos "C" pos), [], ())
                , [map (fn function =>
                         [ T.definition (bs ("pop_" ^ #fname function)) "\<equiv>" (bs "()")
                         , T.definition (bs ("push_" ^ #fname function)) "\<equiv>" (bs "()")
