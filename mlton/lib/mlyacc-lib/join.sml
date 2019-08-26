@@ -77,16 +77,17 @@ struct
 
     type stack = (Token.LALR_Table.state, svalue0, pos) C_Env.stack'
 
-    type 'arg lexer = ((svalue, pos) Token.token, stack * 'arg) Stream.stream * 'arg
+    type ('arg1, 'arg2) lexer = ((svalue, pos) Token.token, stack * 'arg1) Stream.stream * 'arg2
 
     val makeLexer = LrParser.Stream.streamify Lex.makeLexer
 
-    val parse = fn (lookahead, error, void_position, accept, reduce_init, reduce_get) =>
+    val parse = fn (lookahead, error, void_position, start, accept, reduce_init, reduce_get) =>
       LrParser.parse {table = ParserData.table,
                       lookahead = lookahead,
                       saction = ParserData.Actions.actions,
                       void = ParserData.Actions.void,
                       void_position = void_position,
+                      start = start,
                       accept = accept,
                       reduce_init = reduce_init,
                       reduce_get = reduce_get,
