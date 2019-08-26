@@ -114,7 +114,6 @@ subsection \<open>Encoding swap in Clean\<close>
 function_spec swap () 
 pre    "a"
 post    "b"
-variant "c"
 local_variables  tmp :: "int" 
 defines \<open>True\<close>
 

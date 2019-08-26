@@ -129,21 +129,22 @@ definition block\<^sub>C :: "  (unit, ('\<sigma>_ext) control_state_ext)MON\<^su
 
 (* Is this the right approach to handle calls of ops with multiple arguments ? Or better
    some appropriate currying principle ? *) 
-definition call_0\<^sub>C :: "('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E \<Rightarrow> ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
-  where   "call_0\<^sub>C M = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some(undefined, \<sigma>) else M \<sigma>)"
-
-definition call_1\<^sub>C :: "( '\<alpha> \<Rightarrow> ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E) \<Rightarrow>
-                       ((('\<sigma>_ext) control_state_ext) \<Rightarrow> '\<alpha>) \<Rightarrow>                        
-                      ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
-  where   "call_1\<^sub>C M A\<^sub>1 = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some(undefined, \<sigma>) else M (A\<^sub>1 \<sigma>) \<sigma>)"
-
-text\<open>The generic version using tupling is identical with @{term \<open>call_1\<^sub>C\<close>}.\<close>
-
 definition call\<^sub>C :: "( '\<alpha> \<Rightarrow> ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E) \<Rightarrow>
                        ((('\<sigma>_ext) control_state_ext) \<Rightarrow> '\<alpha>) \<Rightarrow>                        
                       ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
-  where   "call\<^sub>C = call_1\<^sub>C"
+  where   "call\<^sub>C M A\<^sub>1 = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some(undefined, \<sigma>) else M (A\<^sub>1 \<sigma>) \<sigma>)"
 
+
+
+(* some more experimental variants for curried operations ... *)
+definition call_0\<^sub>C :: "('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E \<Rightarrow> ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
+  where   "call_0\<^sub>C M = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some(undefined, \<sigma>) else M \<sigma>)"
+
+text\<open>The generic version using tupling is identical with @{term \<open>call_1\<^sub>C\<close>}.\<close>
+definition call_1\<^sub>C :: "( '\<alpha> \<Rightarrow> ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E) \<Rightarrow>
+                       ((('\<sigma>_ext) control_state_ext) \<Rightarrow> '\<alpha>) \<Rightarrow>                        
+                      ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"                                                      
+  where   "call_1\<^sub>C  = call\<^sub>C"
 
 definition call_2\<^sub>C :: "( '\<alpha> \<Rightarrow> '\<beta> \<Rightarrow> ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E) \<Rightarrow>
                        ((('\<sigma>_ext) control_state_ext) \<Rightarrow> '\<alpha>) \<Rightarrow>                        
@@ -567,7 +568,7 @@ structure Function_Specification_Parser  =
         locals: (binding*string*mixfix)list,       (* local variables *)
         pre_src: string,                           (* precondition src *)
         post_src: string,                          (* postcondition src *)
-        variant_src: string,                       (* variant src *)
+        variant_src: string option,                       (* variant src *)
         body_src: string * Position.T              (* body src *)
       }
 
@@ -583,7 +584,7 @@ structure Function_Specification_Parser  =
        -- parse_returns_clause
       --| \<^keyword>\<open>pre\<close>             -- Parse.term 
       --| \<^keyword>\<open>post\<close>            -- Parse.term 
-      --| \<^keyword>\<open>variant\<close>         -- Parse.term 
+      --  Scan.option( \<^keyword>\<open>variant\<close> --| Parse.term)
       --| \<^keyword>\<open>local_variables\<close> -- (Scan.repeat1 Parse.const_binding)
       --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.cartouche>>cartouche)) 
       ) >> (fn (((((((binding,params),ret_ty),pre_src),post_src),variant_src),locals),body_src) => 
@@ -599,13 +600,21 @@ structure Function_Specification_Parser  =
         )
     
    fun checkNsem_function_spec ({ binding ,  params,  ret_ty,  pre_src,  post_src, 
-                                  variant_src,  locals, body_src} : funct_spec_src
+                                  variant_src=SOME x,  locals, body_src} : funct_spec_src
+                               ) thy = error "No measure required in non-recursive call"
+      |checkNsem_function_spec ({ binding ,  params,  ret_ty,  pre_src,  post_src, 
+                                  variant_src=NONE,  locals, body_src} : funct_spec_src
                                ) thy = 
        let   
        in    (warning "function_spec not yet implemented; ignored";thy) end
 
-   fun checkNsem_rec_function_spec (x:funct_spec_src) thy = 
-           (warning "rec_function_spec not yet implemented; ignored";thy)
+   fun checkNsem_rec_function_spec ({ binding ,  params,  ret_ty,  pre_src,  post_src, 
+                                  variant_src,  locals, body_src} : funct_spec_src
+                               ) thy = 
+        let val _ = case variant_src of 
+                      NONE => warning ("no measure provided; measure parameterized")
+                     |SOME _ => ()
+        in   (warning "rec_function_spec not yet implemented; ignored";thy) end
    
    
    val _ =
@@ -726,7 +735,7 @@ shows   "(\<sigma> \<Turnstile> (call_0\<^sub>C M;- M')) = (\<sigma> \<Turnstile
 lemma non_exec_call_1  : 
 assumes "\<not> exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> (call_1\<^sub>C M A\<^sub>1); M' x)) = (\<sigma> \<Turnstile> (x \<leftarrow> M (A\<^sub>1 \<sigma>); M' x))"
-  by (simp add: assms bind_SE'_def bind_SE_def call_1\<^sub>C_def valid_SE_def)
+  by (simp add: assms bind_SE'_def call\<^sub>C_def bind_SE_def call_1\<^sub>C_def valid_SE_def)
 
 lemma non_exec_call_1'  : 
 assumes "\<not> exec_stop \<sigma>"
@@ -737,7 +746,7 @@ shows   "(\<sigma> \<Turnstile> call_1\<^sub>C M A\<^sub>1;- M') = (\<sigma> \<T
 lemma exec_call_1  : 
 assumes "exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> call_1\<^sub>C M A\<^sub>1; M' x)) = (\<sigma> \<Turnstile>  M' undefined)"
-  by (simp add: assms call_1\<^sub>C_def exec_bind_SE_success)
+  by (simp add: assms call_1\<^sub>C_def call\<^sub>C_def exec_bind_SE_success)
 
 lemma exec_call_1'  : 
 assumes "exec_stop \<sigma>"
@@ -753,7 +762,7 @@ shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> (call\<^sub>C M A\<^sub>1); M' 
 lemma non_exec_call'  : 
 assumes "\<not> exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> call\<^sub>C M A\<^sub>1;- M') = (\<sigma> \<Turnstile>  M (A\<^sub>1 \<sigma>);- M')"
-  by (simp add: assms call\<^sub>C_def bind_SE'_def non_exec_call_1)
+  by (simp add: assms bind_SE'_def non_exec_call)
 
 
 lemma exec_call  : 
@@ -764,7 +773,7 @@ shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> call\<^sub>C M A\<^sub>1; M' x)
 lemma exec_call'  : 
 assumes "exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> (call\<^sub>C M A\<^sub>1;- M')) = (\<sigma> \<Turnstile>  M')"
-  by (simp add: assms call\<^sub>C_def bind_SE'_def exec_call_1)
+  by (metis assms call_1\<^sub>C_def exec_call_1')
 
 
 lemma non_exec_call_2  : 
