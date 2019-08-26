@@ -269,68 +269,6 @@ end
 
 \<close>
 
-ML \<comment> \<open>\<^file>\<open>../../../l4v/src/tools/c-parser/MString.ML\<close>\<close> \<open>
-(*
- * Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
- * Copyright 2014, NICTA
- *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- *)
-
-structure MString =
-struct
-  type t = string
-  fun mk s = s
-  fun dest s = s
-  fun destPP s = "MV(" ^ s ^ ")"
-  val compare = String.compare
-end
-\<close>
-
-ML \<comment> \<open>\<^file>\<open>../../../l4v/src/tools/c-parser/name_generation.ML\<close>\<close> \<open>
-(*
- * Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
- * Copyright 2014, NICTA
- *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- *)
-
-structure NameGeneration =
-struct
-
-fun embret_var_name (f,i) =
-    if i < 1 then raise Fail "embret_var_name: i < 1"
-    else if i = 1 then MString.mk ("ret__" ^ f)
-    else MString.mk (f ^ "_eret_" ^ Int.toString i)
-
-fun dest_embret s0 =
-  let
-    val s = MString.dest s0
-  in
-    if String.isPrefix "ret__" s then
-      SOME (String.extract(s,5,NONE), 1)
-    else let
-        open Substring
-        val (pfx, digsfx) = splitr Char.isDigit (full s)
-      in
-        if isEmpty digsfx then NONE
-        else if isSuffix "_eret_" pfx then
-          SOME (string (trimr 6 pfx), Option.valOf (Int.fromString (string digsfx)))
-        else
-          NONE
-      end
-  end
-end
-\<close>
-
 ML\<open>
 (* HOLogic extended *)
 
@@ -365,11 +303,12 @@ fun mk_meta_eq (t, u) = meta_eq_const (fastype_of t) $ t $ u;
 (* the meat *)
 local open StateMgt_core
 
+val result_name = "result_value"
 fun mk_result_name x = "result_value"
 
 fun get_result_value_conf name thy = 
         let val  S = filter_attr_of name thy
-        in  hd(filter (fn ((_,b),_) => is_some (NameGeneration.dest_embret b)) S) 
+        in  hd(filter (fn ((_,b),_) => b = result_name) S) 
             handle Empty => error "internal error: get_result_value_conf " end; 
 
 
@@ -521,7 +460,7 @@ fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res
         fun upd_state_typ thy = let val ctxt = Proof_Context.init_global thy
                                     val ty = Syntax.parse_typ ctxt (Binding.name_of binding)
                                 in  StateMgt_core.upd_state_type_global(K ty)(thy) end
-        val result_binding = Binding.make(NameGeneration.embret_var_name ("void", 1),pos)
+        val result_binding = Binding.make(result_name,pos)
         val raw_fields' = case res_ty of 
                             NONE => raw_fields
                           | SOME res_ty => raw_fields @ [(result_binding,res_ty, NoSyn)]
