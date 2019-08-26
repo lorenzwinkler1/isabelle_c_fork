@@ -34,12 +34,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-session Clean = HOL +
-  theories
-    "src/Clean"
-    "src/CleanTest"
-
-session Clean_examples = Clean +
-  theories
-    "examples/Quicksort_concept"
-    "examples/SquareRoot_concept"
+theory CleanTest
+  imports Main
+begin
+end

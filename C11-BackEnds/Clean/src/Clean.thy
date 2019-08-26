@@ -8,15 +8,11 @@ text\<open>Pronounce : "C lean".\<close>
 
 theory Clean
   imports Symbex_MonadSE
-          "~~/src/HOL/Eisbach/Eisbach"
-  keywords "global_vars" "local_vars" :: thy_decl 
-(*
-     and "funct" :: thy_decl
+  keywords "global_vars" "local_vars_test" :: thy_decl 
+     and "returns" "pre" "post" "local_vars" "variant" 
+     and "function_spec" :: thy_goal
+     and "rec_function_spec"   :: thy_goal
 
-     and "pre" "post" (* "local_vars" *)
-     and "returns" 
-     and "end_funct" :: thy_goal
-*)
 begin
   
 text\<open>Clean is a minimalistic imperative language 
@@ -84,10 +80,10 @@ definition assign :: "(('\<sigma>_ext) control_state_scheme  \<Rightarrow>
 
 (* todo: rename assign to trans2mon combinator; since it will be used for calls as well *)
 
-fun      assign_global :: "(('a  \<Rightarrow> 'a ) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
+definition  assign_global :: "(('a  \<Rightarrow> 'a ) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
                       \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
                       \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
-  where "assign_global upd rhs = assign(\<lambda>\<sigma>. ((upd) (%_. rhs \<sigma>)) \<sigma>)"
+  where    "assign_global upd rhs = assign(\<lambda>\<sigma>. ((upd) (%_. rhs \<sigma>)) \<sigma>)"
 
 
 fun      map_hd :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a list \<Rightarrow> 'a list" 
@@ -95,15 +91,16 @@ fun      map_hd :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a list \<Rightarrow> 'a
       | "map_hd f (a#S) = f a # S"
 
 
-fun      assign_local :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
+definition  assign_local :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
                       \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
                       \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
-  where "assign_local upd rhs = assign(\<lambda>\<sigma>. ((upd o map_hd) (%_. rhs \<sigma>)) \<sigma>)"
+  where    "assign_local upd rhs = assign(\<lambda>\<sigma>. ((upd o map_hd) (%_. rhs \<sigma>)) \<sigma>)"
 
 
 text\<open>Semantically, the difference between \<^emph>\<open>global\<close> and \<^emph>\<open>local\<close> is rather unimpressive as the 
      following lemma shows. However, the distinction matters for the pretty-printing setup of Clean.\<close>
-lemma "assign_local upd rhs = assign_global (upd o map_hd) rhs " by simp
+lemma "assign_local upd rhs = assign_global (upd o map_hd) rhs "
+      unfolding assign_local_def assign_global_def by simp
 
 text\<open>The return command in C-like languages is represented basically by an assignment to a local
 variable \<^verbatim>\<open>result_value\<close> (see below in the Clean-package generation). Plus a setting of the 
@@ -132,14 +129,22 @@ definition block\<^sub>C :: "  (unit, ('\<sigma>_ext) control_state_ext)MON\<^su
 
 (* Is this the right approach to handle calls of ops with multiple arguments ? Or better
    some appropriate currying principle ? *) 
+definition call\<^sub>C :: "( '\<alpha> \<Rightarrow> ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E) \<Rightarrow>
+                       ((('\<sigma>_ext) control_state_ext) \<Rightarrow> '\<alpha>) \<Rightarrow>                        
+                      ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
+  where   "call\<^sub>C M A\<^sub>1 = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some(undefined, \<sigma>) else M (A\<^sub>1 \<sigma>) \<sigma>)"
+
+
+
+(* some more experimental variants for curried operations ... *)
 definition call_0\<^sub>C :: "('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E \<Rightarrow> ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
   where   "call_0\<^sub>C M = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some(undefined, \<sigma>) else M \<sigma>)"
 
+text\<open>The generic version using tupling is identical with @{term \<open>call_1\<^sub>C\<close>}.\<close>
 definition call_1\<^sub>C :: "( '\<alpha> \<Rightarrow> ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E) \<Rightarrow>
                        ((('\<sigma>_ext) control_state_ext) \<Rightarrow> '\<alpha>) \<Rightarrow>                        
-                      ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
-  where   "call_1\<^sub>C M A\<^sub>1 = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some(undefined, \<sigma>) else M (A\<^sub>1 \<sigma>) \<sigma>)"
-
+                      ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"                                                      
+  where   "call_1\<^sub>C  = call\<^sub>C"
 
 definition call_2\<^sub>C :: "( '\<alpha> \<Rightarrow> '\<beta> \<Rightarrow> ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E) \<Rightarrow>
                        ((('\<sigma>_ext) control_state_ext) \<Rightarrow> '\<alpha>) \<Rightarrow>                        
@@ -264,68 +269,6 @@ end
 
 \<close>
 
-ML \<comment> \<open>\<^file>\<open>../../../l4v/src/tools/c-parser/MString.ML\<close>\<close> \<open>
-(*
- * Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
- * Copyright 2014, NICTA
- *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- *)
-
-structure MString =
-struct
-  type t = string
-  fun mk s = s
-  fun dest s = s
-  fun destPP s = "MV(" ^ s ^ ")"
-  val compare = String.compare
-end
-\<close>
-
-ML \<comment> \<open>\<^file>\<open>../../../l4v/src/tools/c-parser/name_generation.ML\<close>\<close> \<open>
-(*
- * Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
- * Copyright 2014, NICTA
- *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- *)
-
-structure NameGeneration =
-struct
-
-fun embret_var_name (f,i) =
-    if i < 1 then raise Fail "embret_var_name: i < 1"
-    else if i = 1 then MString.mk ("ret__" ^ f)
-    else MString.mk (f ^ "_eret_" ^ Int.toString i)
-
-fun dest_embret s0 =
-  let
-    val s = MString.dest s0
-  in
-    if String.isPrefix "ret__" s then
-      SOME (String.extract(s,5,NONE), 1)
-    else let
-        open Substring
-        val (pfx, digsfx) = splitr Char.isDigit (full s)
-      in
-        if isEmpty digsfx then NONE
-        else if isSuffix "_eret_" pfx then
-          SOME (string (trimr 6 pfx), Option.valOf (Int.fromString (string digsfx)))
-        else
-          NONE
-      end
-  end
-end
-\<close>
-
 ML\<open>
 (* HOLogic extended *)
 
@@ -360,9 +303,12 @@ fun mk_meta_eq (t, u) = meta_eq_const (fastype_of t) $ t $ u;
 (* the meat *)
 local open StateMgt_core
 
+val result_name = "result_value"
+fun mk_result_name x = result_name
+
 fun get_result_value_conf name thy = 
         let val  S = filter_attr_of name thy
-        in  hd(filter (fn ((_,b),_) => is_some (NameGeneration.dest_embret b)) S) 
+        in  hd(filter (fn ((_,b),_) => b = result_name) S) 
             handle Empty => error "internal error: get_result_value_conf " end; 
 
 
@@ -394,10 +340,11 @@ in fun construct_update is_pop binding sty thy =
 fun cmd (decl, spec, prems, params) = #2 oo Specification.definition' decl params prems spec
 
 
-val SPY = Unsynchronized.ref (Bound 0)
+val SPY  = Unsynchronized.ref (Bound 0)
 val SPY1 = Unsynchronized.ref (Binding.empty)
 val SPY2 =  Unsynchronized.ref (@{typ "unit"})
 val SPY3 =  Unsynchronized.ref (@{typ "unit"})
+
 
 fun mk_push_name binding = Binding.prefix_name "push_" binding
 
@@ -456,7 +403,7 @@ fun read_fields raw_fields ctxt =
     val ctxt' = fold Variable.declare_typ Ts ctxt;
   in (fields, ctxt') end;
 
-fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) raw_parent raw_fields thy =
+fun add_record_cmd0 read_fields overloaded is_global_kind raw_params binding raw_parent raw_fields thy =
   let
     val ctxt = Proof_Context.init_global thy;
     val params = map (apsnd (Typedecl.read_constraint ctxt)) raw_params;
@@ -478,8 +425,7 @@ fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) 
             if not is_global_kind 
             then let val ctxt = Proof_Context.init_global thy;
                      val ty_bind =  Binding.prefix_name "'a " (Binding.suffix_name "_scheme" binding)
-                     val ty_repr2 = Binding.name_of ty_bind
-                     val sty = Syntax.parse_typ ctxt (ty_repr2)
+                     val sty = Syntax.parse_typ ctxt (Binding.name_of ty_bind)
                      val rty = dest_listTy (#2(hd(rev fields')))
                  (*  val _ = (SPY1 := binding)
                      val _ = (SPY2 := sty)
@@ -502,9 +448,9 @@ fun add_record_cmd0 read_fields overloaded is_global_kind (raw_params, binding) 
 fun typ_2_string_raw (Type(s,[])) = s
    |typ_2_string_raw (Type(s,_)) = 
                          error ("Illegal parameterized state type - not allowed in Clean:"  ^ s) 
-   |typ_2_string_raw _ = error "Illegal parameterized state type - not allowed in Clean." 
+   |typ_2_string_raw _ = error  "Illegal parameterized state type - not allowed in Clean." 
                                   
-
+             
 fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res_ty), raw_fields) thy =
     let val binding = if is_global_kind 
                       then mk_global_state_name binding
@@ -514,35 +460,157 @@ fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res
         fun upd_state_typ thy = let val ctxt = Proof_Context.init_global thy
                                     val ty = Syntax.parse_typ ctxt (Binding.name_of binding)
                                 in  StateMgt_core.upd_state_type_global(K ty)(thy) end
+        val result_binding = Binding.make(result_name,pos)
         val raw_fields' = case res_ty of 
                             NONE => raw_fields
-                          | SOME res_ty => raw_fields @ [(Binding.make(NameGeneration.embret_var_name ("void", 1),pos),res_ty, NoSyn)]
+                          | SOME res_ty => raw_fields @ [(result_binding,res_ty, NoSyn)]
     in  thy |> add_record_cmd {overloaded = false} is_global_kind 
-                              (raw_params, binding) raw_parent raw_fields' 
+                              raw_params binding raw_parent raw_fields' 
             |> upd_state_typ 
 
     end
 
-val add_record_cmd = add_record_cmd0 read_fields;
-val add_record_cmd' = add_record_cmd0 pair;
+val add_record_cmd    = add_record_cmd0 read_fields;
+val add_record_cmd'   = add_record_cmd0 pair;
 
 val new_state_record  = new_state_record0 add_record_cmd
 val new_state_record' = new_state_record0 add_record_cmd'
 
 val _ =
-  Outer_Syntax.command @{command_keyword global_vars} "define global state record"
-    ((Parse.type_args_constrained -- Parse.binding)
+  Outer_Syntax.command 
+      \<^command_keyword>\<open>global_vars\<close>   
+      "define global state record"
+      ((Parse.type_args_constrained -- Parse.binding)
     -- Scan.succeed NONE
     -- Scan.repeat1 Parse.const_binding
     >> (Toplevel.theory o new_state_record true));
+;
 
 val _ =
-  Outer_Syntax.command @{command_keyword local_vars} "define local state record"
-    ((Parse.type_args_constrained -- Parse.binding) 
+  Outer_Syntax.command 
+      \<^command_keyword>\<open>local_vars_test\<close>  
+      "define local state record"
+      ((Parse.type_args_constrained -- Parse.binding) 
     -- (Parse.typ >> SOME)
     -- Scan.repeat1 Parse.const_binding
-    >> (Toplevel.theory o new_state_record false));
+    >> (Toplevel.theory o new_state_record false))
+;
 end
+\<close>
+
+
+ML \<open> 
+structure Function_Specification_Parser  = 
+  struct
+
+    type funct_spec_src = {    
+        binding:  binding,                         (* name *)
+        params: (binding*string) list, (* parameters and their type*)
+        ret_ty: string option,                     (* return type *)
+        locals: (binding*string*mixfix)list,       (* local variables *)
+        pre_src: string,                           (* precondition src *)
+        post_src: string,                          (* postcondition src *)
+        variant_src: string option,                       (* variant src *)
+        body_src: string * Position.T              (* body src *)
+      }
+
+    type funct_spec_sem = {    
+        params: (binding*typ) list,                (* parameters and their type*)
+        ret_ty: typ,                               (* return type *)
+        pre: term,                                 (* precondition  *)
+        post: term,                                (* postcondition  *)
+        variant: term option                       (* variant  *)
+      }
+
+
+    val parse_arg_decl = Parse.binding -- (Parse.$$$ "::" |-- Parse.typ)
+
+    val parse_param_decls = Args.parens (Parse.enum "," parse_arg_decl)
+      
+    val parse_returns_clause = Scan.option (\<^keyword>\<open>returns\<close> |--  Parse.typ) 
+    
+    val parse_proc_spec = (
+          Parse.binding 
+       -- parse_param_decls
+       -- parse_returns_clause
+      --| \<^keyword>\<open>pre\<close>             -- Parse.term 
+      --| \<^keyword>\<open>post\<close>            -- Parse.term 
+      --  Scan.option( \<^keyword>\<open>variant\<close> --| Parse.term)
+      --| \<^keyword>\<open>local_vars\<close> -- (Scan.repeat1 Parse.const_binding)
+      --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.cartouche>>cartouche)) 
+      ) >> (fn (((((((binding,params),ret_ty),pre_src),post_src),variant_src),locals),body_src) => 
+        {
+          binding = binding, 
+          params=params, 
+          ret_ty=ret_ty, 
+          pre_src=pre_src, 
+          post_src=post_src, 
+          variant_src=variant_src,
+          locals=locals,
+          body_src=body_src} : funct_spec_src
+        )
+
+   fun read_params params ctxt =
+     let
+       val Ts = Syntax.read_typs ctxt (map snd params);
+       val params' = map2 (fn (x, _) => fn T => (x, T)) params Ts;
+       val ctxt' = fold Variable.declare_typ Ts ctxt;
+     in (params', ctxt') end;
+   
+   fun read_result (SOME ret_ty) ctxt = 
+          let val [ty] = Syntax.read_typs ctxt [ret_ty]
+              val ctxt' = Variable.declare_typ ty ctxt           
+          in  (ty, ctxt') end
+      |read_result (NONE) ctxt = (@{typ unit}, ctxt) 
+      
+
+   fun read_function_spec ({ binding ,  params,  ret_ty,  pre_src,  post_src, 
+                                  variant_src, ...} : funct_spec_src
+                               ) ctxt =
+       let val (params', ctxt') = read_params params ctxt
+           val (rty, ctxt'') = read_result ret_ty ctxt' 
+           val pre_term = Syntax.read_term ctxt'' pre_src
+           val post_term = Syntax.read_term ctxt'' post_src
+           val variant = Option.map (Syntax.read_term ctxt'')  variant_src
+       in ({params = params',ret_ty = rty,pre = pre_term,post = post_term,variant = variant},ctxt'') end 
+    
+   fun checkNsem_function_spec ({variant_src=SOME _, ...} : funct_spec_src) _ = 
+                               error "No measure required in non-recursive call"
+      |checkNsem_function_spec (args as {binding , params, ret_ty, pre_src, post_src, 
+                                  variant_src=NONE, locals, body_src} : funct_spec_src
+                               ) thy = 
+       let   val ctxt =  Proof_Context.init_global thy
+             val ({params,ret_ty,pre,post,variant},ctxt') =  read_function_spec args ctxt
+             val args_typ = HOLogic.mk_tupleT(map snd params)
+             val ctxt'' = Proof_Context.background_theory 
+                              (new_state_record false ((([],binding), error "No return type internally declared (here NONE is making 'get_result_value_conf' fail)" NONE),locals))
+                              (ctxt')
+             val ty_bind =  Binding.prefix_name "'a " (Binding.suffix_name "_scheme" binding)
+             val sty = Syntax.parse_typ ctxt (Binding.name_of ty_bind)
+             val mty = StateMgt_core.MON_SE_T ret_ty sty 
+       in    (Proof_Context.theory_of ctxt'') end
+
+   fun checkNsem_rec_function_spec ({ binding ,  params,  ret_ty,  pre_src,  post_src, 
+                                  variant_src,  locals, body_src} : funct_spec_src
+                               ) thy = 
+        let val _ = case variant_src of 
+                      NONE => warning ("no measure provided; measure parameterized")
+                     |SOME _ => ()
+        in   (warning "rec_function_spec not yet implemented; ignored";thy) end 
+   
+   val _ =
+     Outer_Syntax.command 
+         \<^command_keyword>\<open>function_spec\<close>   
+         "define Clean function specification"
+         (parse_proc_spec >> (Toplevel.theory o checkNsem_function_spec));
+   
+   val _ =
+     Outer_Syntax.command 
+         \<^command_keyword>\<open>rec_function_spec\<close>   
+         "define recursive Clean function specification"
+         (parse_proc_spec >> (Toplevel.theory o checkNsem_rec_function_spec));
+       
+  end
 \<close>
 
 
@@ -576,7 +644,7 @@ by (simp add: assign_def assms exec_bind_SE_success bind_SE'_def)
 lemma non_exec_assign_global  : 
 assumes "\<not> exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign_global upd rhs; M)) = ((upd (\<lambda>_. rhs \<sigma>) \<sigma>) \<Turnstile>  M)"
-by(simp add: non_exec_assign assms)
+by(simp add: assign_global_def non_exec_assign assms)
 
 lemma non_exec_assign_global'  : 
 assumes "\<not> exec_stop \<sigma>"
@@ -587,17 +655,17 @@ shows   "(\<sigma> \<Turnstile> (assign_global upd rhs;- M)) = ((upd (\<lambda>_
 lemma exec_assign_global  : 
 assumes "exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign_global upd rhs; M)) = ( \<sigma> \<Turnstile>  M)"
-  by (simp add: assign_def assms exec_bind_SE_success)
+  by (simp add: assign_global_def assign_def assms exec_bind_SE_success)
 
 lemma exec_assign_global'  : 
 assumes "exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> (assign_global upd rhs;- M)) = ( \<sigma> \<Turnstile>  M)"
-  by (simp add:  assign_def assms exec_bind_SE_success bind_SE'_def)
+  by (simp add: assign_global_def assign_def assms exec_bind_SE_success bind_SE'_def)
 
 lemma non_exec_assign_local  : 
 assumes "\<not> exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign_local upd rhs; M)) = ((upd (map_hd (\<lambda>_. rhs \<sigma>)) \<sigma>) \<Turnstile>  M)"
-  by(simp add: non_exec_assign assms)
+  by(simp add: assign_local_def non_exec_assign assms)
 
 lemma non_exec_assign_local'  : 
 assumes "\<not> exec_stop \<sigma>"
@@ -608,12 +676,12 @@ shows   "(\<sigma> \<Turnstile> (assign_local upd rhs;- M)) = ((upd (map_hd (\<l
 lemma exec_assign_local  : 
 assumes "exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign_local upd rhs; M)) = ( \<sigma> \<Turnstile>  M)"
-  by (simp add: assign_def assms exec_bind_SE_success)
+  by (simp add: assign_local_def assign_def assms exec_bind_SE_success)
 
 lemma exec_assign_local'  : 
 assumes "exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> (assign_global upd rhs;- M)) = ( \<sigma> \<Turnstile>  M)"
-  by (simp add:  assign_def assms exec_bind_SE_success bind_SE'_def)
+  by (simp add: assign_global_def assign_def assms exec_bind_SE_success bind_SE'_def)
 
 
 lemmas exec_assignD = exec_assign[THEN iffD1]
@@ -647,23 +715,46 @@ shows   "(\<sigma> \<Turnstile> (call_0\<^sub>C M;- M')) = (\<sigma> \<Turnstile
 
 lemma non_exec_call_1  : 
 assumes "\<not> exec_stop \<sigma>"
-shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> (call_1\<^sub>C M A\<^sub>1); M')) = (\<sigma> \<Turnstile> M (A\<^sub>1 \<sigma>);- M')"
-  by (simp add: assms bind_SE'_def bind_SE_def call_1\<^sub>C_def valid_SE_def)
+shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> (call_1\<^sub>C M A\<^sub>1); M' x)) = (\<sigma> \<Turnstile> (x \<leftarrow> M (A\<^sub>1 \<sigma>); M' x))"
+  by (simp add: assms bind_SE'_def call\<^sub>C_def bind_SE_def call_1\<^sub>C_def valid_SE_def)
 
 lemma non_exec_call_1'  : 
 assumes "\<not> exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> call_1\<^sub>C M A\<^sub>1;- M') = (\<sigma> \<Turnstile>  M (A\<^sub>1 \<sigma>);- M')"
   by (simp add: assms bind_SE'_def non_exec_call_1)
 
+
 lemma exec_call_1  : 
 assumes "exec_stop \<sigma>"
-shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> call_1\<^sub>C M A\<^sub>1; M')) = (\<sigma> \<Turnstile>  M')"
-  by (simp add: assms call_1\<^sub>C_def exec_bind_SE_success)
+shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> call_1\<^sub>C M A\<^sub>1; M' x)) = (\<sigma> \<Turnstile>  M' undefined)"
+  by (simp add: assms call_1\<^sub>C_def call\<^sub>C_def exec_bind_SE_success)
 
 lemma exec_call_1'  : 
 assumes "exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> (call_1\<^sub>C M A\<^sub>1;- M')) = (\<sigma> \<Turnstile>  M')"
   by (simp add: assms bind_SE'_def exec_call_1)
+
+
+lemma non_exec_call  : 
+assumes "\<not> exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> (call\<^sub>C M A\<^sub>1); M' x)) = (\<sigma> \<Turnstile> (x \<leftarrow> M (A\<^sub>1 \<sigma>); M' x))"
+  by (simp add: assms call\<^sub>C_def bind_SE'_def bind_SE_def call_1\<^sub>C_def valid_SE_def)
+
+lemma non_exec_call'  : 
+assumes "\<not> exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> call\<^sub>C M A\<^sub>1;- M') = (\<sigma> \<Turnstile>  M (A\<^sub>1 \<sigma>);- M')"
+  by (simp add: assms bind_SE'_def non_exec_call)
+
+
+lemma exec_call  : 
+assumes "exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> call\<^sub>C M A\<^sub>1; M' x)) = (\<sigma> \<Turnstile>  M' undefined)"
+  by (simp add: assms call\<^sub>C_def call_1\<^sub>C_def exec_bind_SE_success)
+
+lemma exec_call'  : 
+assumes "exec_stop \<sigma>"
+shows   "(\<sigma> \<Turnstile> (call\<^sub>C M A\<^sub>1;- M')) = (\<sigma> \<Turnstile>  M')"
+  by (metis assms call_1\<^sub>C_def exec_call_1')
 
 
 lemma non_exec_call_2  : 
@@ -841,9 +932,24 @@ lemma break_while_skip [simp]: "break ;- (while\<^sub>C b do c od) = break"
 lemma unset_break_idem [simp] : 
  "( unset_break_status ;- unset_break_status ;- M) = (unset_break_status ;- M)"
   apply(rule ext)  unfolding unset_break_status_def bind_SE'_def bind_SE_def by auto
+
+lemma return_cancel1_idem [simp] : 
+ "( return\<^sub>C X E ;- assign_global X E' ;- M) = ( return\<^sub>C X E ;- M)"
+  apply(rule ext, rename_tac "\<sigma>")  
+  unfolding unset_break_status_def bind_SE'_def bind_SE_def
+            assign_def return\<^sub>C_def assign_global_def assign_local_def
+  apply(case_tac "exec_stop \<sigma>")
+  apply auto
+  by (simp add: exec_stop_def set_return_status_def)
     
-    
-method bound_while for n::nat = (simp only: while_k_SE [of n])
+lemma return_cancel2_idem [simp] : 
+ "( return\<^sub>C X E ;- assign_local X E' ;- M) = ( return\<^sub>C X E ;- M)"
+    apply(rule ext, rename_tac "\<sigma>")  
+  unfolding unset_break_status_def bind_SE'_def bind_SE_def
+            assign_def return\<^sub>C_def assign_global_def assign_local_def
+  apply(case_tac "exec_stop \<sigma>")
+   apply auto
+  by (simp add: exec_stop_def set_return_status_def)
 
 
 text\<open>Somewhat amazingly, this unfolding lemma crucial for symbolic execution still holds ... 
@@ -926,38 +1032,6 @@ corollary exec_while_k :
     
 
 lemmas exec_while_kD = exec_while_k[THEN iffD1]
-
-named_theorems memory_theory
-method memory_theory = (simp only: memory_theory MonadSE.bind_assoc')
-method norm = (auto dest!: assert_D)
-
-(* Remark: if instead of a recursive call, we use "+", this corresponds to recursing only on the
-   first goal, and thus does not work with nested loops *)
-method loop_coverage_steps methods simp_mid =
-  ((ematch assume_E')
-    | (ematch if_SE_execE'', simp_mid?)
-    | (dmatch exec_while_kD)
-    | (dmatch exec_skipD)
-    | (dmatch exec_assignD')
-  ); (loop_coverage_steps simp_mid)?
-method loop_coverage for n::nat methods simp_mid simp_end =
-       (bound_while n)?, loop_coverage_steps simp_mid, simp_end?
-  
-method branch_and_loop_coverage for n::nat uses mt = loop_coverage n memory_theory simp_all
-method mcdc_and_loop_coverage for n::nat = loop_coverage n auto auto
-
-
-(* method mcdc_and_loop_coverage for n::nat = loop_coverage n norm norm *)
-
-method loop_coverage_positive_branch_steps =
-  ((ematch assume_E')
-    | (ematch if_SE_execE''_pos, memory_theory?)
-    | (dmatch exec_while_kD, ematch if_SE_execE'', memory_theory?)
-    | (dmatch exec_skipD)
-    | (dmatch exec_assignD')
-  ); loop_coverage_positive_branch_steps?
-method loop_coverage_positive_branch for n::nat =
-  (bound_while n)?, loop_coverage_positive_branch_steps, simp_all?
 
 end
 
