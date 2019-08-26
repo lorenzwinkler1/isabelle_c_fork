@@ -8,8 +8,8 @@ text\<open>Pronounce : "C lean".\<close>
 
 theory Clean
   imports Symbex_MonadSE
-  keywords "global_vars" "local_vars" :: thy_decl 
-     and "pre" "post" "local_variables" "returns" "variant" 
+  keywords "global_vars" "local_vars_test" :: thy_decl 
+     and "returns" "pre" "post" "local_vars" "variant" 
      and "function_spec" :: thy_goal
      and "rec_function_spec"   :: thy_goal
 
@@ -546,7 +546,7 @@ val _ =
 
 val _ =
   Outer_Syntax.command 
-      \<^command_keyword>\<open>local_vars\<close>  
+      \<^command_keyword>\<open>local_vars_test\<close>  
       "define local state record"
       ((Parse.type_args_constrained -- Parse.binding) 
     -- (Parse.typ >> SOME)
@@ -585,7 +585,7 @@ structure Function_Specification_Parser  =
       --| \<^keyword>\<open>pre\<close>             -- Parse.term 
       --| \<^keyword>\<open>post\<close>            -- Parse.term 
       --  Scan.option( \<^keyword>\<open>variant\<close> --| Parse.term)
-      --| \<^keyword>\<open>local_variables\<close> -- (Scan.repeat1 Parse.const_binding)
+      --| \<^keyword>\<open>local_vars\<close> -- (Scan.repeat1 Parse.const_binding)
       --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.cartouche>>cartouche)) 
       ) >> (fn (((((((binding,params),ret_ty),pre_src),post_src),variant_src),locals),body_src) => 
         {

@@ -111,21 +111,23 @@ subsection \<open>Encoding swap in Clean\<close>
 (* for some strange reason, "result" is no longer a term. term "result" crashes. *)
 (* list-lifting should be automatic in local_vars. *)
 
+(* some syntax tests *)
+
 function_spec swap () 
-pre    "a"
-post    "b"
-local_variables  tmp :: "int" 
-defines \<open>True\<close>
+pre          "a"
+post         "b"
+local_vars   tmp :: "int" 
+defines      \<open>True\<close>
 
 rec_function_spec swap () returns "x"
-pre    "a"
-post    "b"
-variant "c"
-local_variables  tmp :: "int" 
-defines \<open>True\<close>
+pre          "a"
+post         "b"
+variant      "c"
+local_vars   tmp :: "int" 
+defines      \<open>True\<close>
 
 
-local_vars swap "unit"
+local_vars_test swap "unit"
    tmp :: "int" 
 
 (* Has the effect: *)
@@ -185,7 +187,7 @@ definition swap' :: "nat \<times> nat \<Rightarrow>  (unit,'a global_state_state
 subsection \<open>Encoding partition in Clean\<close>
 
 (* recall: list-lifting should be automatic in local_vars. *)
-local_vars  partition "nat"
+local_vars_test  partition "nat"
     pivot  :: "int"
     i      :: "nat"
     j      :: "nat"
@@ -259,7 +261,7 @@ definition partition_post :: "nat \<times> nat \<Rightarrow> nat \<Rightarrow> '
 
 subsection \<open>Encoding quicksort in Clean\<close>
 
-local_vars  quicksort "unit"
+local_vars_test  quicksort "unit"
     p  :: "nat"
 
 
@@ -277,16 +279,6 @@ funct quicksort(lo::nat, hi::nat) returns unit
       else Skip\<close>
       
 *)
-
-
-ML\<open>
- HOLogic.listT ;
-
- HOLogic.nil_const ;
-
- HOLogic.cons_const ;
-
-\<close>
 
  
 
@@ -325,17 +317,12 @@ funct quicksort(lo::int, hi::int) returns unit
       else Skip\<close>
       
 *)
-find_theorems name : "wfrec"
-find_theorems name : "curry"
-term "wfrec R (\<lambda>f. \<lambda>(a,b). g f   )"
-term " (curry f)"
 
 definition quicksort_pre :: "nat \<times> nat \<Rightarrow> 'a local_quicksort_state_scheme \<Rightarrow>   bool"
   where   "quicksort_pre \<equiv> \<lambda>(i,j). \<lambda>\<sigma>.  True "
 
 definition quicksort_post :: "nat \<times> nat \<Rightarrow> unit \<Rightarrow> 'a local_quicksort_state_scheme \<Rightarrow>  bool"
   where   "quicksort_post \<equiv> \<lambda>(i,j). \<lambda> res. \<lambda>\<sigma>.  True"   
-
 
 
 definition quicksort_core :: "   (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E)
@@ -356,6 +343,21 @@ definition quicksort :: " ((nat \<times> nat) \<times> (nat \<times> nat)) set \
   where   "quicksort order \<equiv> wfrec order (\<lambda>X. \<lambda>(lo, hi). block\<^sub>C push_local_quicksort_state 
                                                                 (quicksort_core X (lo,hi)) 
                                                                 pop_local_quicksort_state)"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 (* bric a brac *)
 term "Clean.syntax_assign"
