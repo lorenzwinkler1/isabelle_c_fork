@@ -304,7 +304,7 @@ fun mk_meta_eq (t, u) = meta_eq_const (fastype_of t) $ t $ u;
 local open StateMgt_core
 
 val result_name = "result_value"
-fun mk_result_name x = "result_value"
+fun mk_result_name x = result_name
 
 fun get_result_value_conf name thy = 
         let val  S = filter_attr_of name thy
@@ -583,7 +583,7 @@ structure Function_Specification_Parser  =
              val ({params,ret_ty,pre,post,variant},ctxt') =  read_function_spec args ctxt
              val args_typ = HOLogic.mk_tupleT(map snd params)
              val ctxt'' = Proof_Context.background_theory 
-                              (new_state_record false ((([],binding), NONE),locals))
+                              (new_state_record false ((([],binding), error "No return type internally declared (here NONE is making 'get_result_value_conf' fail)" NONE),locals))
                               (ctxt')
              val ty_bind =  Binding.prefix_name "'a " (Binding.suffix_name "_scheme" binding)
              val sty = Syntax.parse_typ ctxt (Binding.name_of ty_bind)
