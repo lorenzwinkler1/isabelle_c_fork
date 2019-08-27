@@ -1392,7 +1392,7 @@ val _ =
       (C_Module.Data_Accept.put
         (fn ast => fn env_lang => fn context =>
           if Config.get (Context.proof_of context) clean_C99 then
-            let val l_meta = Clean_Core.compile ast env_lang (Context.theory_name (Context.theory_of context), length (C_Module.Data_In_Source.get context))
+            let val l_meta = Clean_Core.compile (ast |> C_Grammar_Rule.start_happy1 |> the) env_lang (Context.theory_name (Context.theory_of context), length (C_Module.Data_In_Source.get context))
             in Context.map_theory
                 (Outer_Syntax'.command'
                   (outer_syntax_commands''''
