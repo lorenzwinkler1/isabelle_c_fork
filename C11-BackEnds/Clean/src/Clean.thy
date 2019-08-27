@@ -15,7 +15,7 @@ theory Clean
 
 begin
   
-text\<open>Clean is a minimalistic imperative language 
+text\<open>\<^verbatim>\<open>Clean\<close> is a minimalistic imperative language 
 with C-like control-flow operators based on a shallow embedding into the
 SE exception Monad theory formalized in @{theory "Clean.MonadSE"}. It comprises:
 \begin{itemize}
@@ -26,10 +26,17 @@ SE exception Monad theory formalized in @{theory "Clean.MonadSE"}. It comprises:
 \item parameters are modeled via functional abstractions 
       (functions are Monads ...); a passing of parameters to local variables
       might be added later.
-\item parametric polymorphism might be added later; at present, states are
-      restricted to be monmorphic.
+\item direct recursive function calls
 \item cartouche syntax for \<lambda>-lifted update operations supporting global and local variables.
-\end{itemize}\<close>
+\end{itemize}
+
+Note that \<^verbatim>\<open>Clean\<close> in its current version is restricted to \<^emph>\<open>monomorphic\<close> global and local variables
+as well as function parameters. This limitation will be overcome at a later stage. The construction
+in itself, however, is deeply based on parametric polymorphism (enabling structured proofs over
+extensible records as used in languages of the ML family
+\<^url>\<open>http://www.cs.ioc.ee/tfp-icfp-gpce05/tfp-proc/21num.pdf\<close>
+and Haskell \<^url>\<open>https://www.schoolofhaskell.com/user/fumieval/extensible-records\<close>).
+\<close>
 
 
 section\<open> Control-States  \<close>
@@ -56,7 +63,7 @@ definition exec_stop :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool"
   where   "exec_stop = (\<lambda> \<sigma>. break_status \<sigma> \<or> return_status \<sigma> )"
 
 
-section\<open> A Specialized Representation of States based on Records) \<close>
+section\<open> Global and Local State Management based on Extensible Records \<close>
 
 ML\<open>
 
@@ -132,11 +139,9 @@ fun declare_state_variable_local f field ctxt  =
                  handle Symtab.DUP _ => error("multiple declaration of global var"))
              end;
 
-end
+end\<close>
 
-\<close>
-
-text\<open> A "lifter" that embeds a state transformer into the state-exception monad. \<close>
+section\<open> The Core Clean Operations (embedded in the State-Exception Monad) \<close>
 
 consts syntax_assign :: "('\<alpha>  \<Rightarrow> int) \<Rightarrow> int \<Rightarrow> term" (infix ":=" 60)
 
@@ -287,10 +292,9 @@ fun  mk_undefined (@{typ "unit"}) = Const (\<^const_name>\<open>Product_Type.Uni
 
 fun meta_eq_const T = Const (\<^const_name>\<open>Pure.eq\<close>, T --> T --> propT);
 
-fun mk_meta_eq (t, u) = meta_eq_const (fastype_of t) $ t $ u;
+fun mk_meta_eq (t, u) = meta_eq_const (fastype_of t) $ t $ u;\<close>
 
-
-(* the meat *)
+ML\<open>
 structure StateMgt = 
 struct
 
@@ -491,11 +495,13 @@ val _ =
 end
 \<close>
 
-section\<open> Syntactic sugar support via \<lambda>-lifting cartouches for global and local variables \<close>
+section\<open>Syntactic Sugar supporting \<lambda>-lifting in cartouches for global and local variables \<close>
 ML\<open>
 
 \<close>
 ML \<open>
+val SPY5 = Unsynchronized.ref (Bound 0);
+val SPY6 = Unsynchronized.ref (Bound 0);
 
   local
     fun mk_local_access X = Const (@{const_name "Fun.comp"}, dummyT) 
@@ -509,11 +515,13 @@ ML \<open>
                                else tm              (* no lifting *)
       | Free _ => tm
       | Var _ => tm
-      | Bound _ => tm
+      | Bound n => if n > db then Bound(n + 1) else Bound n 
       | Abs (x, a, tm') => Abs(x, a, app_sigma (db+1) tm' ctxt)
       | t1 $ t2 => (app_sigma db t1 ctxt) $ (app_sigma db t2 ctxt)
       
-    fun mk_assign t1 ctxt = case t1 of
+
+(*
+fun mk_assign t1 ctxt = case t1 of
         (Const("_type_constraint_",_)) $ (Const (name,ty))    => 
                           if StateMgt_core.is_program_variable name (Proof_Context.theory_of ctxt) 
                           then Const(name^Record.updateN, ty)
@@ -528,6 +536,32 @@ ML \<open>
                                       $ (absdummy dummyT (app_sigma 1 t2 ctxt)) 
                                       $ (Bound 0))))
              | _ => Abs ("\<sigma>", dummyT, app_sigma 0 tm ctxt)
+
+*)
+
+    fun mk_assign t1 ctxt = case t1 of
+        (Const("_type_constraint_",_)) $ (Const (name,ty))    => 
+                          if StateMgt_core.is_program_variable name (Proof_Context.theory_of ctxt) 
+                          then Const(name^Record.updateN, ty)
+                          else raise TERM ("mk_assign", [t1])
+      | _ => raise TERM ("mk_assign", [t1])
+
+    fun transform_term tm ctxt =
+            case tm of
+               Const(@{const_name "Clean.syntax_assign"},_) $ t1 $ t2 =>
+                  (case t1 of
+                    (Const("_type_constraint_",_)) $ (Const (name,ty))    => 
+                          if StateMgt_core.is_global_program_variable name (Proof_Context.theory_of ctxt) 
+                          then Const(@{const_name "assign_global"},dummyT)
+                                    $ Const(name^Record.updateN, ty)                  
+                                    $ Abs ("\<sigma>", dummyT,  app_sigma 0 t2 ctxt)
+                          else if StateMgt_core.is_local_program_variable name (Proof_Context.theory_of ctxt) 
+                               then Const(@{const_name "assign_local"},dummyT)
+                                    $ Const(name^Record.updateN, ty)
+                                    $ Abs ("\<sigma>", dummyT,  app_sigma 0 t2 ctxt)
+                               else raise TERM ("mk_assign", [t1])
+                   | _ => Abs ("\<sigma>", dummyT, app_sigma 0 tm ctxt))              
+             | _ => Abs ("\<sigma>", dummyT, app_sigma 0 tm ctxt)
   in
     fun string_tr ctxt (content:(string * Position.T) -> (string * Position.T) list) (args:term list) : term =
       let fun err () = raise TERM ("string_tr", args) 
@@ -538,7 +572,9 @@ ML \<open>
               SOME (pos, _) =>
               let val txt = Symbol_Pos.implode(content (s,pos))
                   val tm = Syntax.parse_term ctxt txt
+                  val _ = (SPY5:=tm)
                   val tr = transform_term tm ctxt
+                  val _ = (SPY6:=tr)
                   val ct = Syntax.check_term ctxt tr
               in
                 ct
@@ -621,7 +657,6 @@ structure Function_Specification_Parser  =
           let val [ty] = Syntax.read_typs ctxt [ret_ty]
               val ctxt' = Variable.declare_typ ty ctxt           
           in  (ty, ctxt') end
-      
 
    fun read_function_spec ({ binding ,  params,  ret_type,  pre_src,  post_src, 
                                   variant_src, ...} : funct_spec_src
@@ -675,7 +710,7 @@ structure Function_Specification_Parser  =
 \<close>
 
 
-section\<open>Monadic Presentation of Assignments (based on Extensible Records) \<close>
+section\<open>Symbolic Execution Rules \<close>
 
 
 text\<open> ... and we provide syntactic sugar via cartouches \<close>

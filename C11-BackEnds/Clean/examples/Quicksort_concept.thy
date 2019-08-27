@@ -113,13 +113,13 @@ subsection \<open>Encoding swap in Clean\<close>
 
 (* some syntax tests *)
 
-function_spec swap' () 
-pre          "\<open>length A = 100\<close> "
+function_spec swap' (i::"nat",j::"nat") 
+pre          "\<open>length A = 100\<close>"
 post         "\<open>\<lambda>res. length A = 100 \<and> res = ()\<close>"
 local_vars   tmp :: "int" 
-defines      "\<lambda>\<sigma>. (\<lambda>(i,j). ((assign_local tmp_update \<open>A ! i\<close>)  ;-
-                            (assign_global A_update  \<open>list_update A i (A ! j)\<close>) ;- 
-                            (assign_global A_update  \<open>list_update A j tmp\<close> )))"
+defines      "\<lambda>(i,j). \<open> tmp := A ! i\<close>  ;-
+                      \<open> A := list_update A i (A ! j)\<close> ;- 
+                      \<open> A := list_update A j tmp\<close> "
 
 rec_function_spec swap'' () returns "unit"
 pre          "a"
