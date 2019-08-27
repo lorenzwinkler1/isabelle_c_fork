@@ -114,17 +114,21 @@ subsection \<open>Encoding swap in Clean\<close>
 (* some syntax tests *)
 
 function_spec swap' () 
-pre          "\<open>length A = 100\<close>"
-post         "a \<and> b"
+pre          "\<lambda>\<sigma>. length (A \<sigma>)  = 100"
+post         "\<lambda>\<sigma> \<sigma>'. \<lambda>res. length (A \<sigma>)  = 100"
 local_vars   tmp :: "int" 
-defines      \<open>True\<close>
+defines      "\<lambda>\<sigma>. (\<lambda>(i,j). ((assign_local tmp_update \<open>A ! i\<close>)  ;-
+                            (assign_global A_update  \<open>list_update A i (A ! j)\<close>) ;- 
+                            (assign_global A_update  \<open>list_update A j tmp\<close> )))"
 
-rec_function_spec swap () returns "unit"
+rec_function_spec swap'' () returns "unit"
 pre          "a"
 post         "b"
 variant      "c"
 local_vars   tmp :: "int" 
-defines      \<open>True\<close>
+defines      \<open>(\<lambda>(i,j). ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
+                        (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
+                        (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>)))))\<close>
 
 
 local_vars_test swap "unit"

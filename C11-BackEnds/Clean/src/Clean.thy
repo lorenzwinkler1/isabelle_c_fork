@@ -28,11 +28,8 @@ SE exception Monad theory formalized in @{theory "Clean.MonadSE"}. It comprises:
       might be added later.
 \item parametric polymorphism might be added later; at present, states are
       restricted to be monmorphic.
-\item cartouche syntax for update operations.
+\item cartouche syntax for \<lambda>-lifted update operations supporting global and local variables.
 \end{itemize}\<close>
-  
-  
-chapter \<open>Proof of concept for a monadic symbolic execution calculus for WHILE programs\<close>
 
 
 section\<open> Control-States  \<close>
@@ -40,17 +37,6 @@ section\<open> Control-States  \<close>
 record  control_state = 
             break_status  :: bool
             return_status :: bool
-
-ML\<open> 
-fun typ_2_string_raw (Type(s,S)) = 
-        let  val h = if null S then "" else enclose "(" ")" (commas (map typ_2_string_raw S)) ;
-        in h ^ s end
-   |typ_2_string_raw (TFree(s,_))  = s 
-   |typ_2_string_raw (TVar((s,n),_))  = s^(Int.toString n) ;
-
-typ_2_string_raw @{ typ "('a) control_state_ext"}
-\<close>
-
 
 (* break quites innermost while or for, return quits an entire execution sequence. *)  
 definition break :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"
@@ -68,6 +54,87 @@ definition unset_return_status :: "(unit, ('\<sigma>_ext) control_state_ext) MON
 
 definition exec_stop :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool"
   where   "exec_stop = (\<lambda> \<sigma>. break_status \<sigma> \<or> return_status \<sigma> )"
+
+
+section\<open> A Specialized Representation of States based on Records) \<close>
+
+ML\<open>
+
+structure StateMgt_core = 
+struct
+
+val control_stateT = Syntax.parse_typ @{context} "control_state"
+val control_stateTE = @{typ "('\<sigma>_ext)control_state_ext"};
+
+fun control_state_extT t = Type(@{type_name "Clean.control_state.control_state_ext"}, [t])
+
+fun optionT t = Type(@{type_name "Option.option"},[t]);
+fun MON_SE_T res state = state --> optionT(HOLogic.mk_prodT(res,state));
+
+fun merge_control_stateT (@{typ "control_state"},t) = t
+   |merge_control_stateT (t, @{typ "control_state"}) = t
+   |merge_control_stateT (t, t') = if (t = t') then t else error"can not merge Clean state"
+
+datatype var_kind = global_var of typ | local_var of typ
+
+fun type_of(global_var t) = t | type_of(local_var t) = t
+
+type state_field_tab = var_kind Symtab.table
+
+structure Data = Generic_Data
+(
+  type T                      = (state_field_tab * typ) 
+  val  empty                  = (Symtab.empty,control_stateT)
+  val  extend                 = I
+  fun  merge((s1,t1),(s2,t2)) = (Symtab.merge (op =)(s1,s2),merge_control_stateT(t1,t2))
+);
+
+
+val get_data                   = Data.get o Context.Proof;
+val map_data                   = Data.map;
+val get_data_global            = Data.get o Context.Theory;
+val map_data_global            = Context.theory_map o map_data;
+
+val get_state_type             = snd o get_data
+val get_state_type_global      = snd o get_data_global
+val get_state_field_tab        = fst o get_data
+val get_state_field_tab_global = fst o get_data_global
+fun upd_state_type f           = map_data (fn (tab,t) => (tab, f t))
+fun upd_state_type_global f    = map_data_global (fn (tab,t) => (tab, f t))
+
+fun fetch_state_field (ln,X)   = let val a::b:: _  = rev (Long_Name.explode ln) in ((b,a),X) end;
+
+fun filter_name name ln        = let val ((a,b),X) = fetch_state_field ln
+                                 in  if a = name then SOME((a,b),X) else NONE end;
+
+fun filter_attr_of name thy    = let val tabs = get_state_field_tab_global thy
+                                 in  map_filter (filter_name name) (Symtab.dest tabs) end;
+
+fun is_program_variable name thy = Symtab.defined((fst o get_data_global) thy) name
+
+fun is_global_program_variable name thy = case Symtab.lookup((fst o get_data_global) thy) name of
+                                             SOME(global_var _) => true
+                                           | _ => false
+
+fun is_local_program_variable name thy = case Symtab.lookup((fst o get_data_global) thy) name of
+                                             SOME(local_var _) => true
+                                           | _ => false
+
+fun declare_state_variable_global f field thy  =  
+             let val Const(name,ty) = Syntax.read_term_global thy field
+             in  (map_data_global (apfst (Symtab.update_new(name,f ty))) (thy)
+                 handle Symtab.DUP _ => error("multiple declaration of global var"))
+             end;
+
+fun declare_state_variable_local f field ctxt  = 
+             let val Const(name,ty) = Syntax.read_term_global  (Context.theory_of ctxt) field
+             in  (map_data (apfst (Symtab.update_new(name,f ty)))(ctxt)
+                 handle Symtab.DUP _ => error("multiple declaration of global var"))
+             end;
+
+end
+
+\<close>
 
 text\<open> A "lifter" that embeds a state transformer into the state-exception monad. \<close>
 
@@ -191,83 +258,6 @@ translations
           "while\<^sub>C c do b od" == "CONST Clean.while_C c b"
 
     
-section\<open> A Specialized Representation of States based on Records) \<close>
-
-ML\<open>
-
-structure StateMgt_core = 
-struct
-
-val control_stateT = Syntax.parse_typ @{context} "control_state"
-val control_stateTE = @{typ "('\<sigma>_ext)control_state_ext"};
-
-fun control_state_extT t = Type(@{type_name "Clean.control_state.control_state_ext"}, [t])
-
-fun optionT t = Type(@{type_name "Option.option"},[t]);
-fun MON_SE_T res state = state --> optionT(HOLogic.mk_prodT(res,state));
-
-fun merge_control_stateT (@{typ "control_state"},t) = t
-   |merge_control_stateT (t, @{typ "control_state"}) = t
-   |merge_control_stateT (t, t') = if (t = t') then t else error"can not merge Clean state"
-
-datatype var_kind = global_var of typ | local_var of typ
-
-fun type_of(global_var t) = t | type_of(local_var t) = t
-
-type state_field_tab = var_kind Symtab.table
-
-structure Data = Generic_Data
-(
-  type T                      = (state_field_tab * typ) 
-  val  empty                  = (Symtab.empty,control_stateT)
-  val  extend                 = I
-  fun  merge((s1,t1),(s2,t2)) = (Symtab.merge (op =)(s1,s2),merge_control_stateT(t1,t2))
-);
-
-
-val get_data                   = Data.get o Context.Proof;
-val map_data                   = Data.map;
-val get_data_global            = Data.get o Context.Theory;
-val map_data_global            = Context.theory_map o map_data;
-
-val get_state_type             = snd o get_data
-val get_state_type_global      = snd o get_data_global
-val get_state_field_tab        = fst o get_data
-val get_state_field_tab_global = fst o get_data_global
-fun upd_state_type f           = map_data (fn (tab,t) => (tab, f t))
-fun upd_state_type_global f    = map_data_global (fn (tab,t) => (tab, f t))
-
-fun fetch_state_field (ln,X)   = let val a::b:: _  = rev (Long_Name.explode ln) in ((b,a),X) end;
-
-fun filter_name name ln        = let val ((a,b),X) = fetch_state_field ln
-                                 in  if a = name then SOME((a,b),X) else NONE end;
-
-fun filter_attr_of name thy    = let val tabs = get_state_field_tab_global thy
-                                 in  map_filter (filter_name name) (Symtab.dest tabs) end;
-
-fun is_program_variable name thy = Symtab.defined((fst o get_data_global) thy) name
-
-fun is_global_program_variable name thy = case Symtab.lookup((fst o get_data_global) thy) name of
-                                             SOME(global_var _) => true
-                                           | _ => false
-
-fun is_local_program_variable name thy = not(is_global_program_variable name thy)
-
-fun declare_state_variable_global f field thy  =  
-             let val Const(name,ty) = Syntax.read_term_global thy field
-             in  (map_data_global (apfst (Symtab.update_new(name,f ty))) (thy)
-                 handle Symtab.DUP _ => error("multiple declaration of global var"))
-             end;
-
-fun declare_state_variable_local f field ctxt  = 
-             let val Const(name,ty) = Syntax.read_term_global  (Context.theory_of ctxt) field
-             in  (map_data (apfst (Symtab.update_new(name,f ty)))(ctxt)
-                 handle Symtab.DUP _ => error("multiple declaration of global var"))
-             end;
-
-end
-
-\<close>
 
 ML\<open>
 (* HOLogic extended *)
@@ -501,6 +491,72 @@ val _ =
 end
 \<close>
 
+section\<open> Syntactic sugar support via \<lambda>-lifting cartouches for global and local variables \<close>
+ML\<open>
+
+\<close>
+ML \<open>
+
+  local
+    fun mk_local_access X = Const (@{const_name "Fun.comp"}, dummyT) 
+                            $ Const (@{const_name "List.list.hd"}, dummyT) $ X
+
+    fun app_sigma db tm ctxt = case tm of
+        Const(name, _) => if StateMgt_core.is_global_program_variable name (Proof_Context.theory_of ctxt) 
+                          then tm $ (Bound db) (* lambda lifting *)
+                          else if StateMgt_core.is_local_program_variable name (Proof_Context.theory_of ctxt) 
+                               then (mk_local_access tm) $ (Bound db) (* lambda lifting local *)
+                               else tm              (* no lifting *)
+      | Free _ => tm
+      | Var _ => tm
+      | Bound _ => tm
+      | Abs (x, a, tm') => Abs(x, a, app_sigma (db+1) tm' ctxt)
+      | t1 $ t2 => (app_sigma db t1 ctxt) $ (app_sigma db t2 ctxt)
+      
+    fun mk_assign t1 ctxt = case t1 of
+        (Const("_type_constraint_",_)) $ (Const (name,ty))    => 
+                          if StateMgt_core.is_program_variable name (Proof_Context.theory_of ctxt) 
+                          then Const(name^Record.updateN, ty)
+                          else raise TERM ("mk_assign", [t1])
+      | _ => raise TERM ("mk_assign", [t1])
+
+    fun transform_term tm ctxt =
+            case tm of
+               Const("Clean.syntax_assign",_) $ t1 $ t2 =>
+                  Const(@{const_name "assign"},dummyT)
+                  $ (Abs ("\<sigma>", dummyT, ((mk_assign t1 ctxt) 
+                                      $ (absdummy dummyT (app_sigma 1 t2 ctxt)) 
+                                      $ (Bound 0))))
+             | _ => Abs ("\<sigma>", dummyT, app_sigma 0 tm ctxt)
+  in
+    fun string_tr ctxt (content:(string * Position.T) -> (string * Position.T) list) (args:term list) : term =
+      let fun err () = raise TERM ("string_tr", args) 
+      in
+        (case args of
+          [(Const (@{syntax_const "_constrain"}, _)) $ (Free (s, _)) $ p] =>
+            (case Term_Position.decode_position p of
+              SOME (pos, _) =>
+              let val txt = Symbol_Pos.implode(content (s,pos))
+                  val tm = Syntax.parse_term ctxt txt
+                  val tr = transform_term tm ctxt
+                  val ct = Syntax.check_term ctxt tr
+              in
+                ct
+              end
+            | NONE => err ())
+        | _ => err ())
+      end
+  end
+\<close>
+
+syntax "_cartouche_string" :: "cartouche_position \<Rightarrow> string"  ("_")
+
+parse_translation \<open>
+  [(@{syntax_const "_cartouche_string"},
+    (fn ctxt => (string_tr ctxt ((Symbol_Pos.cartouche_content : Symbol_Pos.T list -> Symbol_Pos.T list)
+                 o (Symbol_Pos.explode : string * Position.T -> Symbol_Pos.T list)))) )]
+\<close>
+
 
 ML \<open> 
 structure Function_Specification_Parser  = 
@@ -540,7 +596,8 @@ structure Function_Specification_Parser  =
       --| \<^keyword>\<open>post\<close>            -- Parse.term 
       --  Scan.option( \<^keyword>\<open>variant\<close> --| Parse.term)
       --| \<^keyword>\<open>local_vars\<close> -- (Scan.repeat1 Parse.const_binding)
-      --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.cartouche>>cartouche)) 
+    (*  --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.cartouche>>cartouche)) *)
+      --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.term)) 
       ) >> (fn (((((((binding,params),ret_ty),pre_src),post_src),variant_src),locals),body_src) => 
         {
           binding = binding, 
@@ -591,6 +648,7 @@ structure Function_Specification_Parser  =
                                                         (StateMgt.mk_local_state_name binding))
              val sty = Syntax.parse_typ ctxt'' (Binding.name_of ty_bind)
              val mty = StateMgt_core.MON_SE_T ret_ty sty 
+             val body_term = Syntax.parse_term ctxt'' (fst body_src)
        in    (Proof_Context.theory_of ctxt'') end
 
    fun checkNsem_rec_function_spec ({ binding ,  params,  ret_type,  pre_src,  post_src, 
@@ -807,65 +865,6 @@ shows  "(\<sigma> \<Turnstile> (while\<^sub>C P do B\<^sub>1 od);-M) = (\<sigma>
   unfolding while_C_def MonadSE.if_SE_def Symbex_MonadSE.valid_SE_def MonadSE.bind_SE'_def bind_SE_def
   apply simp using assms by blast    
 
-
-
-section\<open> Syntactic sugar support via \<lambda>-lifting cartouches for global and local variables \<close>
-
-ML \<open>
-  local
-    fun app_sigma db tm ctxt = case tm of
-        Const(name, _) => if StateMgt_core.is_program_variable name (Proof_Context.theory_of ctxt) 
-                          then tm $ (Bound db) (* lambda lifting *)
-                          else tm              (* no lifting *)
-      | Free _ => tm
-      | Var _ => tm
-      | Bound _ => tm
-      | Abs (x, a, tm') => Abs(x, a, app_sigma (db+1) tm' ctxt)
-      | t1 $ t2 => (app_sigma db t1 ctxt) $ (app_sigma db t2 ctxt)
-      
-    fun mk_assign t1 ctxt = case t1 of
-        (Const("_type_constraint_",_)) $ (Const (name,ty))    => 
-                          if StateMgt_core.is_program_variable name (Proof_Context.theory_of ctxt) 
-                          then Const(name^Record.updateN, ty)
-                          else raise TERM ("mk_assign", [t1])
-      | _ => raise TERM ("mk_assign", [t1])
-
-    fun transform_term tm ctxt =
-            case tm of
-               Const("Clean.syntax_assign",_) $ t1 $ t2 =>
-                  Const(@{const_name "assign"},dummyT)
-                  $ (Abs ("\<sigma>", dummyT, ((mk_assign t1 ctxt) 
-                                      $ (absdummy dummyT (app_sigma 1 t2 ctxt)) 
-                                      $ (Bound 0))))
-             | _ => Abs ("\<sigma>", dummyT, app_sigma 0 tm ctxt)
-  in
-    fun string_tr ctxt (content:(string * Position.T) -> (string * Position.T) list) (args:term list) : term =
-      let fun err () = raise TERM ("string_tr", args) 
-      in
-        (case args of
-          [(Const (@{syntax_const "_constrain"}, _)) $ (Free (s, _)) $ p] =>
-            (case Term_Position.decode_position p of
-              SOME (pos, _) =>
-              let val txt = Symbol_Pos.implode(content (s,pos))
-                  val tm = Syntax.parse_term ctxt txt
-                  val tr = transform_term tm ctxt
-                  val ct = Syntax.check_term ctxt tr
-              in
-                ct
-              end
-            | NONE => err ())
-        | _ => err ())
-      end
-  end
-\<close>
-
-syntax "_cartouche_string" :: "cartouche_position \<Rightarrow> string"  ("_")
-
-parse_translation \<open>
-  [(@{syntax_const "_cartouche_string"},
-    (fn ctxt => (string_tr ctxt ((Symbol_Pos.cartouche_content : Symbol_Pos.T list -> Symbol_Pos.T list)
-                 o (Symbol_Pos.explode : string * Position.T -> Symbol_Pos.T list)))) )]
-\<close>
 
 
 section\<open> Tactic Support: we use Eisbach to automate the process. \<close>
