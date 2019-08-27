@@ -44,6 +44,8 @@ theory Core
           Clean.Clean
 begin
 
+section \<open>Miscellaneous\<close>
+
 ML \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/MString.ML\<close>\<close> \<open>
 (*
  * Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
@@ -105,6 +107,8 @@ fun dest_embret s0 =
   end
 end
 \<close>
+
+section \<open>Conversion\<close>
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_syntax.ML\<close>\<close> \<open>
 structure ML_Syntax' =
@@ -199,5 +203,41 @@ fun compile ast env_lang pos =
 end
 end
 \<close>
+
+section \<open>Syntax\<close>
+
+ML \<open>
+val _ =
+  (Theory.setup o C_Module.C_Term.map_expression)
+    (fn expr => fn _ => fn ctxt =>
+      let
+        fun err () = error "syntax error"
+        fun const var = case Proof_Context.read_const {proper = true, strict = false} ctxt var of
+                          Const (c, _) => Syntax.const c
+                        | _ => err ()
+        open C_Ast
+        open Term
+        val decode = fn CVar0 (Ident0 (_, x, _), _) => C_Grammar_Rule_Lib.ident_decode x
+                      | _ => err ()
+        val const' = const o decode
+      in
+        case expr of
+          CAssign0 (CAssignOp0, var_x, CIndex0 (var_y, var_z, _), _) =>
+            Syntax.const @{const_name assign_local}
+            $ const (decode var_x ^ "_update")
+            $ Clean_Syntax_Lift.transform_term
+                (Syntax.const @{const_name nth} $ const' var_y $ const' var_z)
+                ctxt
+        | _ => err ()
+      end)\<close>
+
+global_vars state
+  A :: "int list"
+  hi :: nat
+
+local_vars_test swap "unit"
+  tmp :: "int"
+
+term \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>tmp = A [hi]\<close>\<close>
 
 end
