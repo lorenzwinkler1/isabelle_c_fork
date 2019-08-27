@@ -301,7 +301,10 @@ fun mk_meta_eq (t, u) = meta_eq_const (fastype_of t) $ t $ u;
 
 
 (* the meat *)
-local open StateMgt_core
+structure StateMgt = 
+struct
+
+open StateMgt_core
 
 val result_name = "result_value"
 fun mk_result_name x = result_name
@@ -332,7 +335,7 @@ fun mk_local_state_name binding =
 fun mk_global_state_name binding = 
        Binding.prefix_name "global_" (Binding.suffix_name "_state" binding)  
 
-in fun construct_update is_pop binding sty thy = 
+fun construct_update is_pop binding sty thy = 
        let val long_name = Binding.name_of( binding)
            val attrS = StateMgt_core.filter_attr_of long_name thy
        in  fold (map_to_update sty is_pop thy) (attrS) (Free("\<sigma>",sty)) end
@@ -505,8 +508,8 @@ structure Function_Specification_Parser  =
 
     type funct_spec_src = {    
         binding:  binding,                         (* name *)
-        params: (binding*string) list, (* parameters and their type*)
-        ret_ty: string option,                     (* return type *)
+        params: (binding*string) list,             (* parameters and their type*)
+        ret_type: string,                          (* return type; default unit *)
         locals: (binding*string*mixfix)list,       (* local variables *)
         pre_src: string,                           (* precondition src *)
         post_src: string,                          (* postcondition src *)
@@ -527,7 +530,7 @@ structure Function_Specification_Parser  =
 
     val parse_param_decls = Args.parens (Parse.enum "," parse_arg_decl)
       
-    val parse_returns_clause = Scan.option (\<^keyword>\<open>returns\<close> |--  Parse.typ) 
+    val parse_returns_clause = Scan.optional (\<^keyword>\<open>returns\<close> |--  Parse.typ) "unit"
     
     val parse_proc_spec = (
           Parse.binding 
@@ -542,7 +545,7 @@ structure Function_Specification_Parser  =
         {
           binding = binding, 
           params=params, 
-          ret_ty=ret_ty, 
+          ret_type=ret_ty, 
           pre_src=pre_src, 
           post_src=post_src, 
           variant_src=variant_src,
@@ -557,18 +560,17 @@ structure Function_Specification_Parser  =
        val ctxt' = fold Variable.declare_typ Ts ctxt;
      in (params', ctxt') end;
    
-   fun read_result (SOME ret_ty) ctxt = 
+   fun read_result ret_ty ctxt = 
           let val [ty] = Syntax.read_typs ctxt [ret_ty]
               val ctxt' = Variable.declare_typ ty ctxt           
           in  (ty, ctxt') end
-      |read_result (NONE) ctxt = (@{typ unit}, ctxt) 
       
 
-   fun read_function_spec ({ binding ,  params,  ret_ty,  pre_src,  post_src, 
+   fun read_function_spec ({ binding ,  params,  ret_type,  pre_src,  post_src, 
                                   variant_src, ...} : funct_spec_src
                                ) ctxt =
        let val (params', ctxt') = read_params params ctxt
-           val (rty, ctxt'') = read_result ret_ty ctxt' 
+           val (rty, ctxt'') = read_result ret_type ctxt' 
            val pre_term = Syntax.read_term ctxt'' pre_src
            val post_term = Syntax.read_term ctxt'' post_src
            val variant = Option.map (Syntax.read_term ctxt'')  variant_src
@@ -576,21 +578,22 @@ structure Function_Specification_Parser  =
     
    fun checkNsem_function_spec ({variant_src=SOME _, ...} : funct_spec_src) _ = 
                                error "No measure required in non-recursive call"
-      |checkNsem_function_spec (args as {binding , params, ret_ty, pre_src, post_src, 
+      |checkNsem_function_spec (args as {binding , params, ret_type, pre_src, post_src, 
                                   variant_src=NONE, locals, body_src} : funct_spec_src
                                ) thy = 
        let   val ctxt =  Proof_Context.init_global thy
              val ({params,ret_ty,pre,post,variant},ctxt') =  read_function_spec args ctxt
              val args_typ = HOLogic.mk_tupleT(map snd params)
              val ctxt'' = Proof_Context.background_theory 
-                              (new_state_record false ((([],binding), error "No return type internally declared (here NONE is making 'get_result_value_conf' fail)" NONE),locals))
+                              (StateMgt.new_state_record false ((([],binding), SOME ret_type),locals))
                               (ctxt')
-             val ty_bind =  Binding.prefix_name "'a " (Binding.suffix_name "_scheme" binding)
-             val sty = Syntax.parse_typ ctxt (Binding.name_of ty_bind)
+             val ty_bind =  Binding.prefix_name "'a " (Binding.suffix_name "_scheme" 
+                                                        (StateMgt.mk_local_state_name binding))
+             val sty = Syntax.parse_typ ctxt'' (Binding.name_of ty_bind)
              val mty = StateMgt_core.MON_SE_T ret_ty sty 
        in    (Proof_Context.theory_of ctxt'') end
 
-   fun checkNsem_rec_function_spec ({ binding ,  params,  ret_ty,  pre_src,  post_src, 
+   fun checkNsem_rec_function_spec ({ binding ,  params,  ret_type,  pre_src,  post_src, 
                                   variant_src,  locals, body_src} : funct_spec_src
                                ) thy = 
         let val _ = case variant_src of 
@@ -806,7 +809,7 @@ shows  "(\<sigma> \<Turnstile> (while\<^sub>C P do B\<^sub>1 od);-M) = (\<sigma>
 
 
 
-section\<open> Syntactic sugar support via cartouches for global and local variables \<close>
+section\<open> Syntactic sugar support via \<lambda>-lifting cartouches for global and local variables \<close>
 
 ML \<open>
   local
