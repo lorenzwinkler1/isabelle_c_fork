@@ -292,7 +292,12 @@ fun  mk_undefined (@{typ "unit"}) = Const (\<^const_name>\<open>Product_Type.Uni
 
 fun meta_eq_const T = Const (\<^const_name>\<open>Pure.eq\<close>, T --> T --> propT);
 
-fun mk_meta_eq (t, u) = meta_eq_const (fastype_of t) $ t $ u;\<close>
+fun mk_meta_eq (t, u) = meta_eq_const (fastype_of t) $ t $ u;
+
+fun   mk_pat_tupleabs [] t = t
+    | mk_pat_tupleabs [(s,ty)] t = lambda(Free(s,ty))(t)
+    | mk_pat_tupleabs ((s,ty)::R) t = HOLogic.mk_case_prod(lambda(Free(s,ty))(mk_pat_tupleabs R t));
+\<close>
 
 ML\<open>
 structure StateMgt = 
@@ -360,9 +365,7 @@ fun mk_push_def binding sty lthy =
         val eq = push_eq binding  (Binding.name_of name_pushop) rty sty lthy
         val mty = StateMgt_core.MON_SE_T rty sty 
         val args = (SOME(name_pushop,NONE (* SOME mty *),NoSyn), (Binding.empty_atts,eq),[],[])
-        val lthy' = cmd args true lthy
-    in lthy'
-    end;
+    in cmd args true lthy  end;
 
 fun mk_pop_name binding = Binding.prefix_name "pop_"  binding
 
@@ -424,9 +427,6 @@ fun add_record_cmd0 read_fields overloaded is_global_kind raw_params binding raw
                      val ty_bind =  Binding.prefix_name "'a " (Binding.suffix_name "_scheme" binding)
                      val sty = Syntax.parse_typ ctxt (Binding.name_of ty_bind)
                      val rty = dest_listTy (#2(hd(rev fields')))
-                 (*  val _ = (SPY1 := binding)
-                     val _ = (SPY2 := sty)
-                     val _ = (SPY3 := rty) *)
                  in thy
 
                     |> Named_Target.theory_map (mk_push_def binding sty) 
@@ -496,12 +496,11 @@ end
 \<close>
 
 section\<open>Syntactic Sugar supporting \<lambda>-lifting in cartouches for global and local variables \<close>
-ML\<open>
 
-\<close>
 ML \<open>
 val SPY5 = Unsynchronized.ref (Bound 0);
 val SPY6 = Unsynchronized.ref (Bound 0);
+val SPY7 = Unsynchronized.ref (Bound 0);
 
   local
     fun mk_local_access X = Const (@{const_name "Fun.comp"}, dummyT) 
@@ -519,32 +518,6 @@ val SPY6 = Unsynchronized.ref (Bound 0);
       | Abs (x, a, tm') => Abs(x, a, app_sigma (db+1) tm' ctxt)
       | t1 $ t2 => (app_sigma db t1 ctxt) $ (app_sigma db t2 ctxt)
       
-
-(*
-fun mk_assign t1 ctxt = case t1 of
-        (Const("_type_constraint_",_)) $ (Const (name,ty))    => 
-                          if StateMgt_core.is_program_variable name (Proof_Context.theory_of ctxt) 
-                          then Const(name^Record.updateN, ty)
-                          else raise TERM ("mk_assign", [t1])
-      | _ => raise TERM ("mk_assign", [t1])
-
-    fun transform_term tm ctxt =
-            case tm of
-               Const("Clean.syntax_assign",_) $ t1 $ t2 =>
-                  Const(@{const_name "assign"},dummyT)
-                  $ (Abs ("\<sigma>", dummyT, ((mk_assign t1 ctxt) 
-                                      $ (absdummy dummyT (app_sigma 1 t2 ctxt)) 
-                                      $ (Bound 0))))
-             | _ => Abs ("\<sigma>", dummyT, app_sigma 0 tm ctxt)
-
-*)
-
-    fun mk_assign t1 ctxt = case t1 of
-        (Const("_type_constraint_",_)) $ (Const (name,ty))    => 
-                          if StateMgt_core.is_program_variable name (Proof_Context.theory_of ctxt) 
-                          then Const(name^Record.updateN, ty)
-                          else raise TERM ("mk_assign", [t1])
-      | _ => raise TERM ("mk_assign", [t1])
 
     fun transform_term tm ctxt =
             case tm of
@@ -576,6 +549,7 @@ fun mk_assign t1 ctxt = case t1 of
                   val tr = transform_term tm ctxt
                   val _ = (SPY6:=tr)
                   val ct = Syntax.check_term ctxt tr
+                  val _ = (SPY7:=ct)
               in
                 ct
               end
@@ -668,6 +642,17 @@ structure Function_Specification_Parser  =
            val variant = Option.map (Syntax.read_term ctxt'')  variant_src
        in ({params = params',ret_ty = rty,pre = pre_term,post = post_term,variant = variant},ctxt'') end 
     
+   fun define_precond binding args_ty sty params pre thy = 
+       let val params = map (fn (b,r) => (Binding.name_of b,r)) params
+           val pre' = case pre of 
+                        Abs(nn, _, term) => mk_pat_tupleabs params (Abs(nn,sty,term))
+                      | _ => error ("internal error in define_precond")  
+           val bdg_pre = Binding.suffix_name "_pre" binding
+           val eq =  mk_meta_eq(Free(Binding.name_of bdg_pre, args_ty sty --> HOLogic.boolT),pre')
+           val args = (SOME(bdg_pre,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
+           val X =  StateMgt.cmd args true
+       in  Proof_Context.background_theory X end 
+
    fun checkNsem_function_spec ({variant_src=SOME _, ...} : funct_spec_src) _ = 
                                error "No measure required in non-recursive call"
       |checkNsem_function_spec (args as {binding , params, ret_type, pre_src, post_src, 
@@ -675,12 +660,12 @@ structure Function_Specification_Parser  =
                                ) thy = 
        let   val ctxt =  Proof_Context.init_global thy
              val ({params,ret_ty,pre,post,variant},ctxt') =  read_function_spec args ctxt
-             val args_typ = HOLogic.mk_tupleT(map snd params)
-             val ctxt'' = Proof_Context.background_theory 
-                              (StateMgt.new_state_record false ((([],binding), SOME ret_type),locals))
-                              (ctxt')
-             val ty_bind =  Binding.prefix_name "'a " (Binding.suffix_name "_scheme" 
-                                                        (StateMgt.mk_local_state_name binding))
+             val args_ty = HOLogic.mk_tupleT(map snd params)
+             val ctxt'' = ctxt' |> Proof_Context.background_theory 
+                                  (StateMgt.new_state_record false ((([],binding), SOME ret_type),locals))
+                                
+             val ty_bind = Binding.prefix_name "'a " (Binding.suffix_name "_scheme" 
+                                                           (StateMgt.mk_local_state_name binding))
              val sty = Syntax.parse_typ ctxt'' (Binding.name_of ty_bind)
              val mty = StateMgt_core.MON_SE_T ret_ty sty 
              val body_term = Syntax.parse_term ctxt'' (fst body_src)

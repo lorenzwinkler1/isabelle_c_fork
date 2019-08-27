@@ -114,12 +114,30 @@ subsection \<open>Encoding swap in Clean\<close>
 (* some syntax tests *)
 
 function_spec swap' (i::"nat",j::"nat") 
-pre          "\<open>length A = 100\<close>"
-post         "\<open>\<lambda>res. length A = 100 \<and> res = ()\<close>"
+pre          "\<open>i < length A \<and> j < length A \<close>"   (* problem : incorr. reference to parameter *)
+post         "\<open>\<lambda>res. length A = 100 \<and> res = ()\<close>" (* problem : no reference to pre-state poss. *)
 local_vars   tmp :: "int" 
 defines      "\<lambda>(i,j). \<open> tmp := A ! i\<close>  ;-
                       \<open> A := list_update A i (A ! j)\<close> ;- 
                       \<open> A := list_update A j tmp\<close> "
+
+ML\<open>!SPY5\<close>
+ML\<open>!SPY6\<close>
+ML\<open>!SPY7\<close>
+ML\<open>
+HOLogic.mk_ptupleabs;       
+lambda; 
+@{term "k=k \<and> True"};
+abstract_over ((Free("k",@{typ nat})), (@{term "(k::nat)=k \<and> True"}) );
+HOLogic.mk_case_prod;
+
+val S = [("i",@{typ "nat"}),("j", @{typ "nat"}) ,("k", @{typ "nat"})];
+mk_pat_tupleabs S (@{term "%x. (k::nat)=k \<and> True"}); 
+\<close>
+ML\<open>open HOLogic\<close>
+ML\<open>
+@{term "\<lambda>(i::nat,j::nat,k::nat). k=k \<and> True"}
+\<close>
 
 rec_function_spec swap'' () returns "unit"
 pre          "a"
