@@ -168,7 +168,7 @@ fun new_state_record pos b (rcd_name, flds) =
   (SML_top
    [SML_val_fun
     ( NONE
-    , SML_apply ( b's \<^ML'>\<open>new_state_record'\<close>
+    , SML_apply ( b's \<^ML'>\<open>StateMgt.new_state_record'\<close>
                 , [ b's (if b then \<^ML'>\<open>true\<close> else \<^ML'>\<open>false\<close>)
                   , b's (ML_Syntax.print_pair
                             (ML_Syntax.print_pair (ML_Syntax.print_pair (ML_Syntax.print_list (ML_Syntax.print_pair ML_Syntax.print_string (ML_Syntax.print_option ML_Syntax.print_string)))

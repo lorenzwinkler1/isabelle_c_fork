@@ -19,7 +19,7 @@ text\<open>The state is just a record; and the global variables correspond to fi
     \<close>
 
 text\<open> The state of the square-root program looks like this : \<close>
-
+(*
 typ "Clean.control_state"
 
 ML\<open>
@@ -182,5 +182,5 @@ txt\<open>Instead of testing, we @{emph \<open>prove\<close>} that the test case
 apply(auto simp: assert_simp)
 *)
 oops
-
+*)
 end

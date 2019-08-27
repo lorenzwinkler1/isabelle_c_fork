@@ -642,16 +642,15 @@ structure Function_Specification_Parser  =
            val variant = Option.map (Syntax.read_term ctxt'')  variant_src
        in ({params = params',ret_ty = rty,pre = pre_term,post = post_term,variant = variant},ctxt'') end 
     
-   fun define_precond binding args_ty sty params pre thy = 
+   fun define_precond binding args_ty sty params pre = 
        let val params = map (fn (b,r) => (Binding.name_of b,r)) params
            val pre' = case pre of 
-                        Abs(nn, _, term) => mk_pat_tupleabs params (Abs(nn,sty,term))
+                        Abs(nn, sty_pre, term) => mk_pat_tupleabs params (Abs(nn,sty_pre(* sty root ! !*),term))
                       | _ => error ("internal error in define_precond")  
            val bdg_pre = Binding.suffix_name "_pre" binding
-           val eq =  mk_meta_eq(Free(Binding.name_of bdg_pre, args_ty sty --> HOLogic.boolT),pre')
+           val eq =  mk_meta_eq(Free(Binding.name_of bdg_pre, args_ty --> sty --> HOLogic.boolT),pre')
            val args = (SOME(bdg_pre,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
-           val X =  StateMgt.cmd args true
-       in  Proof_Context.background_theory X end 
+       in  Proof_Context.background_theory (Named_Target.theory_map (StateMgt.cmd args true)) end 
 
    fun checkNsem_function_spec ({variant_src=SOME _, ...} : funct_spec_src) _ = 
                                error "No measure required in non-recursive call"
@@ -667,9 +666,10 @@ structure Function_Specification_Parser  =
              val ty_bind = Binding.prefix_name "'a " (Binding.suffix_name "_scheme" 
                                                            (StateMgt.mk_local_state_name binding))
              val sty = Syntax.parse_typ ctxt'' (Binding.name_of ty_bind)
-             val mty = StateMgt_core.MON_SE_T ret_ty sty 
+             val mty = StateMgt_core.MON_SE_T ret_ty sty
              val body_term = Syntax.parse_term ctxt'' (fst body_src)
-       in    (Proof_Context.theory_of ctxt'') end
+       in    Proof_Context.theory_of 
+                 (ctxt'' |> define_precond binding args_ty sty params pre) end
 
    fun checkNsem_rec_function_spec ({ binding ,  params,  ret_type,  pre_src,  post_src, 
                                   variant_src,  locals, body_src} : funct_spec_src
