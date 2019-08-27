@@ -114,8 +114,8 @@ subsection \<open>Encoding swap in Clean\<close>
 (* some syntax tests *)
 
 function_spec swap' () 
-pre          "\<lambda>\<sigma>. length (A \<sigma>)  = 100"
-post         "\<lambda>\<sigma> \<sigma>'. \<lambda>res. length (A \<sigma>)  = 100"
+pre          "\<open>length A = 100\<close> "
+post         "\<open>\<lambda>res. length A = 100 \<and> res = ()\<close>"
 local_vars   tmp :: "int" 
 defines      "\<lambda>\<sigma>. (\<lambda>(i,j). ((assign_local tmp_update \<open>A ! i\<close>)  ;-
                             (assign_global A_update  \<open>list_update A i (A ! j)\<close>) ;- 
