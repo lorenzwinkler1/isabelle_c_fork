@@ -113,8 +113,8 @@ subsection \<open>Encoding swap in Clean\<close>
 
 (* some syntax tests *)
 
-function_spec swap () 
-pre          \<open>length A = 100\<close>
+function_spec swap' () 
+pre          "\<open>length A = 100\<close>"
 post         "a \<and> b"
 local_vars   tmp :: "int" 
 defines      \<open>True\<close>
