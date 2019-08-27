@@ -34,50 +34,41 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-session Isabelle_C_AutoCorres = AutoCorres +
-  theories
-    "C11-BackEnds/AutoCorres/src/README"
-    "C11-BackEnds/AutoCorres/src/Backend"
+theory Clean_Syntax
+  imports Clean.Clean
+          Isabelle_C.C_Main
+begin
 
-session Isabelle_C_AutoCorres_examples = Isabelle_C_AutoCorres +
-  sessions
-    "HOL-Computational_Algebra"
-  theories
-    "C11-BackEnds/AutoCorres/examples/IsPrime_integrated"
-    "C11-BackEnds/AutoCorres/examples/IsPrime_linear_outside"
-    "C11-BackEnds/AutoCorres/examples/IsPrime_sqrt_outside"
-    "C11-BackEnds/AutoCorres/examples/Parse_for_loop"
-    "C11-BackEnds/AutoCorres/examples/Quicksort"
-    "C11-BackEnds/AutoCorres/examples/TestSEL4"
+ML \<open>
+val _ =
+  (Theory.setup o C_Module.C_Term.map_expression)
+    (fn expr => fn _ => fn ctxt =>
+      let
+        fun err () = error "syntax error"
+        fun const var = case Proof_Context.read_const {proper = true, strict = false} ctxt var of
+                          Const (c, _) => Syntax.const c
+                        | _ => err ()
+        open C_Ast
+        open Term
+        val decode = fn CVar0 (Ident0 (_, x, _), _) => C_Grammar_Rule_Lib.ident_decode x
+                      | _ => err ()
+        fun const' var = const (decode var) $ Bound 0
+      in
+        case expr of
+          CAssign0 (CAssignOp0, var_x, CIndex0 (var_y, var_z, _), _) =>
+            (Syntax.const @{const_name assign_local}
+             $ const (decode var_x ^ "_update")
+             $ Abs ("\<sigma>", dummyT, Syntax.const @{const_name nth} $ const' var_y $ const' var_z))
+        | _ => err ()
+      end)\<close>
 
-session Isabelle_C_Clean = Isabelle_C +
-  sessions
-    Clean
-  theories
-    "C11-BackEnds/Clean/src/Clean_Syntax"
-    "C11-BackEnds/Clean/src/Backend"
+global_vars state
+  A :: "int list"
+  hi :: nat
 
-session Isabelle_C_Clean_examples = Isabelle_C_Clean +
-  theories
-    "C11-BackEnds/Clean/examples/IsPrime_sqrt_outside"
-    "C11-BackEnds/Clean/examples/Quicksort2"
-    "C11-BackEnds/Clean/examples/Quicksort"
+local_vars_test swap "unit"
+  tmp :: "int"
 
-session Isabelle_C_README in "C11-FrontEnd" = HOL +
-  theories
-    "../README"
+term \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>tmp = A [hi]\<close>\<close>
 
-session Isabelle_C_archive = Isabelle_C_AutoCorres +
-  options [quick_and_dirty]
-  sessions
-    Clean
-    "HOL-Computational_Algebra"
-  theories
-    "C11-FrontEnd/archive/C0"
-    "C11-FrontEnd/archive/Clean_old"
-    "C11-FrontEnd/archive/IsPrime_sqrt2_outside"
-    "C11-FrontEnd/archive/IsPrime_sqrt_outside"
-    "C11-BackEnds/AutoCorres/examples/program-based/Example1"
-    "C11-BackEnds/AutoCorres/examples/program-based/Example2"
-    "C11-BackEnds/AutoCorres/examples/program-based/Example3"
-    "C11-BackEnds/Clean/examples/Prime"
+end
