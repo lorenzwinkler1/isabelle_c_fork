@@ -500,6 +500,9 @@ ML\<open>
 
 \<close>
 ML \<open>
+structure Clean_Syntax_Lift =
+struct
+
 val SPY5 = Unsynchronized.ref (Bound 0);
 val SPY6 = Unsynchronized.ref (Bound 0);
 
@@ -545,7 +548,7 @@ fun mk_assign t1 ctxt = case t1 of
                           then Const(name^Record.updateN, ty)
                           else raise TERM ("mk_assign", [t1])
       | _ => raise TERM ("mk_assign", [t1])
-
+  in
     fun transform_term tm ctxt =
             case tm of
                Const(@{const_name "Clean.syntax_assign"},_) $ t1 $ t2 =>
@@ -562,7 +565,7 @@ fun mk_assign t1 ctxt = case t1 of
                                else raise TERM ("mk_assign", [t1])
                    | _ => Abs ("\<sigma>", dummyT, app_sigma 0 tm ctxt))              
              | _ => Abs ("\<sigma>", dummyT, app_sigma 0 tm ctxt)
-  in
+
     fun string_tr ctxt (content:(string * Position.T) -> (string * Position.T) list) (args:term list) : term =
       let fun err () = raise TERM ("string_tr", args) 
       in
@@ -583,14 +586,14 @@ fun mk_assign t1 ctxt = case t1 of
         | _ => err ())
       end
   end
+end
 \<close>
 
 syntax "_cartouche_string" :: "cartouche_position \<Rightarrow> string"  ("_")
 
 parse_translation \<open>
   [(@{syntax_const "_cartouche_string"},
-    (fn ctxt => (string_tr ctxt ((Symbol_Pos.cartouche_content : Symbol_Pos.T list -> Symbol_Pos.T list)
-                 o (Symbol_Pos.explode : string * Position.T -> Symbol_Pos.T list)))) )]
+    (fn ctxt => Clean_Syntax_Lift.string_tr ctxt (Symbol_Pos.cartouche_content o Symbol_Pos.explode)))]
 \<close>
 
 

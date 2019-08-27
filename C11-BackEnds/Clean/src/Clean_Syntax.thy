@@ -52,13 +52,15 @@ val _ =
         open Term
         val decode = fn CVar0 (Ident0 (_, x, _), _) => C_Grammar_Rule_Lib.ident_decode x
                       | _ => err ()
-        fun const' var = const (decode var) $ Bound 0
+        val const' = const o decode
       in
         case expr of
           CAssign0 (CAssignOp0, var_x, CIndex0 (var_y, var_z, _), _) =>
-            (Syntax.const @{const_name assign_local}
-             $ const (decode var_x ^ "_update")
-             $ Abs ("\<sigma>", dummyT, Syntax.const @{const_name nth} $ const' var_y $ const' var_z))
+            Syntax.const @{const_name assign_local}
+            $ const (decode var_x ^ "_update")
+            $ Clean_Syntax_Lift.transform_term
+                (Syntax.const @{const_name nth} $ const' var_y $ const' var_z)
+                ctxt
         | _ => err ()
       end)\<close>
 
