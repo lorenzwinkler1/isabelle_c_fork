@@ -236,21 +236,28 @@ ML \<open>
 structure Conversion_C99 =
 struct
 
-local
 fun warn msg = tap (fn _ => warning ("Syntax error: " ^ msg)) @{term "()"}
-fun const ctxt var = case Proof_Context.read_const {proper = true, strict = false} ctxt var of
-                       Const (c, _) => Syntax.const c
-                     | _ => warn "Expecting a constant"
-fun map_expr_node f expr =
-  Expr.ewrap (f (Expr.enode expr), Expr.eleft expr, Expr.eright expr)
+fun const0 ctxt var = case Proof_Context.read_const {proper = true, strict = false} ctxt var of
+                       Const (c, _) => SOME c
+                     | _ => NONE
+fun const ctxt var = case const0 ctxt var of
+                       SOME c => Syntax.const c
+                     | NONE => warn "Expecting a constant"
+fun map_expr f exp =
+  let val (res, exp_n) = f (Expr.enode exp)
+  in (res, Expr.ewrap (exp_n, Expr.eleft exp, Expr.eright exp)) end
 
 open C_Ast
 open Term
-in
 
 local
 open Expr
 in
+fun extract_deref acc exp = enode exp |>
+  (fn Var _ => Left (fn f => map_expr f exp, acc)
+    | ArrayDeref (exp1, exp2) => extract_deref (exp2 :: acc) exp1
+    | exp => Right exp)
+
 fun expr_node env_lang ctxt exp = exp |>
   let val expr = expr env_lang ctxt
   in
@@ -262,9 +269,9 @@ fun expr_node env_lang ctxt exp = exp |>
         $ expr exp2
     | ArrayDeref (exp1, exp2) =>
         Syntax.const @{const_name nth} $ expr exp1 $ expr exp2
-    | Constant cst => Syntax.read_term ctxt (eval_litconst cst |> #1 |> Int.toString |> (fn s => s ^ " :: nat"))
+    | Constant cst => Syntax.read_term ctxt (cst |> eval_litconst |> #1 |> Int.toString |> (fn s => s ^ " :: nat"))
     | Var (x, _) => const ctxt x
-    | expr => warn ("Case not yet treated for this element: " ^ @{make_string} expr)
+    | exp => warn ("Case not yet treated for this element: " ^ @{make_string} exp)
   end
 and expr env_lang ctxt exp = exp |>
   expr_node env_lang ctxt o enode
@@ -273,41 +280,70 @@ end
 fun expr_lift env_lang ctxt =
   Clean_Syntax_Lift.transform_term ctxt o expr env_lang ctxt
 
+fun expr_lift' env_lang ctxt db exp =
+  Clean_Syntax_Lift.app_sigma db (expr env_lang ctxt exp) ctxt
+
 local
 open StmtDecl
 in
 fun statement_node env_lang ctxt stmt = stmt |>
   let
     val expr = expr env_lang ctxt
+    val expr_lift' = expr_lift' env_lang ctxt
     val expr_lift = expr_lift env_lang ctxt
     val statement = statement env_lang ctxt
     val block_item = block_item env_lang ctxt
+    (**)
+    val skip = Syntax.const @{const_name skip\<^sub>S\<^sub>E}
   in
-   fn Assign (expr1, expr2) => Syntax.const @{const_name assign_local}
-                               $ expr (map_expr_node (fn Expr.Var (x, node) => Expr.Var (x ^ "_update", node)
-                                                             | _ => error "Expecting a variable")
-                                                           expr1)
-                               $ expr_lift expr2
-    | Block block =>
-      (case block of
-         [] => Syntax.const @{const_name skip\<^sub>S\<^sub>E}
-       | b :: bs =>
-           fold (fn b => fn acc => Syntax.const @{const_name bind_SE'} $ acc $ block_item b) bs (block_item b))
-    | IfStmt (expr, stmt1, stmt2) => Syntax.const @{const_name if_C}
-                                     $ expr_lift expr
-                                     $ statement stmt1
-                                     $ statement stmt2
-    | EmptyStmt => Syntax.const @{const_name skip\<^sub>S\<^sub>E}
+   fn Assign (exp1, exp2) =>
+       (case extract_deref [] exp1 of
+          Right exp => error ("Case not yet treated for this element: " ^ @{make_string} exp)
+        | Left (map_var, exp_deref) =>
+            Syntax.const @{const_name assign}
+            $ Abs
+              ( "\<sigma>"
+              , dummyT
+              , let
+                  val (f, var) =
+                      map_var
+                        (fn Expr.Var (var, node) =>
+                              ( case env_lang var of
+                                  NONE => error ("Expecting to be in the environment: " ^ @{make_string} var)
+                                | SOME true => I
+                                | SOME false => fn var => Syntax.const @{const_name comp} $ var $ Syntax.const @{const_name map_hd}
+                              , Expr.Var (Clean_Syntax_Lift.assign_update var, node))
+                          | exp => error ("Case not yet treated for this element: " ^ @{make_string} exp))
+                in f (expr var)
+                end
+                $ fold_rev (fn exp => fn acc => Syntax.const @{const_name map_nth} $ expr_lift' 0 exp $ acc) exp_deref (Abs ("_", dummyT, expr_lift' 1 exp2))
+                $ Bound 0))
+    | Block block => block |>
+        (fn [] => skip
+          | b :: bs =>
+              fold (fn b => fn acc => Syntax.const @{const_name bind_SE'} $ acc $ block_item b) bs (block_item b))
+    | Trap (BreakT, stmt) => snode stmt |>
+        (fn While (exp, NONE, stmt) =>
+              Syntax.const @{const_name while_C}
+              $ expr_lift exp
+              $ statement stmt
+          | stmt => warn ("Case not yet treated for this element: " ^ @{make_string} stmt))
+    | Trap (ContinueT, stmt) => statement stmt
+    | IfStmt (exp, stmt1, stmt2) => Syntax.const @{const_name if_C}
+                                    $ expr_lift exp
+                                    $ statement stmt1
+                                    $ statement stmt2
+    | EmptyStmt => skip
     | stmt => warn ("Case not yet treated for this element: " ^ @{make_string} stmt)
   end
 and statement env_lang ctxt stmt = stmt |>
-  statement_node env_lang ctxt o StmtDecl.snode
+  statement_node env_lang ctxt o snode
 and block_item env_lang ctxt bi = bi |>
   let
     val statement = statement env_lang ctxt
   in
    fn BI_Stmt stmt => statement stmt
-    | bi => warn ("Case not yet treated for this element: " ^ @{make_string} bi)
+    | BI_Decl _ => tap (fn _ => warning "Skipping BI_Decl") (Syntax.const @{const_name skip\<^sub>S\<^sub>E})
   end
 end
 
@@ -315,28 +351,48 @@ val statement = fn env_lang => fn ctxt =>
   statement env_lang ctxt o (IsarPreInstall.of_statement o C_Ast.statement0 ([], C_Ast.Alist []))
 
 end
-
-end
 \<close>
 
 ML \<open>
-val _ = Theory.setup (C_Module.C_Term.map_expression (fn expr => fn env_lang => fn ctxt => Conversion_C11.expression env_lang ctxt expr))
-val _ = Theory.setup (C_Module.C_Term.map_statement (fn stmt => fn env_lang => fn ctxt => Conversion_C99.statement env_lang ctxt stmt))
+val _ = Theory.setup (C_Module.C_Term.map_expression (fn expr => fn _ => fn ctxt => Conversion_C11.expression () ctxt expr))
+val _ = Theory.setup
+          (C_Module.C_Term.map_statement
+            (fn stmt => fn _ => fn ctxt =>
+              Conversion_C99.statement
+                (Conversion_C99.const0 ctxt
+                  #> (fn SOME name => Clean_Syntax_Lift.scope_var name ctxt
+                       | NONE => tap (fn _ => warning "Expecting a constant") NONE))
+                ctxt
+                stmt))
 \<close>
 
 subsection \<open>Test\<close>
 
 global_vars state
-  A :: "int list"
-  hi :: nat
+  a :: "nat list"
+  aa :: "nat list list"
+  aaa :: "nat list list list"
 
-local_vars_test swap "unit"
-  tmp :: "int"
-  i :: "nat"
-  j :: "nat"
+local_vars_test swap unit
+  a\<^sub>l :: "nat list"
+  aa\<^sub>l :: "nat list list"
+  aaa\<^sub>l :: "nat list list list"
+  pivot :: nat
+  pivot_idx :: nat
+  i :: nat
+  j :: nat
+  n :: nat
 
-term \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r \<open>tmp = A [hi]\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>tmp = A [hi];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>if (A[j] < A[i]) { i++; }\<close>\<close>
+term \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r \<open>pivot = a[pivot_idx]\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>if (a[j] < a[i]) {}\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>pivot = a[pivot_idx];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[pivot_idx] = a[i];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aa[j][pivot_idx] = a[i];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aaa[n][j][pivot_idx] = a[i];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a\<^sub>l[pivot_idx] = a[i];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aa\<^sub>l[j][pivot_idx] = a[i];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aaa\<^sub>l[n][j][pivot_idx] = a[i];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>if (a[j] < a[i]) { pivot_idx++; }\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>for (i = 1; i < n; i++) { pivot_idx++; }\<close>\<close>
 
 end
