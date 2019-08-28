@@ -98,12 +98,19 @@ funct quicksort(lo::int, hi::int) returns unit
 *)
 
 
+
+
+
+ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
+    StateMgt_core.get_state_field_tab_global @{theory}; \<close>
+
 global_vars state
     A :: "int list"
 
 (* see the effect on the internal table : *)
 ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
     StateMgt_core.get_state_field_tab_global @{theory}\<close>
+(* note that the suffix is actually changing .... *)
 
 
 subsection \<open>Encoding swap in Clean\<close>
@@ -114,30 +121,18 @@ subsection \<open>Encoding swap in Clean\<close>
 (* some syntax tests *)
 
 function_spec swap' (i::"nat",j::"nat") 
-pre          "\<open>i < length A \<and> j < length A \<close>"   (* problem : incorr. reference to parameter *)
+pre          "\<open>i < length A \<and> j < length A \<close>"    (* problem : incorr. reference to parameter *)
 post         "\<open>\<lambda>res. length A = 100 \<and> res = ()\<close>" (* problem : no reference to pre-state poss. *)
 local_vars   tmp :: "int" 
-defines      "\<lambda>(i,j). \<open> tmp := A ! i\<close>  ;-
+(* defines      "\<lambda>(i,j). \<open> tmp := A ! i\<close>  ;-
                       \<open> A := list_update A i (A ! j)\<close> ;- 
-                      \<open> A := list_update A j tmp\<close> "
+                      \<open> A := list_update A j tmp\<close> " *)
+defines "undefined"
 
-ML\<open>!Clean_Syntax_Lift.SPY5\<close>
-ML\<open>!Clean_Syntax_Lift.SPY6\<close>
-ML\<open>!Clean_Syntax_Lift.SPY7\<close>
-ML\<open>
-HOLogic.mk_ptupleabs;       
-lambda; 
-@{term "k=k \<and> True"};
-abstract_over ((Free("k",@{typ nat})), (@{term "(k::nat)=k \<and> True"}) );
-HOLogic.mk_case_prod;
+thm push_local_swap'_state_def
+thm pop_local_swap'_state_def
+thm swap'_pre_def
 
-val S = [("i",@{typ "nat"}),("j", @{typ "nat"}) ,("k", @{typ "nat"})];
-mk_pat_tupleabs S (@{term "%x. (k::nat)=k \<and> True"}); 
-\<close>
-ML\<open>open HOLogic\<close>
-ML\<open>
-@{term "\<lambda>(i::nat,j::nat,k::nat). k=k \<and> True"}
-\<close>
 
 rec_function_spec swap'' () returns "unit"
 pre          "a"
@@ -150,7 +145,9 @@ defines      \<open>(\<lambda>(i,j). ((assign_local tmp_update (\<lambda>\<sigma
 
 
 local_vars_test swap "unit"
-   tmp :: "int" 
+   tmp :: "int"
+
+ML\<open>@{term "A::('a local_swap_state_scheme\<Rightarrow> int list)"}\<close>
 
 (* Has the effect: *)
 thm push_local_swap_state_def
