@@ -1,7 +1,7 @@
-(*****************************************************************************
+(***************************************************************************************
  * MonadicPrograms.thy --- a basic testing theory for programs.
- * Burkhart Wolff and Chantal Keller, LRI, Univ. Paris-Sud, France
- ******************************************************************************)
+ * Burkhart Wolff and Frederic Tuong and Chantal Keller, LRI, Univ. Paris-Saclay, France
+ ***************************************************************************************)
 
 chapter \<open>The Clean Language\<close>
 text\<open>Pronounce : "C lean".\<close>
@@ -382,8 +382,7 @@ fun pop_eq  binding name_op rty sty lthy =
              val res_access = mk_lookup_result_value_term (Binding.name_of binding) sty thy
              val term = construct_update true binding  sty thy                 
          in  mk_meta_eq((Free(name_op, mty) $ Free("\<sigma>",sty)), 
-                         mk_Some ( HOLogic.mk_prod (res_access,term)))
-                          
+                         mk_Some ( HOLogic.mk_prod (res_access,term)))                          
          end;
 
 
@@ -512,7 +511,7 @@ section\<open>Syntactic Sugar supporting \<lambda>-lifting in cartouches for glo
 ML \<open>
 structure Clean_Syntax_Lift =
 struct
-
+val SPY4 = Unsynchronized.ref (@{typ "unit"});
 val SPY5 = Unsynchronized.ref (Bound 0);
 val SPY6 = Unsynchronized.ref (Bound 0);
 val SPY7 = Unsynchronized.ref (Bound 0);
@@ -559,8 +558,10 @@ val SPY7 = Unsynchronized.ref (Bound 0);
             (case Term_Position.decode_position p of
               SOME (pos, _) =>
               let val txt = Symbol_Pos.implode(content (s,pos))
+                  val _ = writeln ("AAAA")
                   val tm = Syntax.parse_term ctxt txt
                   val sty = StateMgt_core.get_state_type ctxt
+                  val _ = (SPY4:=sty)
                   val _ = (SPY5:=tm)
                   val tr = transform_term ctxt sty tm
                   val _ = (SPY6:=tr)
@@ -622,7 +623,7 @@ structure Function_Specification_Parser  =
       --| \<^keyword>\<open>post\<close>            -- Parse.term 
       --  Scan.option( \<^keyword>\<open>variant\<close> --| Parse.term)
       --| \<^keyword>\<open>local_vars\<close> -- (Scan.repeat1 Parse.const_binding)
-    (*  --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.cartouche>>cartouche)) *)
+   (* --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.cartouche>>cartouche)) *)
       --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.term)) 
       ) >> (fn (((((((binding,params),ret_ty),pre_src),post_src),variant_src),locals),body_src) => 
         {
@@ -686,7 +687,6 @@ structure Function_Specification_Parser  =
                                ) thy = 
        let   val ctxt =  Proof_Context.init_global thy
              val sty_old = StateMgt_core.get_state_type_global thy
-             val _ = writeln ("checkNsem_function_spec : sty_old : " ^ Syntax.string_of_typ ctxt sty_old)
              val ({params,ret_ty,pre,post,variant},ctxt') =  read_function_spec args ctxt
              val args_ty = HOLogic.mk_tupleT(map snd params)
              val ctxt'' = ctxt' |> Proof_Context.background_theory 
@@ -694,11 +694,17 @@ structure Function_Specification_Parser  =
                                 
              val ty_bind = Binding.prefix_name "'a " (Binding.suffix_name "_scheme" 
                                                            (StateMgt.mk_local_state_name binding))
+             val nsty =   StateMgt_core.get_state_type ctxt''
+             val _ = writeln ("CCCC : nsty :" ^ Syntax.string_of_typ ctxt'' nsty)
              val sty = Syntax.parse_typ ctxt'' (Binding.name_of ty_bind)
              val mty = StateMgt_core.MON_SE_T ret_ty sty
+             val _ = writeln "XXXX"
              val body_term = Syntax.parse_term ctxt'' (fst body_src)
+             val _ = writeln "YYYY"
        in    Proof_Context.theory_of 
-                 (ctxt'' |> define_precond binding args_ty sty_old params pre) end
+                 (ctxt'' |> define_precond binding args_ty sty_old params pre
+                         |> define_postcond binding args_ty ret_ty sty_old params post ) 
+       end
 
    fun checkNsem_rec_function_spec ({ binding ,  params,  ret_type,  pre_src,  post_src, 
                                   variant_src,  locals, body_src} : funct_spec_src

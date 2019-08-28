@@ -121,17 +121,28 @@ subsection \<open>Encoding swap in Clean\<close>
 (* some syntax tests *)
 
 function_spec swap' (i::"nat",j::"nat") 
-pre          "\<open>i < length A \<and> j < length A\<close>"    (* problem : incorr. reference to parameter *)
+pre          "\<open>i < length A \<and> j < length A\<close>"    
 post         "\<open>\<lambda>res. length A = 100 \<and> res = ()\<close>" (* problem : no reference to pre-state poss. *)
 local_vars   tmp :: "int" 
-(* defines      "\<lambda>(i,j). \<open> tmp := A ! i\<close>  ;-
+defines      "\<lambda>(i,j). \<open> tmp := A ! i\<close>  ;-
                       \<open> A := list_update A i (A ! j)\<close> ;- 
-                      \<open> A := list_update A j tmp\<close> " *)
-defines "undefined"
+                      \<open> A := list_update A j tmp\<close> " 
+ML\<open>
+!Clean_Syntax_Lift.SPY4;
+!Clean_Syntax_Lift.SPY5;
+!Clean_Syntax_Lift.SPY6;
+!Clean_Syntax_Lift.SPY7;
+
+\<close>
 
 thm push_local_swap'_state_def
 thm pop_local_swap'_state_def
 thm swap'_pre_def
+thm swap'_post_def
+
+ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
+    StateMgt_core.get_state_field_tab_global @{theory}\<close>
+
 
 
 rec_function_spec swap'' () returns "unit"
