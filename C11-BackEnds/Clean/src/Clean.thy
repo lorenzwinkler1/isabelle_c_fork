@@ -396,12 +396,12 @@ fun mk_pop_def binding rty sty lthy =
     end;
 
 
-
 fun read_parent NONE ctxt = (NONE, ctxt)
   | read_parent (SOME raw_T) ctxt =
        (case Proof_Context.read_typ_abbrev ctxt raw_T of
         Type (name, Ts) => (SOME (Ts, name), fold Variable.declare_typ Ts ctxt)
       | T => error ("Bad parent record specification: " ^ Syntax.string_of_typ ctxt T));
+
 
 fun read_fields raw_fields ctxt =
   let
@@ -667,6 +667,17 @@ structure Function_Specification_Parser  =
            val eq =  mk_meta_eq(Free(Binding.name_of bdg_pre, args_ty --> sty --> HOLogic.boolT),pre')
            val args = (SOME(bdg_pre,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
        in  Proof_Context.background_theory (Named_Target.theory_map (StateMgt.cmd args true)) end 
+
+   fun define_postcond binding args_ty rty sty params post = 
+       let val params = map (fn (b,r) => (Binding.name_of b,r)) params
+           val post' = case post of 
+                        Abs(nn, sty_pre, term) => mk_pat_tupleabs params (Abs(nn,sty_pre(* sty root ! !*),term))
+                      | _ => error ("internal error in define_precond")  
+           val bdg_post = Binding.suffix_name "_post" binding
+           val eq =  mk_meta_eq(Free(Binding.name_of bdg_post, args_ty --> sty --> rty --> HOLogic.boolT),post')
+           val args = (SOME(bdg_post,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
+       in  Proof_Context.background_theory (Named_Target.theory_map (StateMgt.cmd args true)) end 
+
 
    fun checkNsem_function_spec ({variant_src=SOME _, ...} : funct_spec_src) _ = 
                                error "No measure required in non-recursive call"

@@ -121,7 +121,7 @@ subsection \<open>Encoding swap in Clean\<close>
 (* some syntax tests *)
 
 function_spec swap' (i::"nat",j::"nat") 
-pre          "\<open>i < length A \<and> j < length A \<close>"    (* problem : incorr. reference to parameter *)
+pre          "\<open>i < length A \<and> j < length A\<close>"    (* problem : incorr. reference to parameter *)
 post         "\<open>\<lambda>res. length A = 100 \<and> res = ()\<close>" (* problem : no reference to pre-state poss. *)
 local_vars   tmp :: "int" 
 (* defines      "\<lambda>(i,j). \<open> tmp := A ! i\<close>  ;-
