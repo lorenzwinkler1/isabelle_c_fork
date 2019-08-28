@@ -381,19 +381,19 @@ local_vars_test swap unit
   pivot_idx :: nat
   i :: nat
   j :: nat
-  n :: nat
+  nn :: nat
 
 term \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r \<open>pivot = a[pivot_idx]\<close>\<close>
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>if (a[j] < a[i]) {}\<close>\<close>
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>pivot = a[pivot_idx];\<close>\<close>
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[pivot_idx] = a[i];\<close>\<close>
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aa[j][pivot_idx] = a[i];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aaa[n][j][pivot_idx] = a[i];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aaa[nn][j][pivot_idx] = a[i];\<close>\<close>
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a\<^sub>l[pivot_idx] = a[i];\<close>\<close>
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aa\<^sub>l[j][pivot_idx] = a[i];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aaa\<^sub>l[n][j][pivot_idx] = a[i];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aaa\<^sub>l[nn][j][pivot_idx] = a[i];\<close>\<close>
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>if (a[j] < a[i]) { pivot_idx++; }\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>for (i = 1; i < n; i++) { pivot_idx++; }\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>for (i = 1; i < nn; i++) { pivot_idx++; }\<close>\<close>
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[pivot_idx] = a[i];\<close> ;-
       \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>pivot_idx++;\<close> ;-
       \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[i] = a[pivot_idx];\<close>\<close>
