@@ -169,6 +169,7 @@ fun      map_hd :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a list \<Rightarrow> 'a
   where "map_hd f [] = []"
       | "map_hd f (a#S) = f a # S"
 
+definition "map_nth = (\<lambda>i f l. list_update l i (f (l ! i)))"
 
 definition  assign_local :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
                       \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
@@ -519,7 +520,7 @@ val SPY7 = Unsynchronized.ref (Bound 0);
   local
     fun mk_local_access X = Const (@{const_name "Fun.comp"}, dummyT) 
                             $ Const (@{const_name "List.list.hd"}, dummyT) $ X
-
+  in
     fun app_sigma db tm ctxt = case tm of
         Const(name, _) => if StateMgt_core.is_global_program_variable name (Proof_Context.theory_of ctxt) 
                           then tm $ (Bound db) (* lambda lifting *)
@@ -531,26 +532,36 @@ val SPY7 = Unsynchronized.ref (Bound 0);
       | Bound n => if n > db then Bound(n + 1) else Bound n 
       | Abs (x, ty, tm') => Abs(x, ty, app_sigma (db+1) tm' ctxt)
       | t1 $ t2 => (app_sigma db t1 ctxt) $ (app_sigma db t2 ctxt)
-  in
 
-    fun transform_term ctxt sty tm =
-            case tm of
-               Const(@{const_name "Clean.syntax_assign"},_) $ t1 $ t2 =>
-                  (case t1 of
-                    (Const("_type_constraint_",_)) $ (Const (name,ty))    => 
-                          if StateMgt_core.is_global_program_variable name (Proof_Context.theory_of ctxt) 
-                          then Const(@{const_name "assign_global"},dummyT)
-                                    $ Const(name^Record.updateN, ty)                  
-                                    $ Abs ("\<sigma>", sty,  app_sigma 0 t2 ctxt)
-                          else if StateMgt_core.is_local_program_variable name (Proof_Context.theory_of ctxt) 
-                               then Const(@{const_name "assign_local"},dummyT)
-                                    $ Const(name^Record.updateN, ty)
-                                    $ Abs ("\<sigma>", sty,  app_sigma 0 t2 ctxt)
-                               else raise TERM ("mk_assign", [t1])
-                   | _ => Abs ("\<sigma>", sty, app_sigma 0 tm ctxt))              
-             | _ => Abs ("\<sigma>", sty, app_sigma 0 tm ctxt)
+    fun scope_var name =
+      Proof_Context.theory_of
+      #> (fn thy =>
+            if StateMgt_core.is_global_program_variable name thy then SOME true
+            else if StateMgt_core.is_local_program_variable name thy then SOME false
+            else NONE)
 
-    fun string_tr ctxt (content:(string * Position.T) -> (string * Position.T) list) (args:term list) : term =
+    fun assign_update var = var ^ Record.updateN
+
+    fun transform_term0 abs scope_var tm =
+      case tm of
+         Const (@{const_name "Clean.syntax_assign"}, _)
+         $ (t1 as Const ("_type_constraint_", _) $ Const (name, ty))
+         $ t2 =>
+            Const ( case scope_var name of
+                      SOME true => @{const_name "assign_global"}
+                    | SOME false => @{const_name "assign_local"}
+                    | NONE => raise TERM ("mk_assign", [t1])
+                  , dummyT)
+            $ Const(assign_update name, ty)
+            $ abs t2
+       | _ => abs tm
+
+    fun transform_term ctxt =
+      transform_term0
+        (fn tm => Abs ("\<sigma>", dummyT, app_sigma 0 tm ctxt))
+        (fn name => scope_var name ctxt)
+
+    fun string_tr ctxt content args =
       let fun err () = raise TERM ("string_tr", args) 
       in
         (case args of
@@ -560,10 +571,8 @@ val SPY7 = Unsynchronized.ref (Bound 0);
               let val txt = Symbol_Pos.implode(content (s,pos))
                   val _ = writeln ("AAAA")
                   val tm = Syntax.parse_term ctxt txt
-                  val sty = StateMgt_core.get_state_type ctxt
-                  val _ = (SPY4:=sty)
                   val _ = (SPY5:=tm)
-                  val tr = transform_term ctxt sty tm
+                  val tr = transform_term ctxt tm
                   val _ = (SPY6:=tr)
                   val ct = Syntax.check_term ctxt tr
                   val _ = (SPY7:=ct)
