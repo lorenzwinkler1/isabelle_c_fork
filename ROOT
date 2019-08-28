@@ -54,7 +54,6 @@ session Isabelle_C_Clean = Isabelle_C +
   sessions
     Clean
   theories
-    "C11-BackEnds/Clean/src/Clean_Syntax"
     "C11-BackEnds/Clean/src/Backend"
 
 session Isabelle_C_Clean_examples = Isabelle_C_Clean +

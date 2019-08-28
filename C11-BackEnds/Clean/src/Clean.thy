@@ -533,7 +533,8 @@ val SPY7 = Unsynchronized.ref (Bound 0);
       | Abs (x, ty, tm') => Abs(x, ty, app_sigma (db+1) tm' ctxt)
       | t1 $ t2 => (app_sigma db t1 ctxt) $ (app_sigma db t2 ctxt)
   in
-    fun transform_term tm sty ctxt =
+
+    fun transform_term ctxt sty tm =
             case tm of
                Const(@{const_name "Clean.syntax_assign"},_) $ t1 $ t2 =>
                   (case t1 of
@@ -561,7 +562,7 @@ val SPY7 = Unsynchronized.ref (Bound 0);
                   val tm = Syntax.parse_term ctxt txt
                   val sty = StateMgt_core.get_state_type ctxt
                   val _ = (SPY5:=tm)
-                  val tr = transform_term tm sty ctxt
+                  val tr = transform_term ctxt sty tm
                   val _ = (SPY6:=tr)
                   val ct = Syntax.check_term ctxt tr
                   val _ = (SPY7:=ct)

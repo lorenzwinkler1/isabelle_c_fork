@@ -44,6 +44,8 @@ theory Core
           Clean.Clean
 begin
 
+section \<open>Miscellaneous\<close>
+
 ML \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/MString.ML\<close>\<close> \<open>
 (*
  * Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
@@ -105,6 +107,8 @@ fun dest_embret s0 =
   end
 end
 \<close>
+
+section \<open>Conversion\<close>
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_syntax.ML\<close>\<close> \<open>
 structure ML_Syntax' =
@@ -199,5 +203,140 @@ fun compile ast env_lang pos =
 end
 end
 \<close>
+
+section \<open>Syntax\<close>
+
+ML \<open>
+structure Conversion_C11 =
+struct
+fun expression _ ctxt expr = expr |>
+  let
+    fun warn msg = tap (fn _ => warning ("Syntax error: " ^ msg)) @{term "()"}
+    fun const var = case Proof_Context.read_const {proper = true, strict = false} ctxt var of
+                      Const (c, _) => Syntax.const c
+                    | _ => warn "Expecting a constant"
+    open C_Ast
+    open Term
+    val decode = fn CVar0 (Ident0 (_, x, _), _) => C_Grammar_Rule_Lib.ident_decode x
+                  | _ => error "Expecting a variable"
+    val const' = const o decode
+  in
+   fn CAssign0 (CAssignOp0, var_x, CIndex0 (var_y, var_z, _), _) =>
+        Syntax.const @{const_name assign_local}
+        $ const (decode var_x ^ "_update")
+        $ Clean_Syntax_Lift.transform_term
+            ctxt
+            (Syntax.const @{const_name nth} $ const' var_y $ const' var_z)
+    | expr => warn ("Case not yet treated for this element: " ^ @{make_string} expr)
+  end
+end
+\<close>
+
+ML \<open>
+structure Conversion_C99 =
+struct
+
+local
+fun warn msg = tap (fn _ => warning ("Syntax error: " ^ msg)) @{term "()"}
+fun const ctxt var = case Proof_Context.read_const {proper = true, strict = false} ctxt var of
+                       Const (c, _) => Syntax.const c
+                     | _ => warn "Expecting a constant"
+fun map_expr_node f expr =
+  Expr.ewrap (f (Expr.enode expr), Expr.eleft expr, Expr.eright expr)
+
+open C_Ast
+open Term
+in
+
+local
+open Expr
+in
+fun expr_node env_lang ctxt exp = exp |>
+  let val expr = expr env_lang ctxt
+  in
+   fn BinOp (ope, exp1, exp2) =>
+        Syntax.const (case ope of Plus => @{const_name plus}
+                                | Lt => @{const_name less}
+                                | _ => error ("Case not yet treated for this element: " ^ @{make_string} ope))
+        $ expr exp1
+        $ expr exp2
+    | ArrayDeref (exp1, exp2) =>
+        Syntax.const @{const_name nth} $ expr exp1 $ expr exp2
+    | Constant cst => Syntax.read_term ctxt (eval_litconst cst |> #1 |> Int.toString |> (fn s => s ^ " :: nat"))
+    | Var (x, _) => const ctxt x
+    | expr => warn ("Case not yet treated for this element: " ^ @{make_string} expr)
+  end
+and expr env_lang ctxt exp = exp |>
+  expr_node env_lang ctxt o enode
+end
+
+fun expr_lift env_lang ctxt =
+  Clean_Syntax_Lift.transform_term ctxt o expr env_lang ctxt
+
+local
+open StmtDecl
+in
+fun statement_node env_lang ctxt stmt = stmt |>
+  let
+    val expr = expr env_lang ctxt
+    val expr_lift = expr_lift env_lang ctxt
+    val statement = statement env_lang ctxt
+    val block_item = block_item env_lang ctxt
+  in
+   fn Assign (expr1, expr2) => Syntax.const @{const_name assign_local}
+                               $ expr (map_expr_node (fn Expr.Var (x, node) => Expr.Var (x ^ "_update", node)
+                                                             | _ => error "Expecting a variable")
+                                                           expr1)
+                               $ expr_lift expr2
+    | Block block =>
+      (case block of
+         [] => Syntax.const @{const_name skip\<^sub>S\<^sub>E}
+       | b :: bs =>
+           fold (fn b => fn acc => Syntax.const @{const_name bind_SE'} $ acc $ block_item b) bs (block_item b))
+    | IfStmt (expr, stmt1, stmt2) => Syntax.const @{const_name if_C}
+                                     $ expr_lift expr
+                                     $ statement stmt1
+                                     $ statement stmt2
+    | EmptyStmt => Syntax.const @{const_name skip\<^sub>S\<^sub>E}
+    | stmt => warn ("Case not yet treated for this element: " ^ @{make_string} stmt)
+  end
+and statement env_lang ctxt stmt = stmt |>
+  statement_node env_lang ctxt o StmtDecl.snode
+and block_item env_lang ctxt bi = bi |>
+  let
+    val statement = statement env_lang ctxt
+  in
+   fn BI_Stmt stmt => statement stmt
+    | bi => warn ("Case not yet treated for this element: " ^ @{make_string} bi)
+  end
+end
+
+val statement = fn env_lang => fn ctxt =>
+  statement env_lang ctxt o (IsarPreInstall.of_statement o C_Ast.statement0 ([], C_Ast.Alist []))
+
+end
+
+end
+\<close>
+
+ML \<open>
+val _ = Theory.setup (C_Module.C_Term.map_expression (fn expr => fn env_lang => fn ctxt => Conversion_C11.expression env_lang ctxt expr))
+val _ = Theory.setup (C_Module.C_Term.map_statement (fn stmt => fn env_lang => fn ctxt => Conversion_C99.statement env_lang ctxt stmt))
+\<close>
+
+subsection \<open>Test\<close>
+
+global_vars state
+  A :: "int list"
+  hi :: nat
+
+local_vars_test swap "unit"
+  tmp :: "int"
+  i :: "nat"
+  j :: "nat"
+
+term \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r \<open>tmp = A [hi]\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>tmp = A [hi];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>if (A[j] < A[i]) { i++; }\<close>\<close>
 
 end
