@@ -1,7 +1,7 @@
-(*****************************************************************************
+(***************************************************************************************
  * MonadicPrograms.thy --- a basic testing theory for programs.
- * Burkhart Wolff and Chantal Keller, LRI, Univ. Paris-Sud, France
- ******************************************************************************)
+ * Burkhart Wolff and Frederic Tuong and Chantal Keller, LRI, Univ. Paris-Saclay, France
+ ***************************************************************************************)
 
 chapter \<open>The Clean Language\<close>
 text\<open>Pronounce : "C lean".\<close>
@@ -40,6 +40,11 @@ and Haskell \<^url>\<open>https://www.schoolofhaskell.com/user/fumieval/extensib
 
 
 section\<open> Control-States  \<close>
+
+text\<open>The control state is the "root" of all extensions for local and global variable
+spaces in \<^verbatim>\<open>Clean\<close>. It contains just the information of the current control-flow: a break occurred
+(meaning all commands till the end of the control block will be skipped) or a return occurred
+(meaning all commands till the end of the current function body will be skipped).\<close>
   
 record  control_state = 
             break_status  :: bool
@@ -65,22 +70,24 @@ definition exec_stop :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool"
 
 section\<open> Global and Local State Management based on Extensible Records \<close>
 
+text\<open>Declarations of global and local variable blocks were constructed by subsequent extensions
+of the @{typ "control_state"}, the entire construction of a common state space is realized on top
+of a management of extensible records. 
+\<close>
 ML\<open>
 
 structure StateMgt_core = 
 struct
 
 val control_stateT = Syntax.parse_typ @{context} "control_state"
-val control_stateTE = @{typ "('\<sigma>_ext)control_state_ext"};
-
-fun control_state_extT t = Type(@{type_name "Clean.control_state.control_state_ext"}, [t])
+val control_stateS = @{typ "('a)control_state_scheme"};
 
 fun optionT t = Type(@{type_name "Option.option"},[t]);
 fun MON_SE_T res state = state --> optionT(HOLogic.mk_prodT(res,state));
 
-fun merge_control_stateT (@{typ "control_state"},t) = t
-   |merge_control_stateT (t, @{typ "control_state"}) = t
-   |merge_control_stateT (t, t') = if (t = t') then t else error"can not merge Clean state"
+fun merge_control_stateS (@{typ "('a)control_state_scheme"},t) = t
+   |merge_control_stateS (t, @{typ "('a)control_state_scheme"}) = t
+   |merge_control_stateS (t, t') = if (t = t') then t else error"can not merge Clean state"
 
 datatype var_kind = global_var of typ | local_var of typ
 
@@ -90,10 +97,10 @@ type state_field_tab = var_kind Symtab.table
 
 structure Data = Generic_Data
 (
-  type T                      = (state_field_tab * typ) 
-  val  empty                  = (Symtab.empty,control_stateT)
+  type T                      = (state_field_tab * typ (* current extensible record *)) 
+  val  empty                  = (Symtab.empty,control_stateS)
   val  extend                 = I
-  fun  merge((s1,t1),(s2,t2)) = (Symtab.merge (op =)(s1,s2),merge_control_stateT(t1,t2))
+  fun  merge((s1,t1),(s2,t2)) = (Symtab.merge (op =)(s1,s2),merge_control_stateS(t1,t2))
 );
 
 
@@ -374,8 +381,7 @@ fun pop_eq  binding name_op rty sty lthy =
              val res_access = mk_lookup_result_value_term (Binding.name_of binding) sty thy
              val term = construct_update true binding  sty thy                 
          in  mk_meta_eq((Free(name_op, mty) $ Free("\<sigma>",sty)), 
-                         mk_Some ( HOLogic.mk_prod (res_access,term)))
-                          
+                         mk_Some ( HOLogic.mk_prod (res_access,term)))                          
          end;
 
 
@@ -388,12 +394,12 @@ fun mk_pop_def binding rty sty lthy =
     end;
 
 
-
 fun read_parent NONE ctxt = (NONE, ctxt)
   | read_parent (SOME raw_T) ctxt =
        (case Proof_Context.read_typ_abbrev ctxt raw_T of
         Type (name, Ts) => (SOME (Ts, name), fold Variable.declare_typ Ts ctxt)
       | T => error ("Bad parent record specification: " ^ Syntax.string_of_typ ctxt T));
+
 
 fun read_fields raw_fields ctxt =
   let
@@ -441,10 +447,13 @@ fun add_record_cmd0 read_fields overloaded is_global_kind raw_params binding raw
 
 
 
-fun typ_2_string_raw (Type(s,[])) = s
+fun typ_2_string_raw (Type(s,[TFree _])) = if String.isSuffix "_scheme" s
+                                            then Long_Name.base_name(unsuffix "_scheme" s)
+                                            else Long_Name.base_name(unsuffix "_ext" s)
+                                          
    |typ_2_string_raw (Type(s,_)) = 
                          error ("Illegal parameterized state type - not allowed in Clean:"  ^ s) 
-   |typ_2_string_raw _ = error  "Illegal parameterized state type - not allowed in Clean." 
+   |typ_2_string_raw _ = error  "Illegal state type - not allowed in Clean." 
                                   
              
 fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res_ty), raw_fields) thy =
@@ -454,7 +463,9 @@ fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res
         val raw_parent = SOME(typ_2_string_raw (StateMgt_core.get_state_type_global thy))
         val pos = Binding.pos_of binding
         fun upd_state_typ thy = let val ctxt = Proof_Context.init_global thy
-                                    val ty = Syntax.parse_typ ctxt (Binding.name_of binding)
+                                    val ty_bind =  Binding.prefix_name "'a " 
+                                                        (Binding.suffix_name "_scheme" binding)
+                                    val ty = Syntax.parse_typ ctxt (Binding.name_of ty_bind)
                                 in  StateMgt_core.upd_state_type_global(K ty)(thy) end
         val result_binding = Binding.make(result_name,pos)
         val raw_fields' = case res_ty of 
@@ -499,7 +510,7 @@ section\<open>Syntactic Sugar supporting \<lambda>-lifting in cartouches for glo
 ML \<open>
 structure Clean_Syntax_Lift =
 struct
-
+val SPY4 = Unsynchronized.ref (@{typ "unit"});
 val SPY5 = Unsynchronized.ref (Bound 0);
 val SPY6 = Unsynchronized.ref (Bound 0);
 val SPY7 = Unsynchronized.ref (Bound 0);
@@ -517,7 +528,7 @@ val SPY7 = Unsynchronized.ref (Bound 0);
       | Free _ => tm
       | Var _ => tm
       | Bound n => if n > db then Bound(n + 1) else Bound n 
-      | Abs (x, a, tm') => Abs(x, a, app_sigma (db+1) tm' ctxt)
+      | Abs (x, ty, tm') => Abs(x, ty, app_sigma (db+1) tm' ctxt)
       | t1 $ t2 => (app_sigma db t1 ctxt) $ (app_sigma db t2 ctxt)
 
     fun scope_var name =
@@ -539,6 +550,7 @@ val SPY7 = Unsynchronized.ref (Bound 0);
             (case Term_Position.decode_position p of
               SOME (pos, _) =>
               let val txt = Symbol_Pos.implode(content (s,pos))
+                  val _ = writeln ("AAAA")
                   val tm = Syntax.parse_term ctxt txt
                   val _ = (SPY5:=tm)
                   val tr = transform_term ctxt tm
@@ -601,7 +613,7 @@ structure Function_Specification_Parser  =
       --| \<^keyword>\<open>post\<close>            -- Parse.term 
       --  Scan.option( \<^keyword>\<open>variant\<close> --| Parse.term)
       --| \<^keyword>\<open>local_vars\<close> -- (Scan.repeat1 Parse.const_binding)
-    (*  --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.cartouche>>cartouche)) *)
+   (* --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.cartouche>>cartouche)) *)
       --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.term)) 
       ) >> (fn (((((((binding,params),ret_ty),pre_src),post_src),variant_src),locals),body_src) => 
         {
@@ -647,24 +659,42 @@ structure Function_Specification_Parser  =
            val args = (SOME(bdg_pre,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
        in  Proof_Context.background_theory (Named_Target.theory_map (StateMgt.cmd args true)) end 
 
+   fun define_postcond binding args_ty rty sty params post = 
+       let val params = map (fn (b,r) => (Binding.name_of b,r)) params
+           val post' = case post of 
+                        Abs(nn, sty_pre, term) => mk_pat_tupleabs params (Abs(nn,sty_pre(* sty root ! !*),term))
+                      | _ => error ("internal error in define_precond")  
+           val bdg_post = Binding.suffix_name "_post" binding
+           val eq =  mk_meta_eq(Free(Binding.name_of bdg_post, args_ty --> sty --> rty --> HOLogic.boolT),post')
+           val args = (SOME(bdg_post,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
+       in  Proof_Context.background_theory (Named_Target.theory_map (StateMgt.cmd args true)) end 
+
+
    fun checkNsem_function_spec ({variant_src=SOME _, ...} : funct_spec_src) _ = 
                                error "No measure required in non-recursive call"
       |checkNsem_function_spec (args as {binding , params, ret_type, pre_src, post_src, 
                                   variant_src=NONE, locals, body_src} : funct_spec_src
                                ) thy = 
        let   val ctxt =  Proof_Context.init_global thy
+             val sty_old = StateMgt_core.get_state_type_global thy
              val ({params,ret_ty,pre,post,variant},ctxt') =  read_function_spec args ctxt
              val args_ty = HOLogic.mk_tupleT(map snd params)
              val ctxt'' = ctxt' |> Proof_Context.background_theory 
-                                  (StateMgt.new_state_record false ((([],binding), SOME ret_type),locals))
+                                   (StateMgt.new_state_record false ((([],binding), SOME ret_type),locals))
                                 
              val ty_bind = Binding.prefix_name "'a " (Binding.suffix_name "_scheme" 
                                                            (StateMgt.mk_local_state_name binding))
+             val nsty =   StateMgt_core.get_state_type ctxt''
+             val _ = writeln ("CCCC : nsty :" ^ Syntax.string_of_typ ctxt'' nsty)
              val sty = Syntax.parse_typ ctxt'' (Binding.name_of ty_bind)
              val mty = StateMgt_core.MON_SE_T ret_ty sty
+             val _ = writeln "XXXX"
              val body_term = Syntax.parse_term ctxt'' (fst body_src)
+             val _ = writeln "YYYY"
        in    Proof_Context.theory_of 
-                 (ctxt'' |> define_precond binding args_ty sty params pre) end
+                 (ctxt'' |> define_precond binding args_ty sty_old params pre
+                         |> define_postcond binding args_ty ret_ty sty_old params post ) 
+       end
 
    fun checkNsem_rec_function_spec ({ binding ,  params,  ret_type,  pre_src,  post_src, 
                                   variant_src,  locals, body_src} : funct_spec_src
