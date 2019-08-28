@@ -158,7 +158,9 @@ defines      \<open>(\<lambda>(i,j). ((assign_local tmp_update (\<lambda>\<sigma
 local_vars_test swap "unit"
    tmp :: "int"
 
-ML\<open>@{term "A::('a local_swap_state_scheme\<Rightarrow> int list)"}\<close>
+ML\<open>
+val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
+@{term "A::('a local_swap_state_scheme\<Rightarrow> int list)"}\<close>
 
 (* Has the effect: *)
 thm push_local_swap_state_def
