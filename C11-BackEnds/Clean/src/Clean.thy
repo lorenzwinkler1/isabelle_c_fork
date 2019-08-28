@@ -549,7 +549,7 @@ fun mk_assign t1 ctxt = case t1 of
                           else raise TERM ("mk_assign", [t1])
       | _ => raise TERM ("mk_assign", [t1])
   in
-    fun transform_term tm ctxt =
+    fun transform_term ctxt tm =
             case tm of
                Const(@{const_name "Clean.syntax_assign"},_) $ t1 $ t2 =>
                   (case t1 of
@@ -576,7 +576,7 @@ fun mk_assign t1 ctxt = case t1 of
               let val txt = Symbol_Pos.implode(content (s,pos))
                   val tm = Syntax.parse_term ctxt txt
                   val _ = (SPY5:=tm)
-                  val tr = transform_term tm ctxt
+                  val tr = transform_term ctxt tm
                   val _ = (SPY6:=tr)
                   val ct = Syntax.check_term ctxt tr
               in
