@@ -14,6 +14,7 @@
 signature ISAR_PRE_INSTALL =
 sig
   val of_c_ast : C_Ast.ext_decl list -> StmtDecl.ext_decl list
+  val of_statement : C_Ast.statement -> StmtDecl.statement
   val mk_thy_relative' : (theory -> Token.file) -> theory -> Token.file * string
   val parse_files' : string -> theory -> Token.file
 end
@@ -98,34 +99,38 @@ struct
   fun of_namedstringexp (opt, (s, e)) = (Option.map To_string0 opt, To_string0 s, of_expr e)
   fun of_asmblock e = {head = To_string0 (M.head e), mod1 = map of_namedstringexp (M.mod1 e), mod2 = map of_namedstringexp (M.mod2 e), mod3 = map To_string0 (M.mod3 e)}
   val of_trappable = let open StmtDecl in M.rec_trappable BreakT ContinueT end
-  val of_block_item =   
-    let open StmtDecl in
-      M.rec_block_item 
-        (fn e1 => fn e2 => Assign (of_expr e1, of_expr e2))
-        (fn opt => fn e => fn l => AssignFnCall (Option.map of_expr opt, of_expr e, map of_expr l) )
-        (Chaos o of_expr)
-        (fn e1 => fn e2 => fn l => EmbFnCall (of_expr e1, of_expr e2, map of_expr l))
-        (Block o map snd)
-        (fn e => fn opt => fn _ => fn s => While (of_expr e, Option.map (of_Region_Wrap To_string0) opt, s))
-        (fn t => fn _ => fn s => Trap (of_trappable t, s))
-        (Return o Option.map of_expr)
-        (fn e => fn l => ReturnFnCall (of_expr e, map of_expr l))
-        Break
-        Continue
-        (fn e => fn _ => fn _ => fn s1 => fn s2 => IfStmt (of_expr e, s1, s2))
-        (fn e => fn l => Switch (of_expr e, map (M.map_prod (map (Option.map of_expr)) (map snd)) l))
-        EmptyStmt
-        (Auxupd o To_string0)
-        (Ghostupd o To_string0)
-        (fn (ss, (l, s)) => Spec (M.map_prod To_string0 To_string0 ss, map snd l, To_string0 s))
-        (fn b => fn a => AsmStmt {volatilep = b, asmblock = of_asmblock a})
-        (LocalInit o of_expr)
-        (* *)
-        (StmtDeclDatatype.Stmt o of_Region_Wrap snd)
-        (* *)
-        (K BI_Stmt)
-        (BI_Decl o of_Region_Wrap of_declaration)
-    end
+  local
+    open StmtDecl
+    val f0 = fn e1 => fn e2 => Assign (of_expr e1, of_expr e2)
+    val f1 = fn opt => fn e => fn l => AssignFnCall (Option.map of_expr opt, of_expr e, map of_expr l)
+    val f2 = Chaos o of_expr
+    val f3 = fn e1 => fn e2 => fn l => EmbFnCall (of_expr e1, of_expr e2, map of_expr l)
+    val f4 = Block o map snd
+    val f5 = fn e => fn opt => fn _ => fn s => While (of_expr e, Option.map (of_Region_Wrap To_string0) opt, s)
+    val f6 = fn t => fn _ => fn s => Trap (of_trappable t, s)
+    val f7 = Return o Option.map of_expr
+    val f8 = fn e => fn l => ReturnFnCall (of_expr e, map of_expr l)
+    val f9 = Break
+    val f10 = Continue
+    val f11 = fn e => fn _ => fn _ => fn s1 => fn s2 => IfStmt (of_expr e, s1, s2)
+    val f12 = fn e => fn l => Switch (of_expr e, map (M.map_prod (map (Option.map of_expr)) (map snd)) l)
+    val f13 = EmptyStmt
+    val f14 = Auxupd o To_string0
+    val f15 = Ghostupd o To_string0
+    val f16 = fn (ss, (l, s)) => Spec (M.map_prod To_string0 To_string0 ss, map snd l, To_string0 s)
+    val f17 = fn b => fn a => AsmStmt {volatilep = b, asmblock = of_asmblock a}
+    val f18 = LocalInit o of_expr
+    (* *)
+    val f19 = StmtDeclDatatype.Stmt o of_Region_Wrap snd
+    (* *)
+    val f20 = K BI_Stmt
+    val f21 = BI_Decl o of_Region_Wrap of_declaration
+  in
+    val of_block_item = M.rec_block_item
+          f0 f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 f11 f12 f13 f14 f15 f16 f17 f18 f19 f20 f21
+    val of_statement = M.rec_statement
+          f0 f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 f11 f12 f13 f14 f15 f16 f17 f18 f19 f20 f21
+  end
   val of_body = of_Region_Wrap (map of_block_item)
   val of_ext_decl = 
     let open StmtDecl in

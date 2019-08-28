@@ -207,29 +207,70 @@ end
 section \<open>Syntax\<close>
 
 ML \<open>
-val _ =
-  (Theory.setup o C_Module.C_Term.map_expression)
-    (fn expr => fn _ => fn ctxt =>
-      let
-        fun err () = error "syntax error"
-        fun const var = case Proof_Context.read_const {proper = true, strict = false} ctxt var of
-                          Const (c, _) => Syntax.const c
-                        | _ => err ()
-        open C_Ast
-        open Term
-        val decode = fn CVar0 (Ident0 (_, x, _), _) => C_Grammar_Rule_Lib.ident_decode x
-                      | _ => err ()
-        val const' = const o decode
-      in
-        case expr of
-          CAssign0 (CAssignOp0, var_x, CIndex0 (var_y, var_z, _), _) =>
-            Syntax.const @{const_name assign_local}
-            $ const (decode var_x ^ "_update")
-            $ Clean_Syntax_Lift.transform_term
-                (Syntax.const @{const_name nth} $ const' var_y $ const' var_z)
-                ctxt
-        | _ => err ()
-      end)\<close>
+structure Conversion_C11 =
+struct
+fun expression expr _ ctxt =
+  let
+    fun warn msg = tap (fn _ => warning ("Syntax error: " ^ msg)) @{term "()"}
+    fun const var = case Proof_Context.read_const {proper = true, strict = false} ctxt var of
+                      Const (c, _) => Syntax.const c
+                    | _ => warn "Expecting a constant"
+    open C_Ast
+    open Term
+    val decode = fn CVar0 (Ident0 (_, x, _), _) => C_Grammar_Rule_Lib.ident_decode x
+                  | _ => error "Expecting a variable"
+    val const' = const o decode
+  in
+    case expr of
+      CAssign0 (CAssignOp0, var_x, CIndex0 (var_y, var_z, _), _) =>
+        Syntax.const @{const_name assign_local}
+        $ const (decode var_x ^ "_update")
+        $ Clean_Syntax_Lift.transform_term
+            (Syntax.const @{const_name nth} $ const' var_y $ const' var_z)
+            ctxt
+    | _ => warn ("Case not yet treated for this element: " ^ @{make_string} expr)
+  end
+end
+\<close>
+
+ML \<open>
+structure Conversion_C99 =
+struct
+fun statement stmt _ ctxt =
+  let
+    fun warn msg = tap (fn _ => warning ("Syntax error: " ^ msg)) @{term "()"}
+    fun const var = case Proof_Context.read_const {proper = true, strict = false} ctxt var of
+                      Const (c, _) => Syntax.const c
+                    | _ => warn "Expecting a constant"
+    open C_Ast
+    open Term
+    val decode = fn Expr.Var (x, _) => x
+                  | _ => error "Expecting a variable"
+    val const' = const o decode o Expr.enode
+    val stmt = IsarPreInstall.of_statement (C_Ast.statement0 ([], C_Ast.Alist []) stmt)
+  in
+    case StmtDecl.snode stmt of
+      StmtDecl.Assign (var_x, expr) =>
+        (case Expr.enode expr of
+           Expr.ArrayDeref (var_y, var_z) =>
+             Syntax.const @{const_name assign_local}
+             $ const (decode (Expr.enode var_x) ^ "_update")
+             $ Clean_Syntax_Lift.transform_term
+                 (Syntax.const @{const_name nth} $ const' var_y $ const' var_z)
+                 ctxt
+         | _ => warn ("Case not yet treated for this element: " ^ @{make_string} expr))
+    | _ => warn ("Case not yet treated for this element: " ^ @{make_string} stmt)
+  end
+end
+
+\<close>
+
+ML\<open>
+val _ = Theory.setup (C_Module.C_Term.map_expression Conversion_C11.expression)
+val _ = Theory.setup (C_Module.C_Term.map_statement Conversion_C99.statement)
+\<close>
+
+subsection \<open>Test\<close>
 
 global_vars state
   A :: "int list"
@@ -239,5 +280,6 @@ local_vars_test swap "unit"
   tmp :: "int"
 
 term \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>tmp = A [hi]\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t\<open>tmp = A [hi];\<close>\<close>
 
 end
