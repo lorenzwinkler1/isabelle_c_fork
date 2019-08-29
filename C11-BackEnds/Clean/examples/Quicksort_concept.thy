@@ -120,13 +120,20 @@ subsection \<open>Encoding swap in Clean\<close>
 
 (* some syntax tests *)
 
+ML\<open>Clean_Syntax_Lift.type_store:=NONE\<close>
+
 function_spec swap' (i::"nat",j::"nat") 
 pre          "\<open>i < length A \<and> j < length A\<close>"    
 post         "\<open>\<lambda>res. length A = 100 \<and> res = ()\<close>" (* problem : no reference to pre-state poss. *)
 local_vars   tmp :: "int" 
+(*
 defines      "\<lambda>(i,j). \<open> tmp := A ! i\<close>  ;-
                       \<open> A := list_update A i (A ! j)\<close> ;- 
                       \<open> A := list_update A j tmp\<close> " 
+*)
+defines \<open>(\<lambda>(i,j). ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
+                        (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
+                        (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>)))))\<close>
 ML\<open>
 !Clean_Syntax_Lift.SPY4;
 !Clean_Syntax_Lift.SPY5;
@@ -134,7 +141,7 @@ ML\<open>
 !Clean_Syntax_Lift.SPY7;
 
 \<close>
-
+ML\<open> Context.parents_of\<close>
 thm push_local_swap'_state_def
 thm pop_local_swap'_state_def
 thm swap'_pre_def

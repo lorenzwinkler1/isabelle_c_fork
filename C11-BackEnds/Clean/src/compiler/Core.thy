@@ -224,7 +224,7 @@ fun expression _ ctxt expr = expr |>
    fn CAssign0 (CAssignOp0, var_x, CIndex0 (var_y, var_z, _), _) =>
         Syntax.const @{const_name assign_local}
         $ const (decode var_x ^ "_update")
-        $ Clean_Syntax_Lift.transform_term
+        $ Clean_Syntax_Lift.transform_term'
             ctxt
             (Syntax.const @{const_name nth} $ const' var_y $ const' var_z)
     | expr => warn ("Case not yet treated for this element: " ^ @{make_string} expr)
@@ -278,7 +278,7 @@ and expr env_lang ctxt exp = exp |>
 end
 
 fun expr_lift env_lang ctxt =
-  Clean_Syntax_Lift.transform_term ctxt o expr env_lang ctxt
+  Clean_Syntax_Lift.transform_term' ctxt o expr env_lang ctxt
 
 fun expr_lift' env_lang ctxt db exp =
   Clean_Syntax_Lift.app_sigma db (expr env_lang ctxt exp) ctxt
