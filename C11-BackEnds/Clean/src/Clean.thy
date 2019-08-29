@@ -516,6 +516,11 @@ val SPY5 = Unsynchronized.ref (Bound 0);
 val SPY6 = Unsynchronized.ref (Bound 0);
 val SPY7 = Unsynchronized.ref (Bound 0);
 
+val type_store = Unsynchronized.ref (NONE:typ option)
+                 (* this serves to restore sequential consistency destroyed by 
+                    Proof_Context.background_theory ... type_store works as a one-time 
+                    store setting the type independently of the context. *)
+
   local
     fun mk_local_access X = Const (@{const_name "Fun.comp"}, dummyT) 
                             $ Const (@{const_name "List.list.hd"}, dummyT) $ X
@@ -532,6 +537,7 @@ val SPY7 = Unsynchronized.ref (Bound 0);
       | Abs (x, ty, tm') => Abs(x, ty, app_sigma (db+1) tm' ctxt)
       | t1 $ t2 => (app_sigma db t1 ctxt) $ (app_sigma db t2 ctxt)
   in
+
 
     fun transform_term ctxt sty tm =
             case tm of
@@ -551,16 +557,52 @@ val SPY7 = Unsynchronized.ref (Bound 0);
              | _ => Abs ("\<sigma>", sty, app_sigma 0 tm ctxt)
 
     fun string_tr ctxt (content:(string * Position.T) -> (string * Position.T) list) (args:term list) : term =
-      let fun err () = raise TERM ("string_tr", args) 
+(*
+    fun scope_var name =
+      Proof_Context.theory_of
+      #> (fn thy =>
+            if StateMgt_core.is_global_program_variable name thy then SOME true
+            else if StateMgt_core.is_local_program_variable name thy then SOME false
+            else NONE)
+
+    fun assign_update var = var ^ Record.updateN
+
+    fun transform_term0 abs scope_var tm =
+      case tm of
+         Const (@{const_name "Clean.syntax_assign"}, _)
+         $ (t1 as Const ("_type_constraint_", _) $ Const (name, ty))
+         $ t2 =>
+            Const ( case scope_var name of
+                      SOME true => @{const_name "assign_global"}
+                    | SOME false => @{const_name "assign_local"}
+                    | NONE => raise TERM ("mk_assign", [t1])
+                  , dummyT)
+            $ Const(assign_update name, ty)
+            $ abs t2
+       | _ => abs tm
+
+    fun transform_term ctxt =
+      transform_term0
+        (fn tm => Abs ("\<sigma>", dummyT, app_sigma 0 tm ctxt))
+        (fn name => scope_var name ctxt)
+
+    fun string_tr ctxt content args =
+ <<<< *) 
+      let fun err () = raise TERM ("string_tr", args)
       in
         (case args of
           [(Const (@{syntax_const "_constrain"}, _)) $ (Free (s, _)) $ p] =>
             (case Term_Position.decode_position p of
               SOME (pos, _) =>
               let val txt = Symbol_Pos.implode(content (s,pos))
-                  val _ = writeln ("AAAA")
                   val tm = Syntax.parse_term ctxt txt
-                  val sty = StateMgt_core.get_state_type ctxt
+
+                  val sty = (case !type_store of 
+                               NONE => StateMgt_core.get_state_type ctxt
+                             | SOME ty =>  ty)
+
+                  val _ = writeln ("cartouche string_tr:" ^ Syntax.string_of_typ ctxt sty)
+
                   val _ = (SPY4:=sty)
                   val _ = (SPY5:=tm)
                   val tr = transform_term ctxt sty tm
@@ -680,6 +722,9 @@ structure Function_Specification_Parser  =
        in  Proof_Context.background_theory (Named_Target.theory_map (StateMgt.cmd args true)) end 
 
 
+   val _ =  Named_Target.theory_map : (Proof.context -> Proof.context) -> theory -> theory
+
+
    fun checkNsem_function_spec ({variant_src=SOME _, ...} : funct_spec_src) _ = 
                                error "No measure required in non-recursive call"
       |checkNsem_function_spec (args as {binding , params, ret_type, pre_src, post_src, 
@@ -694,13 +739,29 @@ structure Function_Specification_Parser  =
                                 
              val ty_bind = Binding.prefix_name "'a " (Binding.suffix_name "_scheme" 
                                                            (StateMgt.mk_local_state_name binding))
-             val nsty =   StateMgt_core.get_state_type ctxt''
-             val _ = writeln ("CCCC : nsty :" ^ Syntax.string_of_typ ctxt'' nsty)
+
              val sty = Syntax.parse_typ ctxt'' (Binding.name_of ty_bind)
+
+             val ctxt'' = ctxt'' |> Proof_Context.background_theory 
+                                  (StateMgt.upd_state_type_global (K sty))
+             val nsty =   StateMgt_core.get_state_type ctxt''
+             
+             val _ = writeln ("checkNsem_function_spec 1 : nsty :" ^ Syntax.string_of_typ ctxt'' nsty 
+                                                         ^ " sty :" ^ Syntax.string_of_typ ctxt'' sty)
+             (* This code demonstrate that Proof_Context.background_theory is not sequential 
+                consistent on user contexts. *)
+             
+
              val mty = StateMgt_core.MON_SE_T ret_ty sty
-             val _ = writeln "XXXX"
+             val _ = writeln "checkNsem_function_spec 2"
+             val _ = (Clean_Syntax_Lift.type_store := NONE)
+
+(*             val _ = (Clean_Syntax_Lift.type_store := SOME sty) (* forcing the right reference type
+                                                                   in this context *)
+ *)
              val body_term = Syntax.parse_term ctxt'' (fst body_src)
-             val _ = writeln "YYYY"
+             val _ = (Clean_Syntax_Lift.type_store := NONE)
+             val _ = writeln "checkNsem_function_spec 3"
        in    Proof_Context.theory_of 
                  (ctxt'' |> define_precond binding args_ty sty_old params pre
                          |> define_postcond binding args_ty ret_ty sty_old params post ) 
