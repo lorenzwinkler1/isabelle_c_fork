@@ -10,8 +10,8 @@ theory Clean
   imports Symbex_MonadSE
   keywords "global_vars" "local_vars_test" :: thy_decl 
      and "returns" "pre" "post" "local_vars" "variant" 
-     and "function_spec" :: thy_goal
-     and "rec_function_spec"   :: thy_goal
+     and "function_spec" :: thy_decl
+     and "rec_function_spec"   :: thy_decl
 
 begin
   
@@ -693,28 +693,40 @@ structure Function_Specification_Parser  =
                                error "No measure required in non-recursive call"
       |checkNsem_function_spec (args as {binding , params, ret_type, pre_src, post_src, 
                                   variant_src=NONE, locals, body_src} : funct_spec_src
-                               ) thy = 
-       let   val ctxt =  Proof_Context.init_global thy
-             val sty_old = StateMgt_core.get_state_type_global thy
-             val ({params,ret_ty,pre,post,variant},ctxt') =  read_function_spec args ctxt
+                               ) thy = thy
+      |> Named_Target.theory_map_result
+          (K I)
+          (fn ctxt =>
+           let val sty_old = StateMgt_core.get_state_type_global thy
+               val (res, ctxt) = read_function_spec args ctxt
+           in ((sty_old, res), ctxt)
+           end)
+      |> (fn ((sty_old, {params,ret_ty,pre,post,variant}),thy') =>
+           let
              val args_ty = HOLogic.mk_tupleT(map snd params)
-             val ctxt'' = ctxt' |> Proof_Context.background_theory 
-                                   (StateMgt.new_state_record false ((([],binding), SOME ret_type),locals))
+             val thy'' = thy' |>   (StateMgt.new_state_record false ((([],binding), SOME ret_type),locals))
                                 
              val ty_bind = Binding.prefix_name "'a " (Binding.suffix_name "_scheme" 
                                                            (StateMgt.mk_local_state_name binding))
+           (*
              val nsty =   StateMgt_core.get_state_type ctxt''
              val _ = writeln ("CCCC : nsty :" ^ Syntax.string_of_typ ctxt'' nsty)
              val sty = Syntax.parse_typ ctxt'' (Binding.name_of ty_bind)
              val mty = StateMgt_core.MON_SE_T ret_ty sty
              val _ = writeln "XXXX"
-             val body_term = Syntax.parse_term ctxt'' (fst body_src)
-             val _ = writeln "YYYY"
-       in    Proof_Context.theory_of 
-                 (ctxt'' |> define_precond binding args_ty sty_old params pre
-                         |> define_postcond binding args_ty ret_ty sty_old params post ) 
-       end
-
+            *)
+           in
+             thy'' |> Named_Target.theory_map
+               (fn ctxt'' =>
+                 let
+                   val body_term = Syntax.parse_term ctxt'' (fst body_src)
+                   val _ = writeln "YYYY"
+                 in
+                     ctxt'' |> define_precond binding args_ty sty_old params pre
+                            |> define_postcond binding args_ty ret_ty sty_old params post
+                 end)
+           end)
+    
    fun checkNsem_rec_function_spec ({ binding ,  params,  ret_type,  pre_src,  post_src, 
                                   variant_src,  locals, body_src} : funct_spec_src
                                ) thy = 
