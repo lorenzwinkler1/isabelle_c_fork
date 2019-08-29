@@ -517,11 +517,6 @@ val SPY5 = Unsynchronized.ref (Bound 0);
 val SPY6 = Unsynchronized.ref (Bound 0);
 val SPY7 = Unsynchronized.ref (Bound 0);
 
-val type_store = Unsynchronized.ref (NONE:typ option)
-                 (* this serves to restore sequential consistency destroyed by 
-                    Proof_Context.background_theory ... type_store works as a one-time 
-                    store setting the type independently of the context. *)
-
   local
     fun mk_local_access X = Const (@{const_name "Fun.comp"}, dummyT) 
                             $ Const (@{const_name "List.list.hd"}, dummyT) $ X
@@ -577,19 +572,17 @@ val type_store = Unsynchronized.ref (NONE:typ option)
               SOME (pos, _) =>
               let val txt = Symbol_Pos.implode(content (s,pos))
                   val tm = Syntax.parse_term ctxt txt
+                  val sty = StateMgt_core.get_state_type ctxt
+                 
+ val _ = (SPY4:=sty) val _ = (SPY5:=tm)
 
-                  val sty = (case !type_store of 
-                               NONE => StateMgt_core.get_state_type ctxt
-                             | SOME ty =>  ty)
-
-                  val _ = writeln ("cartouche string_tr:" ^ Syntax.string_of_typ ctxt sty)
-
-                  val _ = (SPY4:=sty)
-                  val _ = (SPY5:=tm)
                   val tr = transform_term ctxt sty tm
-                  val _ = (SPY6:=tr)
+
+val _ = (SPY6:=tr)
+
                   val ct = Syntax.check_term ctxt tr
-                  val _ = (SPY7:=ct)
+
+val _ = (SPY7:=ct)
               in
                 ct
               end
@@ -682,8 +675,9 @@ structure Function_Specification_Parser  =
            val variant = Option.map (Syntax.read_term ctxt'')  variant_src
        in ({params = params',ret_ty = rty,pre = pre_term,post = post_term,variant = variant},ctxt'') end 
     
-   fun define_precond binding args_ty sty params pre = 
-       let val params = map (fn (b,r) => (Binding.name_of b,r)) params
+   fun define_precond binding  sty params pre = 
+       let val args_ty = HOLogic.mk_tupleT(map snd params) 
+           val params = map (fn (b,r) => (Binding.name_of b,r)) params
            val pre' = case pre of 
                         Abs(nn, sty_pre, term) => mk_pat_tupleabs params (Abs(nn,sty_pre(* sty root ! !*),term))
                       | _ => error ("internal error in define_precond")  
@@ -692,8 +686,9 @@ structure Function_Specification_Parser  =
            val args = (SOME(bdg_pre,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
        in  StateMgt.cmd args true end 
 
-   fun define_postcond binding args_ty rty sty params post = 
-       let val params = map (fn (b,r) => (Binding.name_of b,r)) params
+   fun define_postcond binding  rty sty params post = 
+       let val args_ty = HOLogic.mk_tupleT(map snd params) 
+           val params = map (fn (b,r) => (Binding.name_of b,r)) params
            val post' = case post of 
                         Abs(nn, sty_pre, term) => mk_pat_tupleabs params (Abs(nn,sty_pre(* sty root ! !*),term))
                       | _ => error ("internal error in define_precond")  
@@ -702,23 +697,34 @@ structure Function_Specification_Parser  =
            val args = (SOME(bdg_post,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
        in  StateMgt.cmd args true end 
 
+   fun define_body binding rty sty params body = 
+       let val args_ty = HOLogic.mk_tupleT(map snd params) 
+           val params' = map (fn (b,r) => (Binding.name_of b,r)) params
+           val core =  mk_pat_tupleabs params'  body
+           val bdg_core = Binding.suffix_name "_core" binding
+           val mty = StateMgt_core.MON_SE_T rty sty 
+           val eq =  mk_meta_eq(Free(Binding.name_of bdg_core, args_ty --> mty),core)
+           val args = (SOME(bdg_core,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
+       in  StateMgt.cmd args true end 
+
 
    fun checkNsem_function_spec ({variant_src=SOME _, ...} : funct_spec_src) _ = 
                                error "No measure required in non-recursive call"
-      |checkNsem_function_spec (args as {binding , params, ret_type, pre_src, post_src, 
-                                  variant_src=NONE, locals, body_src} : funct_spec_src
-                               ) thy = 
+      |checkNsem_function_spec (args as {binding, ret_type, 
+                                         variant_src=NONE, locals, body_src,...} : funct_spec_src) thy = 
            thy  |> Named_Target.theory_map
                          (fn ctxt =>
                           let val sty_old = StateMgt_core.get_state_type_global thy
-                              val (res as {params,ret_ty,pre,post,variant}, ctxt) = read_function_spec args ctxt
-                              val args_ty = HOLogic.mk_tupleT(map snd params) 
-                          in (ctxt |> define_precond binding args_ty sty_old params pre
-                                   |> define_postcond binding args_ty ret_ty sty_old params post)  end)
+                              val ({params,ret_ty,pre,post,...}, ctxt) = read_function_spec args ctxt
+                          in (ctxt |> define_precond binding  sty_old params pre
+                                   |> define_postcond binding  ret_ty sty_old params post)  end)
                 |> (StateMgt.new_state_record false ((([],binding), SOME ret_type),locals))
                 |> Named_Target.theory_map
-                       (fn ctxt'' => let val body_term = Syntax.parse_term ctxt'' (fst body_src)
-                                     in  ctxt''  end)
+                         (fn ctxt => 
+                          let val body = Syntax.parse_term ctxt (fst body_src)
+                              val sty = StateMgt_core.get_state_type_global thy
+                              val ({params,ret_ty,...}, ctxt') = read_function_spec args ctxt
+                          in  ctxt' |> define_body binding ret_ty sty params body  end)
            
 
    fun checkNsem_rec_function_spec ({ binding ,  params,  ret_type,  pre_src,  post_src,
