@@ -169,6 +169,7 @@ fun      map_hd :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a list \<Rightarrow> 'a
   where "map_hd f [] = []"
       | "map_hd f (a#S) = f a # S"
 
+definition "map_nth = (\<lambda>i f l. list_update l i (f (l ! i)))"
 
 definition  assign_local :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
                       \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
@@ -524,7 +525,7 @@ val type_store = Unsynchronized.ref (NONE:typ option)
   local
     fun mk_local_access X = Const (@{const_name "Fun.comp"}, dummyT) 
                             $ Const (@{const_name "List.list.hd"}, dummyT) $ X
-
+  in
     fun app_sigma db tm ctxt = case tm of
         Const(name, _) => if StateMgt_core.is_global_program_variable name (Proof_Context.theory_of ctxt) 
                           then tm $ (Bound db) (* lambda lifting *)
@@ -536,28 +537,7 @@ val type_store = Unsynchronized.ref (NONE:typ option)
       | Bound n => if n > db then Bound(n + 1) else Bound n 
       | Abs (x, ty, tm') => Abs(x, ty, app_sigma (db+1) tm' ctxt)
       | t1 $ t2 => (app_sigma db t1 ctxt) $ (app_sigma db t2 ctxt)
-  in
 
-
-    fun transform_term ctxt sty tm =
-            case tm of
-               Const(@{const_name "Clean.syntax_assign"},_) $ t1 $ t2 =>
-                  (case t1 of
-                    (Const("_type_constraint_",_)) $ (Const (name,ty))    => 
-                          if StateMgt_core.is_global_program_variable name (Proof_Context.theory_of ctxt) 
-                          then Const(@{const_name "assign_global"},dummyT)
-                                    $ Const(name^Record.updateN, ty)                  
-                                    $ Abs ("\<sigma>", sty,  app_sigma 0 t2 ctxt)
-                          else if StateMgt_core.is_local_program_variable name (Proof_Context.theory_of ctxt) 
-                               then Const(@{const_name "assign_local"},dummyT)
-                                    $ Const(name^Record.updateN, ty)
-                                    $ Abs ("\<sigma>", sty,  app_sigma 0 t2 ctxt)
-                               else raise TERM ("mk_assign", [t1])
-                   | _ => Abs ("\<sigma>", sty, app_sigma 0 tm ctxt))              
-             | _ => Abs ("\<sigma>", sty, app_sigma 0 tm ctxt)
-
-    fun string_tr ctxt (content:(string * Position.T) -> (string * Position.T) list) (args:term list) : term =
-(*
     fun scope_var name =
       Proof_Context.theory_of
       #> (fn thy =>
@@ -581,13 +561,14 @@ val type_store = Unsynchronized.ref (NONE:typ option)
             $ abs t2
        | _ => abs tm
 
-    fun transform_term ctxt =
+    fun transform_term ctxt sty =
       transform_term0
-        (fn tm => Abs ("\<sigma>", dummyT, app_sigma 0 tm ctxt))
+        (fn tm => Abs ("\<sigma>", sty, app_sigma 0 tm ctxt))
         (fn name => scope_var name ctxt)
 
+    fun transform_term' ctxt = transform_term ctxt dummyT
+
     fun string_tr ctxt content args =
- <<<< *) 
       let fun err () = raise TERM ("string_tr", args)
       in
         (case args of
@@ -722,9 +703,6 @@ structure Function_Specification_Parser  =
        in  StateMgt.cmd args true end 
 
 
-   val _ =  Named_Target.theory_map : (Proof.context -> Proof.context) -> theory -> theory
-   val _ =  Named_Target.theory_map_result
- 
    fun checkNsem_function_spec ({variant_src=SOME _, ...} : funct_spec_src) _ = 
                                error "No measure required in non-recursive call"
       |checkNsem_function_spec (args as {binding , params, ret_type, pre_src, post_src, 
