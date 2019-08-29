@@ -709,7 +709,7 @@ structure Function_Specification_Parser  =
            val bdg_pre = Binding.suffix_name "_pre" binding
            val eq =  mk_meta_eq(Free(Binding.name_of bdg_pre, args_ty --> sty --> HOLogic.boolT),pre')
            val args = (SOME(bdg_pre,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
-       in  Proof_Context.background_theory (Named_Target.theory_map (StateMgt.cmd args true)) end 
+       in  StateMgt.cmd args true end 
 
    fun define_postcond binding args_ty rty sty params post = 
        let val params = map (fn (b,r) => (Binding.name_of b,r)) params
@@ -719,58 +719,29 @@ structure Function_Specification_Parser  =
            val bdg_post = Binding.suffix_name "_post" binding
            val eq =  mk_meta_eq(Free(Binding.name_of bdg_post, args_ty --> sty --> rty --> HOLogic.boolT),post')
            val args = (SOME(bdg_post,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
-       in  Proof_Context.background_theory (Named_Target.theory_map (StateMgt.cmd args true)) end 
+       in  StateMgt.cmd args true end 
 
 
    val _ =  Named_Target.theory_map : (Proof.context -> Proof.context) -> theory -> theory
-
-
+   val _ =  Named_Target.theory_map_result
+ 
    fun checkNsem_function_spec ({variant_src=SOME _, ...} : funct_spec_src) _ = 
                                error "No measure required in non-recursive call"
       |checkNsem_function_spec (args as {binding , params, ret_type, pre_src, post_src, 
                                   variant_src=NONE, locals, body_src} : funct_spec_src
-                               ) thy = thy
-      |> Named_Target.theory_map_result
-          (K I)
-          (fn ctxt =>
-           let val sty_old = StateMgt_core.get_state_type_global thy
-               val (res, ctxt) = read_function_spec args ctxt
-           in ((sty_old, res), ctxt)
-           end)
-      |> (fn ((sty_old, {params,ret_ty,pre,post,variant}),thy') =>
-           let
-             val args_ty = HOLogic.mk_tupleT(map snd params)
-             val thy'' = thy' |>   (StateMgt.new_state_record false ((([],binding), SOME ret_type),locals))
-                                
-             val ty_bind = Binding.prefix_name "'a " (Binding.suffix_name "_scheme" 
-                                                           (StateMgt.mk_local_state_name binding))
-           (*
-             val sty = Syntax.parse_typ ctxt'' (Binding.name_of ty_bind)
-
-             val ctxt'' = ctxt'' |> Proof_Context.background_theory 
-                                  (StateMgt.upd_state_type_global (K sty))
-             val nsty =   StateMgt_core.get_state_type ctxt''
-             
-             val _ = writeln ("checkNsem_function_spec 1 : nsty :" ^ Syntax.string_of_typ ctxt'' nsty 
-                                                         ^ " sty :" ^ Syntax.string_of_typ ctxt'' sty)
-             (* This code demonstrate that Proof_Context.background_theory is not sequential 
-                consistent on user contexts. *)
-             
-
-             val mty = StateMgt_core.MON_SE_T ret_ty sty
-             val _ = writeln "XXXX"
-            *)
-           in
-             thy'' |> Named_Target.theory_map
-               (fn ctxt'' =>
-                 let
-                   val body_term = Syntax.parse_term ctxt'' (fst body_src)
-                   val _ = writeln "YYYY"
-                 in
-                     ctxt'' |> define_precond binding args_ty sty_old params pre
-                            |> define_postcond binding args_ty ret_ty sty_old params post
-                 end)
-           end)
+                               ) thy = 
+           thy  |> Named_Target.theory_map
+                         (fn ctxt =>
+                          let val sty_old = StateMgt_core.get_state_type_global thy
+                              val (res as {params,ret_ty,pre,post,variant}, ctxt) = read_function_spec args ctxt
+                              val args_ty = HOLogic.mk_tupleT(map snd params) 
+                          in (ctxt |> define_precond binding args_ty sty_old params pre
+                                   |> define_postcond binding args_ty ret_ty sty_old params post)  end)
+                |> (StateMgt.new_state_record false ((([],binding), SOME ret_type),locals))
+                |> Named_Target.theory_map
+                       (fn ctxt'' => let val body_term = Syntax.parse_term ctxt'' (fst body_src)
+                                     in  ctxt''  end)
+           
 
    fun checkNsem_rec_function_spec ({ binding ,  params,  ret_type,  pre_src,  post_src,
                                   variant_src,  locals, body_src} : funct_spec_src
