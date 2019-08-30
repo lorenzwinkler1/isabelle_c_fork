@@ -728,7 +728,7 @@ val SPY = Unsynchronized.ref(Bound 0)
                           let val sty = StateMgt_core.get_state_type ctxt
                               val ({params,ret_ty,...}, ctxt') = read_function_spec args ctxt
                               val (S,ctxt'') = Variable.add_fixes_binding (map fst params) ctxt'
-                              val body = Syntax.parse_term ctxt'' (fst body_src)
+                              val body = Syntax.read_term ctxt'' (fst body_src)
                               val _ = writeln ("checkNsem_function_spec : " ^ String.concat S)
                           in  ctxt'' |> define_body binding ret_ty sty params body  end)
            
