@@ -125,6 +125,8 @@ C \<open>
     by (clarsimp simp: UINT_MAX_def SQRT_UINT_MAX_def)
 */\<close>
 
+term SQRT_UINT_MAX
+
 section \<open>\<close>
 
 C \<open>int _;
