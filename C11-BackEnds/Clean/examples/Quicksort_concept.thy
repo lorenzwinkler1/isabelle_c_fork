@@ -34,11 +34,22 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+chapter \<open>The Clean Language : A Coding-Concept Example\<close>
+
+text\<open>The following show-case subsequently introduces an non-trivial example involving
+local and global variable declarations, declarations of operations with pre-post conditions as
+well as direct-recursive operations (i.e. C-like functions with side-effects on global and
+local variables. \<close>
+
 theory Quicksort_concept
   imports Clean.Clean
 begin
 
-(*
+section\<open>The Quicksort Example\<close>
+
+text\<open> We present the following quicksort algorithm in some conceptual, high-level notation:
+
+\begin{verb}
 algorithm partition(A, lo, hi) is
     pivot := A[hi]
     i := lo
@@ -55,52 +66,14 @@ algorithm quicksort(A, lo, hi) is
         quicksort(A, lo, p - 1)
         quicksort(A, p + 1, hi)
 
+\end{verb}
 
-+====================================+
-global_vars  (* state *)  
-    A :: "int list "
+\<close>
 
+section\<open>Quicksort - Clean Encoding: Low-level Version\<close>
 
-funct swap (i::nat, j :: nat) returns unit 
-      pre  "i < length A \<and> j < length A"
-      post "length (pre A) = length (A) \<and> \<forall>n. n \<noteq> i \<and> n \<noteq> j \<and> n < length A \<longrightarrow> (pre A)!n = A!n 
-            \<and> A!j = (pre A)!i \<and> A!i = (pre A)!j"
-      local_vars tmp :: int
-      \<open>\<open>tmp := A!i\<close> ;-
-       \<open>A[i] := A[j]\<close> ;-   (* A := A[i:=A[j]] *)
-       \<open>A[j] := tmp\<close>
-      \<close>
-
-funct partition (lo::nat, hi::nat) returns nat
-     pre  "True"
-     post "True"
-     local_vars pivot :: nat  i :: nat  j :: nat
-     \<open>\<open>pivot := A!hi\<close> ;-
-      \<open>i := lo\<close> ;-
-      for\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N (j=lo,  hi - 1 ,j++)  
-         \<open>if\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N \<open>A!j < pivot\<close> then swap(i,j);- \<open>i := i + 1\<close>
-                               else Skip;-
-         \<close>
-      swap(i,j);-
-      return(i)
-     \<close>
-         
-funct quicksort(lo::int, hi::int) returns unit
-     pre  "True"
-     post "True"
-     local_vars p :: int     
-     \<open>if\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N \<open>lo < hi\<close> then
-        p := partition(lo, hi) ;-
-        quicksort(A, lo, \<open>p - 1\<close>) ;-
-        quicksort(A, \<open>p + 1\<close>, hi)
-      else Skip\<close>
-      
-*)
-
-
-
-
-
+text\<open>We demonstrate the effect of some key Clean commands by highlighting the changes of 
+Clean's state-management module state. \<close>
 ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
     StateMgt_core.get_state_field_tab_global @{theory}; \<close>
 
@@ -120,30 +93,30 @@ subsection \<open>Encoding swap in Clean\<close>
 
 (* some syntax tests *)
 
-ML\<open>Clean_Syntax_Lift.type_store:=NONE\<close>
-
 function_spec swap' (i::"nat",j::"nat") 
 pre          "\<open>i < length A \<and> j < length A\<close>"    
 post         "\<open>\<lambda>res. length A = 100 \<and> res = ()\<close>" (* problem : no reference to pre-state poss. *)
 local_vars   tmp :: "int" 
-defines      "\<lambda>(i,j). \<open> tmp := A ! i\<close>  ;-
-                      \<open> A := list_update A i (A ! j)\<close> ;- 
-                      \<open> A := list_update A j tmp\<close> " 
-
-(*
-defines \<open>(\<lambda>(i,j). ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
-                        (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
-                        (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>)))))\<close>
+defines      " \<open> tmp := A ! i\<close>  ;-
+               \<open> A := list_update A i (A ! j)\<close> ;- 
+               \<open> A := list_update A j tmp\<close> " 
+(* (* low-level syntax : *)
+defines " ((assign_local tmp_update (\<lambda>\<sigma>. (A \<sigma>) ! i ))   ;-
+           (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
+           (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>))))"
 *)
+
 
 thm push_local_swap'_state_def
 thm pop_local_swap'_state_def
 thm swap'_pre_def
 thm swap'_post_def
+thm swap'_core_def
+thm swap'_def
+
 
 ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
     StateMgt_core.get_state_field_tab_global @{theory}\<close>
-
 
 
 rec_function_spec swap'' () returns "unit"
@@ -187,17 +160,39 @@ definition swap_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap_sta
                             (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
                             (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>)))))" 
 thm swap_core_def
-(* future input cartouche syntax should be: 
-definition swap_core :: "nat => nat =>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
-   where  "swap_core i j \<equiv> (\<open>tmp := A!i\<close>       ;-
-                            \<open>A[i] := A!j)\<close> ;-   
-                            \<open>A[j] := tmp\<close>)"
-*)
+
 
 (* a block manages the "dynamically" created fresh instances for the local variables of swap *)
 definition swap :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
   where   "swap \<equiv> \<lambda>(i,j). block\<^sub>C push_local_swap_state (swap_core (i,j)) pop_local_swap_state"
-        
+
+
+ML\<open>
+val tt = @{term "block\<^sub>C push_local_swap_state (swap_core (i,j)) pop_local_swap_state"}
+
+val ctxt = @{context}
+
+
+val sty = @{typ "'a local_swap_state_scheme"}
+val rty = @{typ "unit"}
+val umty = StateMgt.MON_SE_T @{typ "unit"} sty
+val rmty = StateMgt.MON_SE_T rty sty
+val params = [("i",@{typ "nat"}),("j",@{typ "nat"})]
+val args_ty = @{typ "nat \<times> nat"}
+
+
+
+val rhs = Const(@{const_name "Clean.block\<^sub>C"}, umty --> umty  --> rmty --> rmty)
+        $ Const(read_constname ctxt "push_local_swap_state",umty)
+        $ (Const(read_constname ctxt "swap_core",args_ty --> umty)  
+           $ HOLogic.mk_tuple (map Free params))
+        $ Const(read_constname ctxt "pop_local_swap_state",rmty)
+\<close>
+
+ML\<open>
+HOLogic.mk_tuple
+\<close>
+
 definition swap_pre :: "nat \<times> nat \<Rightarrow> 'a local_swap_state_scheme \<Rightarrow>   bool"
   where   "swap_pre \<equiv> \<lambda>(i,j). \<lambda>\<sigma>.  True "
 
@@ -210,8 +205,8 @@ definition swap_post :: "nat \<times> nat \<Rightarrow> unit \<Rightarrow> 'a lo
    calculation as well as well as symbolic execution and deduction. *) 
 
 (* alternative, optimized version *)
-definition swap' :: "nat \<times> nat \<Rightarrow>  (unit,'a global_state_state_scheme) MON\<^sub>S\<^sub>E"
-    where "swap' \<equiv> \<lambda>(i,j). (tmp \<leftarrow>  yield\<^sub>C (\<lambda>\<sigma>. A \<sigma> ! i) ;
+definition swap_opt :: "nat \<times> nat \<Rightarrow>  (unit,'a global_state_state_scheme) MON\<^sub>S\<^sub>E"
+    where "swap_opt \<equiv> \<lambda>(i,j). (tmp \<leftarrow>  yield\<^sub>C (\<lambda>\<sigma>. A \<sigma> ! i) ;
                           ((assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
                            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) (tmp)))))" 
 (* Note that all local variables are single-assigned in swap, the entire local var definition

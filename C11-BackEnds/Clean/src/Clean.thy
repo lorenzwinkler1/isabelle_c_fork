@@ -1,6 +1,6 @@
 (***************************************************************************************
- * MonadicPrograms.thy --- a basic testing theory for programs.
- * Burkhart Wolff and Frederic Tuong and Chantal Keller, LRI, Univ. Paris-Saclay, France
+ * Clean.thy --- a basic abstract ("shallow") programming language for test and proof.
+ * Burkhart Wolff, Frederic Tuong and Chantal Keller, LRI, Univ. Paris-Saclay, France
  ***************************************************************************************)
 
 chapter \<open>The Clean Language\<close>
@@ -169,6 +169,8 @@ fun      map_hd :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a list \<Rightarrow> 'a
   where "map_hd f [] = []"
       | "map_hd f (a#S) = f a # S"
 
+lemma tl_map_hd [simp] :"tl (map_hd f S) = tl S"  by (metis list.sel(3) map_hd.elims) 
+
 definition "map_nth = (\<lambda>i f l. list_update l i (f (l ! i)))"
 
 definition  assign_local :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
@@ -303,8 +305,11 @@ fun meta_eq_const T = Const (\<^const_name>\<open>Pure.eq\<close>, T --> T --> p
 fun mk_meta_eq (t, u) = meta_eq_const (fastype_of t) $ t $ u;
 
 fun   mk_pat_tupleabs [] t = t
-    | mk_pat_tupleabs [(s,ty)] t = lambda(Free(s,ty))(t)
-    | mk_pat_tupleabs ((s,ty)::R) t = HOLogic.mk_case_prod(lambda(Free(s,ty))(mk_pat_tupleabs R t));
+    | mk_pat_tupleabs [(s,ty)] t = absfree(s,ty)(t)
+    | mk_pat_tupleabs ((s,ty)::R) t = HOLogic.mk_case_prod(absfree(s,ty)(mk_pat_tupleabs R t));
+
+fun read_constname ctxt n = fst(dest_Const(Syntax.read_term ctxt n))
+
 \<close>
 
 ML\<open>
@@ -517,11 +522,6 @@ val SPY5 = Unsynchronized.ref (Bound 0);
 val SPY6 = Unsynchronized.ref (Bound 0);
 val SPY7 = Unsynchronized.ref (Bound 0);
 
-val type_store = Unsynchronized.ref (NONE:typ option)
-                 (* this serves to restore sequential consistency destroyed by 
-                    Proof_Context.background_theory ... type_store works as a one-time 
-                    store setting the type independently of the context. *)
-
   local
     fun mk_local_access X = Const (@{const_name "Fun.comp"}, dummyT) 
                             $ Const (@{const_name "List.list.hd"}, dummyT) $ X
@@ -577,19 +577,17 @@ val type_store = Unsynchronized.ref (NONE:typ option)
               SOME (pos, _) =>
               let val txt = Symbol_Pos.implode(content (s,pos))
                   val tm = Syntax.parse_term ctxt txt
+                  val sty = StateMgt_core.get_state_type ctxt
+                 
+ val _ = (SPY4:=sty) val _ = (SPY5:=tm)
 
-                  val sty = (case !type_store of 
-                               NONE => StateMgt_core.get_state_type ctxt
-                             | SOME ty =>  ty)
-
-                  val _ = writeln ("cartouche string_tr:" ^ Syntax.string_of_typ ctxt sty)
-
-                  val _ = (SPY4:=sty)
-                  val _ = (SPY5:=tm)
                   val tr = transform_term ctxt sty tm
-                  val _ = (SPY6:=tr)
+
+val _ = (SPY6:=tr)
+
                   val ct = Syntax.check_term ctxt tr
-                  val _ = (SPY7:=ct)
+
+val _ = (SPY7:=ct)
               in
                 ct
               end
@@ -611,6 +609,8 @@ parse_translation \<open>
 ML \<open> 
 structure Function_Specification_Parser  = 
   struct
+
+val SPY = Unsynchronized.ref(Bound 0)
 
     type funct_spec_src = {    
         binding:  binding,                         (* name *)
@@ -682,8 +682,9 @@ structure Function_Specification_Parser  =
            val variant = Option.map (Syntax.read_term ctxt'')  variant_src
        in ({params = params',ret_ty = rty,pre = pre_term,post = post_term,variant = variant},ctxt'') end 
     
-   fun define_precond binding args_ty sty params pre = 
-       let val params = map (fn (b,r) => (Binding.name_of b,r)) params
+   fun define_precond binding  sty params pre = 
+       let val args_ty = HOLogic.mk_tupleT(map snd params) 
+           val params = map (fn (b,r) => (Binding.name_of b,r)) params
            val pre' = case pre of 
                         Abs(nn, sty_pre, term) => mk_pat_tupleabs params (Abs(nn,sty_pre(* sty root ! !*),term))
                       | _ => error ("internal error in define_precond")  
@@ -692,8 +693,9 @@ structure Function_Specification_Parser  =
            val args = (SOME(bdg_pre,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
        in  StateMgt.cmd args true end 
 
-   fun define_postcond binding args_ty rty sty params post = 
-       let val params = map (fn (b,r) => (Binding.name_of b,r)) params
+   fun define_postcond binding  rty sty params post = 
+       let val args_ty = HOLogic.mk_tupleT(map snd params) 
+           val params = map (fn (b,r) => (Binding.name_of b,r)) params
            val post' = case post of 
                         Abs(nn, sty_pre, term) => mk_pat_tupleabs params (Abs(nn,sty_pre(* sty root ! !*),term))
                       | _ => error ("internal error in define_precond")  
@@ -702,24 +704,79 @@ structure Function_Specification_Parser  =
            val args = (SOME(bdg_post,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
        in  StateMgt.cmd args true end 
 
+   fun define_body_core binding rty sty params body ctxt = 
+       let val bdg_core = Binding.suffix_name "_core" binding
+           val bdg_core_name = Binding.name_of bdg_core
+
+           val args_ty = HOLogic.mk_tupleT(map snd params)
+           val params' = map (fn (b,r) => (Binding.name_of b,r)) params
+           val _ = writeln "define_body_core"
+           val _ = (SPY:=body)
+           val core =  mk_pat_tupleabs params'  body
+           val rmty = StateMgt_core.MON_SE_T rty sty 
+
+           val eq =  mk_meta_eq(Free(bdg_core_name, args_ty --> rmty),core)
+           val args_core = (SOME(bdg_core,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
+
+       in  ctxt |> StateMgt.cmd args_core true
+       end 
+ 
+   fun define_body_main binding rty sty params body ctxt = 
+       let val push_name = StateMgt.mk_push_name (StateMgt.mk_local_state_name binding)
+           val pop_name = StateMgt.mk_pop_name (StateMgt.mk_local_state_name binding)
+           val bdg_core = Binding.suffix_name "_core" binding
+           val bdg_core_name = Binding.name_of bdg_core
+
+           val args_ty = HOLogic.mk_tupleT(map snd params)
+           val params' = map (fn (b,r) => (Binding.name_of b,r)) params
+           val _ = writeln "define_body_main"
+           val _ = (SPY:=body)
+           val rmty = StateMgt_core.MON_SE_T rty sty 
+
+           val umty = StateMgt.MON_SE_T @{typ "unit"} sty
+           val rhs_main = Const(@{const_name "Clean.block\<^sub>C"}, umty --> umty  --> rmty --> rmty)
+                          $ Const(read_constname ctxt (Binding.name_of push_name),umty)
+                          $ (Const(read_constname ctxt bdg_core_name,args_ty --> umty)  
+                             $ HOLogic.mk_tuple (map Free params'))
+                          $ Const(read_constname ctxt (Binding.name_of pop_name),rmty)
+           val eq_main =  mk_meta_eq(Free(Binding.name_of binding, args_ty --> rmty),
+                                     mk_pat_tupleabs params' rhs_main)
+           val args_main = (SOME(binding,NONE,NoSyn), (Binding.empty_atts,eq_main),[],[]) 
+       in  ctxt |> StateMgt.cmd args_main true 
+       end 
+
 
    fun checkNsem_function_spec ({variant_src=SOME _, ...} : funct_spec_src) _ = 
                                error "No measure required in non-recursive call"
-      |checkNsem_function_spec (args as {binding , params, ret_type, pre_src, post_src, 
-                                  variant_src=NONE, locals, body_src} : funct_spec_src
-                               ) thy = 
+      |checkNsem_function_spec (args as {binding, ret_type, 
+                                         variant_src=NONE, locals, body_src,...} : funct_spec_src) thy = 
            thy  |> Named_Target.theory_map
                          (fn ctxt =>
                           let val sty_old = StateMgt_core.get_state_type_global thy
-                              val (res as {params,ret_ty,pre,post,variant}, ctxt) = read_function_spec args ctxt
-                              val args_ty = HOLogic.mk_tupleT(map snd params) 
-                          in (ctxt |> define_precond binding args_ty sty_old params pre
-                                   |> define_postcond binding args_ty ret_ty sty_old params post)  end)
-                |> (StateMgt.new_state_record false ((([],binding), SOME ret_type),locals))
+                              val ({params,ret_ty,pre,post,...}, ctxt) = read_function_spec args ctxt
+                          in (ctxt |> define_precond binding  sty_old params pre
+                                   |> define_postcond binding  ret_ty sty_old params post)  end)
+                |> StateMgt.new_state_record false ((([],binding), SOME ret_type),locals)
                 |> Named_Target.theory_map
-                       (fn ctxt'' => let val body_term = Syntax.parse_term ctxt'' (fst body_src)
-                                     in  ctxt''  end)
-           
+                         (fn ctxt => 
+                          let val sty = StateMgt_core.get_state_type ctxt
+                              val ({params,ret_ty,...}, ctxt') = read_function_spec args ctxt
+                              val (S,ctxt'') = Variable.add_fixes_binding (map fst params) ctxt'
+                              val body = Syntax.read_term ctxt'' (fst body_src)
+                              val _ = writeln ("checkNsem_function_spec : " ^ String.concat S)
+                          in  ctxt'' |> define_body_core binding ret_ty sty params body
+                          end)
+                |> Named_Target.theory_map
+                         (fn ctxt => 
+                          let val sty = StateMgt_core.get_state_type ctxt
+                              val ({params,ret_ty,...}, ctxt') = read_function_spec args ctxt
+                              val (S,ctxt'') = Variable.add_fixes_binding (map fst params) ctxt'
+                              val body = Syntax.read_term ctxt'' (fst body_src)
+                              val _ = writeln ("checkNsem_function_spec : " ^ String.concat S)
+                          in  ctxt'' |> define_body_main binding ret_ty sty params body
+                          end)
+   (* TODO : simplify, and avoid the excessive re-computations ... *)
+
 
    fun checkNsem_rec_function_spec ({ binding ,  params,  ret_type,  pre_src,  post_src,
                                   variant_src,  locals, body_src} : funct_spec_src
