@@ -120,34 +120,18 @@ subsection \<open>Encoding swap in Clean\<close>
 
 (* some syntax tests *)
 
-
 function_spec swap' (i::"nat",j::"nat") 
 pre          "\<open>i < length A \<and> j < length A\<close>"    
 post         "\<open>\<lambda>res. length A = 100 \<and> res = ()\<close>" (* problem : no reference to pre-state poss. *)
 local_vars   tmp :: "int" 
-
 defines      " \<open> tmp := A ! i\<close>  ;-
                \<open> A := list_update A i (A ! j)\<close> ;- 
                \<open> A := list_update A j tmp\<close> " 
-
-(*
-defines " ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
+(* (* low-level syntax : *)
+defines " ((assign_local tmp_update (\<lambda>\<sigma>. (A \<sigma>) ! i ))   ;-
            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>))))"
 *)
-(* defines "break" *)
-ML\<open>
-val t = !Function_Specification_Parser.SPY;
-mk_pat_tupleabs [("i",@{typ "nat"}),("j",@{typ "nat"})] t;
-\<close>
-ML\<open>
-!Clean_Syntax_Lift.SPY5;
-!Clean_Syntax_Lift.SPY6;
-!Clean_Syntax_Lift.SPY7 ;
-
-\<close>
-
-ML\<open>open Name_Space; open Variable\<close>
 
 
 thm push_local_swap'_state_def

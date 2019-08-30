@@ -303,8 +303,8 @@ fun meta_eq_const T = Const (\<^const_name>\<open>Pure.eq\<close>, T --> T --> p
 fun mk_meta_eq (t, u) = meta_eq_const (fastype_of t) $ t $ u;
 
 fun   mk_pat_tupleabs [] t = t
-    | mk_pat_tupleabs [(s,ty)] t = lambda(Free(s,ty))(t)
-    | mk_pat_tupleabs ((s,ty)::R) t = HOLogic.mk_case_prod(lambda(Free(s,ty))(mk_pat_tupleabs R t));
+    | mk_pat_tupleabs [(s,ty)] t = absfree(s,ty)(t)
+    | mk_pat_tupleabs ((s,ty)::R) t = HOLogic.mk_case_prod(absfree(s,ty)(mk_pat_tupleabs R t));
 \<close>
 
 ML\<open>
@@ -605,6 +605,8 @@ ML \<open>
 structure Function_Specification_Parser  = 
   struct
 
+val SPY = Unsynchronized.ref(Bound 0)
+
     type funct_spec_src = {    
         binding:  binding,                         (* name *)
         params: (binding*string) list,             (* parameters and their type*)
@@ -700,6 +702,8 @@ structure Function_Specification_Parser  =
    fun define_body binding rty sty params body = 
        let val args_ty = HOLogic.mk_tupleT(map snd params) 
            val params' = map (fn (b,r) => (Binding.name_of b,r)) params
+           val _ = writeln "define_body"
+           val _ = (SPY:=body)
            val core =  mk_pat_tupleabs params'  body
            val bdg_core = Binding.suffix_name "_core" binding
            val mty = StateMgt_core.MON_SE_T rty sty 
@@ -718,13 +722,15 @@ structure Function_Specification_Parser  =
                               val ({params,ret_ty,pre,post,...}, ctxt) = read_function_spec args ctxt
                           in (ctxt |> define_precond binding  sty_old params pre
                                    |> define_postcond binding  ret_ty sty_old params post)  end)
-                |> (StateMgt.new_state_record false ((([],binding), SOME ret_type),locals))
+                |> StateMgt.new_state_record false ((([],binding), SOME ret_type),locals)
                 |> Named_Target.theory_map
                          (fn ctxt => 
-                          let val body = Syntax.parse_term ctxt (fst body_src)
-                              val sty = StateMgt_core.get_state_type_global thy
+                          let val sty = StateMgt_core.get_state_type ctxt
                               val ({params,ret_ty,...}, ctxt') = read_function_spec args ctxt
-                          in  ctxt' |> define_body binding ret_ty sty params body  end)
+                              val (S,ctxt'') = Variable.add_fixes_binding (map fst params) ctxt'
+                              val body = Syntax.parse_term ctxt'' (fst body_src)
+                              val _ = writeln ("checkNsem_function_spec : " ^ String.concat S)
+                          in  ctxt'' |> define_body binding ret_ty sty params body  end)
            
 
    fun checkNsem_rec_function_spec ({ binding ,  params,  ret_type,  pre_src,  post_src,
