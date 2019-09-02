@@ -56,7 +56,7 @@ fun C opt = case opt of NONE => C' (C_Module.env (Context.the_generic_context ()
 fun C_def dir name _ _ =
   Context.map_theory 
     (C_Inner_Syntax.command0
-      (fn src => fn context => C' (C_Stack.Data_Lang.get context |> #2) src context)
+      (fn src => fn context => C' (C_Stack.Data_Lang.get' context |> #2) src context)
       C_Parse.C_source
       dir
       name)
