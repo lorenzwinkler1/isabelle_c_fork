@@ -43,8 +43,6 @@ session Clean_examples = Clean +
   theories
     "examples/Quicksort_concept"
     "examples/SquareRoot_concept"
-  document_files
-    "root.tex"
 
 session Clean_document = Clean +
   options [document = pdf, document_output = "output"]
@@ -54,6 +52,7 @@ session Clean_document = Clean +
     "examples/SquareRoot_concept"
   document_files
     "root.tex"
+    "root.bib"
     "lstisadof.sty"
     "figures/A-C-Source7.png"
     "figures/A-C-Source9.png"
