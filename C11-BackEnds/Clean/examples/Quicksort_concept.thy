@@ -36,7 +36,7 @@
 
 section \<open> Clean Semantics : A Coding-Concept Example\<close>
 
-text\<open>The following show-case subsequently introduces an non-trivial example involving
+text\<open>The following show-case introduces subsequently a non-trivial example involving
 local and global variable declarations, declarations of operations with pre-post conditions as
 well as direct-recursive operations (i.e. C-like functions with side-effects on global and
 local variables. \<close>
@@ -66,88 +66,103 @@ algorithm quicksort(A, lo, hi) is
         quicksort(A, lo, p - 1)
         quicksort(A, p + 1, hi)
 
-\end{verb}
+\end{verb}\<close>
 
-\<close>
+text\<open>In the following, we will present the Quicksort program alternatingly in Clean high-level
+notation and simulate its effect by an alternative formalisation representing the semantic
+effects of the high-level notation on a step-buy-step basis.\<close>
 
-section\<open>Quicksort - Clean Encoding: Low-level Version\<close>
+section\<open>Clean Encoding of the Global State of Quicksort\<close>
 
-text\<open>We demonstrate the effect of some key Clean commands by highlighting the changes of 
-Clean's state-management module state. \<close>
+text\<open>We demonstrate the accumulating effect of some key Clean commands by highlighting the 
+changes of  Clean's state-management module state. At the beginning, the state-type of 
+the Clean state management is just the type of the @{typ "'a Clean.control_state.control_state_ext"},
+while the table of global and local variables is empty.\<close>
+
 ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
     StateMgt_core.get_state_field_tab_global @{theory}; \<close>
+
+text\<open>The \<open>global_vars\<close> command, described and defined in \<^verbatim>\<open>Clean.thy\<close>,
+declares the global variable \<^verbatim>\<open>A\<close>. This has the following effect:\<close>
 
 global_vars state
     A :: "int list"
 
-(* see the effect on the internal table : *)
-ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
+text\<open>... which is reflected in Clean's state-management table:\<close>
+ML\<open> val Type("Quicksort_concept.global_state_state_scheme",t) 
+        = StateMgt_core.get_state_type_global @{theory};
     StateMgt_core.get_state_field_tab_global @{theory}\<close>
-(* note that the suffix is actually changing .... *)
+text\<open>Note that the state-management uses long-names for complete disambiguation.\<close>
 
 
 subsection \<open>Encoding swap in Clean\<close>
 
-(* for some strange reason, "result" is no longer a term. term "result" crashes. *)
-(* list-lifting should be automatic in local_vars. *)
+subsubsection \<open>\<^verbatim>\<open>swap\<close> in High-level Notation\<close>
 
-(* some syntax tests *)
+text\<open>Unfortunately, the name \<open>result\<close> is already used in the logical context; we use local binders
+instead.\<close>
 
-function_spec swap' (i::"nat",j::"nat") 
+function_spec swap (i::"nat",j::"nat") 
 pre          "\<open>i < length A \<and> j < length A\<close>"    
 post         "\<open>\<lambda>res. length A = length(old A) \<and> res = ()\<close>" 
 local_vars   tmp :: int 
 defines      " \<open> tmp := A ! i\<close>  ;-
                \<open> A := list_update A i (A ! j)\<close> ;- 
                \<open> A := list_update A j tmp\<close> " 
-(* (* corresponds to low-level syntax : *)
-defines " ((assign_local tmp_update (\<lambda>\<sigma>. (A \<sigma>) ! i ))   ;-
-           (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
-           (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>))))"
-*)
+text\<open>The body --- heavily using the \<open>\<lambda>\<close>-lifting cartouche --- corresponds to the low level 
+term: \<close>
 
+text\<open> @{cartouche [display=true]
+\<open>\<open>defines " ((assign_local tmp_update (\<lambda>\<sigma>. (A \<sigma>) ! i ))   ;-
+            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
+            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>))))"\<close>\<close>}\<close>
 
-thm push_local_swap'_state_def
-thm pop_local_swap'_state_def
-thm swap'_pre_def
-thm swap'_post_def
-thm swap'_core_def
-thm swap'_def
+text\<open>The effect of this statement is generation of the following definitions in the logical context:\<close>
+thm push_local_swap_state_def
+thm pop_local_swap_state_def
+thm swap_pre_def
+thm swap_post_def
+thm swap_core_def
+thm swap_def
 
+text\<open>The state-management is in the following configuration:\<close>
 
 ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
     StateMgt_core.get_state_field_tab_global @{theory}\<close>
 
+subsubsection \<open>A Similation of \<^verbatim>\<open>swap\<close> in elementary specification constructs:\<close>
 
-rec_function_spec swap'' () returns "unit"
-pre          "a"
-post         "b"
-variant      "c"
-local_vars   tmp :: "int" 
-defines      \<open>(\<lambda>(i,j). ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
-                        (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
-                        (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>)))))\<close>
+text\<open>Note that we prime identifiers in order to avoid confusion with the definitions of the
+previous section. The pre- and postconditions are just definitions of the following form:\<close>
 
+definition swap'_pre :: " nat \<times> nat \<Rightarrow> 'a global_state_state_scheme \<Rightarrow> bool"
+  where "swap'_pre \<equiv> \<lambda>(i, j) \<sigma>. i < length (A \<sigma>) \<and> j < length (A \<sigma>)"
+definition swap'_post :: "'a \<times> 'b \<Rightarrow> 'c global_state_state_scheme \<Rightarrow> 'd global_state_state_scheme \<Rightarrow> unit \<Rightarrow> bool"
+  where "swap'_post \<equiv> \<lambda>(i, j) \<sigma>\<^sub>p\<^sub>r\<^sub>e \<sigma> res. length (A \<sigma>) = length (A \<sigma>\<^sub>p\<^sub>r\<^sub>e) \<and> res = ()"
+text\<open>The somewhat vacuous parameter \<open>res\<close> for the result of the swap-computation is the conseqeuence 
+of the implicit definition of the return-type as @{typ "unit"}\<close>
 
-local_vars_test swap "unit"
+text\<open>We simulate the effect of the local variable space declaration by the following command
+     factoring out the functionality into the command \<open>local_vars_test\<close> \<close>
+local_vars_test swap' "unit"
    tmp :: "int"
 
 ML\<open>
 val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
+val tab = StateMgt_core.get_state_field_tab_global @{theory};
 @{term "A::('a local_swap_state_scheme\<Rightarrow> int list)"}\<close>
 
-(* Has the effect: *)
+text\<open>This has already the effect of the definition:\<close>
 thm push_local_swap_state_def
 thm pop_local_swap_state_def
-ML\<open>StateMgt_core.get_state_field_tab_global @{theory}\<close>
 
-
+text\<open>Again, we simulate the effect of this command by more elementary \HOL specification constructs:\<close>
 (* Thus, the internal functionality in \<open>local_vars\<close> is the construction of the two definitions *)
-definition push_local_swap_state' :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
+definition push_local_swap_state' :: "(unit,'a local_swap'_state_scheme) MON\<^sub>S\<^sub>E"
   where   "push_local_swap_state' \<sigma> = 
                     Some((),\<sigma>\<lparr>local_swap_state.tmp :=  undefined # local_swap_state.tmp \<sigma> \<rparr>)"
 
-definition pop_local_swap_state' :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
+definition pop_local_swap_state' :: "(unit,'a local_swap'_state_scheme) MON\<^sub>S\<^sub>E"
   where   "pop_local_swap_state' \<sigma> = 
                     Some(hd(local_swap_state.result_value \<sigma>), 
                                 \<comment> \<open> recall : returns op value \<close>
@@ -155,62 +170,31 @@ definition pop_local_swap_state' :: "(unit,'a local_swap_state_scheme) MON\<^sub
                          \<sigma>\<lparr>local_swap_state.tmp:= tl( local_swap_state.tmp \<sigma>) \<rparr>)"
 
 
-definition swap_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
-    where "swap_core  \<equiv> (\<lambda>(i,j). ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
+definition swap'_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap'_state_scheme) MON\<^sub>S\<^sub>E"
+    where "swap'_core  \<equiv> (\<lambda>(i,j). ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
                             (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
                             (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>)))))" 
 thm swap_core_def
 
 
-(* a block manages the "dynamically" created fresh instances for the local variables of swap *)
-definition swap :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "swap \<equiv> \<lambda>(i,j). block\<^sub>C push_local_swap_state (swap_core (i,j)) pop_local_swap_state"
+text\<open> a block manages the "dynamically" created fresh instances for the local variables of swap \<close>
+definition swap' :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap'_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "swap' \<equiv> \<lambda>(i,j). block\<^sub>C push_local_swap_state' (swap_core (i,j)) pop_local_swap_state'"
 
 
-ML\<open>
-val tt = @{term "block\<^sub>C push_local_swap_state (swap_core (i,j)) pop_local_swap_state"}
-
-val ctxt = @{context}
-
-
-val sty = @{typ "'a local_swap_state_scheme"}
-val rty = @{typ "unit"}
-val umty = StateMgt.MON_SE_T @{typ "unit"} sty
-val rmty = StateMgt.MON_SE_T rty sty
-val params = [("i",@{typ "nat"}),("j",@{typ "nat"})]
-val args_ty = @{typ "nat \<times> nat"}
-
-
-
-val rhs = Const(@{const_name "Clean.block\<^sub>C"}, umty --> umty  --> rmty --> rmty)
-        $ Const(read_constname ctxt "push_local_swap_state",umty)
-        $ (Const(read_constname ctxt "swap_core",args_ty --> umty)  
-           $ HOLogic.mk_tuple (map Free params))
-        $ Const(read_constname ctxt "pop_local_swap_state",rmty)
-\<close>
-
-ML\<open>
-HOLogic.mk_tuple
-\<close>
-
-definition swap_pre :: "nat \<times> nat \<Rightarrow> 'a local_swap_state_scheme \<Rightarrow>   bool"
-  where   "swap_pre \<equiv> \<lambda>(i,j). \<lambda>\<sigma>.  True "
-
-definition swap_post :: "nat \<times> nat \<Rightarrow> unit \<Rightarrow> 'a local_swap_state_scheme \<Rightarrow>  bool"
-  where   "swap_post \<equiv> \<lambda>(i,j). \<lambda> res. \<lambda>\<sigma>.  True"   
-
-(* NOTE: If local variables were only used in single-assignment style, it is possible
+text\<open>NOTE: If local variables were only used in single-assignment style, it is possible
    to drastically simplify the encoding. These variables were not stored in the state,
    just kept as part of the monadic calculation. The simplifications refer both to 
-   calculation as well as well as symbolic execution and deduction. *) 
+   calculation as well as well as symbolic execution and deduction.\<close>
 
-(* alternative, optimized version *)
+text\<open>The could be represented by the following alternative, optimized version :\<close>
 definition swap_opt :: "nat \<times> nat \<Rightarrow>  (unit,'a global_state_state_scheme) MON\<^sub>S\<^sub>E"
     where "swap_opt \<equiv> \<lambda>(i,j). (tmp \<leftarrow>  yield\<^sub>C (\<lambda>\<sigma>. A \<sigma> ! i) ;
                           ((assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
                            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) (tmp)))))" 
-(* Note that all local variables are single-assigned in swap, the entire local var definition
-   can be ommitted *) 
+text\<open>In case that all local variables are single-assigned in swap, the entire local var definition
+   could be ommitted.\<close>
+
 
 subsection \<open>Encoding partition in Clean\<close>
 
@@ -402,6 +386,16 @@ term " body\<^sub>C push_local_state_swap pop_local_state_swap "
 term "assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (n) (A \<sigma> ! m))"
 
 term "B[k:=(B!m)]"
+
+
+rec_function_spec swap'' () returns "unit"
+pre          "a"
+post         "b"
+variant      "c"
+local_vars   tmp :: "int" 
+defines      \<open>(\<lambda>(i,j). ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
+                        (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
+                        (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>)))))\<close>
 
 
 end
