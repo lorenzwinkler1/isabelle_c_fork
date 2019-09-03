@@ -206,12 +206,12 @@ text\<open>In case that all local variables are single-assigned in swap, the ent
 
 subsection \<open>Encoding partition in Clean\<close>
 
-function_spec partition (lo::"nat",hi::"nat") returns "nat"
+function_spec partition (lo::nat, hi::nat) returns nat
 pre          "\<open>lo < length A \<and> hi < length A\<close>"    
 post         "\<open>\<lambda>res::nat. length A = length(old A) \<and> res = 3\<close>" 
-local_vars   pivot  :: "int"
-             i      :: "nat"
-             j      :: "nat"
+local_vars   pivot  :: int
+             i      :: nat
+             j      :: nat
 defines      " (\<open>pivot := A ! hi \<close>  ;- \<open>i := lo \<close> ;- \<open>j := lo \<close> ;-
                (while\<^sub>C \<open>j \<le> hi - 1 \<close> 
                 do (if\<^sub>C \<open>A ! j < pivot\<close>  
@@ -246,21 +246,39 @@ text\<open> The body is a fancy syntax for :
                ) "\<close>\<close>}\<close>
 
 
+text\<open>The effect of this statement is generation of the following definitions in the logical context:\<close>
+thm partition_pre_def
+thm partition_post_def
+thm push_local_partition_state_def
+thm pop_local_partition_state_def
+thm partition_core_def
+thm partition_def
 
+text\<open>The state-management is in the following configuration:\<close>
 
+ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
+    StateMgt_core.get_state_field_tab_global @{theory}\<close>
 
-(* recall: list-lifting should be automatic in local_vars. *)
+subsubsection \<open>A Similation of \<^verbatim>\<open>partition\<close> in elementary specification constructs:\<close>
+
+definition "partition'_pre \<equiv> \<lambda>(lo, hi) \<sigma>. lo < length (A \<sigma>) \<and> hi < length (A \<sigma>)"
+definition "partition'_post \<equiv> \<lambda>(lo, hi) \<sigma>\<^sub>p\<^sub>r\<^sub>e \<sigma> res. length (A \<sigma>) = length (A \<sigma>\<^sub>p\<^sub>r\<^sub>e) \<and> res = 3"
+
+text\<open>Recall: list-lifting is automatic in \<open>local_vars_test\<close>:\<close>
+
 local_vars_test  partition' "nat"
     pivot  :: "int"
     i      :: "nat"
     j      :: "nat"
 
-(* this implies the definitions : *)
-thm push_local_partition_state_def
-thm pop_local_partition_state_def
+text\<open> ... which results in the internal definition of the respective push and pop operations 
+for the @{term "partition'"} local variable space: \<close>
+
+thm push_local_partition'_state_def
+thm pop_local_partition'_state_def
 
 (* equivalent to *)
-definition push_local_partition_state' :: "(unit, 'a local_partition_state_scheme) MON\<^sub>S\<^sub>E"
+definition push_local_partition_state' :: "(unit, 'a local_partition'_state_scheme) MON\<^sub>S\<^sub>E"
   where   "push_local_partition_state' \<sigma> = Some((),
                         \<sigma>\<lparr>local_partition_state.pivot := undefined # local_partition_state.pivot \<sigma>, 
                           local_partition_state.i     := undefined # local_partition_state.i \<sigma>, 
@@ -277,8 +295,8 @@ definition pop_local_partition_state' :: "(nat,'a local_partition_state_scheme) 
                                                         tl(local_partition_state.result_value \<sigma>) \<rparr>)"
 
 
-definition partition_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_partition_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "partition_core  \<equiv> \<lambda>(lo,hi).
+definition partition'_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_partition'_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "partition'_core  \<equiv> \<lambda>(lo,hi).
               ((assign_local pivot_update (\<lambda>\<sigma>. A \<sigma> ! hi ))   ;- 
                (assign_local i_update (\<lambda>\<sigma>. lo )) ;-
  
@@ -299,28 +317,11 @@ definition partition_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_par
 thm partition_core_def
 
 (* a block manages the "dynamically" created fresh instances for the local variables of swap *)
-definition partition :: "nat \<times> nat \<Rightarrow>  (nat,'a local_partition_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "partition  \<equiv> \<lambda>(lo,hi). block\<^sub>C push_local_partition_state 
+definition partition' :: "nat \<times> nat \<Rightarrow>  (nat,'a local_partition'_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "partition'  \<equiv> \<lambda>(lo,hi). block\<^sub>C push_local_partition_state 
                                    (partition_core (lo,hi)) 
                                    pop_local_partition_state"
-        
-definition partition_pre :: "nat \<times> nat \<Rightarrow> 'a local_partition_state_scheme \<Rightarrow>   bool"
-  where   "partition_pre \<equiv> \<lambda>(i,j). \<lambda>\<sigma>.  True "
-
-definition partition_post :: "nat \<times> nat \<Rightarrow> nat \<Rightarrow> 'a local_partition_state_scheme \<Rightarrow>  bool"
-  where   "partition_post \<equiv> \<lambda>(i,j). \<lambda> res. \<lambda>\<sigma>.  True"   
-
-(*
-    \<open>\<open>pivot := A!hi\<close> ;-
-      \<open>i := lo\<close> ;-
-      for\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N (j=lo,  hi - 1 ,j++)  
-         \<open>if\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N \<open>A!j < pivot\<close> then swap(i,j);- \<open>i := i + 1\<close>
-                               else Skip;-
-         \<close>
-      swap(i,j);-
-      return(i)
-     \<close>
-*)         
+             
 
 subsection \<open>Encoding quicksort in Clean\<close>
 
