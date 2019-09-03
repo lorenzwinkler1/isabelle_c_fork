@@ -43,24 +43,27 @@
  * @TAG(NICTA_BSD)
  *)
 
-theory Prime imports "../../../C11-FrontEnd/archive/Clean_backend_old"
-begin
-declare [[Clean_on]]
+theory Prime imports Isabelle_C_Clean.Backend
+                  \<comment> \<open>Clean back-end is now on\<close>   "../../../C11-FrontEnd/archive/Clean_backend_old" "HOL-Computational_Algebra.Primes"
+begin                                             no_syntax "_C" :: \<open>cartouche_position \<Rightarrow> _\<close> ("\<^C> _")
 C \<open>
-#define SQRT_UINT_MAX 65536
-int k = 0;
-unsigned int is_prime(unsigned int n)
-//@ pre\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N \<open>n \<le> UINT_MAX\<close>
-//@ definition "prime (p :: nat) =         \
-       (1 < p \<and> (\<forall> n \<in> {2..<p}. \<not> n dvd p))"
-//@ post\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N \<open>result \<noteq> 0 \<longleftrightarrow> prime n\<close>
-{ if (n < 2) return 0;
-  for (unsigned i = 2; i < SQRT_UINT_MAX
-                       && i * i <= n; i++) {
-    if (n % i == 0) return 0;
-    k++;
-  }
-  return 1;
+//@ definition \<open>prime\<^sub>H\<^sub>O\<^sub>L (p :: nat) =          \
+          (1 < p \<and> (\<forall> n \<in> {2..<p}. \<not> n dvd p))\<close>
+#   define SQRT_UINT_MAX 65536
+unsigned int k = 0;
+unsigned int prime\<^sub>C(unsigned int n) {
+//@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<open>n\<close> \<le> UINT_MAX\<close>
+//@ post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n \<open>\<^C>\<open>prime\<^sub>C(n)\<close> \<noteq> 0 \<longleftrightarrow> prime\<^sub>H\<^sub>O\<^sub>L \<^C>\<open>n\<close>\<close>
+    if (n < 2) return 0;
+    for (unsigned i = 2; i < SQRT_UINT_MAX
+                         && i * i <= n; i++) {
+      if (n % i == 0) return 0;
+      k++;
+    }
+    return 1;
 }\<close>
+
+lemma "prime\<^sub>H\<^sub>O\<^sub>L p = prime p"
+by (simp add: prime\<^sub>H\<^sub>O\<^sub>L_def prime_nat_iff')
 
 end

@@ -70,6 +70,7 @@ session Isabelle_C_archive = Isabelle_C_AutoCorres +
   options [quick_and_dirty]
   sessions
     Clean
+    Isabelle_C_Clean
     "HOL-Computational_Algebra"
   theories
     "C11-FrontEnd/archive/C0"
