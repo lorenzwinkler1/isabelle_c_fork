@@ -49,7 +49,7 @@ section\<open>The Quicksort Example\<close>
 
 text\<open> We present the following quicksort algorithm in some conceptual, high-level notation:
 
-\begin{verb}
+\begin{isar}
 algorithm (A,i,j) =
     tmp := A[i];
     A[i]:=A[j];
@@ -71,7 +71,8 @@ algorithm quicksort(A, lo, hi) is
         quicksort(A, lo, p - 1)
         quicksort(A, p + 1, hi)
 
-\end{verb}\<close>
+\end{isar}
+\<close>
 
 text\<open>In the following, we will present the Quicksort program alternatingly in Clean high-level
 notation and simulate its effect by an alternative formalisation representing the semantic
