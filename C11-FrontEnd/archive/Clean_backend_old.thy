@@ -86,7 +86,8 @@ platform.\<close>
 
 ML \<open>fun command keyword f =
   C_Annotation.command' keyword ""
-    (C_Token.syntax' (Parse.token Parse.cartouche)
+    (C_Token.syntax'
+      (Parse.token Parse.cartouche)
      >>> toplevel f)\<close>
 setup \<open>command ("pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n", \<^here>) Spec
     #> command ("post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n", \<^here>) End_spec
