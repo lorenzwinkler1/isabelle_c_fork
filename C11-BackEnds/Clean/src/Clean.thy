@@ -79,12 +79,9 @@ model might be wrong in the sense that it does not reflect the operational behav
 compiler, however, it is by construction \<^emph>\<open>logically consistent\<close> since it is
 impossible to derive falsity from the entire set of rules. \<close>
 
-text\<open> \begin{wrapfigure}{r}{0.66\textwidth}
-  \vspace{-12pt}
-  \includegraphics[width=0.66\textwidth]{figures/A-C-Source9}
-\end{wrapfigure}
+text\<open>
 On this basis, assignments, conditionals and loops are reformulated into
-\<^term>\<open>break\<close>-aware and \<^term>\<open>return\<close>-aware versions as shown in the figure aside. The Clean
+\<^term>\<open>break\<close>-aware and \<^term>\<open>return\<close>-aware versions as shown in the definitions of \<^term>\<open>assign\<close> and \<^term>\<open>if_C\<close> (in this theory file, see below). The Clean
 theory contains about 600 derived theorems containing symbolic evaluation and Hoare-style
 verification rules.
 \<close>
@@ -129,49 +126,6 @@ developed in @{cite "DBLP:conf/tap/Keller18"}, which also uses Clean as semantic
 Note that the testing approach does not need the formulation of an invariant,
 which is already non-trivial in the given example. 
 \<close>
-
-(*<*)
-text\<open>
-\begin{figure}
-  \centering
-  \begin{minipage}{0.49\linewidth}
-  \includegraphics[width=0.92\textwidth]{figures/A-C-Source7}
-  \end{minipage}
-  \begin{minipage}{0.49\linewidth}
-\begin{isar}
-is_prime_core_def: "is_prime_core n \<equiv>
-  if$_{\text{Clean}}$ \<Open> (n < 2) \<Close> then return 0 else skip;-
-  \<Open> i := 2 \<Close>;-
-  while$_{\text{Clean}}$ \<Open> i < SQRT_UINT_MAX \<and> i * i \<le> n\<Close>
-    (if$_{\text{Clean}}$ \<Open>n mod i = 0\<Close>
-      then return 0 else skip;
-     \<Open>k:=k+1\<Close>; assert \<Open> k\<le>UINT_MAX \<Close>
-     \<Open>i:=i+1\<Close>; assert \<Open> i\<le>UINT_MAX \<Close>) ;-
-  return 1"
-
-is_prime_def: "is_prime n \<equiv>
-  block$_{\text{Clean}}$ push_local_is_prime_state
-             (is_prime_core n)
-             pop_local_is_prime_state"
-\end{isar}
-  \end{minipage}
-  \caption{Isabelle/C/Clean Semantic Back-End on an Example}
-  \label{fig:clean}
-\end{figure}
-\<close>
-(*>*)
-
-
-text\<open>
-\begin{wrapfigure}{r}{0.44\textwidth}
-  \vspace{-12pt}
-  \includegraphics[width=0.44\textwidth]{figures/A-C-Source10}
-\end{wrapfigure}
-Finally, we will have a glance at the code for the registration of the annotation commands
-used in the example. Thanks to Isabelle/C's function \<^ML_text>\<open>C_Annotation.command'\<close>, the registration of 
-user-defined annotations is very similar to the registration of ordinary commands in the Isabelle
-platform.\<close>
-
 
 section\<open> Control-States  \<close>
 

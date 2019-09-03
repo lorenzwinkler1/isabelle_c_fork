@@ -75,9 +75,6 @@ session Isabelle_C_Clean_document in "C11-BackEnds/Clean" = Isabelle_C_Clean_exa
     "root.tex"
     "root.bib"
     "lstisadof.sty"
-    "figures/A-C-Source7.png"
-    "figures/A-C-Source9.png"
-    "figures/A-C-Source10.png"
 
 session Isabelle_C_README in "C11-FrontEnd" = HOL +
   theories
