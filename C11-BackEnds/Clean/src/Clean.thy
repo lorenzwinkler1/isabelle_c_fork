@@ -901,8 +901,9 @@ val SPY = Unsynchronized.ref(Bound 0)
            val _ = (SPY:=body)
            val core =  mk_pat_tupleabs params'  body
            val rmty = StateMgt_core.MON_SE_T rty sty 
+           val umty = StateMgt.MON_SE_T @{typ "unit"} sty
 
-           val eq =  mk_meta_eq(Free(bdg_core_name, args_ty --> rmty),core)
+           val eq =  mk_meta_eq(Free(bdg_core_name, args_ty --> umty),core)
            val args_core = (SOME(bdg_core,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
 
        in  ctxt |> StateMgt.cmd args_core true

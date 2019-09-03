@@ -50,6 +50,11 @@ section\<open>The Quicksort Example\<close>
 text\<open> We present the following quicksort algorithm in some conceptual, high-level notation:
 
 \begin{verb}
+algorithm (A,i,j) =
+    tmp := A[i];
+    A[i]:=A[j];
+    A[j]:=tmp
+
 algorithm partition(A, lo, hi) is
     pivot := A[hi]
     i := lo
@@ -70,7 +75,9 @@ algorithm quicksort(A, lo, hi) is
 
 text\<open>In the following, we will present the Quicksort program alternatingly in Clean high-level
 notation and simulate its effect by an alternative formalisation representing the semantic
-effects of the high-level notation on a step-buy-step basis.\<close>
+effects of the high-level notation on a step-buy-step basis. Note that Clean does not posses
+the concept of call-by-reference parameters; consequently, the algorithm must be specialized 
+to a variant where @{term A} is just a global variable.\<close>
 
 section\<open>Clean Encoding of the Global State of Quicksort\<close>
 
@@ -144,6 +151,7 @@ of the implicit definition of the return-type as @{typ "unit"}\<close>
 
 text\<open>We simulate the effect of the local variable space declaration by the following command
      factoring out the functionality into the command \<open>local_vars_test\<close> \<close>
+(*
 local_vars_test swap' "unit"
    tmp :: "int"
 
@@ -194,12 +202,55 @@ definition swap_opt :: "nat \<times> nat \<Rightarrow>  (unit,'a global_state_st
                            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) (tmp)))))" 
 text\<open>In case that all local variables are single-assigned in swap, the entire local var definition
    could be ommitted.\<close>
-
+*)
 
 subsection \<open>Encoding partition in Clean\<close>
 
+function_spec partition (lo::"nat",hi::"nat") returns "nat"
+pre          "\<open>lo < length A \<and> hi < length A\<close>"    
+post         "\<open>\<lambda>res::nat. length A = length(old A) \<and> res = 3\<close>" 
+local_vars   pivot  :: "int"
+             i      :: "nat"
+             j      :: "nat"
+defines      " (\<open>pivot := A ! hi \<close>  ;- \<open>i := lo \<close> ;- \<open>j := lo \<close> ;-
+               (while\<^sub>C \<open>j \<le> hi - 1 \<close> 
+                do (if\<^sub>C \<open>A ! j < pivot\<close>  
+                    then  call\<^sub>C swap \<open>(i , j) \<close>  ;-
+                          \<open>i := i + 1 \<close>
+                    else skip\<^sub>S\<^sub>E 
+                    fi) ;-
+                    \<open>j := j + 1 \<close> 
+                od) ;-
+                call\<^sub>C swap \<open>(i, j)\<close>  ;-
+                return\<^sub>C result_value_update \<open>i\<close>   
+               ) " 
+
+text\<open> The body is a fancy syntax for :
+
+@{cartouche [display=true]
+\<open>\<open>defines      " ((assign_local pivot_update (\<lambda>\<sigma>. A \<sigma> ! hi ))   ;- 
+               (assign_local i_update (\<lambda>\<sigma>. lo )) ;-
+ 
+               (assign_local j_update (\<lambda>\<sigma>. lo )) ;-
+               (while\<^sub>C (\<lambda>\<sigma>. (hd o j) \<sigma> \<le> hi - 1 ) 
+                do (if\<^sub>C (\<lambda>\<sigma>. A \<sigma> ! (hd o j) \<sigma> < (hd o pivot)\<sigma> ) 
+                    then  call\<^sub>C (swap) (\<lambda>\<sigma>. ((hd o i) \<sigma>,  (hd o j) \<sigma>))  ;-
+                          assign_local i_update (\<lambda>\<sigma>. ((hd o i) \<sigma>) + 1)
+                    else skip\<^sub>S\<^sub>E 
+                    fi) ;-
+                    (assign_local j_update (\<lambda>\<sigma>. ((hd o j) \<sigma>) + 1)) 
+                od) ;-
+                call\<^sub>C (swap) (\<lambda>\<sigma>. ((hd o i) \<sigma>,  (hd o j) \<sigma>))  ;-
+                assign_local result_value_update (\<lambda>\<sigma>. (hd o i) \<sigma>)  
+                \<comment> \<open> the meaning of the return stmt \<close>
+               ) "\<close>\<close>}\<close>
+
+
+
+
+
 (* recall: list-lifting should be automatic in local_vars. *)
-local_vars_test  partition "nat"
+local_vars_test  partition' "nat"
     pivot  :: "int"
     i      :: "nat"
     j      :: "nat"
