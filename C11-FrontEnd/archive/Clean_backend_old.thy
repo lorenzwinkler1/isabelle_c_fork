@@ -35,12 +35,11 @@
  ******************************************************************************)
 
 theory Clean_backend_old
-  imports "../../C11-BackEnds/Clean/src/compiler/Generator_dynamic_sequential"
+  imports Isabelle_C_Clean.Generator_dynamic_sequential
 begin
+
 no_notation unit_SE ("(result _)" 8)
 definition "UINT_MAX = 0"
-definition "n = 0"
-definition "result = 0"
 
 section \<open>User Defined Commands in the Semantic Verification Space\<close>
 
@@ -59,32 +58,43 @@ datatype antiq_hol = Invariant of string (* term *)
                    | Calls of text_range list
                    | Owned_by of text_range
 
-val scan_ident = Scan.one (C_Token.is_kind Token.Ident) >> (fn tok => (C_Token.content_of tok, C_Token.pos_of tok))
-val scan_brack_star = C_Parse.position (C_Parse.$$$ "[") -- C_Parse.star -- C_Parse.range (C_Parse.$$$ "]")
-                      >> (fn (((s1, pos1), s2), (s3, (_, pos3))) => (s1 ^ s2 ^ s3, Position.range_position (pos1, pos3)))
-val scan_opt_colon = Scan.option (C_Parse.$$$ ":")
-val scan_colon = C_Parse.$$$ ":" >> SOME
-val show = tap (fn s => Syntax.read_term @{context} s)
-
-val opt_modes =
-  Scan.optional (\<^keyword>\<open>(\<close> |-- Parse.!!! (Scan.repeat1 Parse.name --| \<^keyword>\<open>)\<close>)) [];
-
 fun toplevel _ = C_Inner_Toplevel.keep''
-\<close>
 
+fun bind scan _ ((stack1, (to_delay, stack2)), _) =
+  C_Parse.range scan
+  >> (fn (src, range) =>
+      C_Transition.Parsing
+        ( (stack1, stack2)
+        , ( range
+          , C_Transition.Bottom_up
+          , Symtab.empty
+          , to_delay
+          , fn _ => fn context =>
+              ML_Context.exec
+                (tap (fn _ => Syntax.read_term (Context.proof_of context) (Token.inner_syntax_of src)))
+                context)))
+
+infix 3 >>>;
+fun scan >>> f = bind scan f
+\<close>
 
 ML \<open>fun command keyword f =
-  C_Inner_Syntax.command0
-    (toplevel f o C_Inner_Isar_Cmd.print_term)
-    (C_Token.syntax' (opt_modes -- Parse.term))
-    C_Transition.Bottom_up
-    keyword\<close>
-setup \<open>command ("pre\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N", \<^here>) Spec
-    #> command ("post\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N", \<^here>) End_spec
-    #> command ("inv\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N", \<^here>) Invariant\<close>
+  C_Annotation.command' keyword ""
+    (C_Token.syntax' (Parse.token Parse.cartouche)
+     >>> toplevel f)\<close>
+setup \<open>command ("pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n", \<^here>) Spec
+    #> command ("post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n", \<^here>) End_spec
+    #> command ("inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n", \<^here>) Invariant\<close>
 
+section \<open>\<close>
 
-ML\<open>
-val lexer_trace = Attrib.setup_config_bool @{binding Clean_on} (K false);
+no_syntax "_C" :: \<open>cartouche_position \<Rightarrow> _\<close> ("\<^C> _")
+syntax "_C'" :: \<open>cartouche_position \<Rightarrow> _\<close> ("\<^C> _")
+
+setup \<open>C_Module.C_Term.map_expression (fn _ => fn _ => fn _ => @{term "1 :: nat"})\<close>
+
+parse_translation \<open>
+C_Module.C_Term'.parse_translation [ (\<^syntax_const>\<open>_C'\<close>, SOME C_Module.C_Term.tok_expression) ]
 \<close>
+
 end

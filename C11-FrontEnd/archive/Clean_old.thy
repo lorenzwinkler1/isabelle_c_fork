@@ -84,17 +84,17 @@ consts syntax_assign :: "('\<alpha>  \<Rightarrow> int) \<Rightarrow> int \<Righ
 
 definition assign :: "('\<sigma> control_state_scheme  \<Rightarrow> 
                        '\<sigma> control_state_scheme) \<Rightarrow> 
-                      (unit, '\<sigma> control_state_scheme)MON\<^sub>S\<^sub>E"
-  where   "assign f = (\<lambda>\<sigma>. if break_val \<sigma> \<or> return_val \<sigma>
-                           then Some((), \<sigma>) else Some((), f \<sigma>))"
+                      (unit, '\<sigma> control_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "assign \<U> = (\<lambda>\<sigma>. if break_val \<sigma> \<or> return_val \<sigma>
+                           then Some((), \<sigma>) else Some((), \<U> \<sigma>))"
 
-definition if\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N :: "['\<sigma> control_state_ext \<Rightarrow> bool, 
-                      ('\<beta>, '\<sigma> control_state_ext)MON\<^sub>S\<^sub>E, 
-                      ('\<beta>, '\<sigma> control_state_ext)MON\<^sub>S\<^sub>E] \<Rightarrow>
-                     ('\<beta>, '\<sigma> control_state_ext)MON\<^sub>S\<^sub>E"
-  where   "if\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N c E F = (\<lambda>\<sigma>. if break_val \<sigma> \<or> return_val \<sigma>
-                              then Some(undefined, \<sigma>) \<comment>
+definition if\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n :: "['\<sigma> control_state_ext \<Rightarrow> bool, 
+                      ('\<beta>, '\<sigma> control_state_ext) MON\<^sub>S\<^sub>E, 
+                      ('\<beta>, '\<sigma> control_state_ext) MON\<^sub>S\<^sub>E] \<Rightarrow>
+                     ('\<beta>, '\<sigma> control_state_ext) MON\<^sub>S\<^sub>E"
+  where   "if\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n \<B> T F = (\<lambda>\<sigma>. if break_val \<sigma> \<or> return_val \<sigma>
+                              then Some (undefined, \<sigma>) \<comment>
                             \<open>state unchanged, return arbitrary\<close>
-                              else if c \<sigma> then E \<sigma> else F \<sigma>)"     
+                              else if \<B> \<sigma> then T \<sigma> else F \<sigma>)"     
 
 end
