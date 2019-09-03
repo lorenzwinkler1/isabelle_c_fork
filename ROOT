@@ -62,6 +62,23 @@ session Isabelle_C_Clean_examples = Isabelle_C_Clean +
     "C11-BackEnds/Clean/examples/Quicksort2"
     "C11-BackEnds/Clean/examples/Quicksort"
 
+session Isabelle_C_Clean_document in "C11-BackEnds/Clean" = Isabelle_C_Clean_examples +
+  options [document = pdf, document_output = "output"]
+  sessions
+    "HOL-Computational_Algebra"
+  theories
+    "src/Clean"
+    "examples/Quicksort_concept"
+    "examples/SquareRoot_concept"
+    "examples/Prime"
+  document_files
+    "root.tex"
+    "root.bib"
+    "lstisadof.sty"
+    "figures/A-C-Source7.png"
+    "figures/A-C-Source9.png"
+    "figures/A-C-Source10.png"
+
 session Isabelle_C_README in "C11-FrontEnd" = HOL +
   theories
     "../README"
@@ -70,7 +87,6 @@ session Isabelle_C_archive = Isabelle_C_AutoCorres +
   options [quick_and_dirty]
   sessions
     Clean
-    Isabelle_C_Clean
     "HOL-Computational_Algebra"
   theories
     "C11-FrontEnd/archive/C0"
@@ -80,4 +96,3 @@ session Isabelle_C_archive = Isabelle_C_AutoCorres +
     "C11-BackEnds/AutoCorres/examples/program-based/Example1"
     "C11-BackEnds/AutoCorres/examples/program-based/Example2"
     "C11-BackEnds/AutoCorres/examples/program-based/Example3"
-    "C11-BackEnds/Clean/examples/Prime"
