@@ -3,7 +3,8 @@
  * Burkhart Wolff and Chantal Keller, LRI, Univ. Paris-Sud, France
  ******************************************************************************)
 
-chapter {* Proof of concept for a monadic symbolic execution calculus for WHILE programs *}
+section \<open> Proof of concept for a monadic symbolic execution calculus for WHILE programs
+\<close> 
 
 theory SquareRoot_concept
 imports Clean.CleanTest

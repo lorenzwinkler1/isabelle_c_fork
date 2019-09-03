@@ -3,7 +3,7 @@
  * Burkhart Wolff, Frederic Tuong and Chantal Keller, LRI, Univ. Paris-Saclay, France
  ***************************************************************************************)
 
-chapter \<open>The Clean Language\<close>
+section \<open>The Clean Language\<close>
 text\<open>Pronounce : "C lean".\<close>
 
 theory Clean
@@ -14,10 +14,10 @@ theory Clean
      and "rec_function_spec"   :: thy_decl
 
 begin
-  
-text\<open>\<^verbatim>\<open>Clean\<close> is a minimalistic imperative language 
-with C-like control-flow operators based on a shallow embedding into the
-SE exception Monad theory formalized in @{theory "Clean.MonadSE"}. It comprises:
+
+
+text\<open>\<^verbatim>\<open>Clean\<close> is a minimalistic imperative language with C-like control-flow operators based on a 
+shallow embedding into the SE exception Monad theory formalized in \<^verbatim>\<open>Clean.MonadSE\<close>. It comprises:
 \begin{itemize}
 \item C-like control flow with \verb+break+ and \verb+return+.
 \item global variables.
@@ -27,7 +27,7 @@ SE exception Monad theory formalized in @{theory "Clean.MonadSE"}. It comprises:
       (functions are Monads ...); a passing of parameters to local variables
       might be added later.
 \item direct recursive function calls
-\item cartouche syntax for \<lambda>-lifted update operations supporting global and local variables.
+\item cartouche syntax for \<open>\<lambda>\<close>-lifted update operations supporting global and local variables.
 \end{itemize}
 
 Note that \<^verbatim>\<open>Clean\<close> in its current version is restricted to \<^emph>\<open>monomorphic\<close> global and local variables
@@ -114,8 +114,10 @@ Technically, this is done by a variant of the program-based testing method
 \end{isar}
 developed in @{cite "DBLP:conf/tap/Keller18"}, which also uses Clean as semantic basis.
 Note that the testing approach does not need the formulation of an invariant,
-which is already non-trivial in the given example. 
+which is already non-trivial in the given example. \<close>
 
+(*<*)
+text\<open>
 \begin{figure}
   \centering
   \begin{minipage}{0.49\linewidth}
@@ -143,6 +145,8 @@ is_prime_def: "is_prime n \<equiv>
   \label{fig:clean}
 \end{figure}
 \<close>
+(*>*)
+
 
 text\<open>
 \begin{wrapfigure}{r}{0.44\textwidth}
@@ -646,7 +650,7 @@ val _ =
 end
 \<close>
 
-section\<open>Syntactic Sugar supporting \<lambda>-lifting for Global and Local Variables \<close>
+section\<open>Syntactic Sugar supporting \<open>\<lambda>\<close>-lifting for Global and Local Variables \<close>
 
 ML \<open>
 structure Clean_Syntax_Lift =
@@ -740,13 +744,19 @@ text\<open>Based on the machinery for the State-Management and  implicitly coope
 cartouches for assignment syntax, the function specification packages coordinates:
 \<^enum> parsing and type-checking of parameters
 \<^enum> parsing and type-checking of of pre- and post conditions in MOAL notation
-  (using \<lambda>-lifting cartouches and implicit reference to parameters, pre- and psot states) 
+  (using \<open>\<lambda>\<close>-lifting cartouches and implicit reference to parameters, pre- and psot states) 
 \<^enum> parsing local variable section and effectuating the local-variable space generation
 \<^enum> parsing of the body in this extended variable space
 \<^enum> optionally parsing measures and treating recursion.
 
 The reader interested in details is referred to the \<open>Quicksort_concept.thy\<close>-example in this 
 distribution.
+\<close>
+
+definition old :: "'a \<Rightarrow> 'a" where "old x = x"
+
+
+ML\<open> 
 \<close>
 
 ML \<open> 
@@ -824,7 +834,25 @@ val SPY = Unsynchronized.ref(Bound 0)
            val post_term = Syntax.read_term ctxt'' post_src
            val variant = Option.map (Syntax.read_term ctxt'')  variant_src
        in ({params = params',ret_ty = rty,pre = pre_term,post = post_term,variant = variant},ctxt'') end 
-    
+
+
+   fun check_absence_old term = 
+            let fun test (s,ty) = if s = @{const_name "old"} andalso fst (dest_Type ty) = "fun"
+                                  then error("the old notation is not allowed here!")  
+                                  else false
+            in  exists_Const test term end
+   
+   fun transform_old sty term = 
+       let fun  transform_old0 (Const(@{const_name "old"}, ty as Type("fun", [_,_])) $ term ) 
+                              = (case term of
+                                  (Const(s,ty) $ Bound x) =>  (Const(s,ty) $ Bound (x+1))
+                                | _ => error("illegal application of the old notation."))
+               |transform_old0 (t1 $ t2) = transform_old0 t1 $ transform_old0 t2
+               |transform_old0 (Abs(s,ty,term)) = Abs(s,ty,transform_old0 term) 
+               |transform_old0 term = term
+       in  Abs("\<sigma>\<^sub>p\<^sub>r\<^sub>e", sty, transform_old0 term) end
+   
+
    fun define_precond binding  sty params pre = 
        let val args_ty = HOLogic.mk_tupleT(map snd params) 
            val params = map (fn (b,r) => (Binding.name_of b,r)) params
@@ -832,6 +860,7 @@ val SPY = Unsynchronized.ref(Bound 0)
                         Abs(nn, sty_pre, term) => mk_pat_tupleabs params (Abs(nn,sty_pre(* sty root ! !*),term))
                       | _ => error ("internal error in define_precond")  
            val bdg_pre = Binding.suffix_name "_pre" binding
+           val _ = check_absence_old pre'
            val eq =  mk_meta_eq(Free(Binding.name_of bdg_pre, args_ty --> sty --> HOLogic.boolT),pre')
            val args = (SOME(bdg_pre,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
        in  StateMgt.cmd args true end 
@@ -839,11 +868,12 @@ val SPY = Unsynchronized.ref(Bound 0)
    fun define_postcond binding  rty sty params post = 
        let val args_ty = HOLogic.mk_tupleT(map snd params) 
            val params = map (fn (b,r) => (Binding.name_of b,r)) params
+           val post = transform_old sty post 
            val post' = case post of 
                         Abs(nn, sty_pre, term) => mk_pat_tupleabs params (Abs(nn,sty_pre(* sty root ! !*),term))
                       | _ => error ("internal error in define_precond")  
            val bdg_post = Binding.suffix_name "_post" binding
-           val eq =  mk_meta_eq(Free(Binding.name_of bdg_post, args_ty --> sty --> rty --> HOLogic.boolT),post')
+           val eq =  mk_meta_eq(Free(Binding.name_of bdg_post, args_ty --> sty --> sty --> rty --> HOLogic.boolT),post')
            val args = (SOME(bdg_post,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
        in  StateMgt.cmd args true end 
 

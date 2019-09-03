@@ -2,9 +2,9 @@ theory Seq_MonadSE
   imports MonadSE
 begin
   
-subsection{* Chaining Executions : Definitions of Multi-bind Operators *}
+subsection\<open> Chaining Monadic Computations : Definitions of Multi-bind Operators \<close>
 
-text{*  In order to express execution sequences inside \HOL --- rather
+text\<open>  In order to express execution sequences inside \HOL --- rather
 than arguing over a certain pattern of terms on the meta-level --- and
 in order to make our theory amenable to formal reasoning over execution sequences, 
 we represent them as lists of input and generalize the bind-operator
@@ -24,9 +24,9 @@ same operation will occur; this form of side-conditions have to be expressed
 inside \HOL. From the user perspective, this will not make much difference,
 since junk-data resulting from too weak typing can be ruled out by adopted
 front-ends. 
-*}
+\<close>
 
-text{* Note that the subsequent notion of a test-sequence allows the io stepping 
+text\<open> Note that the subsequent notion of a test-sequence allows the io stepping 
 function (and the special case of a program under test) to stop execution 
 \emph{within} the sequence; such premature terminations are characterized by an 
 output list which is shorter than the input list. 
@@ -36,7 +36,7 @@ Intuitively, @{text mbind} corresponds to a sequence of operation calls, separat
 the state is maintained and the exception can still be caught at the end of the 
 execution sequence.
 
-*}
+\<close>
 
 fun    mbind :: "'\<iota> list  \<Rightarrow>  ('\<iota> \<Rightarrow> ('o,'\<sigma>) MON\<^sub>S\<^sub>E) \<Rightarrow> ('o list,'\<sigma>) MON\<^sub>S\<^sub>E"  
 where "mbind [] iostep \<sigma> = Some([], \<sigma>)"

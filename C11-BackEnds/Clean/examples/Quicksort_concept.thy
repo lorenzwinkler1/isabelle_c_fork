@@ -34,7 +34,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-chapter \<open>The Clean Language : A Coding-Concept Example\<close>
+section \<open> Clean Semantics : A Coding-Concept Example\<close>
 
 text\<open>The following show-case subsequently introduces an non-trivial example involving
 local and global variable declarations, declarations of operations with pre-post conditions as
@@ -95,12 +95,12 @@ subsection \<open>Encoding swap in Clean\<close>
 
 function_spec swap' (i::"nat",j::"nat") 
 pre          "\<open>i < length A \<and> j < length A\<close>"    
-post         "\<open>\<lambda>res. length A = 100 \<and> res = ()\<close>" (* problem : no reference to pre-state poss. *)
-local_vars   tmp :: "int" 
+post         "\<open>\<lambda>res. length A = length(old A) \<and> res = ()\<close>" 
+local_vars   tmp :: int 
 defines      " \<open> tmp := A ! i\<close>  ;-
                \<open> A := list_update A i (A ! j)\<close> ;- 
                \<open> A := list_update A j tmp\<close> " 
-(* (* low-level syntax : *)
+(* (* corresponds to low-level syntax : *)
 defines " ((assign_local tmp_update (\<lambda>\<sigma>. (A \<sigma>) ! i ))   ;-
            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>))))"
