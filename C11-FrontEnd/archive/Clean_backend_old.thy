@@ -78,6 +78,12 @@ infix 3 >>>;
 fun scan >>> f = bind scan f
 \<close>
 
+text \<open>
+Finally, we will have a glance at the code for the registration of the annotation commands
+used in the example. Thanks to Isabelle/C's function \<^ML>\<open>C_Annotation.command'\<close>, the registration of 
+user-defined annotations is very similar to the registration of ordinary commands in the Isabelle
+platform.\<close>
+
 ML \<open>fun command keyword f =
   C_Annotation.command' keyword ""
     (C_Token.syntax' (Parse.token Parse.cartouche)

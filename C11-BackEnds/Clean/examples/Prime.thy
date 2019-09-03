@@ -63,6 +63,27 @@ unsigned int prime\<^sub>C(unsigned int n) {
     return 1;
 }\<close>
 
+(*<*)
+text\<open>
+\begin{isar}
+is_prime_core_def: "is_prime_core n \<equiv>
+  if$_{\text{Clean}}$ \<Open> (n < 2) \<Close> then return 0 else skip;-
+  \<Open> i := 2 \<Close>;-
+  while$_{\text{Clean}}$ \<Open> i < SQRT_UINT_MAX \<and> i * i \<le> n\<Close>
+    (if$_{\text{Clean}}$ \<Open>n mod i = 0\<Close>
+      then return 0 else skip;
+     \<Open>k:=k+1\<Close>; assert \<Open> k\<le>UINT_MAX \<Close>
+     \<Open>i:=i+1\<Close>; assert \<Open> i\<le>UINT_MAX \<Close>) ;-
+  return 1"
+
+is_prime_def: "is_prime n \<equiv>
+  block$_{\text{Clean}}$ push_local_is_prime_state
+             (is_prime_core n)
+             pop_local_is_prime_state"
+\end{isar}
+\<close>
+(*>*)
+
 lemma "prime\<^sub>H\<^sub>O\<^sub>L p = prime p"
 by (simp add: prime\<^sub>H\<^sub>O\<^sub>L_def prime_nat_iff')
 
