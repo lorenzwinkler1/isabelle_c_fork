@@ -49,7 +49,12 @@ section\<open>The Quicksort Example\<close>
 
 text\<open> We present the following quicksort algorithm in some conceptual, high-level notation:
 
-\begin{verb}
+\begin{isar}
+algorithm (A,i,j) =
+    tmp := A[i];
+    A[i]:=A[j];
+    A[j]:=tmp
+
 algorithm partition(A, lo, hi) is
     pivot := A[hi]
     i := lo
@@ -66,11 +71,14 @@ algorithm quicksort(A, lo, hi) is
         quicksort(A, lo, p - 1)
         quicksort(A, p + 1, hi)
 
-\end{verb}\<close>
+\end{isar}
+\<close>
 
 text\<open>In the following, we will present the Quicksort program alternatingly in Clean high-level
 notation and simulate its effect by an alternative formalisation representing the semantic
-effects of the high-level notation on a step-buy-step basis.\<close>
+effects of the high-level notation on a step-buy-step basis. Note that Clean does not posses
+the concept of call-by-reference parameters; consequently, the algorithm must be specialized 
+to a variant where @{term A} is just a global variable.\<close>
 
 section\<open>Clean Encoding of the Global State of Quicksort\<close>
 
@@ -144,6 +152,7 @@ of the implicit definition of the return-type as @{typ "unit"}\<close>
 
 text\<open>We simulate the effect of the local variable space declaration by the following command
      factoring out the functionality into the command \<open>local_vars_test\<close> \<close>
+(*
 local_vars_test swap' "unit"
    tmp :: "int"
 
@@ -194,22 +203,83 @@ definition swap_opt :: "nat \<times> nat \<Rightarrow>  (unit,'a global_state_st
                            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) (tmp)))))" 
 text\<open>In case that all local variables are single-assigned in swap, the entire local var definition
    could be ommitted.\<close>
-
+*)
 
 subsection \<open>Encoding partition in Clean\<close>
 
-(* recall: list-lifting should be automatic in local_vars. *)
-local_vars_test  partition "nat"
+function_spec partition (lo::nat, hi::nat) returns nat
+pre          "\<open>lo < length A \<and> hi < length A\<close>"    
+post         "\<open>\<lambda>res::nat. length A = length(old A) \<and> res = 3\<close>" 
+local_vars   pivot  :: int
+             i      :: nat
+             j      :: nat
+defines      " (\<open>pivot := A ! hi \<close>  ;- \<open>i := lo \<close> ;- \<open>j := lo \<close> ;-
+               (while\<^sub>C \<open>j \<le> hi - 1 \<close> 
+                do (if\<^sub>C \<open>A ! j < pivot\<close>  
+                    then  call\<^sub>C swap \<open>(i , j) \<close>  ;-
+                          \<open>i := i + 1 \<close>
+                    else skip\<^sub>S\<^sub>E 
+                    fi) ;-
+                    \<open>j := j + 1 \<close> 
+                od) ;-
+                call\<^sub>C swap \<open>(i, j)\<close>  ;-
+                return\<^sub>C result_value_update \<open>i\<close>   
+               ) " 
+
+text\<open> The body is a fancy syntax for :
+
+@{cartouche [display=true]
+\<open>\<open>defines      " ((assign_local pivot_update (\<lambda>\<sigma>. A \<sigma> ! hi ))   ;- 
+               (assign_local i_update (\<lambda>\<sigma>. lo )) ;-
+ 
+               (assign_local j_update (\<lambda>\<sigma>. lo )) ;-
+               (while\<^sub>C (\<lambda>\<sigma>. (hd o j) \<sigma> \<le> hi - 1 ) 
+                do (if\<^sub>C (\<lambda>\<sigma>. A \<sigma> ! (hd o j) \<sigma> < (hd o pivot)\<sigma> ) 
+                    then  call\<^sub>C (swap) (\<lambda>\<sigma>. ((hd o i) \<sigma>,  (hd o j) \<sigma>))  ;-
+                          assign_local i_update (\<lambda>\<sigma>. ((hd o i) \<sigma>) + 1)
+                    else skip\<^sub>S\<^sub>E 
+                    fi) ;-
+                    (assign_local j_update (\<lambda>\<sigma>. ((hd o j) \<sigma>) + 1)) 
+                od) ;-
+                call\<^sub>C (swap) (\<lambda>\<sigma>. ((hd o i) \<sigma>,  (hd o j) \<sigma>))  ;-
+                assign_local result_value_update (\<lambda>\<sigma>. (hd o i) \<sigma>)  
+                \<comment> \<open> the meaning of the return stmt \<close>
+               ) "\<close>\<close>}\<close>
+
+
+text\<open>The effect of this statement is generation of the following definitions in the logical context:\<close>
+thm partition_pre_def
+thm partition_post_def
+thm push_local_partition_state_def
+thm pop_local_partition_state_def
+thm partition_core_def
+thm partition_def
+
+text\<open>The state-management is in the following configuration:\<close>
+
+ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
+    StateMgt_core.get_state_field_tab_global @{theory}\<close>
+
+subsubsection \<open>A Similation of \<^verbatim>\<open>partition\<close> in elementary specification constructs:\<close>
+
+definition "partition'_pre \<equiv> \<lambda>(lo, hi) \<sigma>. lo < length (A \<sigma>) \<and> hi < length (A \<sigma>)"
+definition "partition'_post \<equiv> \<lambda>(lo, hi) \<sigma>\<^sub>p\<^sub>r\<^sub>e \<sigma> res. length (A \<sigma>) = length (A \<sigma>\<^sub>p\<^sub>r\<^sub>e) \<and> res = 3"
+
+text\<open>Recall: list-lifting is automatic in \<open>local_vars_test\<close>:\<close>
+
+local_vars_test  partition' "nat"
     pivot  :: "int"
     i      :: "nat"
     j      :: "nat"
 
-(* this implies the definitions : *)
-thm push_local_partition_state_def
-thm pop_local_partition_state_def
+text\<open> ... which results in the internal definition of the respective push and pop operations 
+for the @{term "partition'"} local variable space: \<close>
+
+thm push_local_partition'_state_def
+thm pop_local_partition'_state_def
 
 (* equivalent to *)
-definition push_local_partition_state' :: "(unit, 'a local_partition_state_scheme) MON\<^sub>S\<^sub>E"
+definition push_local_partition_state' :: "(unit, 'a local_partition'_state_scheme) MON\<^sub>S\<^sub>E"
   where   "push_local_partition_state' \<sigma> = Some((),
                         \<sigma>\<lparr>local_partition_state.pivot := undefined # local_partition_state.pivot \<sigma>, 
                           local_partition_state.i     := undefined # local_partition_state.i \<sigma>, 
@@ -226,8 +296,8 @@ definition pop_local_partition_state' :: "(nat,'a local_partition_state_scheme) 
                                                         tl(local_partition_state.result_value \<sigma>) \<rparr>)"
 
 
-definition partition_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_partition_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "partition_core  \<equiv> \<lambda>(lo,hi).
+definition partition'_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_partition'_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "partition'_core  \<equiv> \<lambda>(lo,hi).
               ((assign_local pivot_update (\<lambda>\<sigma>. A \<sigma> ! hi ))   ;- 
                (assign_local i_update (\<lambda>\<sigma>. lo )) ;-
  
@@ -248,28 +318,11 @@ definition partition_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_par
 thm partition_core_def
 
 (* a block manages the "dynamically" created fresh instances for the local variables of swap *)
-definition partition :: "nat \<times> nat \<Rightarrow>  (nat,'a local_partition_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "partition  \<equiv> \<lambda>(lo,hi). block\<^sub>C push_local_partition_state 
+definition partition' :: "nat \<times> nat \<Rightarrow>  (nat,'a local_partition'_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "partition'  \<equiv> \<lambda>(lo,hi). block\<^sub>C push_local_partition_state 
                                    (partition_core (lo,hi)) 
                                    pop_local_partition_state"
-        
-definition partition_pre :: "nat \<times> nat \<Rightarrow> 'a local_partition_state_scheme \<Rightarrow>   bool"
-  where   "partition_pre \<equiv> \<lambda>(i,j). \<lambda>\<sigma>.  True "
-
-definition partition_post :: "nat \<times> nat \<Rightarrow> nat \<Rightarrow> 'a local_partition_state_scheme \<Rightarrow>  bool"
-  where   "partition_post \<equiv> \<lambda>(i,j). \<lambda> res. \<lambda>\<sigma>.  True"   
-
-(*
-    \<open>\<open>pivot := A!hi\<close> ;-
-      \<open>i := lo\<close> ;-
-      for\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N (j=lo,  hi - 1 ,j++)  
-         \<open>if\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N \<open>A!j < pivot\<close> then swap(i,j);- \<open>i := i + 1\<close>
-                               else Skip;-
-         \<close>
-      swap(i,j);-
-      return(i)
-     \<close>
-*)         
+             
 
 subsection \<open>Encoding quicksort in Clean\<close>
 

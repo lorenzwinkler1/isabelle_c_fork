@@ -4,19 +4,8 @@
  ***************************************************************************************)
 
 section \<open>The Clean Language\<close>
-text\<open>Pronounce : "C lean".\<close>
 
-theory Clean
-  imports Symbex_MonadSE
-  keywords "global_vars" "local_vars_test" :: thy_decl 
-     and "returns" "pre" "post" "local_vars" "variant" 
-     and "function_spec" :: thy_decl
-     and "rec_function_spec"   :: thy_decl
-
-begin
-
-
-text\<open>\<^verbatim>\<open>Clean\<close> is a minimalistic imperative language with C-like control-flow operators based on a 
+text\<open>\<^verbatim>\<open>Clean\<close> (pronounce : "C lean") is a minimalistic imperative language with C-like control-flow operators based on a 
 shallow embedding into the SE exception Monad theory formalized in \<^verbatim>\<open>Clean.MonadSE\<close>. It comprises:
 \begin{itemize}
 \item C-like control flow with \verb+break+ and \verb+return+.
@@ -38,17 +27,28 @@ extensible records as used in languages of the ML family
 and Haskell \<^url>\<open>https://www.schoolofhaskell.com/user/fumieval/extensible-records\<close>).
 \<close>
 
+
+theory Clean
+  imports Symbex_MonadSE
+  keywords "global_vars" "local_vars_test" :: thy_decl 
+     and "returns" "pre" "post" "local_vars" "variant" 
+     and "function_spec" :: thy_decl
+     and "rec_function_spec"   :: thy_decl
+
+begin
+
+
 section\<open>A High-level Description of the Clean Memory Model\<close>
 
 subsection\<open>A Simple Typed Memory Model: Clean \<close>
-text\<open> Clean (pronounced as: ``C lean'') is based on a simple, shallow-style execution model for an 
-imperative target language. It is based on a ``no-frills'' state-exception monad 
+text\<open> Clean is based on a ``no-frills'' state-exception monad 
 \<^theory_text>\<open>type_synonym ('o, '\<sigma>) MON\<^sub>S\<^sub>E = \<open>'\<sigma> \<rightharpoonup> ('o \<times> '\<sigma>)\<close>\<close> with the 
 usual definitions of \<^term>\<open>bind\<close> and \<^term>\<open>unit\<close>.
 In this language, sequence operators, 
 conditionals and loops can be integrated. From a concrete program, the underlying state
-\<^theory_text>\<open>'\<sigma>\<close> is constructed by a sequence of extensible record definitions:
-\<^enum> initially, an internal control state is defined to give semantics to \<^term>\<open>break\<close> and \<^term>\<open>return\<close> statements:
+\<^theory_text>\<open>'\<sigma>\<close> is incrementally constructed by a sequence of extensible record definitions:
+\<^enum> initially, an internal control state is defined to give semantics to \<^term>\<open>break\<close> and
+ \<^term>\<open>return\<close> statements:
   \begin{isar}
         record control_state =  break_val  :: bool   return_val :: bool
   \end{isar}
@@ -855,8 +855,9 @@ val SPY = Unsynchronized.ref(Bound 0)
            val _ = (SPY:=body)
            val core =  mk_pat_tupleabs params'  body
            val rmty = StateMgt_core.MON_SE_T rty sty 
+           val umty = StateMgt.MON_SE_T @{typ "unit"} sty
 
-           val eq =  mk_meta_eq(Free(bdg_core_name, args_ty --> rmty),core)
+           val eq =  mk_meta_eq(Free(bdg_core_name, args_ty --> umty),core)
            val args_core = (SOME(bdg_core,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
 
        in  ctxt |> StateMgt.cmd args_core true
