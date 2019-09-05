@@ -5,7 +5,7 @@
 
 section \<open>The Clean Language\<close>
 
-text\<open>\<^verbatim>\<open>Clean\<close> (pronounce : "C lean") is a minimalistic imperative language with C-like control-flow operators based on a 
+text\<open>\<^verbatim>\<open>Clean\<close> (pronounced as: ``Céline'' [selin]) is a minimalistic imperative language with C-like control-flow operators based on a 
 shallow embedding into the SE exception Monad theory formalized in \<^verbatim>\<open>Clean.MonadSE\<close>. It comprises:
 \begin{itemize}
 \item C-like control flow with \verb+break+ and \verb+return+.
