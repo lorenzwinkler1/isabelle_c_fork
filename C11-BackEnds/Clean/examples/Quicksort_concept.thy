@@ -109,14 +109,16 @@ subsubsection \<open>\<^verbatim>\<open>swap\<close> in High-level Notation\<clo
 
 text\<open>Unfortunately, the name \<open>result\<close> is already used in the logical context; we use local binders
 instead.\<close>
-
-function_spec swap (i::"nat",j::"nat") 
+definition "i = ()" \<comment> \<open>check that \<^term>\<open>i\<close> can exist as a constant with an arbitrary type before treating \<^theory_text>\<open>function_spec\<close>\<close>
+definition "j = ()" \<comment> \<open>check that \<^term>\<open>j\<close> can exist as a constant with an arbitrary type before treating \<^theory_text>\<open>function_spec\<close>\<close>
+function_spec swap (i::"nat",j::"nat") \<comment> \<open>TODO: the hovering on parameters produces a number of report equal to the number of \<^ML>\<open>Proof_Context.add_fixes\<close> called in \<^ML>\<open>Function_Specification_Parser.checkNsem_function_spec\<close>\<close>
 pre          "\<open>i < length A \<and> j < length A\<close>"    
 post         "\<open>\<lambda>res. length A = length(old A) \<and> res = ()\<close>" 
 local_vars   tmp :: int 
 defines      " \<open> tmp := A ! i\<close>  ;-
                \<open> A := list_update A i (A ! j)\<close> ;- 
                \<open> A := list_update A j tmp\<close> " 
+
 text\<open>The body --- heavily using the \<open>\<lambda>\<close>-lifting cartouche --- corresponds to the low level 
 term: \<close>
 
@@ -126,6 +128,7 @@ text\<open> @{cartouche [display=true]
             (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>))))"\<close>\<close>}\<close>
 
 text\<open>The effect of this statement is generation of the following definitions in the logical context:\<close>
+term "(i, j)" \<comment> \<open>check that \<^term>\<open>i\<close> and \<^term>\<open>j\<close> are pointing to the constants defined before treating \<^theory_text>\<open>function_spec\<close>\<close>
 thm push_local_swap_state_def
 thm pop_local_swap_state_def
 thm swap_pre_def

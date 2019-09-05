@@ -784,9 +784,7 @@ val SPY = Unsynchronized.ref(Bound 0)
    fun read_params params ctxt =
      let
        val Ts = Syntax.read_typs ctxt (map snd params);
-       val params' = map2 (fn (x, _) => fn T => (x, T)) params Ts;
-       val ctxt' = fold Variable.declare_typ Ts ctxt;
-     in (params', ctxt') end;
+     in (Ts, fold Variable.declare_typ Ts ctxt) end;
    
    fun read_result ret_ty ctxt = 
           let val [ty] = Syntax.read_typs ctxt [ret_ty]
@@ -796,12 +794,10 @@ val SPY = Unsynchronized.ref(Bound 0)
    fun read_function_spec ({ binding ,  params,  ret_type,  pre_src,  post_src, 
                                   variant_src, ...} : funct_spec_src
                                ) ctxt =
-       let val (params', ctxt') = read_params params ctxt
+       let val (params_Ts, ctxt') = read_params params ctxt
            val (rty, ctxt'') = read_result ret_type ctxt' 
-           val pre_term = Syntax.read_term ctxt'' pre_src
-           val post_term = Syntax.read_term ctxt'' post_src
            val variant = Option.map (Syntax.read_term ctxt'')  variant_src
-       in ({params = params',ret_ty = rty,pre = pre_term,post = post_term,variant = variant},ctxt'') end 
+       in ({params = (params, params_Ts), ret_ty = rty,variant = variant},ctxt'') end 
 
 
    fun check_absence_old term = 
@@ -820,37 +816,28 @@ val SPY = Unsynchronized.ref(Bound 0)
                |transform_old0 term = term
        in  Abs("\<sigma>\<^sub>p\<^sub>r\<^sub>e", sty, transform_old0 term) end
    
+   fun define_cond binding f_sty transform_old src_suff check_absence_old params src ctxt = 
+       let val src' = case transform_old (Syntax.read_term ctxt src) of 
+                        Abs(nn, sty_pre, term) => mk_pat_tupleabs (map (apsnd #2) params) (Abs(nn,sty_pre(* sty root ! !*),term))
+                      | _ => error ("internal error" ^ Position.here \<^here>)
+           val bdg = Binding.suffix_name src_suff binding
+           val _ = check_absence_old src'
+           val eq =  mk_meta_eq(Free(Binding.name_of bdg, HOLogic.mk_tupleT(map (#2 o #2) params) --> f_sty HOLogic.boolT),src')
+           val args = (SOME(bdg,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
+       in  StateMgt.cmd args true ctxt end
 
-   fun define_precond binding  sty params pre = 
-       let val args_ty = HOLogic.mk_tupleT(map snd params) 
-           val params = map (fn (b,r) => (Binding.name_of b,r)) params
-           val pre' = case pre of 
-                        Abs(nn, sty_pre, term) => mk_pat_tupleabs params (Abs(nn,sty_pre(* sty root ! !*),term))
-                      | _ => error ("internal error in define_precond")  
-           val bdg_pre = Binding.suffix_name "_pre" binding
-           val _ = check_absence_old pre'
-           val eq =  mk_meta_eq(Free(Binding.name_of bdg_pre, args_ty --> sty --> HOLogic.boolT),pre')
-           val args = (SOME(bdg_pre,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
-       in  StateMgt.cmd args true end 
+   fun define_precond binding sty =
+     define_cond binding (fn boolT => sty --> boolT) I "_pre" check_absence_old
 
-   fun define_postcond binding  rty sty params post = 
-       let val args_ty = HOLogic.mk_tupleT(map snd params) 
-           val params = map (fn (b,r) => (Binding.name_of b,r)) params
-           val post = transform_old sty post 
-           val post' = case post of 
-                        Abs(nn, sty_pre, term) => mk_pat_tupleabs params (Abs(nn,sty_pre(* sty root ! !*),term))
-                      | _ => error ("internal error in define_precond")  
-           val bdg_post = Binding.suffix_name "_post" binding
-           val eq =  mk_meta_eq(Free(Binding.name_of bdg_post, args_ty --> sty --> sty --> rty --> HOLogic.boolT),post')
-           val args = (SOME(bdg_post,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
-       in  StateMgt.cmd args true end 
+   fun define_postcond binding rty sty =
+     define_cond binding (fn boolT => sty --> sty --> rty --> boolT) (transform_old sty) "_post" I
 
-   fun define_body_core binding rty sty params body ctxt = 
+   fun define_body_core binding rty sty params body ctxt =
        let val bdg_core = Binding.suffix_name "_core" binding
            val bdg_core_name = Binding.name_of bdg_core
 
-           val args_ty = HOLogic.mk_tupleT(map snd params)
-           val params' = map (fn (b,r) => (Binding.name_of b,r)) params
+           val args_ty = HOLogic.mk_tupleT(map (#2 o #2) params)
+           val params' = map (apsnd #2) params
            val _ = writeln "define_body_core"
            val _ = (SPY:=body)
            val core =  mk_pat_tupleabs params'  body
@@ -869,8 +856,8 @@ val SPY = Unsynchronized.ref(Bound 0)
            val bdg_core = Binding.suffix_name "_core" binding
            val bdg_core_name = Binding.name_of bdg_core
 
-           val args_ty = HOLogic.mk_tupleT(map snd params)
-           val params' = map (fn (b,r) => (Binding.name_of b,r)) params
+           val args_ty = HOLogic.mk_tupleT(map (#2 o #2) params)
+           val params' = map (apsnd #2) params
            val _ = writeln "define_body_main"
            val _ = (SPY:=body)
            val rmty = StateMgt_core.MON_SE_T rty sty 
@@ -891,28 +878,33 @@ val SPY = Unsynchronized.ref(Bound 0)
    fun checkNsem_function_spec ({variant_src=SOME _, ...} : funct_spec_src) _ = 
                                error "No measure required in non-recursive call"
       |checkNsem_function_spec (args as {binding, ret_type, 
-                                         variant_src=NONE, locals, body_src,...} : funct_spec_src) thy =
-       let val sty_old = StateMgt_core.get_state_type_global thy
-           val ({params,ret_ty,pre,post,...}, ctxt) = read_function_spec args (Proof_Context.init_global thy)
-       in  thy  |> Named_Target.theory_map
-                         (fn ctxt =>
-                          let 
-                          in (ctxt |> define_precond binding  sty_old params pre
-                                   |> define_postcond binding  ret_ty sty_old params post)  end)
+                                         variant_src=NONE, locals, body_src, pre_src, post_src, ...} : funct_spec_src) thy =
+       let val (theory_map, thy') =
+             Named_Target.theory_map_result
+               (K (fn f => Named_Target.theory_map o f))
+               (read_function_spec args
+               #> uncurry (fn {params=(params, Ts),ret_ty,variant = _} =>
+                            pair (fn f =>
+                                  Proof_Context.add_fixes (map2 (fn (b, _) => fn T => (b, SOME T, NoSyn)) params Ts)
+                                  #> uncurry (fn params' => f (@{map 3} (fn b' => fn (b, _) => fn T => (b',(b,T))) params' params Ts) ret_ty))))
+                thy
+       in  thy' |> theory_map
+                     let val sty_old = StateMgt_core.get_state_type_global thy'
+                     in fn params => fn ret_ty =>
+                         define_precond binding sty_old params pre_src
+                      #> define_postcond binding ret_ty sty_old params post_src end
                 |> StateMgt.new_state_record false ((([],binding), SOME ret_type),locals)
-                |> Named_Target.theory_map
-                         (fn ctxt => 
+                |> theory_map
+                         (fn params => fn ret_ty => fn ctxt => 
                           let val sty = StateMgt_core.get_state_type ctxt
-                              val (_,ctxt') = Variable.add_fixes_binding (map fst params) ctxt (* has this any effect ? *)
-                              val body = Syntax.read_term ctxt' (fst body_src)
-                          in  ctxt' |> define_body_core binding ret_ty sty params body
+                              val body = Syntax.read_term ctxt (fst body_src)
+                          in  ctxt |> define_body_core binding ret_ty sty params body
                           end)
-                |> Named_Target.theory_map
-                         (fn ctxt => 
+                |> theory_map
+                         (fn params => fn ret_ty => fn ctxt => 
                           let val sty = StateMgt_core.get_state_type ctxt
-                              val (_,ctxt') = Variable.add_fixes_binding (map fst params) ctxt (* has this any effect ? *)
-                              val body = Syntax.read_term ctxt' (fst body_src)
-                          in  ctxt' |> define_body_main binding ret_ty sty params body
+                              val body = Syntax.read_term ctxt (fst body_src)
+                          in  ctxt |> define_body_main binding ret_ty sty params body
                           end)
         end
    (* TODO : further simplify ... *)
