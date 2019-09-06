@@ -273,9 +273,9 @@ fun isa_type_to_typ ctxt (ity : isa_type) = let
     f s
   end
   fun mk_array_size_ty sz =
-    if sz = ArchArrayMaxCount.array_max_count
-      then @{typ "array_max_count_ty"}
-      else mk_numeral_type sz
+    (*if sz = ArchArrayMaxCount.array_max_count
+      then*) @{typ "array_max_count_ty"}
+      (*else mk_numeral_type sz*)
 in
   case ity of
     refty (NONE, _) => mk_ptr_ty unit
