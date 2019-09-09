@@ -71,9 +71,9 @@ unsigned long partition (unsigned long lo, unsigned long hi) {
 
 void quicksort (unsigned long lo, unsigned long hi) {
     if( lo < hi) {
-        unsigned long p = partition(A, lo, hi);
-        quicksort(A, lo, p - 1);
-        quicksort(A, p + 1, hi);
+        unsigned long p = partition(lo, hi);
+        quicksort(lo, p - 1);
+        quicksort(p + 1, hi);
      }
 }
 \<close>
