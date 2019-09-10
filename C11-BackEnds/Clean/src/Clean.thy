@@ -489,8 +489,8 @@ fun mk_push_def binding sty lthy =
     let val name_pushop =  mk_push_name binding
         val rty = \<^typ>\<open>unit\<close>
         val eq = push_eq binding  (Binding.name_of name_pushop) rty sty lthy
-        (* val mty = StateMgt_core.MON_SE_T rty sty *)
-        val args = (SOME(name_pushop,NONE (* SOME mty *),NoSyn), (Binding.empty_atts,eq),[],[])
+        val mty = StateMgt_core.MON_SE_T rty sty 
+        val args = (SOME(name_pushop,SOME mty,NoSyn), (Binding.empty_atts,eq),[],[])
     in cmd args true lthy  end;
 
 fun mk_pop_name binding = Binding.prefix_name "pop_"  binding
