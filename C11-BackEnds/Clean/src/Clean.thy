@@ -585,7 +585,9 @@ fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res
         fun upd_state_typ thy = let val ctxt = Proof_Context.init_global thy
                                     val ty_bind =  Binding.prefix_name "'a " 
                                                         (Binding.suffix_name "_scheme" binding)
-                                    val ty = Syntax.parse_typ ctxt (Binding.name_of ty_bind)
+                                    val ty = case Syntax.parse_typ ctxt (Binding.name_of ty_bind) of
+                                               Type (s, _) => Type (s, [@{typ "'a::type"}])
+                                             | _ => error ("Unexpected type" ^ Position.here \<^here>)
                                 in  StateMgt_core.upd_state_type_global(K ty)(thy) end
         val result_binding = Binding.make(result_name,pos)
         val raw_fields' = case res_ty of 
@@ -943,7 +945,7 @@ val SPY3 = Unsynchronized.ref(Bound 0)
                               val rmty = StateMgt_core.MON_SE_T ret_ty sty 
                               val args_ty = HOLogic.mk_tupleT (map (#2 o #2) params)
                               val (_,ctxt'') = Proof_Context.add_fixes 
-                                                   [(binding,  NONE (* SOME(args_ty --> rmty) *), NoSyn)] ctxt
+                                                   [(binding, SOME(args_ty --> rmty), NoSyn)] ctxt
                               val _ = writeln "checkNsem_function_spec1"
                               val body = Syntax.read_term ctxt'' (fst body_src)
                               val _ = writeln "checkNsem_function_spec2"
