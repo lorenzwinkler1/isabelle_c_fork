@@ -843,27 +843,21 @@ val SPY3 = Unsynchronized.ref(Bound 0)
    fun define_postcond binding rty sty =
      define_cond binding (fn boolT => sty --> sty --> rty --> boolT) (transform_old sty) "_post" I
 
-   fun define_body_core {recursive = x:bool} binding args_ty rty sty params body ctxt = 
+   fun define_body_core binding args_ty sty params body =
        let val bdg_core = Binding.suffix_name "_core" binding
            val bdg_core_name = Binding.name_of bdg_core
 
-           val umty = StateMgt.MON_SE_T @{typ "unit"} sty
-           val _ = writeln "define_body_core"
-       
-           val core = mk_pat_tupleabs (map (apsnd #2) params) body
-           val _ = (SPY2:=body)
+           val umty = args_ty --> StateMgt.MON_SE_T @{typ "unit"} sty
 
-           val eq = if x
-                    then mk_meta_eq(Free(bdg_core_name, (args_ty --> umty) --> args_ty --> umty), 
-                                          absfree(Binding.name_of binding, args_ty --> umty)(core)) 
-                    else mk_meta_eq(Free(bdg_core_name, args_ty --> umty),core) 
+           val args_core =
+             ( SOME (bdg_core, SOME umty, NoSyn)
+             , (Binding.empty_atts, mk_meta_eq ( Free (bdg_core_name, umty)
+                                               , mk_pat_tupleabs (map (apsnd #2) params) body))
+             , []
+             , [])
 
-        (*   val eq =  mk_meta_eq(Free(bdg_core_name, args_ty --> umty),core) *)
-           val _ = (SPY3:=body)
-
-           val args_core = (SOME(bdg_core,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
-
-       in  ctxt |> StateMgt.cmd args_core true
+       in fn ctxt => (writeln "define_body_core";
+                      StateMgt.cmd args_core true ctxt)
        end 
  
    fun define_body_main {recursive = x:bool} binding rty sty params variant_src body ctxt = 
@@ -942,19 +936,18 @@ val SPY3 = Unsynchronized.ref(Bound 0)
                          (fn params => fn ret_ty => fn ctxt => 
                           let val sty = StateMgt_core.get_state_type ctxt
                               val _ = writeln "checkNsem_function_spec0"
-                              val rmty = StateMgt_core.MON_SE_T ret_ty sty 
                               val args_ty = HOLogic.mk_tupleT (map (#2 o #2) params)
-                              val (_,ctxt'') = Proof_Context.add_fixes 
-                                                   [(binding, SOME(args_ty --> rmty), NoSyn)] ctxt
+                              val ctxt' =
+                                if #recursive isrec then
+                                  Proof_Context.add_fixes 
+                                    [(binding, SOME (args_ty --> StateMgt_core.MON_SE_T ret_ty sty), NoSyn)] ctxt |> #2
+                                else
+                                  ctxt
                               val _ = writeln "checkNsem_function_spec1"
-                              val body = Syntax.read_term ctxt'' (fst body_src)
+                              val body = Syntax.read_term ctxt' (fst body_src)
                               val _ = writeln "checkNsem_function_spec2"
                               val _ = (SPY1 := body)
-                          in  ctxt'' |> define_body_core isrec binding args_ty ret_ty sty params body
-(*
-                              val body = Syntax.read_term ctxt (fst body_src)
-                          in  ctxt |> define_body_core binding ret_ty sty params body
-*)
+                          in  ctxt' |> define_body_core binding args_ty sty params body
                           end)
                 |> theory_map
                          (fn params => fn ret_ty => fn ctxt => 
