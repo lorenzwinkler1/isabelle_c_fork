@@ -34,7 +34,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-section \<open> Clean Semantics : A Coding-Concept Example\<close>
+chapter \<open> Clean Semantics : A Coding-Concept Example\<close>
 
 text\<open>The following show-case introduces subsequently a non-trivial example involving
 local and global variable declarations, declarations of operations with pre-post conditions as

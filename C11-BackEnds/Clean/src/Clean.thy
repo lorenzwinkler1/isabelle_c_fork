@@ -3,7 +3,7 @@
  * Burkhart Wolff, Frederic Tuong and Chantal Keller, LRI, Univ. Paris-Saclay, France
  ***************************************************************************************)
 
-section \<open>The Clean Language\<close>
+chapter \<open>The Clean Language\<close>
 
 text\<open>\<^verbatim>\<open>Clean\<close> (pronounced as: ``Céline'' [selin]) is a minimalistic imperative language with C-like control-flow operators based on a 
 shallow embedding into the SE exception Monad theory formalized in \<^verbatim>\<open>Clean.MonadSE\<close>. It comprises:
