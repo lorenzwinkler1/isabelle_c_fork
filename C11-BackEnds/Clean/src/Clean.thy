@@ -482,8 +482,8 @@ fun mk_push_def binding sty lthy =
     let val name_pushop =  mk_push_name binding
         val rty = \<^typ>\<open>unit\<close>
         val eq = push_eq binding  (Binding.name_of name_pushop) rty sty lthy
-        (* val mty = StateMgt_core.MON_SE_T rty sty *)
-        val args = (SOME(name_pushop,NONE (* SOME mty *),NoSyn), (Binding.empty_atts,eq),[],[])
+        val mty = StateMgt_core.MON_SE_T rty sty 
+        val args = (SOME(name_pushop, SOME mty, NoSyn), (Binding.empty_atts,eq),[],[])
     in cmd args true lthy  end;
 
 fun mk_pop_name binding = Binding.prefix_name "pop_"  binding
@@ -502,7 +502,7 @@ fun mk_pop_def binding rty sty lthy =
     let val mty = StateMgt_core.MON_SE_T rty sty 
         val name_op =  mk_pop_name binding
         val eq = pop_eq binding (Binding.name_of name_op) rty sty lthy
-        val args = (SOME(name_op,NONE(* SOME mty *),NoSyn),(Binding.empty_atts,eq),[],[])
+        val args = (SOME(name_op, SOME mty, NoSyn),(Binding.empty_atts,eq),[],[])
     in cmd args true lthy
     end;
 
@@ -520,6 +520,13 @@ fun read_fields raw_fields ctxt =
     val fields = map2 (fn (x, _, mx) => fn T => (x, T, mx)) raw_fields Ts;
     val ctxt' = fold Variable.declare_typ Ts ctxt;
   in (fields, ctxt') end;
+
+fun parse_typ_'a ctxt binding = 
+  let val ty_bind =  Binding.prefix_name "'a " (Binding.suffix_name "_scheme" binding)
+  in case Syntax.parse_typ ctxt (Binding.name_of ty_bind) of
+       Type (s, _) => Type (s, [@{typ "'a::type"}])
+     | _ => error ("Unexpected type" ^ Position.here \<^here>)
+  end
 
 fun add_record_cmd0 read_fields overloaded is_global_kind raw_params binding raw_parent raw_fields thy =
   let
@@ -541,9 +548,7 @@ fun add_record_cmd0 read_fields overloaded is_global_kind raw_params binding raw
             else declare StateMgt_core.local_var  (Binding.name_of f) thy
     fun define_push_pop thy = 
             if not is_global_kind 
-            then let val ctxt = Proof_Context.init_global thy;
-                     val ty_bind =  Binding.prefix_name "'a " (Binding.suffix_name "_scheme" binding)
-                     val sty = Syntax.parse_typ ctxt (Binding.name_of ty_bind)
+            then let val sty = parse_typ_'a (Proof_Context.init_global thy) binding;
                      val rty = dest_listTy (#2(hd(rev fields')))
                  in thy
 
@@ -575,13 +580,8 @@ fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res
                       else mk_local_state_name binding
         val raw_parent = SOME(typ_2_string_raw (StateMgt_core.get_state_type_global thy))
         val pos = Binding.pos_of binding
-        fun upd_state_typ thy = let val ctxt = Proof_Context.init_global thy
-                                    val ty_bind =  Binding.prefix_name "'a " 
-                                                        (Binding.suffix_name "_scheme" binding)
-                                    val ty = case Syntax.parse_typ ctxt (Binding.name_of ty_bind) of
-                                               Type (s, _) => Type (s, [@{typ "'a::type"}])
-                                             | _ => error ("Unexpected type" ^ Position.here \<^here>)
-                                in  StateMgt_core.upd_state_type_global(K ty)(thy) end
+        fun upd_state_typ thy =
+          StateMgt_core.upd_state_type_global (K (parse_typ_'a (Proof_Context.init_global thy) binding)) thy
         val result_binding = Binding.make(result_name,pos)
         val raw_fields' = case res_ty of 
                             NONE => raw_fields
