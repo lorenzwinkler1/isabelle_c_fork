@@ -405,6 +405,13 @@ fun   mk_pat_tupleabs [] t = t
 
 fun read_constname ctxt n = fst(dest_Const(Syntax.read_term ctxt n))
 
+fun wfrecT order recs = 
+    let val funT = domain_type (fastype_of recs)
+        val aTy  = domain_type funT
+        val ordTy = HOLogic.mk_setT(HOLogic.mk_prodT (aTy,aTy))
+    in Const(\<^const_name>\<open>Wfrec.wfrec\<close>, ordTy --> (funT --> funT) --> funT) $ order $ recs end
+
+
 \<close>
 
 text\<open>And here comes the core of the \<^theory_text>\<open>Clean\<close>-State-Management: the module that provides the 
@@ -867,6 +874,7 @@ val SPY3 = Unsynchronized.ref(Bound 0)
 
            val args_ty = HOLogic.mk_tupleT (map (#2 o #2) params)
            val params' = map (apsnd #2) params
+           val params_pre = map (fn(s,ty)=>(s^"_pre",ty)) params'
            val _ = writeln "define_body_main"
            val _ = (SPY1:=body)
            val rmty = StateMgt_core.MON_SE_T rty sty 
@@ -874,14 +882,33 @@ val SPY3 = Unsynchronized.ref(Bound 0)
            val umty = StateMgt.MON_SE_T @{typ "unit"} sty
            val argsProdT = HOLogic.mk_prodT(args_ty,args_ty)
            val argsRelSet = HOLogic.mk_setT argsProdT
-           val measure =  Const(@{const_name "Wellfounded.measure"}, argsProdT --> HOLogic.natT)
-           val rhs_main = Const(@{const_name "Clean.block\<^sub>C"}, umty --> umty  --> rmty --> rmty)
+           val measure_term = case variant_src of
+                                 NONE => mk_undefined (argsProdT --> HOLogic.natT)
+                               | SOME str =>  Syntax.read_term ctxt str
+                                                 |> mk_pat_tupleabs params'
+                                                 |> mk_pat_tupleabs params_pre
+           val measure =  Const(@{const_name "Wellfounded.measure"}, (argsProdT --> HOLogic.natT)
+                                                                     --> argsRelSet )
+                          $ measure_term
+           val rhs_main = mk_pat_tupleabs params'
+                          (Const(@{const_name "Clean.block\<^sub>C"}, umty --> umty  --> rmty --> rmty)
                           $ Const(read_constname ctxt (Binding.name_of push_name),umty)
-                          $ (Const(read_constname ctxt bdg_core_name,args_ty --> umty)  
+                          $ (Const(read_constname ctxt bdg_core_name, args_ty --> umty)  
                              $ HOLogic.mk_tuple (map Free params'))
-                          $ Const(read_constname ctxt (Binding.name_of pop_name),rmty)
+                          $ Const(read_constname ctxt (Binding.name_of pop_name),rmty))
+           val rhs_main_rec = wfrecT 
+                              measure 
+                              (Abs("XXX", (args_ty --> umty) , 
+                                   mk_pat_tupleabs params'
+                                   (Const(@{const_name "Clean.block\<^sub>C"}, umty-->umty-->rmty-->rmty)
+                                   $ Const(read_constname ctxt (Binding.name_of push_name),umty)
+                                   $ (Const(read_constname ctxt bdg_core_name,
+                                            (args_ty --> umty) --> args_ty --> umty)  
+                                      $ (Bound (length params))
+                                      $ HOLogic.mk_tuple (map Free params'))
+                                   $ Const(read_constname ctxt (Binding.name_of pop_name),rmty))))
            val eq_main = mk_meta_eq(Free(Binding.name_of binding, args_ty --> rmty),
-                                     mk_pat_tupleabs params' rhs_main)
+                                    if x then rhs_main_rec else rhs_main )
            val _ = (SPY2:=eq_main)
            val args_main = (SOME(binding,NONE,NoSyn), (Binding.empty_atts,eq_main),[],[]) 
        in  ctxt |> StateMgt.cmd args_main true 
