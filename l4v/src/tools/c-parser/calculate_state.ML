@@ -577,7 +577,7 @@ in
   (thy, List.rev rcdinfo0)
 end
 
-fun simple s = {isa_name = MString.mk s, src_name = s, alias = false}
+fun simple s = {isa_name = MString.mk s, src_name = s, src_return_var = false, alias = false}
 
 fun pretty_recdef thy nm vars =
     Pretty.big_list
@@ -617,7 +617,7 @@ end
 fun mk_thy_decls state {owners,mstate_ty=pmstate_ty,gstate_ty} thy = let
   val rest = state
   fun declare_vars thy = let
-    val (lvars, gvars) = split_vars thy ([], []) rest
+    val (lvars0, gvars) = split_vars thy ([], []) rest
     open NameGeneration
     fun mk_globals_rcd thy = let
       val (_ (* utglobs *), nsglobs, _ (* adglobs *)) =
@@ -628,26 +628,28 @@ fun mk_thy_decls state {owners,mstate_ty=pmstate_ty,gstate_ty} thy = let
       val _ = if not (null gvars) then pretty_recdef thy "globals" nsglobs
               else ()
       val gflds =
-          [(bnm global_heap_var, MemoryModelExtras.extended_heap_ty, NoSyn),
-           (bnm (global_var phantom_state_name), pmstate_ty, NoSyn),
-           (bnm (global_var ghost_state_name), gstate_ty, NoSyn)] @
-          map (fn ({isa_name,...}, ty, _, _) =>
-                  (bnm (global_var (MString.dest isa_name)), ty, NoSyn))
+          [(NONE, (bnm global_heap_var, MemoryModelExtras.extended_heap_ty, NoSyn)),
+           (NONE, (bnm (global_var phantom_state_name), pmstate_ty, NoSyn)),
+           (NONE, (bnm (global_var ghost_state_name), gstate_ty, NoSyn))] @
+          map (fn (nm as {isa_name,...}, ty, _, _) =>
+                  (SOME nm, (bnm (global_var (MString.dest isa_name)), ty, NoSyn)))
               nsglobs @
           (if null owners then []
-           else [(bnm (global_var owned_by_fn_name), nat, NoSyn)])
+           else [(NONE, (bnm (global_var owned_by_fn_name), nat, NoSyn))])
       val thy =
           Record.add_record {overloaded=false}
-                           ([], bnm NameGeneration.global_rcd_name) NONE
-                            gflds thy
+                            ([], bnm NameGeneration.global_rcd_name) NONE
+                            (map #2 gflds) thy
       val fullrecname = Sign.intern_type thy NameGeneration.global_ext_type
       val thy'' = MemoryModelExtras.check_global_record_type fullrecname thy
     in
       (thy'', locale_params owners)
     end
-    val lvars = (simple global_exn_var_name,
-                 c_exntype_ty, NONE,
-                 Local "cparser'internal") :: lvars
+
+    val lvars = (true,
+                 (simple global_exn_var_name,
+                  c_exntype_ty, NONE,
+                  Local "cparser'internal")) :: map (pair false) lvars0
 
     (* In the past, the first variable named `x` got its own field named
        `x_'` in the local variables record. If there was another local later in
@@ -678,7 +680,7 @@ fun mk_thy_decls state {owners,mstate_ty=pmstate_ty,gstate_ty} thy = let
           fun map_aliases seen vs =
               case vs of
                 [] => []
-              | ({src_name, isa_name = mangled_name, alias}, _, _, _) :: rest =>
+              | (_, ({src_name, isa_name = mangled_name, alias, ...}, _, _, _)) :: rest =>
                   let
                     val acc = HoarePackage.varname (MString.dest mangled_name)
                     val acc_alias = HoarePackage.varname src_name
@@ -717,18 +719,18 @@ fun mk_thy_decls state {owners,mstate_ty=pmstate_ty,gstate_ty} thy = let
             fun map_elim_name seen vs =
                 case vs of
                   [] => []
-                | ({isa_name = nm,...}, ty, _, _) :: rest => let
+                | (b, (nm0 as {isa_name = nm,...}, ty, _, _)) :: rest => let
                     val nm' = HoarePackage.varname (MString.dest nm)
                   in
                     if member (op =) seen nm' then map_elim_name seen rest
-                    else (bnm nm',ty,NoSyn) :: map_elim_name (nm'::seen) rest
+                    else (if b then NONE else SOME nm0, (bnm nm',ty,NoSyn)) :: map_elim_name (nm'::seen) rest
                   end
             val lflds = map_elim_name [] lvars
-            val _ = pretty_recdef thy "myvars" lvars
+            val _ = pretty_recdef thy "myvars" lvars0
             val thy = Record.add_record {overloaded=false}
                       ([("'g",["HOL.type"])], bnm NameGeneration.local_rcd_name)
                       (SOME([TFree("'g", ["HOL.type"])], "StateSpace.state"))
-                      lflds thy
+                      (map #2 lflds) thy
         in
           (thy, Sign.intern_type thy NameGeneration.local_rcd_name)
         end
@@ -736,7 +738,7 @@ fun mk_thy_decls state {owners,mstate_ty=pmstate_ty,gstate_ty} thy = let
     val thy = mk_locals_aliases thy
     val (thy, globs) = mk_globals_rcd thy
   in
-    (thy, lvars @ gvars, globs)
+    (thy, map #2 lvars @ gvars, globs)
   end
 in
   declare_vars thy
