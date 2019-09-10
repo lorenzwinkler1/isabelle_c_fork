@@ -5,7 +5,7 @@
 
 section \<open>The Clean Language\<close>
 
-text\<open>\<^verbatim>\<open>Clean\<close> (pronounce : "C lean") is a minimalistic imperative language with C-like control-flow operators based on a 
+text\<open>\<^verbatim>\<open>Clean\<close> (pronounced as: ``Céline'' [selin]) is a minimalistic imperative language with C-like control-flow operators based on a 
 shallow embedding into the SE exception Monad theory formalized in \<^verbatim>\<open>Clean.MonadSE\<close>. It comprises:
 \begin{itemize}
 \item C-like control flow with \verb+break+ and \verb+return+.
@@ -786,6 +786,7 @@ val SPY3 = Unsynchronized.ref(Bound 0)
    fun readNdeclare_params params ctxt =
      let
        val Ts = Syntax.read_typs ctxt (map snd params);
+<<<<<<< HEAD
        val params' = map2 (fn (x, _) => fn T => (x, T)) params Ts;
        val params'' = map (fn (x,y) => (x,SOME y,NoSyn)) params'
        val ctxt' = fold Variable.declare_typ Ts ctxt;
@@ -794,6 +795,9 @@ val SPY3 = Unsynchronized.ref(Bound 0)
                            as Free variables (overrides a possible constant declaration 
                            and assigns the declared type to them *)
      in (params'', ctxt'') end;
+=======
+     in (Ts, fold Variable.declare_typ Ts ctxt) end;
+>>>>>>> ab66fa397ae2767fbe4b448a776726df5b1b15cd
    
    fun read_result ret_ty ctxt = 
           let val [ty] = Syntax.read_typs ctxt [ret_ty]
@@ -803,12 +807,14 @@ val SPY3 = Unsynchronized.ref(Bound 0)
    fun read_function_spec ({ binding ,  params,  ret_type,  pre_src,  post_src, 
                                   variant_src, ...} : funct_spec_src
                                ) ctxt =
+<<<<<<< HEAD
        let val (params', ctxt') = readNdeclare_params params ctxt
+=======
+       let val (params_Ts, ctxt') = read_params params ctxt
+>>>>>>> ab66fa397ae2767fbe4b448a776726df5b1b15cd
            val (rty, ctxt'') = read_result ret_type ctxt' 
-           val pre_term = Syntax.read_term ctxt'' pre_src
-           val post_term = Syntax.read_term ctxt'' post_src
            val variant = Option.map (Syntax.read_term ctxt'')  variant_src
-       in ({params = params',ret_ty = rty,pre = pre_term,post = post_term,variant = variant},ctxt'') end 
+       in ({params = (params, params_Ts), ret_ty = rty,variant = variant},ctxt'') end 
 
 
    fun check_absence_old term = 
@@ -827,6 +833,7 @@ val SPY3 = Unsynchronized.ref(Bound 0)
                |transform_old0 term = term
        in  Abs("\<sigma>\<^sub>p\<^sub>r\<^sub>e", sty, transform_old0 term) end
    
+<<<<<<< HEAD
 
    fun define_precond binding  sty params pre = 
        let val args_ty = HOLogic.mk_tupleT(map (the o #2) params) 
@@ -858,6 +865,30 @@ val SPY3 = Unsynchronized.ref(Bound 0)
 
            val umty = StateMgt.MON_SE_T @{typ "unit"} sty
            val params' = map (fn (b,r,_) => (Binding.name_of b,the r)) params
+=======
+   fun define_cond binding f_sty transform_old src_suff check_absence_old params src ctxt = 
+       let val src' = case transform_old (Syntax.read_term ctxt src) of 
+                        Abs(nn, sty_pre, term) => mk_pat_tupleabs (map (apsnd #2) params) (Abs(nn,sty_pre(* sty root ! !*),term))
+                      | _ => error ("internal error" ^ Position.here \<^here>)
+           val bdg = Binding.suffix_name src_suff binding
+           val _ = check_absence_old src'
+           val eq =  mk_meta_eq(Free(Binding.name_of bdg, HOLogic.mk_tupleT(map (#2 o #2) params) --> f_sty HOLogic.boolT),src')
+           val args = (SOME(bdg,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
+       in  StateMgt.cmd args true ctxt end
+
+   fun define_precond binding sty =
+     define_cond binding (fn boolT => sty --> boolT) I "_pre" check_absence_old
+
+   fun define_postcond binding rty sty =
+     define_cond binding (fn boolT => sty --> sty --> rty --> boolT) (transform_old sty) "_post" I
+
+   fun define_body_core binding rty sty params body ctxt =
+       let val bdg_core = Binding.suffix_name "_core" binding
+           val bdg_core_name = Binding.name_of bdg_core
+
+           val args_ty = HOLogic.mk_tupleT(map (#2 o #2) params)
+           val params' = map (apsnd #2) params
+>>>>>>> ab66fa397ae2767fbe4b448a776726df5b1b15cd
            val _ = writeln "define_body_core"
        
            val core =  mk_pat_tupleabs params'  body
@@ -882,8 +913,13 @@ val SPY3 = Unsynchronized.ref(Bound 0)
            val bdg_core = Binding.suffix_name "_core" binding
            val bdg_core_name = Binding.name_of bdg_core
 
+<<<<<<< HEAD
            val args_ty = HOLogic.mk_tupleT(map (the o #2) params)
            val params' = map (fn (b,r,_) => (Binding.name_of b,the r)) params
+=======
+           val args_ty = HOLogic.mk_tupleT(map (#2 o #2) params)
+           val params' = map (apsnd #2) params
+>>>>>>> ab66fa397ae2767fbe4b448a776726df5b1b15cd
            val _ = writeln "define_body_main"
            val _ = (SPY1:=body)
            val rmty = StateMgt_core.MON_SE_T rty sty 
@@ -907,6 +943,7 @@ val SPY3 = Unsynchronized.ref(Bound 0)
 
    fun checkNsem_function_spec {recursive = false} ({variant_src=SOME _, ...}) _ = 
                                error "No measure required in non-recursive call"
+<<<<<<< HEAD
       |checkNsem_function_spec (isrec as {recursive = _:bool}) 
                                (args as {binding, params, ret_type, variant_src, locals, body_src,...} 
                                         : funct_spec_src) 
@@ -918,10 +955,29 @@ val SPY3 = Unsynchronized.ref(Bound 0)
                           let 
                           in (ctxt |> define_precond binding  sty_old cparms pre
                                    |> define_postcond binding  ret_ty sty_old cparms post)  end)
+=======
+      |checkNsem_function_spec (args as {binding, ret_type, 
+                                         variant_src=NONE, locals, body_src, pre_src, post_src, ...} : funct_spec_src) thy =
+       let val (theory_map, thy') =
+             Named_Target.theory_map_result
+               (K (fn f => Named_Target.theory_map o f))
+               (read_function_spec args
+               #> uncurry (fn {params=(params, Ts),ret_ty,variant = _} =>
+                            pair (fn f =>
+                                  Proof_Context.add_fixes (map2 (fn (b, _) => fn T => (b, SOME T, NoSyn)) params Ts)
+                                  #> uncurry (fn params' => f (@{map 3} (fn b' => fn (b, _) => fn T => (b',(b,T))) params' params Ts) ret_ty))))
+                thy
+       in  thy' |> theory_map
+                     let val sty_old = StateMgt_core.get_state_type_global thy'
+                     in fn params => fn ret_ty =>
+                         define_precond binding sty_old params pre_src
+                      #> define_postcond binding ret_ty sty_old params post_src end
+>>>>>>> ab66fa397ae2767fbe4b448a776726df5b1b15cd
                 |> StateMgt.new_state_record false ((([],binding), SOME ret_type),locals)
-                |> Named_Target.theory_map
-                         (fn ctxt => 
+                |> theory_map
+                         (fn params => fn ret_ty => fn ctxt => 
                           let val sty = StateMgt_core.get_state_type ctxt
+<<<<<<< HEAD
                               val _ = writeln "checkNsem_function_spec0"
                               val (_,ctxt') = readNdeclare_params params ctxt
                                               (* declare local variables *)
@@ -934,14 +990,23 @@ val SPY3 = Unsynchronized.ref(Bound 0)
                               val _ = writeln "checkNsem_function_spec2"
                               val _ = (SPY1 := body)
                           in  ctxt'' |> define_body_core isrec  binding args_ty ret_ty sty cparms body
+=======
+                              val body = Syntax.read_term ctxt (fst body_src)
+                          in  ctxt |> define_body_core binding ret_ty sty params body
+>>>>>>> ab66fa397ae2767fbe4b448a776726df5b1b15cd
                           end)
-                |> Named_Target.theory_map
-                         (fn ctxt => 
+                |> theory_map
+                         (fn params => fn ret_ty => fn ctxt => 
                           let val sty = StateMgt_core.get_state_type ctxt
+<<<<<<< HEAD
                               val (_,ctxt') = Variable.add_fixes_binding (map #1 cparms) ctxt (* has this any effect ? *)
                               val _ = Proof_Context.add_fixes
                               val body = Syntax.read_term ctxt' (fst body_src)
                           in  ctxt' |> define_body_main isrec binding ret_ty sty cparms variant_src body
+=======
+                              val body = Syntax.read_term ctxt (fst body_src)
+                          in  ctxt |> define_body_main binding ret_ty sty params body
+>>>>>>> ab66fa397ae2767fbe4b448a776726df5b1b15cd
                           end)
         end
    (* TODO : further simplify ... *)

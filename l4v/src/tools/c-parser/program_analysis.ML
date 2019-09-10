@@ -30,7 +30,7 @@ sig
        `x___int` for a source variable called `x`).
      - `alias` indicates if we should generate an abbreviation that aliases the
         source name to the munged name. *)
-  type nm_info = {src_name : string, isa_name : MString.t, alias: bool}
+  type nm_info = {src_name : string, src_return_var : bool, isa_name : MString.t, alias: bool}
 
   type var_info
   val is_global : var_info -> bool
@@ -146,7 +146,7 @@ datatype var_info =
                 declared_at : Region.t,
                 attrs : gcc_attribute list}
 
-type nm_info = {src_name : string, isa_name : MString.t, alias: bool}
+type nm_info = {src_name : string, src_return_var : bool, isa_name : MString.t, alias: bool}
 
 fun viToString (VI {name, fname,...}) =
     case fname of
@@ -711,14 +711,14 @@ in
       |> remove_addressed
 end
 
-fun get_vi_nm_info (CSE cse) (VI {name, munged_name, ...}) : nm_info =
+fun get_vi_nm_info (CSE cse) (VI {name, munged_name, return_var, ...}) : nm_info =
     let
       val alias =
           case Symtab.lookup (#local_aliases cse) name of
             SOME mn => mn = munged_name
           | NONE => false
     in
-      {src_name = name, isa_name = munged_name, alias = alias}
+      {src_name = name, src_return_var = return_var, isa_name = munged_name, alias = alias}
     end
 
 (* ML computation of alignment and type sizes *)

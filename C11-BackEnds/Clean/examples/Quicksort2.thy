@@ -49,32 +49,33 @@ begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
 
 C \<open>
+//@ declare [[Clean_C99]]
+
 #define MAXSIZE 100
 
 unsigned int A[MAXSIZE];
 
-swap_A(unsigned long i,unsigned long j) {
-  unsigned long tmp = A[i]; A[i] = A[j]; A[j] = tmp ;
+void swap (unsigned long i, unsigned long j) {
+  unsigned long tmp = A[i]; A[i] = A[j]; A[j] = tmp;
 }
 
-unsigned long partition(unsigned long lo,unsigned long hi){ 
-  unsigned long  pivot = A[hi];
-  unsigned long  i = lo;
-  for(unsigned long j = lo; j < hi; j++){ 
-     if(A[j] < pivot) { swap_A(i, j); i++;}
-     swap_A(i, j);
-  };
+unsigned long partition (unsigned long lo, unsigned long hi) { 
+  unsigned long pivot = A[hi];
+  unsigned long i = lo;
+  for (unsigned long j = lo; j < hi; j++) { 
+     if (A[j] < pivot) { swap(i, j); i++; }
+     swap(i, j);
+  }
   return i;
 }
 
-quicksort(unsigned long lo,unsigned long hi) {
+void quicksort (unsigned long lo, unsigned long hi) {
     if( lo < hi) {
-        p = partition(A, lo, hi);
-        quicksort(A, lo, p - 1);
-        quicksort(A, p + 1, hi);
+        unsigned long p = partition(lo, hi);
+        quicksort(lo, p - 1);
+        quicksort(p + 1, hi);
      }
 }
-
 \<close>
 
 end
