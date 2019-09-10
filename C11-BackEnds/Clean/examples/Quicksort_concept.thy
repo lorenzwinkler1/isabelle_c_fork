@@ -324,9 +324,10 @@ definition partition' :: "nat \<times> nat \<Rightarrow>  (nat,'a local_partitio
                                    pop_local_partition_state"
              
 
-subsection \<open>Encoding quicksort in Clean\<close>
+subsection \<open>Encoding the core: quicksort in Clean\<close>
 
-local_vars_test  quicksort "unit"
+(*
+local_vars_test  quicksort' "unit"
     p  :: "nat"
 
 
@@ -349,23 +350,23 @@ funct quicksort(lo::nat, hi::nat) returns unit
 
 
 
-thm pop_local_quicksort_state_def
-thm push_local_quicksort_state_def
+thm pop_local_quicksort'_state_def
+thm push_local_quicksort'_state_def
 
 (* this implies the definitions : *)
-definition push_local_quicksort_state' :: "(unit, 'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
+definition push_local_quicksort_state' :: "(unit, 'a local_quicksort'_state_scheme) MON\<^sub>S\<^sub>E"
   where   "push_local_quicksort_state' \<sigma> = 
-                 Some((), \<sigma>\<lparr>local_quicksort_state.p := undefined # local_quicksort_state.p \<sigma>,
-                            local_quicksort_state.result_value := undefined # local_quicksort_state.result_value \<sigma> \<rparr>)"
+                 Some((), \<sigma>\<lparr>local_quicksort'_state.p := undefined # local_quicksort'_state.p \<sigma>,
+                            local_quicksort'_state.result_value := undefined # local_quicksort'_state.result_value \<sigma> \<rparr>)"
 
 
 
 
-definition pop_local_quicksort_state' :: "(unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "pop_local_quicksort_state' \<sigma> = Some(hd(local_quicksort_state.result_value \<sigma>),
-                       \<sigma>\<lparr>local_quicksort_state.p   := tl(local_quicksort_state.p \<sigma>), 
-                         local_quicksort_state.result_value := 
-                                                      tl(local_quicksort_state.result_value \<sigma>) \<rparr>)"
+definition pop_local_quicksort_state' :: "(unit,'a local_quicksort'_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "pop_local_quicksort_state' \<sigma> = Some(hd(local_quicksort'_state.result_value \<sigma>),
+                       \<sigma>\<lparr>local_quicksort'_state.p   := tl(local_quicksort'_state.p \<sigma>), 
+                         local_quicksort'_state.result_value := 
+                                                      tl(local_quicksort'_state.result_value \<sigma>) \<rparr>)"
 
 (* recursion not yet treated. Either axiomatazitation hack (super-dangerous) or 
    proper formalization via lfp. *)
@@ -383,16 +384,16 @@ funct quicksort(lo::int, hi::int) returns unit
       
 *)
 
-definition quicksort_pre :: "nat \<times> nat \<Rightarrow> 'a local_quicksort_state_scheme \<Rightarrow>   bool"
-  where   "quicksort_pre \<equiv> \<lambda>(i,j). \<lambda>\<sigma>.  True "
+definition quicksort'_pre :: "nat \<times> nat \<Rightarrow> 'a local_quicksort'_state_scheme \<Rightarrow>   bool"
+  where   "quicksort'_pre \<equiv> \<lambda>(i,j). \<lambda>\<sigma>.  True "
 
-definition quicksort_post :: "nat \<times> nat \<Rightarrow> unit \<Rightarrow> 'a local_quicksort_state_scheme \<Rightarrow>  bool"
-  where   "quicksort_post \<equiv> \<lambda>(i,j). \<lambda> res. \<lambda>\<sigma>.  True"   
+definition quicksort'_post :: "nat \<times> nat \<Rightarrow> unit \<Rightarrow> 'a local_quicksort'_state_scheme \<Rightarrow>  bool"
+  where   "quicksort'_post \<equiv> \<lambda>(i,j). \<lambda> res. \<lambda>\<sigma>.  True"   
 
 
-definition quicksort_core :: "   (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E)
-                              \<Rightarrow> (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E)"
-  where   "quicksort_core \<equiv> \<lambda>quicksort. \<lambda>(lo, hi). 
+definition quicksort'_core :: "   (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort'_state_scheme) MON\<^sub>S\<^sub>E)
+                              \<Rightarrow> (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort'_state_scheme) MON\<^sub>S\<^sub>E)"
+  where   "quicksort'_core \<equiv> \<lambda>quicksort. \<lambda>(lo, hi). 
                             ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
                               then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C partition (\<lambda>\<sigma>. (lo, hi)) ;
                                     assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
@@ -401,30 +402,45 @@ definition quicksort_core :: "   (nat \<times> nat \<Rightarrow> (unit,'a local_
                               else skip\<^sub>S\<^sub>E 
                               fi))"
 
-term " ((quicksort_core X) (lo,hi))"
+term " ((quicksort'_core X) (lo,hi))"
 
-definition quicksort :: " ((nat \<times> nat) \<times> (nat \<times> nat)) set \<Rightarrow>
-                           (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E)"
-  where   "quicksort order \<equiv> wfrec order (\<lambda>X. \<lambda>(lo, hi). block\<^sub>C push_local_quicksort_state 
-                                                                (quicksort_core X (lo,hi)) 
-                                                                pop_local_quicksort_state)"
-
-
+definition quicksort' :: " ((nat \<times> nat) \<times> (nat \<times> nat)) set \<Rightarrow>
+                           (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort'_state_scheme) MON\<^sub>S\<^sub>E)"
+  where   "quicksort' order \<equiv> wfrec order (\<lambda>X. \<lambda>(lo, hi). block\<^sub>C push_local_quicksort'_state 
+                                                                (quicksort'_core X (lo,hi)) 
+                                                                pop_local_quicksort'_state)"
 
 
 
 
-
-
-
-
-
-
+*)
 
 
 
 
 (* bric a brac *)
+
+definition "zz = ()"
+ML\<open>@{term zz}\<close>  (* So : @(term "zz"} is now a constant*) 
+ML\<open>Proof_Context.add_fixes [(@{binding "zz"}, SOME @{typ nat}, NoSyn)] @{context}
+   |> (fn (S, ctxt) => (writeln (String.concat S); Syntax.read_term ctxt "zz")) \<close>
+ML\<open>@{term zz}\<close>  (* So : @(term "zz"} is now a constant*) 
+locale Z =
+  fixes zz :: nat
+begin
+ML\<open>@{term "(zz)"}\<close>
+end
+
+lemma True
+proof - fix a :: nat
+  show True
+    ML_prf \<open>@{term a}\<close>
+    term a
+    oops
+
+
+
+
 term "Clean.syntax_assign"
 term "B[x:=(B!n)]"
 term "assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! n )"  
@@ -441,14 +457,32 @@ term "assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (n) (A
 term "B[k:=(B!m)]"
 
 
-rec_function_spec swap'' () returns "unit"
-pre          "a"
-post         "b"
-variant      "c"
-local_vars   tmp :: "int" 
-defines      \<open>(\<lambda>(i,j). ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
-                        (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
-                        (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>)))))\<close>
+rec_function_spec quicksort (lo::nat, hi::nat) returns "unit"
+pre          "\<open>True\<close>"
+post         "\<open>\<lambda>res::unit. True\<close>"
+variant      "XXX"
+local_vars   p :: "nat" 
+defines      "call\<^sub>C (quicksort :: (nat \<times> nat \<Rightarrow> (unit, 'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E )) 
+                    (\<lambda>\<sigma>. (lo, (hd o p) \<sigma> - hi))"
+(*
+defines      " ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
+                 then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C partition (\<lambda>\<sigma>. (lo, hi)) ;
+                       assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
+                       call\<^sub>C quicksort (\<lambda>\<sigma>. (lo, (hd o p) \<sigma> - 1)) ;-
+                       call\<^sub>C quicksort (\<lambda>\<sigma>. ((hd o p) \<sigma> + 1, hi))  
+                 else skip\<^sub>S\<^sub>E 
+                 fi))"
 
+*)
+
+ML\<open>           val measure = @{term "Wellfounded.measure"}
+\<close>
+declare [[ML_print_depth=100]]
+
+ML\<open>!Function_Specification_Parser.SPY1\<close>
+
+ML\<open>!Function_Specification_Parser.SPY2\<close>
+
+ML\<open>!Function_Specification_Parser.SPY3\<close>
 
 end
