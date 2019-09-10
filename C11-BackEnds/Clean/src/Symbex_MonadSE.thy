@@ -4,9 +4,9 @@ begin
   
 
 
-subsection{* Definition and Properties of Valid Execution Sequences*}
+subsection\<open>Definition and Properties of Valid Execution Sequences\<close>
 
-text{* A key-notion in our framework is the \emph{valid} execution
+text\<open>A key-notion in our framework is the \emph{valid} execution
 sequence, \ie{} a sequence that:
 \begin{enumerate}
 \item terminates (not obvious since while),
@@ -17,14 +17,14 @@ sequence, \ie{} a sequence that:
 \end{enumerate}
 Seen from an automata perspective (where the monad - operations correspond to
 the step function), valid execution sequences can be used to model ``feasible paths''
-across an automaton.  *}
+across an automaton.\<close>
 
 definition valid_SE :: "'\<sigma> \<Rightarrow> (bool,'\<sigma>) MON\<^sub>S\<^sub>E \<Rightarrow> bool" (infix "\<Turnstile>" 15)
 where "(\<sigma> \<Turnstile> m) = (m \<sigma> \<noteq> None \<and> fst(the (m \<sigma>)))"
-text{* This notation consideres failures as valid -- a definition
-inspired by I/O conformance.   *}
+text\<open>This notation consideres failures as valid -- a definition
+inspired by I/O conformance.\<close>
 
-subsubsection{* Valid Execution Sequences and their Symbolic Execution *}
+subsubsection\<open>Valid Execution Sequences and their Symbolic Execution\<close>
 lemma exec_unit_SE [simp]: "(\<sigma> \<Turnstile> (result P)) = (P)"
 by(auto simp: valid_SE_def unit_SE_def)
 
@@ -37,7 +37,7 @@ by(auto simp: valid_SE_def fail_SE_def)
 lemma exec_fail_SE'[simp]: "\<not>(\<sigma>\<^sub>0 \<Turnstile> (\<lambda>\<sigma>. None))"
 by(simp add: valid_SE_def )
 
-text{* The following the rules are in a sense the heart of the entire symbolic execution approach *}
+text\<open>The following the rules are in a sense the heart of the entire symbolic execution approach\<close>
 lemma  exec_bind_SE_failure:
 "A \<sigma> = None \<Longrightarrow> \<not>(\<sigma> \<Turnstile> ((s \<leftarrow> A ; M s)))"
 by(simp add: valid_SE_def unit_SE_def bind_SE_def)
@@ -102,7 +102,7 @@ lemma valid_bind'_cong : " f \<sigma> = g \<sigma> \<Longrightarrow> (\<sigma> \
     by simp
 
 
-text{* Recall \verb+mbind_unit+ for the base case. *}
+text\<open>Recall \verb+mbind_unit+ for the base case.\<close>
 
 lemma valid_mbind_mt : "(\<sigma> \<Turnstile> ( s \<leftarrow>  mbind\<^sub>F\<^sub>a\<^sub>i\<^sub>l\<^sub>S\<^sub>a\<^sub>v\<^sub>e [] f; unit\<^sub>S\<^sub>E (P s))) = P [] " by simp
 lemma valid_mbind_mtE: "\<sigma> \<Turnstile> ( s \<leftarrow> mbind\<^sub>F\<^sub>a\<^sub>i\<^sub>l\<^sub>S\<^sub>a\<^sub>v\<^sub>e [] f; unit\<^sub>S\<^sub>E (P s)) \<Longrightarrow> (P [] \<Longrightarrow> Q) \<Longrightarrow> Q"
@@ -219,7 +219,7 @@ by (metis option.distinct(1))
 
 
 
-text{* Universal splitting and symbolic execution rule *}
+text\<open>Universal splitting and symbolic execution rule\<close>
 lemma exec_mbindFSave_E:
 assumes seq : "(\<sigma> \<Turnstile> (s \<leftarrow> mbind\<^sub>F\<^sub>a\<^sub>i\<^sub>l\<^sub>S\<^sub>a\<^sub>v\<^sub>e (a#S) ioprog ;  (P s)))"
   and   none: "ioprog a \<sigma> = None \<Longrightarrow> (\<sigma> \<Turnstile> (P [])) \<Longrightarrow> Q"
@@ -240,11 +240,11 @@ next
         done
 qed
 
-text{* The next rule reveals the particular interest in deduction;
+text\<open>The next rule reveals the particular interest in deduction;
        as an elimination rule, it allows for a linear conversion of a validity judgement
        @{term "mbind\<^sub>F\<^sub>a\<^sub>i\<^sub>l\<^sub>S\<^sub>t\<^sub>o\<^sub>p"} over an input list @{term "S"} into a constraint system; without any 
        branching ... Symbolic execution can even be stopped tactically whenever 
-       @{term "ioprog a \<sigma> = Some(b,\<sigma>')"} comes to a contradiction. *}
+       @{term "ioprog a \<sigma> = Some(b,\<sigma>')"} comes to a contradiction.\<close>
 lemma exec_mbindFStop_E:
 assumes seq : "(\<sigma> \<Turnstile> (s \<leftarrow> mbind\<^sub>F\<^sub>a\<^sub>i\<^sub>l\<^sub>S\<^sub>t\<^sub>o\<^sub>p (a#S) ioprog ; (P s)))"
   and   some: "\<And>b \<sigma>'. ioprog a \<sigma> = Some(b,\<sigma>') \<Longrightarrow> (\<sigma>'\<Turnstile> (s \<leftarrow> mbind\<^sub>F\<^sub>a\<^sub>i\<^sub>l\<^sub>S\<^sub>t\<^sub>o\<^sub>p S ioprog;(P(b#s)))) \<Longrightarrow> Q"
@@ -330,10 +330,10 @@ shows  "Q"
 by(insert *[simplified "bind_SE'_def", THEN assume_D], auto intro: **)
 
 
-text{* These two rule prove that the SE Monad in connection with the notion of valid sequence
+text\<open>These two rule prove that the SE Monad in connection with the notion of valid sequence
 is actually sufficient for a representation of a Boogie-like language. The SBE monad with explicit
 sets of states --- to be shown below --- is strictly speaking not necessary (and will therefore
-be discontinued in the development). *}
+be discontinued in the development).\<close>
 
 term "if\<^sub>S\<^sub>E P then B\<^sub>1 else B\<^sub>2 fi"
 
@@ -455,12 +455,12 @@ by (simp add: skip\<^sub>S\<^sub>E_def)
 lemmas exec_skipD = exec_skip[THEN iffD1]
 
 
-text{* Test-Refinements will be stated in terms of the failsave @{term mbind}, opting 
+text\<open>Test-Refinements will be stated in terms of the failsave @{term mbind}, opting 
        more generality. The following lemma allows for an  optimization both in 
        test execution as well as in symbolic execution for an important special case of
        the post-codition: Whenever the latter has the constraint that the length of input and 
        output sequence equal each other (that is to say: no failure occured), failsave mbind
-       can be reduced to failstop mbind ... *}
+       can be reduced to failstop mbind ...\<close>
 lemma mbindFSave_vs_mbindFStop : 
   "(\<sigma> \<Turnstile> (os \<leftarrow> (mbind\<^sub>F\<^sub>a\<^sub>i\<^sub>l\<^sub>S\<^sub>a\<^sub>v\<^sub>e \<iota>s ioprog); result(length \<iota>s = length os \<and> P \<iota>s os))) = 
    (\<sigma> \<Turnstile> (os \<leftarrow> (mbind\<^sub>F\<^sub>a\<^sub>i\<^sub>l\<^sub>S\<^sub>t\<^sub>o\<^sub>p \<iota>s ioprog); result(P \<iota>s os)))"

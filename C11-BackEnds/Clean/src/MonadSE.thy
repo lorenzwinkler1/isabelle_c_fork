@@ -46,11 +46,11 @@ theory MonadSE
   imports Main
 begin
         
-subsection{* Definition : Standard State Exception Monads *}
-text{* State exception monads in our sense are a direct, pure formulation
-of automata with a partial transition function. *}
+subsection\<open>Definition : Standard State Exception Monads\<close>
+text\<open>State exception monads in our sense are a direct, pure formulation
+of automata with a partial transition function.\<close>
 
-subsubsection{* Definition : Core Types and Operators *}
+subsubsection\<open>Definition : Core Types and Operators\<close>
 
 type_synonym ('o, '\<sigma>) MON\<^sub>S\<^sub>E = "'\<sigma> \<rightharpoonup> ('o \<times> '\<sigma>)" (* = '\<sigma> \<Rightarrow> ('o \<times> '\<sigma>)option *)       
       
@@ -70,7 +70,7 @@ definition unit_SE :: "'o \<Rightarrow> ('o, '\<sigma>)MON\<^sub>S\<^sub>E"   ("
 where     "unit_SE e = (\<lambda>\<sigma>. Some(e,\<sigma>))"
 notation   unit_SE ("unit\<^sub>S\<^sub>E")
 
-text{* In the following, we prove the required Monad-laws *}
+text\<open>In the following, we prove the required Monad-laws\<close>
 
 lemma bind_right_unit[simp]: "(x \<leftarrow> m; result x) = m"
   apply (simp add:  unit_SE_def bind_SE_def)
@@ -87,7 +87,7 @@ lemma bind_assoc[simp]: "(y \<leftarrow> (x \<leftarrow> m; k x); h y) = (x \<le
   apply (case_tac "a", simp_all)
   done
     
-subsubsection{* Definition : More Operators and their Properties *}
+subsubsection\<open>Definition : More Operators and their Properties\<close>
 
 definition fail_SE :: "('o, '\<sigma>)MON\<^sub>S\<^sub>E"
 where     "fail_SE = (\<lambda>\<sigma>. None)" 
@@ -106,8 +106,8 @@ lemma bind_left_fail_SE[simp] : "(x \<leftarrow> fail\<^sub>S\<^sub>E; P x) = fa
   by (simp add: fail_SE_def bind_SE_def)
 
 
-text{* We also provide a "Pipe-free" - variant of the bind operator.
-Just a "standard" programming sequential operator without output frills. *}
+text\<open>We also provide a "Pipe-free" - variant of the bind operator.
+Just a "standard" programming sequential operator without output frills.\<close>
 (* TODO: Eliminate/Modify this. Is a consequence of the Monad-Instantiation. *)
 
 
@@ -128,8 +128,8 @@ lemma bind_left_fail_SE'[simp]: "(fail\<^sub>S\<^sub>E;- P) = fail\<^sub>S\<^sub
 lemma bind_right_unit'[simp]: "(m;- (result ())) = m"
   by (simp add:  bind_SE'_def)
           
-text{* The bind-operator in the state-exception monad yields already
-       a semantics for the concept of an input sequence on the meta-level: *}
+text\<open>The bind-operator in the state-exception monad yields already
+       a semantics for the concept of an input sequence on the meta-level:\<close>
 lemma     syntax_test: "(o1 \<leftarrow> f1 ; o2 \<leftarrow> f2; result (post o1 o2)) = X"
 oops
   
@@ -141,15 +141,15 @@ definition try_SE :: "('o,'\<sigma>) MON\<^sub>S\<^sub>E \<Rightarrow> ('o optio
 where     "try\<^sub>S\<^sub>E ioprog = (\<lambda>\<sigma>. case ioprog \<sigma> of
                                       None \<Rightarrow> Some(None, \<sigma>)
                                     | Some(outs, \<sigma>') \<Rightarrow> Some(Some outs, \<sigma>'))" 
-text{* In contrast, mbind as a failure safe operator can roughly be seen 
+text\<open>In contrast, mbind as a failure safe operator can roughly be seen 
        as a foldr on bind - try:
        m1 ; try m2 ; try m3; ... Note, that the rough equivalence only holds for
        certain predicates in the sequence - length equivalence modulo None,
        for example. However, if a conditional is added, the equivalence
-       can be made precise: *}
+       can be made precise:\<close>
   
-text{* On this basis, a symbolic evaluation scheme can be established
-  that reduces mbind-code to try\_SE\_code and ite-cascades. *}
+text\<open>On this basis, a symbolic evaluation scheme can be established
+  that reduces mbind-code to try\_SE\_code and ite-cascades.\<close>
 
 definition alt_SE :: "[('o, '\<sigma>)MON\<^sub>S\<^sub>E, ('o, '\<sigma>)MON\<^sub>S\<^sub>E] \<Rightarrow> ('o, '\<sigma>)MON\<^sub>S\<^sub>E"   (infixl "\<sqinter>\<^sub>S\<^sub>E" 10)
 where     "(f \<sqinter>\<^sub>S\<^sub>E g) = (\<lambda> \<sigma>. case f \<sigma> of None \<Rightarrow> g \<sigma>
@@ -166,7 +166,7 @@ lemma malt_SE_cons [simp]: "\<Sqinter>\<^sub>S\<^sub>E (a # S) = (a \<sqinter>\<
 by(simp add: malt_SE_def)
 
 
-subsubsection{* Definition : Programming Operators and their Properties *}
+subsubsection\<open>Definition : Programming Operators and their Properties\<close>
 
 definition  "skip\<^sub>S\<^sub>E = unit\<^sub>S\<^sub>E ()"
 
@@ -180,9 +180,9 @@ translations
           "(if\<^sub>S\<^sub>E cond then T1 else T2 fi)" == "CONST if_SE cond T1 T2"
 
 
-subsubsection{* Theory of a Monadic While *}
+subsubsection\<open>Theory of a Monadic While\<close>
 
-text{* Prerequisites *}
+text\<open>Prerequisites\<close>
 fun replicator :: "[('a, '\<sigma>)MON\<^sub>S\<^sub>E, nat] \<Rightarrow> (unit, '\<sigma>)MON\<^sub>S\<^sub>E" (infixr "^^^" 60)
 where     "f ^^^ 0      = (result ())"
         | "f ^^^ (Suc n) = (f ;- f ^^^  n)"
@@ -193,7 +193,7 @@ where     "(f ^:^ 0) M      = (M )"
         | "(f ^:^ (Suc n)) M = (f ;- ((f ^:^  n) M))"
 
 
-text{* First Step : Establishing an embedding between partial functions and relations *} 
+text\<open>First Step : Establishing an embedding between partial functions and relations\<close> 
 (* plongement *)
 definition Mon2Rel :: "(unit, '\<sigma>)MON\<^sub>S\<^sub>E \<Rightarrow> ('\<sigma> \<times> '\<sigma>) set"
 where "Mon2Rel f = {(x, y). (f x = Some((), y))}"
@@ -217,8 +217,8 @@ done
 lemma single_valued_Mon2Rel: "single_valued (Mon2Rel B)"
 by (auto simp: single_valued_def Mon2Rel_def)
 
-text{* Second Step : Proving an induction principle allowing to establish that lfp remains
-       deterministic *} 
+text\<open>Second Step : Proving an induction principle allowing to establish that lfp remains
+       deterministic\<close> 
 
 
 (* A little complete partial order theory due to Tobias Nipkow *)
@@ -236,10 +236,10 @@ lemma mono_if_cont: fixes f :: "'a set \<Rightarrow> 'b set"
 proof
   fix a b :: "'a set" assume "a \<subseteq> b"
   let ?S = "\<lambda>n::nat. if n=0 then a else b"
-  have "chain ?S" using `a \<subseteq> b` by(auto simp: chain_def)
+  have "chain ?S" using \<open>a \<subseteq> b\<close> by(auto simp: chain_def)
   hence "f(UN n. ?S n) = (UN n. f(?S n))"
     using assms by (metis cont_def)
-  moreover have "(UN n. ?S n) = b" using `a \<subseteq> b` by (auto split: if_splits)
+  moreover have "(UN n. ?S n) = b" using \<open>a \<subseteq> b\<close> by (auto split: if_splits)
   moreover have "(UN n. f(?S n)) = f a \<union> f b" by (auto split: if_splits)
   ultimately show "f a \<subseteq> f b" by (metis Un_upper1)
 qed
@@ -273,7 +273,7 @@ next
       case 0 show ?case by simp
     next
       case Suc
-      from monoD[OF mono_if_cont[OF assms] Suc] `f p \<subseteq> p`
+      from monoD[OF mono_if_cont[OF assms] Suc] \<open>f p \<subseteq> p\<close>
       show ?case by simp
     qed
   }
@@ -301,7 +301,7 @@ proof(rule single_valued_UN_chain[OF chain_iterates[OF mono_if_cont[OF assms(1)]
 qed
 
 
-text{* Third Step: Definition of the Monadic While \<open> \<close>  *}
+text\<open>Third Step: Definition of the Monadic While \<open> \<close>\<close>
 definition \<Gamma> :: "['\<sigma> \<Rightarrow> bool,('\<sigma> \<times> '\<sigma>) set] \<Rightarrow> (('\<sigma> \<times> '\<sigma>) set \<Rightarrow> ('\<sigma> \<times> '\<sigma>) set)" 
 where     "\<Gamma> b cd = (\<lambda>cw. {(s,t). if b s then (s, t) \<in> cd O cw else s = t})"
 
@@ -318,8 +318,8 @@ translations
 lemma cont_\<Gamma>: "cont (\<Gamma> c b)"
 by (auto simp: cont_def \<Gamma>_def)
 
-text{* The fixpoint theory now allows us to establish that the lfp constructed over
-       @{term Mon2Rel} remains deterministic *}
+text\<open>The fixpoint theory now allows us to establish that the lfp constructed over
+       @{term Mon2Rel} remains deterministic\<close>
 
 theorem single_valued_lfp_Mon2Rel: "single_valued (lfp(\<Gamma> c (Mon2Rel B)))"
 apply(rule single_valued_lfp, simp_all add: cont_\<Gamma>)
@@ -354,8 +354,8 @@ qed
 
 
 
-text{* Putting everything together, the theory of embedding and the invariance of
-       determinism of the while-body, gives us the usual unfold-theorem: *}
+text\<open>Putting everything together, the theory of embedding and the invariance of
+       determinism of the while-body, gives us the usual unfold-theorem:\<close>
 theorem while_SE_unfold:
 "(while\<^sub>S\<^sub>E b do c od) = (if\<^sub>S\<^sub>E b then (c ;- (while\<^sub>S\<^sub>E b do c od)) else result () fi)"
 apply (simp add: if_SE_def bind_SE'_def while_SE_def unit_SE_def)
