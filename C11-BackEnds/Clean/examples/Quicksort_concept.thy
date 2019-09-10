@@ -418,7 +418,14 @@ definition quicksort' :: " ((nat \<times> nat) \<times> (nat \<times> nat)) set 
 
 *)
 
+ML\<open>
+fun wfrecT order recs = 
+    let val funT = domain_type (fastype_of recs)
+        val aTy  = domain_type funT
+        val ordTy = HOLogic.mk_setT(HOLogic.mk_prodT (aTy,aTy))
+    in Const(@{const_name "Wfrec.wfrec"},ordTy --> (funT --> funT) --> funT) $ order $ recs end
 
+\<close>
 
 
 (* bric a brac *)
@@ -463,7 +470,7 @@ term "B[k:=(B!m)]"
 rec_function_spec quicksort (lo::nat, hi::nat) returns "unit"
 pre          "\<open>True\<close>"
 post         "\<open>\<lambda>res::unit. True\<close>"
-variant      "XXX"
+(* variant      "XXX" *)
 local_vars   p :: "nat" 
 defines      "call\<^sub>C (quicksort :: (nat \<times> nat \<Rightarrow> (unit, 'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E )) 
                     (\<lambda>\<sigma>. (lo, (hd o p) \<sigma> - hi))"
