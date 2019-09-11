@@ -844,7 +844,8 @@ val SPY3 = Unsynchronized.ref(Bound 0)
      define_cond binding (fn boolT => sty --> sty --> rty --> boolT) (transform_old sty) "_post" I
 
    fun define_body_core {recursive = x:bool} binding args_ty rty sty params body ctxt = 
-       let val bdg_core = Binding.suffix_name "_core" binding
+       let val bdg_name = Binding.name_of binding
+           val bdg_core = Binding.suffix_name "_core" binding
            val bdg_core_name = Binding.name_of bdg_core
 
            val umty = StateMgt.MON_SE_T @{typ "unit"} sty
@@ -854,8 +855,9 @@ val SPY3 = Unsynchronized.ref(Bound 0)
            val _ = (SPY2:=body)
 
            val eq = if x
-                    then mk_meta_eq(Free(bdg_core_name, (args_ty --> umty) --> args_ty --> umty), 
-                                          absfree(Binding.name_of binding, args_ty --> umty)(core)) 
+                    then mk_meta_eq(Free(bdg_core_name, (args_ty --> umty) --> args_ty --> umty)
+                                    $ Free(bdg_name,  args_ty --> umty),
+                                 (*   absfree(Binding.name_of binding, args_ty --> umty) *)(core)) 
                     else mk_meta_eq(Free(bdg_core_name, args_ty --> umty),core) 
 
         (*   val eq =  mk_meta_eq(Free(bdg_core_name, args_ty --> umty),core) *)
@@ -911,7 +913,7 @@ val SPY3 = Unsynchronized.ref(Bound 0)
                                     if x then rhs_main_rec else rhs_main )
            val _ = (SPY2:=eq_main)
            val args_main = (SOME(binding,NONE,NoSyn), (Binding.empty_atts,eq_main),[],[]) 
-       in  ctxt |> StateMgt.cmd args_main true 
+       in  if x then ctxt else  ctxt |> StateMgt.cmd args_main true 
        end 
 
 
@@ -944,8 +946,9 @@ val SPY3 = Unsynchronized.ref(Bound 0)
                               val _ = writeln "checkNsem_function_spec0"
                               val rmty = StateMgt_core.MON_SE_T ret_ty sty 
                               val args_ty = HOLogic.mk_tupleT (map (#2 o #2) params)
-                              val (_,ctxt'') = Proof_Context.add_fixes 
-                                                   [(binding, SOME(args_ty --> rmty), NoSyn)] ctxt
+                             (* val (_,ctxt'') = Proof_Context.add_fixes 
+                                                   [(binding, SOME(args_ty --> rmty), NoSyn)] ctxt *)
+                              val ctxt'' = ctxt
                               val _ = writeln "checkNsem_function_spec1"
                               val body = Syntax.read_term ctxt'' (fst body_src)
                               val _ = writeln "checkNsem_function_spec2"
@@ -960,7 +963,8 @@ val SPY3 = Unsynchronized.ref(Bound 0)
                          (fn params => fn ret_ty => fn ctxt => 
                           let val sty = StateMgt_core.get_state_type ctxt
                               val body = Syntax.read_term ctxt (fst body_src)
-                          in  ctxt |> define_body_main isrec binding ret_ty sty params variant_src body
+                          in  ctxt 
+                              |> define_body_main isrec binding ret_ty sty params variant_src body 
                           end)
         end
    (* TODO : further simplify ... *)

@@ -329,7 +329,7 @@ definition partition' :: "nat \<times> nat \<Rightarrow>  (nat,'a local_partitio
 
 subsection \<open>Encoding the core: quicksort in Clean\<close>
 
-(*
+
 local_vars_test  quicksort' "unit"
     p  :: "nat"
 
@@ -396,7 +396,7 @@ definition quicksort'_post :: "nat \<times> nat \<Rightarrow> unit \<Rightarrow>
 
 definition quicksort'_core :: "   (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort'_state_scheme) MON\<^sub>S\<^sub>E)
                               \<Rightarrow> (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort'_state_scheme) MON\<^sub>S\<^sub>E)"
-  where   "quicksort'_core \<equiv> \<lambda>quicksort. \<lambda>(lo, hi). 
+  where   "quicksort'_core quicksort \<equiv> \<lambda>(lo, hi). 
                             ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
                               then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C partition (\<lambda>\<sigma>. (lo, hi)) ;
                                     assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
@@ -416,7 +416,7 @@ definition quicksort' :: " ((nat \<times> nat) \<times> (nat \<times> nat)) set 
 
 
 
-*)
+
 
 ML\<open>
 fun wfrecT order recs = 
@@ -472,9 +472,11 @@ pre          "\<open>True\<close>"
 post         "\<open>\<lambda>res::unit. True\<close>"
 (* variant      "XXX" *)
 local_vars   p :: "nat" 
+(*
 defines      "call\<^sub>C (quicksort :: (nat \<times> nat \<Rightarrow> (unit, 'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E )) 
                     (\<lambda>\<sigma>. (lo, (hd o p) \<sigma> - hi))"
-(*
+*)
+
 defines      " ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
                  then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C partition (\<lambda>\<sigma>. (lo, hi)) ;
                        assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
@@ -483,7 +485,8 @@ defines      " ((if\<^sub>C (\<lambda>\<sigma>. lo < hi )
                  else skip\<^sub>S\<^sub>E 
                  fi))"
 
-*)
+
+thm quicksort_core_def
 
 ML\<open>           val measure = @{term "Wellfounded.measure"}
 \<close>
