@@ -467,7 +467,7 @@ term "assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (n) (A
 term "B[k:=(B!m)]"
 
 
-rec_function_spec quicksort (lo::nat, hi::nat) returns "unit"
+rec_function_spec quicksort (lo::nat, hi::nat) returns unit
 pre          "\<open>True\<close>"
 post         "\<open>\<lambda>res::unit. True\<close>"
 (* variant      "XXX" *)
