@@ -31,7 +31,7 @@ function (and the special case of a program under test) to stop execution
 \emph{within} the sequence; such premature terminations are characterized by an 
 output list which is shorter than the input list. 
 
-Intuitively, @{text mbind} corresponds to a sequence of operation calls, separated by
+Intuitively, \<open>mbind\<close> corresponds to a sequence of operation calls, separated by
 ";", in Java. The operation calls may fail (raising an exception), which means that
 the state is maintained and the exception can still be caught at the end of the 
 execution sequence.
@@ -49,17 +49,17 @@ where "mbind [] iostep \<sigma> = Some([], \<sigma>)"
 
 notation mbind ("mbind\<^sub>F\<^sub>a\<^sub>i\<^sub>l\<^sub>S\<^sub>a\<^sub>v\<^sub>e") (* future name: mbind\<^sub>F\<^sub>a\<^sub>i\<^sub>l\<^sub>S\<^sub>a\<^sub>v\<^sub>e *)
 
-text{* This definition is fail-safe; in case of an exception, the current state is maintained,
+text\<open>This definition is fail-safe; in case of an exception, the current state is maintained,
        the computation as a whole is marked as success.
-       Compare to the fail-strict variant @{text "mbind'"}: *}
+       Compare to the fail-strict variant \<open>mbind'\<close>:\<close>
 
 lemma mbind_unit [simp]: 
      "mbind [] f = (result [])"
       by(rule ext, simp add: unit_SE_def)
 
-text{* The characteristic property of @{term mbind} --- which distinguishes it from 
-       @{text mbind} defined in the sequel --- is that it never fails; it ``swallows'' internal
-       errors occuring during the computation. *}    
+text\<open>The characteristic property of @{term mbind} --- which distinguishes it from 
+       \<open>mbind\<close> defined in the sequel --- is that it never fails; it ``swallows'' internal
+       errors occuring during the computation.\<close>    
 lemma mbind_nofailure [simp]:
      "mbind S f \<sigma> \<noteq> None"
       apply(rule_tac x=\<sigma> in spec)
@@ -69,13 +69,13 @@ lemma mbind_nofailure [simp]:
       apply(erule exE, erule exE, simp)
       done
 
-text{* In contrast, we define a fail-strict sequential execution operator.
+text\<open>In contrast, we define a fail-strict sequential execution operator.
 He has more the characteristic to fail globally whenever one of its operation
 steps fails.
 
-Intuitively speaking, @{text mbind'} corresponds to an execution of operations 
-where a results in a System-Halt. Another interpretation of @{text mbind'} is to
-view it as a kind of @{term foldl} foldl over lists via @{term bind\<^sub>S\<^sub>E}.*} 
+Intuitively speaking, \<open>mbind'\<close> corresponds to an execution of operations 
+where a results in a System-Halt. Another interpretation of \<open>mbind'\<close> is to
+view it as a kind of @{term foldl} foldl over lists via @{term bind\<^sub>S\<^sub>E}.\<close> 
  
 fun    mbind' :: "'\<iota> list  \<Rightarrow>  ('\<iota> \<Rightarrow> ('o,'\<sigma>) MON\<^sub>S\<^sub>E) \<Rightarrow> ('o list,'\<sigma>) MON\<^sub>S\<^sub>E"
 where "mbind' [] iostep \<sigma> = Some([], \<sigma>)" |
@@ -97,9 +97,9 @@ lemma mbind'_bind [simp]:
 
 declare mbind'.simps[simp del] (* use only more abstract definitions *)
 
-text{* The next @{text mbind} sequential execution operator is called 
+text\<open>The next \<open>mbind\<close> sequential execution operator is called 
 Fail-Purge. He has more the characteristic to never fail, just "stuttering" 
-above operation steps that fail. Another alternative in modeling. *} 
+above operation steps that fail. Another alternative in modeling.\<close> 
 
 fun    mbind'' :: "'\<iota> list  \<Rightarrow>  ('\<iota> \<Rightarrow> ('o,'\<sigma>) MON\<^sub>S\<^sub>E) \<Rightarrow> ('o list,'\<sigma>) MON\<^sub>S\<^sub>E"
 where "mbind'' [] iostep \<sigma> = Some([], \<sigma>)" |
@@ -114,10 +114,10 @@ notation mbind'' ("mbind\<^sub>F\<^sub>a\<^sub>i\<^sub>l\<^sub>P\<^sub>u\<^sub>r
 declare  mbind''.simps[simp del] (* use only more abstract definitions *)
 
 
-text{* mbind' as failure strict operator can be seen as a foldr on bind -
-       if the types would match \ldots *}
+text\<open>mbind' as failure strict operator can be seen as a foldr on bind -
+       if the types would match \ldots\<close>
 
-subsubsection{* Definition : Miscellaneous Operators and their Properties *}
+subsubsection\<open>Definition : Miscellaneous Operators and their Properties\<close>
 
 lemma mbind_try: 
   "(x \<leftarrow> mbind (a#S) F; M x) = 

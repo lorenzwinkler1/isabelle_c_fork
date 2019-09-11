@@ -34,7 +34,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-section \<open> Clean Semantics : A Coding-Concept Example\<close>
+chapter \<open> Clean Semantics : A Coding-Concept Example\<close>
 
 text\<open>The following show-case introduces subsequently a non-trivial example involving
 local and global variable declarations, declarations of operations with pre-post conditions as
@@ -111,6 +111,7 @@ text\<open>Unfortunately, the name \<open>result\<close> is already used in the 
 instead.\<close>
 definition "i = ()" \<comment> \<open>check that \<^term>\<open>i\<close> can exist as a constant with an arbitrary type before treating \<^theory_text>\<open>function_spec\<close>\<close>
 definition "j = ()" \<comment> \<open>check that \<^term>\<open>j\<close> can exist as a constant with an arbitrary type before treating \<^theory_text>\<open>function_spec\<close>\<close>
+
 function_spec swap (i::"nat",j::"nat") \<comment> \<open>TODO: the hovering on parameters produces a number of report equal to the number of \<^ML>\<open>Proof_Context.add_fixes\<close> called in \<^ML>\<open>Function_Specification_Parser.checkNsem_function_spec\<close>\<close>
 pre          "\<open>i < length A \<and> j < length A\<close>"    
 post         "\<open>\<lambda>res. length A = length(old A) \<and> res = ()\<close>" 
@@ -472,11 +473,6 @@ pre          "\<open>True\<close>"
 post         "\<open>\<lambda>res::unit. True\<close>"
 (* variant      "XXX" *)
 local_vars   p :: "nat" 
-(*
-defines      "call\<^sub>C (quicksort :: (nat \<times> nat \<Rightarrow> (unit, 'a local_quicksort_state_scheme) MON\<^sub>S\<^sub>E )) 
-                    (\<lambda>\<sigma>. (lo, (hd o p) \<sigma> - hi))"
-*)
-
 defines      " ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
                  then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C partition (\<lambda>\<sigma>. (lo, hi)) ;
                        assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
@@ -487,9 +483,8 @@ defines      " ((if\<^sub>C (\<lambda>\<sigma>. lo < hi )
 
 
 thm quicksort_core_def
+thm quicksort_def
 
-ML\<open>           val measure = @{term "Wellfounded.measure"}
-\<close>
 declare [[ML_print_depth=100]]
 
 ML\<open>!Function_Specification_Parser.SPY1\<close>

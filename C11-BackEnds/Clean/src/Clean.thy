@@ -3,7 +3,7 @@
  * Burkhart Wolff, Frederic Tuong and Chantal Keller, LRI, Univ. Paris-Saclay, France
  ***************************************************************************************)
 
-section \<open>The Clean Language\<close>
+chapter \<open>The Clean Language\<close>
 
 text\<open>\<^verbatim>\<open>Clean\<close> (pronounced as: ``Céline'' [selin]) is a minimalistic imperative language with C-like control-flow operators based on a 
 shallow embedding into the SE exception Monad theory formalized in \<^verbatim>\<open>Clean.MonadSE\<close>. It comprises:
@@ -843,29 +843,21 @@ val SPY3 = Unsynchronized.ref(Bound 0)
    fun define_postcond binding rty sty =
      define_cond binding (fn boolT => sty --> sty --> rty --> boolT) (transform_old sty) "_post" I
 
-   fun define_body_core {recursive = x:bool} binding args_ty rty sty params body ctxt = 
-       let val bdg_name = Binding.name_of binding
-           val bdg_core = Binding.suffix_name "_core" binding
+   fun define_body_core binding args_ty sty params body =
+       let val bdg_core = Binding.suffix_name "_core" binding
            val bdg_core_name = Binding.name_of bdg_core
 
-           val umty = StateMgt.MON_SE_T @{typ "unit"} sty
-           val _ = writeln "define_body_core"
-       
-           val core = mk_pat_tupleabs (map (apsnd #2) params) body
-           val _ = (SPY2:=body)
+           val umty = args_ty --> StateMgt.MON_SE_T @{typ "unit"} sty
 
-           val eq = if x
-                    then mk_meta_eq(Free(bdg_core_name, (args_ty --> umty) --> args_ty --> umty)
-                                    $ Free(bdg_name,  args_ty --> umty),
-                                 (*   absfree(Binding.name_of binding, args_ty --> umty) *)(core)) 
-                    else mk_meta_eq(Free(bdg_core_name, args_ty --> umty),core) 
+           val args_core =
+             ( SOME (bdg_core, SOME umty, NoSyn)
+             , (Binding.empty_atts, mk_meta_eq ( Free (bdg_core_name, umty)
+                                               , mk_pat_tupleabs (map (apsnd #2) params) body))
+             , []
+             , [])
 
-        (*   val eq =  mk_meta_eq(Free(bdg_core_name, args_ty --> umty),core) *)
-           val _ = (SPY3:=body)
-
-           val args_core = (SOME(bdg_core,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
-
-       in  ctxt |> StateMgt.cmd args_core true
+       in fn ctxt => (writeln "define_body_core";
+                      StateMgt.cmd args_core true ctxt)
        end 
  
    fun define_body_main {recursive = x:bool} binding rty sty params variant_src body ctxt = 
@@ -876,7 +868,6 @@ val SPY3 = Unsynchronized.ref(Bound 0)
 
            val args_ty = HOLogic.mk_tupleT (map (#2 o #2) params)
            val params' = map (apsnd #2) params
-           val params_pre = map (fn(s,ty)=>(s^"_pre",ty)) params'
            val _ = writeln "define_body_main"
            val _ = (SPY1:=body)
            val rmty = StateMgt_core.MON_SE_T rty sty 
@@ -885,11 +876,10 @@ val SPY3 = Unsynchronized.ref(Bound 0)
            val argsProdT = HOLogic.mk_prodT(args_ty,args_ty)
            val argsRelSet = HOLogic.mk_setT argsProdT
            val measure_term = case variant_src of
-                                 NONE => mk_undefined (argsProdT --> HOLogic.natT)
+                                 NONE => mk_undefined (args_ty --> HOLogic.natT)
                                | SOME str =>  Syntax.read_term ctxt str
                                                  |> mk_pat_tupleabs params'
-                                                 |> mk_pat_tupleabs params_pre
-           val measure =  Const(@{const_name "Wellfounded.measure"}, (argsProdT --> HOLogic.natT)
+           val measure =  Const(@{const_name "Wellfounded.measure"}, (args_ty --> HOLogic.natT)
                                                                      --> argsRelSet )
                           $ measure_term
            val rhs_main = mk_pat_tupleabs params'
@@ -913,7 +903,7 @@ val SPY3 = Unsynchronized.ref(Bound 0)
                                     if x then rhs_main_rec else rhs_main )
            val _ = (SPY2:=eq_main)
            val args_main = (SOME(binding,NONE,NoSyn), (Binding.empty_atts,eq_main),[],[]) 
-       in  if x then ctxt else  ctxt |> StateMgt.cmd args_main true 
+       in  ctxt |> StateMgt.cmd args_main true 
        end 
 
 
@@ -943,31 +933,25 @@ val SPY3 = Unsynchronized.ref(Bound 0)
                 |> theory_map
                          (fn params => fn ret_ty => fn ctxt => 
                           let val sty = StateMgt_core.get_state_type ctxt
-                              val _ = writeln "checkNsem_function_spec0"
-                              val rmty = StateMgt_core.MON_SE_T ret_ty sty 
                               val args_ty = HOLogic.mk_tupleT (map (#2 o #2) params)
-                             (* val (_,ctxt'') = Proof_Context.add_fixes 
-                                                   [(binding, SOME(args_ty --> rmty), NoSyn)] ctxt *)
-                              val ctxt'' = ctxt
-                              val _ = writeln "checkNsem_function_spec1"
-                              val body = Syntax.read_term ctxt'' (fst body_src)
-                              val _ = writeln "checkNsem_function_spec2"
+                              val mon_se_ty = StateMgt_core.MON_SE_T ret_ty sty
+                              val ctxt' =
+                                if #recursive isrec then
+                                  Proof_Context.add_fixes 
+                                    [(binding, SOME (args_ty --> mon_se_ty), NoSyn)] ctxt |> #2
+                                else
+                                  ctxt
+                              val body = Syntax.read_term ctxt' (fst body_src)
                               val _ = (SPY1 := body)
-                          in  ctxt'' |> define_body_core isrec binding args_ty ret_ty sty params body
-(*
-                              val body = Syntax.read_term ctxt (fst body_src)
-                          in  ctxt |> define_body_core binding ret_ty sty params body
-*)
+                          in  ctxt' |> define_body_core binding args_ty sty params body
                           end)
                 |> theory_map
                          (fn params => fn ret_ty => fn ctxt => 
                           let val sty = StateMgt_core.get_state_type ctxt
                               val body = Syntax.read_term ctxt (fst body_src)
-                          in  ctxt 
-                              |> define_body_main isrec binding ret_ty sty params variant_src body 
+                          in  ctxt |> define_body_main isrec binding ret_ty sty params variant_src body
                           end)
         end
-   (* TODO : further simplify ... *)
 
   
    val _ =
