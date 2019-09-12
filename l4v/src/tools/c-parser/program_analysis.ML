@@ -30,7 +30,7 @@ sig
        `x___int` for a source variable called `x`).
      - `alias` indicates if we should generate an abbreviation that aliases the
         source name to the munged name. *)
-  type nm_info = {src_name : string, src_return_var : bool, isa_name : MString.t, alias: bool}
+  type nm_info = {src_name : string, src_return_var : bool, src_fname : (string * bool) option, isa_name : MString.t, alias: bool}
 
   type var_info
   val is_global : var_info -> bool
@@ -140,23 +140,23 @@ datatype var_info =
                 return_var : bool,
                 vtype : int ctype,
                 struct_env : senv,
-                fname : string option,
+                fname : (string * bool) option,
                 proto_param : bool,
                 munged_name : MString.t,
                 declared_at : Region.t,
                 attrs : gcc_attribute list}
 
-type nm_info = {src_name : string, src_return_var : bool, isa_name : MString.t, alias: bool}
+type nm_info = {src_name : string, src_return_var : bool, src_fname : (string * bool) option, isa_name : MString.t, alias: bool}
 
 fun viToString (VI {name, fname,...}) =
     case fname of
       NONE => "global "^name
-    | SOME f => name ^ " (in " ^ f ^")"
+    | SOME (f, _) => name ^ " (in " ^ f ^")"
 val fullname = viToString
 fun srcname (VI{name,...}) = name
 
 fun get_mname (VI {munged_name, ...}) = munged_name
-fun get_vi_fname (VI {fname,...}) = fname
+fun get_vi_fname (VI {fname,...}) = Option.map #1 fname
 fun get_vi_type (VI {vtype,...}) = vtype
 fun get_vi_senv (VI {struct_env,...}) = struct_env
 fun declpos (VI {declared_at,...}) = declared_at
@@ -166,8 +166,8 @@ fun vi_compare(VI vi1, VI vi2) = let
   val mscmp = MString.compare
 in
   pcmp (ocmp scmp, pcmp (scmp, mscmp))
-       ((#fname vi1, (#name vi1, #munged_name vi1)),
-        (#fname vi2, (#name vi2, #munged_name vi2)))
+       (((Option.map #1 o #fname) vi1, (#name vi1, #munged_name vi1)),
+        ((Option.map #1 o #fname) vi2, (#name vi2, #munged_name vi2)))
 end
 
 (* name will be NameGeneration.return_var_name if the variable is a
@@ -192,7 +192,7 @@ end
 fun is_global (VI r) = case #fname r of NONE => true | _ => false
 
 fun fnToString NONE = "at global level"
-  | fnToString (SOME s) = "in function "^s
+  | fnToString (SOME (s, _)) = "in function "^s
 
 fun types_compatible global ty1 ty2 =
     (* All locals need to be fully specified, but global arrays are special. *)
@@ -711,14 +711,14 @@ in
       |> remove_addressed
 end
 
-fun get_vi_nm_info (CSE cse) (VI {name, munged_name, return_var, ...}) : nm_info =
+fun get_vi_nm_info (CSE cse) (VI {name, munged_name, return_var, fname, ...}) : nm_info =
     let
       val alias =
           case Symtab.lookup (#local_aliases cse) name of
             SOME mn => mn = munged_name
           | NONE => false
     in
-      {src_name = name, src_return_var = return_var, isa_name = munged_name, alias = alias}
+      {src_name = name, src_return_var = return_var, src_fname = fname, isa_name = munged_name, alias = alias}
     end
 
 (* ML computation of alignment and type sizes *)
@@ -1296,7 +1296,7 @@ fun process_expr lvstate fname (env as CSE {senv, ...}) e = let
           val retvar =
               VI {name = MString.dest nm, munged_name = nm, vtype = rettype,
                   struct_env = senv, proto_param = false,
-                  fname = SOME "", return_var = true, attrs = [],
+                  fname = SOME ("", false), return_var = true, attrs = [],
                   declared_at = Region.bogus}
         in
           foldthis (rettype, count - 1) (#2 (insert_var(retvar, acc)))
@@ -1468,7 +1468,7 @@ in
       val vi = VI {name = str, vtype = vty, attrs = attrs,
                    munged_name = munged_name, struct_env = senv,
                    proto_param = false,
-                   fname = fname, return_var = false,
+                   fname = Option.map (rpair false) fname, return_var = false,
                    declared_at = Region.make{left = left s, right = right s}}
       val (vi, e) = insert_var (vi, e)
       (* inserting vi may force further munging if the name is already being
@@ -1576,7 +1576,7 @@ in
                                munged_name = ret_vname,
                                vtype = rettype, proto_param = false,
                                struct_env = senv,
-                               fname = SOME fname, return_var = true,
+                               fname = SOME (fname, false), return_var = true,
                                attrs = [], declared_at = Region.bogus}
             in
               #2 (insert_var (retvar, e))
@@ -1589,7 +1589,7 @@ in
             VI {name = name, vtype = param_norm (constify_abtype ecenv ty),
                 munged_name = MString.mk name, attrs = [],
                 struct_env = senv, proto_param = true,
-                fname = SOME fname, return_var = false,
+                fname = SOME (fname, true), return_var = false,
                 declared_at = Region.bogus}
         val (var',e') = insert_var (var, e)
       in
@@ -1888,7 +1888,7 @@ and process_blockitems (fname : string) (env : csenv) bis =
 
 fun delete_earlier_fvars fname env = let
   fun vitest (VI vinfo) =
-      #fname vinfo <> SOME fname orelse
+      (Option.map #1 o #fname) vinfo <> SOME fname orelse
       #return_var vinfo
   fun allvars_upd (vname,vlist) newtab =
       case List.filter vitest vlist of
@@ -1942,7 +1942,7 @@ fun process_one_extdecl (env0 : csenv) edec =
             VI {name = MString.dest rv_nm, munged_name = rv_nm, attrs = [],
                 vtype = rettype, proto_param = false,
                 struct_env = senv,
-                fname = SOME (node s), return_var = true,
+                fname = SOME (node s, false), return_var = true,
                 declared_at = Region.bogus}
         val paramtypes = map (param_norm o constify_abtype ecenv o #1) params
         val ftype = Function(rettype, paramtypes)
@@ -1958,7 +1958,7 @@ fun process_one_extdecl (env0 : csenv) edec =
                attrs = [],
                vtype = param_norm (constify_abtype ecenv ty),
                struct_env = senv, proto_param = false,
-               fname = fname, return_var = false,
+               fname = Option.map (rpair true) fname, return_var = false,
                declared_at =
                  Region.make{left = left pname, right = right pname}}
         val env = new_scope env (* new scope for parameters and body *)
