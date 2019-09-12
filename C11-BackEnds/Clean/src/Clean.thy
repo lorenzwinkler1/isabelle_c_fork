@@ -150,7 +150,7 @@ cf. @{cite "Pierce2009BidirectionalPL" and "Foster:2007:CBT:1232420.1232424" and
 "DBLP:conf/ictac/FosterZW16"}) to the generic assign operators. This pair of accessor and update
 carry all relevant semantic and type information of this particular variable and \<^emph>\<open>characterize\<close>
 this variable semantically. Specific syntactic support --- via the Isabelle concept of
-\<open>cartouche\<close> --- will hide away the syntactic overhead and permit a particularly human-readeable
+\<open>cartouche\<close> --- will hide away the syntactic overhead and permit a human-readeable
 form of assignments or expressions accessing the underlying state. \<close>
 
 
