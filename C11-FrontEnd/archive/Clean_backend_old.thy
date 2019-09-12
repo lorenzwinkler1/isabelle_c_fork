@@ -38,7 +38,6 @@ theory Clean_backend_old
   imports Isabelle_C_Clean.Generator_dynamic_sequential
 begin
 
-no_notation unit_SE ("(result _)" 8)
 definition "UINT_MAX = 0"
 
 section \<open>User Defined Commands in the Semantic Verification Space\<close>
