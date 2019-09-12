@@ -41,7 +41,10 @@ begin
 section \<open>User Defined Commands in the Semantic Verification Space\<close>
 
 ML \<comment> \<open>\<^theory>\<open>Isabelle_C.C_Command\<close>\<close> \<open>
-local
+infix 3 >>>;
+
+structure Clean_Annotation =
+struct
 type text_range = Symbol_Pos.text * Position.T
 
 datatype antiq_hol = Invariant of string (* term *)
@@ -56,38 +59,45 @@ datatype antiq_hol = Invariant of string (* term *)
                    | Calls of text_range list
                    | Owned_by of text_range
 
-val scan_ident = Scan.one (C_Token.is_kind Token.Ident) >> (fn tok => (C_Token.content_of tok, C_Token.pos_of tok))
-val scan_brack_star = C_Parse.position (C_Parse.$$$ "[") -- C_Parse.star -- C_Parse.range (C_Parse.$$$ "]")
-                      >> (fn (((s1, pos1), s2), (s3, (_, pos3))) => (s1 ^ s2 ^ s3, Position.range_position (pos1, pos3)))
-val scan_opt_colon = Scan.option (C_Parse.$$$ ":")
-val scan_colon = C_Parse.$$$ ":" >> SOME
-fun command cmd scan0 scan f =
-  C_Annotation.command' cmd "" (K (scan0 -- (scan >> f)
-                                      >> K C_Transition.Never))
-in
-val _ = Theory.setup ((* 1 '@' *)
-                         command ("INVARIANT", \<^here>) scan_colon C_Parse.term Invariant
-                      #> command ("INV", \<^here>) scan_colon C_Parse.term Invariant
+fun toplevel _ = C_Inner_Toplevel.keep''
 
-                      (* '+' until being at the position of the first ident
-                        then 2 '@' *)
-                      #> command ("FNSPEC", \<^here>) scan_opt_colon (scan_ident --| scan_opt_colon -- C_Parse.term) Fnspec
-                      #> command ("RELSPEC", \<^here>) scan_opt_colon C_Parse.term Relspec
-                      #> command ("MODIFIES", \<^here>) scan_colon (Scan.repeat (   scan_brack_star >> pair true
-                                                                          || scan_ident >> pair false))
-                                                            Modifies
-                      #> command ("DONT_TRANSLATE", \<^here>) scan_opt_colon (Scan.succeed ()) (K Dont_translate)
+fun bind scan _ ((stack1, (to_delay, stack2)), _) =
+  C_Parse.range scan
+  >> (fn (src, range) =>
+      C_Transition.Parsing
+        ( (stack1, stack2)
+        , ( range
+          , C_Transition.Bottom_up
+          , Symtab.empty
+          , to_delay
+          , fn _ => fn context =>
+              ML_Context.exec
+                (tap (fn _ => Syntax.read_term (Context.proof_of context) (Token.inner_syntax_of src)))
+                context)))
 
-                      (**)
-                      #> command ("AUXUPD", \<^here>) scan_colon C_Parse.term Auxupd
-                      #> command ("GHOSTUPD", \<^here>) scan_colon C_Parse.term Ghostupd
-                      #> command ("SPEC", \<^here>) scan_colon C_Parse.term Spec
-                      #> command ("END-SPEC", \<^here>) scan_colon C_Parse.term End_spec
+fun scan >>> f = bind scan f
 
-                      (**)
-                      #> command ("CALLS", \<^here>) scan_opt_colon (Scan.repeat scan_ident) Calls
-                      #> command ("OWNED_BY", \<^here>) scan_opt_colon scan_ident Owned_by);
 end
 \<close>
+
+text \<open>
+Finally, we will have a glance at the code for the registration of the annotation commands
+used in the example. Thanks to Isabelle/C's function \<^ML>\<open>C_Annotation.command'\<close>, the registration of 
+user-defined annotations is very similar to the registration of ordinary commands in the Isabelle
+platform.\<close>
+
+ML \<open>local open Clean_Annotation
+    in fun command keyword f =
+        C_Annotation.command' keyword ""
+          (C_Token.syntax'
+            (Parse.token Parse.cartouche)
+           >>> toplevel f)
+    end\<close>
+
+setup \<open>let open Clean_Annotation
+       in command ("pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n", \<^here>) Spec
+       #> command ("post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n", \<^here>) End_spec
+       #> command ("inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n", \<^here>) Invariant
+       end\<close>
 
 end
