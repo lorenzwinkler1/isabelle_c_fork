@@ -5,8 +5,14 @@
 
 chapter \<open>The Clean Language\<close>
 
-text\<open>\<^verbatim>\<open>Clean\<close> (pronounced as: ``Céline'' [selin]) is a minimalistic imperative language with C-like control-flow operators based on a 
-shallow embedding into the SE exception Monad theory formalized in \<^verbatim>\<open>Clean.MonadSE\<close>. It comprises:
+text\<open>\<^verbatim>\<open>Clean\<close> (pronounced as: ``C lean'' or ``Céline'' [selin]) is a minimalistic imperative language 
+with C-like control-flow operators based on a shallow embedding into the SE exception Monad theory 
+formalized in \<^verbatim>\<open>Clean.MonadSE\<close>. It strives for a type-safe notation of program-variables, an
+incremental construction of the typed state-space in order to facilitate incremental verification
+and open-world extensibility to new type definitions intertwined with the the program
+definition.
+
+It comprises:
 \begin{itemize}
 \item C-like control flow with \verb+break+ and \verb+return+.
 \item global variables.
@@ -40,13 +46,14 @@ begin
 
 section\<open>A High-level Description of the Clean Memory Model\<close>
 
-subsection\<open>A Simple Typed Memory Model: Clean \<close>
+subsection\<open>A Simple Typed Memory Model of Clean: An Introduction \<close>
 text\<open> Clean is based on a ``no-frills'' state-exception monad 
 \<^theory_text>\<open>type_synonym ('o, '\<sigma>) MON\<^sub>S\<^sub>E = \<open>'\<sigma> \<rightharpoonup> ('o \<times> '\<sigma>)\<close>\<close> with the 
 usual definitions of \<^term>\<open>bind\<close> and \<^term>\<open>unit\<close>.
-In this language, sequence operators, 
-conditionals and loops can be integrated. From a concrete program, the underlying state
-\<^theory_text>\<open>'\<sigma>\<close> is incrementally constructed by a sequence of extensible record definitions:
+In this language, sequence operators, conditionals and loops can be integrated. \<close>
+
+text\<open>From a concrete program, the underlying state\<^theory_text>\<open>'\<sigma>\<close> is \<^emph>\<open>incrementally\<close> constructed by a
+sequence of extensible record definitions:
 \<^enum> initially, an internal control state is defined to give semantics to \<^term>\<open>break\<close> and
  \<^term>\<open>return\<close> statements:
   \begin{isar}
@@ -67,67 +74,21 @@ conditionals and loops can be integrated. From a concrete program, the underlyin
   in case of direct recursions and the \<^term>\<open>result_value\<close> used for the value of the \<^term>\<open>return\<close>
   statement.\<close>
 
-text \<open> The \<^theory_text>\<open>record\<close> package creates an
-\<^theory_text>\<open>'\<sigma>\<close> extensible record type
-\<^theory_text>\<open>'\<sigma> control_state_ext\<close> where the
-\<^theory_text>\<open>'\<sigma>\<close> stands for extensions that were subsequently ``stuffed'' in
+text \<open> The \<^theory_text>\<open>record\<close> package creates an \<^theory_text>\<open>'\<sigma>\<close> extensible record type 
+\<^theory_text>\<open>'\<sigma> control_state_ext\<close> where the\<^theory_text>\<open>'\<sigma>\<close> stands for extensions that were subsequently ``stuffed'' in
 them. Furthermore, it generates definitions for the constructor, accessor and update functions and
 automatically derives a number of theorems over them (e.g., ``updates on different fields commute'',
 ``accessors on a record are surjective'', ``accessors yield the value of the last update''). The
-collection of these theorems constitutes the \<^emph>\<open>memory model\<close> of Clean. This
-model might be wrong in the sense that it does not reflect the operational behaviour of a particular
-compiler, however, it is by construction \<^emph>\<open>logically consistent\<close> since it is
-impossible to derive falsity from the entire set of rules. \<close>
+collection of these theorems constitutes the \<^emph>\<open>memory model\<close> of Clean, providing an incrementally 
+extensible state-space for global and local program variables. In contrast to axiomatizations
+of memory models, our generated state-spaces might be ``wrong'' in the sense that they do not 
+reflect the operational behaviour of a particular compiler or a sufficiently large portion of the 
+C language; however, it is by construction \<^emph>\<open>logically consistent\<close> since it is
+impossible to derive falsity from the entire set of conservative extension schemes used in their
+construction. A particular advantage of the incremental state-space construction is that it
+supports incremental verification and interleaving of program definitions with theory development.\<close>
 
-text\<open>
-On this basis, assignments, conditionals and loops are reformulated into
-\<^term>\<open>break\<close>-aware and \<^term>\<open>return\<close>-aware versions as shown in the definitions of \<^term>\<open>assign\<close> and \<^term>\<open>if_C\<close> (in this theory file, see below). The Clean
-theory contains about 600 derived theorems containing symbolic evaluation and Hoare-style
-verification rules.
-\<close>
-
-text\<open>IS THIS SUBSEQUENT PARAGRAPH USEFUL HERE ? \<close>
-text\<open>For example, a global variable \<^verbatim>\<open>A\<close> representing an array of integer could be represented
-by
-\<^theory_text>\<open>record state0 = control_state + A :: "int list"\<close>
-which could be later extended by another global variable, say, \<^verbatim>\<open>B\<close> representing a real represented
-by --- why not ? --- Cauchy Sequence @{typ "nat \<Rightarrow> (int \<times> int)"} as follows:
-\<^theory_text>\<open>record state1 = state0 + B :: "nat \<Rightarrow> (int \<times> int)"\<close>.
-A further extension would be needed if a (potentially recursive) function \<^verbatim>\<open>f\<close> with some local
-variable  \<^verbatim>\<open>tmp\<close> is defined:
-\<^theory_text>\<open>record state2 = state1 + tmp :: "nat stack" result_value :: "nat stack" \<close> where the "stack" 
-needed for modeling recursive instances is just a synonym for lists.
-\<close>
-
-text\<open>IS THIS SUBSEQUENT PARAGRAPH SUFFICIENTLY PREPARED ? EXAMPLE IS PRIME ? ? \<close>
-
-text\<open> 
-Importing Clean into a theory with its activated back-end proceeds as in \autoref{fig:clean}.
-Clean generates for the C program a common type for the state, based on two generated
-extensible records --- in the figure: just a global variable \<^term>\<open>k\<close> and a local variable 
-with a stack of result values for \<open>is_prime\<close>. Clean maps machine integers simply 
-and naively on the HOL type \<^theory_text>\<open>int\<close>. The core of this program is represented by two 
-generated definitions available subsequently in the logical context, where they are ready to be
-used in symbolic executions or proofs.
-
-Generated definitions include push and pop operations for local variable
-blocks, for the entire variable space of procedures. Additionally, a specific syntax is introduced to represent assignments on global and local variables. For example,
-\<open>i := 2\<close> internally rewrites to
-@{term [source = true] \<open>assign (\<lambda>\<sigma>. ((i_upd o map_hd) (\<lambda>_. 2)) \<sigma>)\<close>}.
-The \<open>return\<close> operation is syntactically equivalent to the assignment of the result variable 
-in the local state (stack) and sets the \<^term>\<open>return_val\<close> flag.
-On this representation of the C program, the term \<open>is_prime n\<close> can be decomposed into  
-program test-cases according to a well-established coverage criterion.
-Technically, this is done by a variant of the program-based testing method
-\begin{isar}
-  apply (branch_and_loop_coverage "Suc (Suc (Suc 0))")
-\end{isar}
-developed in @{cite "DBLP:conf/tap/Keller18"}, which also uses Clean as semantic basis.
-Note that the testing approach does not need the formulation of an invariant,
-which is already non-trivial in the given example. 
-\<close>
-
-section\<open> Control-States  \<close>
+subsection\<open> Formally Modeling Control-States  \<close>
 
 text\<open>The control state is the "root" of all extensions for local and global variable
 spaces in \<^verbatim>\<open>Clean\<close>. It contains just the information of the current control-flow: a break occurred
@@ -156,12 +117,140 @@ definition exec_stop :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool"
   where   "exec_stop = (\<lambda> \<sigma>. break_status \<sigma> \<or> return_status \<sigma> )"
 
 
-section\<open> Global and Local State Management based on Extensible Records (CORE) \<close>
+text\<open> On the basis of the control-state, assignments, conditionals and loops are reformulated
+  into \<^term>\<open>break\<close>-aware and \<^term>\<open>return\<close>-aware versions as shown in the definitions of
+  \<^term>\<open>assign\<close> and \<^term>\<open>if_C\<close> (in this theory file, see below). \<close>
 
-text\<open>Declarations of global and local variable blocks were constructed by subsequent extensions
-of the @{typ "control_state"}, the entire construction of a common state space is realized on top
-of a management of extensible records. 
+subsection\<open>An Example for Global Variable Declarations.\<close>
+text\<open>We present the above definition of the incremental construction of the state-space in more
+detail via an example construction.
+
+Consider a global variable \<^verbatim>\<open>A\<close> representing an array of integer. This 
+\<^emph>\<open>global variable declaration\<close> corresponds to the effect of the following
+record declaration:
+
+\<^theory_text>\<open>record state0 = control_state + A :: "int list"\<close>
+
+which is later extended by another global variable, say, \<^verbatim>\<open>B\<close> representing a real represented
+by --- why not ? --- Cauchy Sequence @{typ "nat \<Rightarrow> (int \<times> int)"} as follows:
+
+\<^theory_text>\<open>record state1 = state0 + B :: "nat \<Rightarrow> (int \<times> int)"\<close>.
+
+A further extension would be needed if a (potentially recursive) function \<^verbatim>\<open>f\<close> with some local
+variable  \<^verbatim>\<open>tmp\<close> is defined:
+\<^theory_text>\<open>record state2 = state1 + tmp :: "nat stack" result_value :: "nat stack" \<close> where the "stack" 
+needed for modeling recursive instances is just a synonym for lists.
 \<close>
+
+subsection\<open> The Assignment Clean Operations (embedded in the State-Exception Monad) \<close>
+text\<open>Based on the global variable states, we define   \<^term>\<open>break\<close>-aware and \<^term>\<open>return\<close>-aware 
+version of the assignment. The trick to do this in a generic \<^emph>\<open>and\<close> type-safe way is to provide
+the generated accessor - and update functions (the ``lens'' representing this global variable,
+cf. @{cite "Pierce2009BidirectionalPL" and "Foster:2007:CBT:1232420.1232424" and
+"DBLP:conf/ictac/FosterZW16"}) to the generic assign operators. This pair of accessor and update
+carry all relevant semantic and type information of this particular variable and \<^emph>\<open>characterize\<close>
+this variable semantically. Specific syntactic support --- via the Isabelle concept of
+\<open>cartouche\<close> --- will hide away the syntactic overhead and permit a particularly human-readeable
+form of assignments or expressions accessing the underlying state. \<close>
+
+
+consts syntax_assign :: "('\<alpha>  \<Rightarrow> int) \<Rightarrow> int \<Rightarrow> term" (infix ":=" 60)
+
+definition assign :: "(('\<sigma>_ext) control_state_scheme  \<Rightarrow> 
+                       ('\<sigma>_ext) control_state_scheme) \<Rightarrow> 
+                       (unit,('\<sigma>_ext) control_state_scheme)MON\<^sub>S\<^sub>E"
+  where   "assign f = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>) else Some((), f \<sigma>))"
+
+
+definition  assign_global :: "(('a  \<Rightarrow> 'a ) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
+                      \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
+                      \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
+  where    "assign_global upd rhs = assign(\<lambda>\<sigma>. ((upd) (%_. rhs \<sigma>)) \<sigma>)"
+
+text\<open>An update of the variable \<^verbatim>\<open>A\<close> based on the state of the previous example is done 
+by @{term [source = true] \<open>assign_global A_upd (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))\<close>}
+representing \<open>A[i] = A[j]\<close>; arbitrary nested updates can be constructed accordingly.\<close>
+
+text\<open>Local variable spaces work analogously; except that they were represented by a stack
+in order to support individual instances in case of function recursion. This requires the need
+for the automated generation of specific push- and pop operations used to model the effect of
+entering or leaving a function block to be discussed later.\<close>
+
+
+fun      map_hd :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a list \<Rightarrow> 'a list" 
+  where "map_hd f [] = []"
+      | "map_hd f (a#S) = f a # S"
+
+lemma tl_map_hd [simp] :"tl (map_hd f S) = tl S"  by (metis list.sel(3) map_hd.elims) 
+
+definition "map_nth = (\<lambda>i f l. list_update l i (f (l ! i)))"
+
+definition  assign_local :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
+                      \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
+                      \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
+  where    "assign_local upd rhs = assign(\<lambda>\<sigma>. ((upd o map_hd) (%_. rhs \<sigma>)) \<sigma>)"
+
+
+text\<open>Semantically, the difference between \<^emph>\<open>global\<close> and \<^emph>\<open>local\<close> is rather unimpressive as the 
+     following lemma shows. However, the distinction matters for the pretty-printing setup of Clean.\<close>
+lemma "assign_local upd rhs = assign_global (upd o map_hd) rhs "
+      unfolding assign_local_def assign_global_def by simp
+
+text\<open>The return command in C-like languages is represented basically by an assignment to a local
+variable \<^verbatim>\<open>result_value\<close> (see below in the Clean-package generation). Plus a setting of the 
+\<^term>\<open>return_status\<close> ... Note that a return may appear after a break and should have no effect
+in this case ...\<close>
+
+definition return\<^sub>C :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
+                      \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
+                      \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "return\<^sub>C upd rhs = assign_local upd rhs ;- 
+                            (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>) 
+                                                else set_return_status \<sigma>)" 
+
+subsection\<open>Example for a Local Variable Space\<close>
+text\<open>Consider the usual operation \<^verbatim>\<open>swap\<close> defined in some free-style syntax as follows:
+\begin{verbatim}
+  function swap (i::nat,j::nat) 
+  local   tmp :: int 
+  defines      " \<open> tmp  := A ! i\<close>  ;-
+                 \<open> A[i] := A ! j\<close> ;- 
+                 \<open> A[j] := tmp\<close> " 
+\end{verbatim}\<close>
+
+text\<open> 
+For the fantasy syntax  \<open>tmp := A ! i\<close>, we can construct the following semantic code:
+@{term [source = true] \<open>assign_local tmp_update (\<lambda>\<sigma>. (A \<sigma>) ! i )\<close>} where \<open>tmp_update\<close> is the
+update operation generated from the record package used to generate the local variable space
+for \<^verbatim>\<open>swap\<close>. By the way, a stack for return-values is also generated in order to give semantics
+to a \<open>return\<close> operation: it  is syntactically equivalent to the assignment of 
+the result variable  in the local state (stack) and sets the \<^term>\<open>return_val\<close> flag.
+
+The management of the local state space requires function specific \<^verbatim>\<open>push\<close> and  \<^verbatim>\<open>pop\<close> operations,
+for which suitable definitions must be generated:
+
+@{cartouche [source = true]
+\<open>definition push_local_swap_state :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
+   where   "push_local_swap_state \<sigma> = 
+                     Some((),\<sigma>\<lparr>local_swap_state.tmp := undefined # local_swap_state.tmp \<sigma>,
+                               local_swap_state.result_value := undefined # 
+                                                                  local_swap_state.result_value \<sigma>  \<rparr>)"
+
+ definition pop_local_swap_state :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
+   where   "pop_local_swap_state \<sigma> = 
+                    Some(hd(local_swap_state.result_value \<sigma>), 
+                         \<sigma>\<lparr>local_swap_state.tmp:= tl( local_swap_state.tmp \<sigma>) \<rparr>)"\<close>}
+where \<open>result_value\<close> is the stack for potential result values (not needed in the concrete
+example  \<^verbatim>\<open>swap\<close>.
+\<close>
+
+
+
+section\<open> Global and Local State Management based on Extensible Records \<close>
+
+text\<open>In the sequel, we present the automation of the state-management as schematically discussed
+in the previous section; the declarations of global and local variable blocks were constructed by 
+subsequent extensions of the @{typ "'a control_state_scheme"} defined above.\<close>
 ML\<open>
 
 structure StateMgt_core = 
@@ -236,54 +325,10 @@ fun declare_state_variable_local f field ctxt  =
 
 end\<close>
 
-section\<open> The Core Clean Operations (embedded in the State-Exception Monad) \<close>
-
-consts syntax_assign :: "('\<alpha>  \<Rightarrow> int) \<Rightarrow> int \<Rightarrow> term" (infix ":=" 60)
-
-definition assign :: "(('\<sigma>_ext) control_state_scheme  \<Rightarrow> 
-                       ('\<sigma>_ext) control_state_scheme) \<Rightarrow> 
-                       (unit,('\<sigma>_ext) control_state_scheme)MON\<^sub>S\<^sub>E"
-  where   "assign f = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>) else Some((), f \<sigma>))"
-
-(* todo: rename assign to trans2mon combinator; since it will be used for calls as well *)
-
-definition  assign_global :: "(('a  \<Rightarrow> 'a ) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
-                      \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
-                      \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
-  where    "assign_global upd rhs = assign(\<lambda>\<sigma>. ((upd) (%_. rhs \<sigma>)) \<sigma>)"
-
-
-fun      map_hd :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a list \<Rightarrow> 'a list" 
-  where "map_hd f [] = []"
-      | "map_hd f (a#S) = f a # S"
-
-lemma tl_map_hd [simp] :"tl (map_hd f S) = tl S"  by (metis list.sel(3) map_hd.elims) 
-
-definition "map_nth = (\<lambda>i f l. list_update l i (f (l ! i)))"
-
-definition  assign_local :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
-                      \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
-                      \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
-  where    "assign_local upd rhs = assign(\<lambda>\<sigma>. ((upd o map_hd) (%_. rhs \<sigma>)) \<sigma>)"
-
-
-text\<open>Semantically, the difference between \<^emph>\<open>global\<close> and \<^emph>\<open>local\<close> is rather unimpressive as the 
-     following lemma shows. However, the distinction matters for the pretty-printing setup of Clean.\<close>
-lemma "assign_local upd rhs = assign_global (upd o map_hd) rhs "
-      unfolding assign_local_def assign_global_def by simp
-
-text\<open>The return command in C-like languages is represented basically by an assignment to a local
-variable \<^verbatim>\<open>result_value\<close> (see below in the Clean-package generation). Plus a setting of the 
-\<^term>\<open>return_status\<close> ... Note that a return may appear after a break and should have no effect
-in this case ...\<close>
-
-definition return\<^sub>C :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
-                      \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
-                      \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "return\<^sub>C upd rhs = assign_local upd rhs ;- 
-                            (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>) 
-                                                else set_return_status \<sigma>)" 
-
+subsection\<open>Block-Structures and Call Semantics\<close>
+text\<open> On the managed local state-spaces, it is now straight-forward to define the semantics for 
+a \<^verbatim>\<open>block\<close> representing the necessary management of local variable instances:
+\<close>
 definition block\<^sub>C :: "  (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E
                      \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E  
                      \<Rightarrow> ('\<alpha>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E
@@ -295,18 +340,35 @@ definition block\<^sub>C :: "  (unit, ('\<sigma>_ext) control_state_ext)MON\<^su
                                    unset_return_status;-    \<comment> \<open>unset a potential return break \<close>
                                    (x \<leftarrow> pop;           \<comment> \<open>restore previous local var instances \<close>
                                     unit\<^sub>S\<^sub>E(x)))"        \<comment> \<open>yield the return value \<close>
-    
 
-(* Is this the right approach to handle calls of ops with multiple arguments ? Or better
-   some appropriate currying principle ? *) 
+text\<open> Based on this definition, the running swap example is represented as follows:
+
+@{cartouche [source = true]
+\<open>definition swap_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
+    where "swap_core  \<equiv> (\<lambda>(i,j). ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
+                            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
+                            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>)))))" 
+
+definition swap :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
+  where   "swap \<equiv> \<lambda>(i,j). block\<^sub>C push_local_swap_state (swap_core (i,j)) pop_local_swap_state"
+\<close>}
+
+\<close>
+
+text\<open>It is now straight-forward to define the semantics of a generic call --- 
+which is simply a monad execution that is \<^emph>\<open>break-aware\<close> and \<^emph>\<open>return-aware\<close>.\<close>
+
 definition call\<^sub>C :: "( '\<alpha> \<Rightarrow> ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E) \<Rightarrow>
                        ((('\<sigma>_ext) control_state_ext) \<Rightarrow> '\<alpha>) \<Rightarrow>                        
                       ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
   where   "call\<^sub>C M A\<^sub>1 = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some(undefined, \<sigma>) else M (A\<^sub>1 \<sigma>) \<sigma>)"
 
+text\<open>Note that this presentation assumes a uncurried format of the arguments. The 
+question arises if this the right approach to handle calls of operation with multiple arguments ? 
+Is it better to go for an some appropriate currying principle ? Here are 
+ some more experimental variants for curried operations ...
+\<close>
 
-
-(* some more experimental variants for curried operations ... *)
 definition call_0\<^sub>C :: "('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E \<Rightarrow> ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
   where   "call_0\<^sub>C M = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some(undefined, \<sigma>) else M \<sigma>)"
 
@@ -331,36 +393,7 @@ definition call_3\<^sub>C :: "( '\<alpha> \<Rightarrow> '\<beta> \<Rightarrow>  
                                                    else M (A\<^sub>1 \<sigma>) (A\<^sub>2 \<sigma>) (A\<^sub>3 \<sigma>) \<sigma>)"
 
 (* and 4 and 5 and ... *)                        
-
-definition if_C :: "[('\<sigma>_ext) control_state_ext \<Rightarrow> bool, 
-                      ('\<beta>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E, 
-                      ('\<beta>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E] \<Rightarrow> ('\<beta>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
-  where   "if_C c E F = (\<lambda>\<sigma>. if exec_stop \<sigma> 
-                              then Some(undefined, \<sigma>)  \<comment> \<open>state unchanged, return arbitrary\<close>
-                              else if c \<sigma> then E \<sigma> else F \<sigma>)"     
-
-syntax    (xsymbols)
-          "_if_SECLEAN" :: "['\<sigma> \<Rightarrow> bool,('o,'\<sigma>)MON\<^sub>S\<^sub>E,('o','\<sigma>)MON\<^sub>S\<^sub>E] \<Rightarrow> ('o','\<sigma>)MON\<^sub>S\<^sub>E" 
-          ("(if\<^sub>C _ then _ else _fi)" [5,8,8]8)
-translations 
-          "(if\<^sub>C cond then T1 else T2 fi)" == "CONST Clean.if_C cond T1 T2"
-
-          
-          
-definition while_C :: "(('\<sigma>_ext) control_state_ext \<Rightarrow> bool) 
-                        \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E 
-                        \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
-  where   "while_C c B \<equiv> (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>)
-                               else ((MonadSE.while_SE (\<lambda> \<sigma>. \<not>exec_stop \<sigma> \<and> c \<sigma>) B) ;- 
-                                     unset_break_status) \<sigma>)"
   
-syntax    (xsymbols)
-          "_while_C" :: "['\<sigma> \<Rightarrow> bool, (unit, '\<sigma>)MON\<^sub>S\<^sub>E] \<Rightarrow> (unit, '\<sigma>)MON\<^sub>S\<^sub>E" 
-          ("(while\<^sub>C _ do _ od)" [8,8]8)
-translations 
-          "while\<^sub>C c do b od" == "CONST Clean.while_C c b"
-
-    
 
 section\<open> Global and Local State Management based on Extensible Records \<close>
 
@@ -969,6 +1002,37 @@ val SPY3 = Unsynchronized.ref(Bound 0)
   end
 \<close>
 
+section\<open>The Rest of Clean: Break/Return aware Version of If, While, etc.\<close>
+
+definition if_C :: "[('\<sigma>_ext) control_state_ext \<Rightarrow> bool, 
+                      ('\<beta>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E, 
+                      ('\<beta>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E] \<Rightarrow> ('\<beta>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
+  where   "if_C c E F = (\<lambda>\<sigma>. if exec_stop \<sigma> 
+                              then Some(undefined, \<sigma>)  \<comment> \<open>state unchanged, return arbitrary\<close>
+                              else if c \<sigma> then E \<sigma> else F \<sigma>)"     
+
+syntax    (xsymbols)
+          "_if_SECLEAN" :: "['\<sigma> \<Rightarrow> bool,('o,'\<sigma>)MON\<^sub>S\<^sub>E,('o','\<sigma>)MON\<^sub>S\<^sub>E] \<Rightarrow> ('o','\<sigma>)MON\<^sub>S\<^sub>E" 
+          ("(if\<^sub>C _ then _ else _fi)" [5,8,8]8)
+translations 
+          "(if\<^sub>C cond then T1 else T2 fi)" == "CONST Clean.if_C cond T1 T2"
+
+          
+          
+definition while_C :: "(('\<sigma>_ext) control_state_ext \<Rightarrow> bool) 
+                        \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E 
+                        \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
+  where   "while_C c B \<equiv> (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>)
+                               else ((MonadSE.while_SE (\<lambda> \<sigma>. \<not>exec_stop \<sigma> \<and> c \<sigma>) B) ;- 
+                                     unset_break_status) \<sigma>)"
+  
+syntax    (xsymbols)
+          "_while_C" :: "['\<sigma> \<Rightarrow> bool, (unit, '\<sigma>)MON\<^sub>S\<^sub>E] \<Rightarrow> (unit, '\<sigma>)MON\<^sub>S\<^sub>E" 
+          ("(while\<^sub>C _ do _ od)" [8,8]8)
+translations 
+          "while\<^sub>C c do b od" == "CONST Clean.while_C c b"
+
+  
 
 section\<open>Symbolic Execution Rules \<close>
 

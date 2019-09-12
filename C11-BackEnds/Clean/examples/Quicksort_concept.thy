@@ -187,8 +187,6 @@ definition swap'_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap'_s
     where "swap'_core  \<equiv> (\<lambda>(i,j). ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
                             (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
                             (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>)))))" 
-thm swap_core_def
-
 
 text\<open> a block manages the "dynamically" created fresh instances for the local variables of swap \<close>
 definition swap' :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap'_state_scheme) MON\<^sub>S\<^sub>E"

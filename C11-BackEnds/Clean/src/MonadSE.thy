@@ -46,11 +46,11 @@ theory MonadSE
   imports Main
 begin
         
-subsection\<open>Definition : Standard State Exception Monads\<close>
+section\<open>Definition : Standard State Exception Monads\<close>
 text\<open>State exception monads in our sense are a direct, pure formulation
 of automata with a partial transition function.\<close>
 
-subsubsection\<open>Definition : Core Types and Operators\<close>
+subsection\<open>Definition : Core Types and Operators\<close>
 
 type_synonym ('o, '\<sigma>) MON\<^sub>S\<^sub>E = "'\<sigma> \<rightharpoonup> ('o \<times> '\<sigma>)" (* = '\<sigma> \<Rightarrow> ('o \<times> '\<sigma>)option *)       
       
@@ -87,7 +87,7 @@ lemma bind_assoc[simp]: "(y \<leftarrow> (x \<leftarrow> m; k x); h y) = (x \<le
   apply (case_tac "a", simp_all)
   done
     
-subsubsection\<open>Definition : More Operators and their Properties\<close>
+subsection\<open>Definition : More Operators and their Properties\<close>
 
 definition fail_SE :: "('o, '\<sigma>)MON\<^sub>S\<^sub>E"
 where     "fail_SE = (\<lambda>\<sigma>. None)" 
@@ -166,7 +166,7 @@ lemma malt_SE_cons [simp]: "\<Sqinter>\<^sub>S\<^sub>E (a # S) = (a \<sqinter>\<
 by(simp add: malt_SE_def)
 
 
-subsubsection\<open>Definition : Programming Operators and their Properties\<close>
+subsection\<open>Definition : Programming Operators and their Properties\<close>
 
 definition  "skip\<^sub>S\<^sub>E = unit\<^sub>S\<^sub>E ()"
 
@@ -180,7 +180,7 @@ translations
           "(if\<^sub>S\<^sub>E cond then T1 else T2 fi)" == "CONST if_SE cond T1 T2"
 
 
-subsubsection\<open>Theory of a Monadic While\<close>
+subsection\<open>Theory of a Monadic While\<close>
 
 text\<open>Prerequisites\<close>
 fun replicator :: "[('a, '\<sigma>)MON\<^sub>S\<^sub>E, nat] \<Rightarrow> (unit, '\<sigma>)MON\<^sub>S\<^sub>E" (infixr "^^^" 60)

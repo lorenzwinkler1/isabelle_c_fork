@@ -54,20 +54,22 @@
 \maketitle
 
 \begin{abstract}
-Clean (pronounced as: ``Céline'' [selin]) is based on a simple, abstract execution model for an
+Clean  is based on a simple, abstract execution model for an
 imperative target language. ``Abstract'' is understood as contrast to ``Concrete Semantics'';
-alternatively, the term ``shallow-style embedding'' could be used.
+alternatively, the term ``shallow-style embedding'' could be used. It strives for a type-safe
+notation of program-variables, an incremental construction of the typed state-space in order 
+to facilitate incremental verification and open-world extensibility to new type definitions 
+intertwined with the the program definition.
 
 Clean is based on a ``no-frills'' state-exception monad with the usual definitions of \isa{bind} and
 \isa{unit} for the compositional glue of state-based computations. Clean offers conditionals and
-loops supporting C-like control-flow operators such as \isa{break} and \isa{return}. The memory
-model is fully \HOL{}-typed and based on a construction nesting subsequently extensible
-records. Note that the current version only supports monomorphic states and parameters of (directly
-recursive) functions.
+loops supporting C-like control-flow operators such as \isa{break} and \isa{return}. The state-space
+is fully \HOL{}-typed and based on an incremental construction based on extensible
+records. Direct recursion of operations is supported.
 
 The design is striving for extreme simplicity. It is geared towards symbolic execution and proven
 correct verification tools. The underlying libraries of this package, however, deliberately
-restricts itself to the most elementary infrastructure for these tasks. The package is intended to
+restrict themselves to the most elementary infrastructure for these tasks. The package is intended to
 serve as demonstrator semantic backend for Isabelle/C~\cite{TuongWolff19}, serving as basis for the
 test-generation technique described in~\cite{DBLP:conf/tap/Keller18}.
 \end{abstract}
