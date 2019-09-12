@@ -488,9 +488,7 @@ thm quicksort_def
 declare [[ML_print_depth=100]]
 
 ML\<open>!Function_Specification_Parser.SPY1\<close>
-
 ML\<open>!Function_Specification_Parser.SPY2\<close>
 
-ML\<open>!Function_Specification_Parser.SPY3\<close>
 
 end
