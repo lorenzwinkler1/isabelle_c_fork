@@ -43,6 +43,9 @@ theory Clean
 
 begin
 
+(*<*)
+text\<open> @{footnote \<open>sdf\<close>}, @{file "$ISABELLE_HOME/src/Pure/ROOT.ML"}\<close> 
+(*>*)
 
 section\<open>A High-level Description of the Clean Memory Model\<close>
 
@@ -243,7 +246,6 @@ for which suitable definitions must be generated:
 where \<open>result_value\<close> is the stack for potential result values (not needed in the concrete
 example  \<^verbatim>\<open>swap\<close>.
 \<close>
-
 
 
 section\<open> Global and Local State Management based on Extensible Records \<close>
@@ -503,8 +505,8 @@ fun cmd (decl, spec, prems, params) = #2 oo Specification.definition' decl param
 
 val SPY  = Unsynchronized.ref (Bound 0)
 val SPY1 = Unsynchronized.ref (Binding.empty)
-val SPY2 =  Unsynchronized.ref (@{typ "unit"})
-val SPY3 =  Unsynchronized.ref (@{typ "unit"})
+val SPY2 = Unsynchronized.ref (@{typ "unit"})
+val SPY3 = Unsynchronized.ref (@{typ "unit"})
 
 
 fun mk_push_name binding = Binding.prefix_name "push_" binding
@@ -809,7 +811,7 @@ val SPY3 = Unsynchronized.ref(Bound 0)
        -- parse_returns_clause
       --| \<^keyword>\<open>pre\<close>             -- Parse.term 
       --| \<^keyword>\<open>post\<close>            -- Parse.term 
-      --  Scan.option( \<^keyword>\<open>variant\<close> --| Parse.term)
+      --  Scan.option( \<^keyword>\<open>variant\<close> |-- Parse.term)
       --| \<^keyword>\<open>local_vars\<close> -- (Scan.repeat1 Parse.const_binding)
    (* --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.cartouche>>cartouche)) *)
       --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.term)) 
@@ -882,12 +884,8 @@ val SPY3 = Unsynchronized.ref(Bound 0)
 
            val umty = args_ty --> StateMgt.MON_SE_T @{typ "unit"} sty
 
-           val args_core =
-             ( SOME (bdg_core, SOME umty, NoSyn)
-             , (Binding.empty_atts, mk_meta_eq ( Free (bdg_core_name, umty)
-                                               , mk_pat_tupleabs (map (apsnd #2) params) body))
-             , []
-             , [])
+           val eq = mk_meta_eq(Free (bdg_core_name, umty),mk_pat_tupleabs(map(apsnd #2)params) body)
+           val args_core =(SOME (bdg_core, SOME umty, NoSyn), (Binding.empty_atts, eq), [], [])
 
        in fn ctxt => (writeln "define_body_core";
                       StateMgt.cmd args_core true ctxt)
@@ -898,6 +896,8 @@ val SPY3 = Unsynchronized.ref(Bound 0)
            val pop_name = StateMgt.mk_pop_name (StateMgt.mk_local_state_name binding)
            val bdg_core = Binding.suffix_name "_core" binding
            val bdg_core_name = Binding.name_of bdg_core
+           val bdg_rec_name = Binding.name_of(Binding.suffix_name "_rec" binding)
+           val bdg_ord_name = Binding.name_of(Binding.suffix_name "_order" binding)
 
            val args_ty = HOLogic.mk_tupleT (map (#2 o #2) params)
            val params' = map (apsnd #2) params
@@ -909,12 +909,17 @@ val SPY3 = Unsynchronized.ref(Bound 0)
            val argsProdT = HOLogic.mk_prodT(args_ty,args_ty)
            val argsRelSet = HOLogic.mk_setT argsProdT
            val measure_term = case variant_src of
-                                 NONE => mk_undefined (args_ty --> HOLogic.natT)
-                               | SOME str =>  Syntax.read_term ctxt str
-                                                 |> mk_pat_tupleabs params'
+                                 NONE => Free(bdg_ord_name,args_ty --> HOLogic.natT)
+                               | SOME str => (writeln str;  Syntax.read_term ctxt str
+                                                 |> mk_pat_tupleabs params')
            val measure =  Const(@{const_name "Wellfounded.measure"}, (args_ty --> HOLogic.natT)
                                                                      --> argsRelSet )
                           $ measure_term
+           val lhs_main = if x andalso is_none variant_src
+                          then Free(Binding.name_of binding, (args_ty --> HOLogic.natT)
+                                                                       --> args_ty --> rmty) $
+                                         Free(bdg_ord_name, args_ty --> HOLogic.natT)
+                          else Free(Binding.name_of binding, args_ty --> rmty)
            val rhs_main = mk_pat_tupleabs params'
                           (Const(@{const_name "Clean.block\<^sub>C"}, umty --> umty  --> rmty --> rmty)
                           $ Const(read_constname ctxt (Binding.name_of push_name),umty)
@@ -923,7 +928,7 @@ val SPY3 = Unsynchronized.ref(Bound 0)
                           $ Const(read_constname ctxt (Binding.name_of pop_name),rmty))
            val rhs_main_rec = wfrecT 
                               measure 
-                              (Abs("XXX", (args_ty --> umty) , 
+                              (Abs(bdg_rec_name, (args_ty --> umty) , 
                                    mk_pat_tupleabs params'
                                    (Const(@{const_name "Clean.block\<^sub>C"}, umty-->umty-->rmty-->rmty)
                                    $ Const(read_constname ctxt (Binding.name_of push_name),umty)
@@ -932,8 +937,7 @@ val SPY3 = Unsynchronized.ref(Bound 0)
                                       $ (Bound (length params))
                                       $ HOLogic.mk_tuple (map Free params'))
                                    $ Const(read_constname ctxt (Binding.name_of pop_name),rmty))))
-           val eq_main = mk_meta_eq(Free(Binding.name_of binding, args_ty --> rmty),
-                                    if x then rhs_main_rec else rhs_main )
+           val eq_main = mk_meta_eq(lhs_main, if x then rhs_main_rec else rhs_main )
            val _ = (SPY2:=eq_main)
            val args_main = (SOME(binding,NONE,NoSyn), (Binding.empty_atts,eq_main),[],[]) 
        in  ctxt |> StateMgt.cmd args_main true 

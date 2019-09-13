@@ -335,7 +335,7 @@ subsection \<open>\<^verbatim>\<open>quicksort\<close> in High-level Notation\<c
 rec_function_spec quicksort (lo::nat, hi::nat) returns unit
 pre          "\<open>True\<close>"
 post         "\<open>\<lambda>res::unit. True\<close>"
-(* variant      "XXX" *)
+variant      "hi - lo" 
 local_vars   p :: "nat" 
 defines      " ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
                  then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C partition (\<lambda>\<sigma>. (lo, hi)) ;
