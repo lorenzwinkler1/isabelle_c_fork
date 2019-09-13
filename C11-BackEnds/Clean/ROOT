@@ -38,6 +38,8 @@ session Clean = HOL +
   theories
     "src/Clean"
     "src/CleanTest"
+    "src/Symbex_MonadSE"
+    "src/Hoare_MonadSE"
 
 session Clean_examples = Clean +
   theories

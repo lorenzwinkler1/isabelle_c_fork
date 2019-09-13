@@ -43,6 +43,7 @@ local variables. \<close>
 
 theory Quicksort_concept
   imports Clean.Clean
+          Clean.Hoare_MonadSE
 begin
 
 section\<open>The Quicksort Example\<close>
@@ -333,21 +334,23 @@ section \<open>Encoding the toplevel : \<^verbatim>\<open>quicksort\<close> in C
 subsection \<open>\<^verbatim>\<open>quicksort\<close> in High-level Notation\<close>
 
 rec_function_spec quicksort (lo::nat, hi::nat) returns unit
-pre          "\<open>True\<close>"
-post         "\<open>\<lambda>res::unit. True\<close>"
+pre          "\<open>lo \<le> hi \<and> hi < length A\<close>"
+post         "\<open>\<lambda>res::unit. \<forall>i\<in>{lo .. hi}. \<forall>j\<in>{lo .. hi}. i \<le> j \<longrightarrow> A!i \<le> A!j\<close>"
 variant      "hi - lo" 
 local_vars   p :: "nat" 
-defines      " ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
-                 then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C partition (\<lambda>\<sigma>. (lo, hi)) ;
-                       assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
-                       call\<^sub>C quicksort (\<lambda>\<sigma>. (lo, (hd o p) \<sigma> - 1)) ;-
-                       call\<^sub>C quicksort (\<lambda>\<sigma>. ((hd o p) \<sigma> + 1, hi))  
-                 else skip\<^sub>S\<^sub>E 
-                 fi))"
+defines      " if\<^sub>C \<open>lo < hi\<close>  
+               then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C partition \<open>(lo, hi)\<close> ; assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
+                     call\<^sub>C quicksort \<open>(lo, p - 1)\<close> ;-
+                     call\<^sub>C quicksort \<open>(lo, p + 1)\<close>  
+               else skip\<^sub>S\<^sub>E 
+               fi"
 
 
 thm quicksort_core_def
 thm quicksort_def
+thm quicksort_pre_def
+thm quicksort_post_def
+
 
 
 
@@ -424,7 +427,19 @@ definition quicksort' :: " ((nat \<times> nat) \<times> (nat \<times> nat)) set 
                                                                 pop_local_quicksort'_state)"
 
 
+subsection\<open>Setup for Deductive Verification\<close>
 
+text\<open>The coupling between the pre- and the post-condition state is done by the 
+     free variable (serving as a kind of ghost-variable) @{term "\<sigma>\<^sub>p\<^sub>r\<^sub>e"}. This coupling
+     can also be used to express framing conditions; i.e. parts of the state which are
+     independent and/or not affected by the computations to be verified. \<close>
+lemma quicksort_correct : 
+  "\<lbrace>\<lambda>\<sigma>.   \<not>exec_stop \<sigma> \<and> quicksort_pre (lo, hi)(\<sigma>) \<and> \<sigma> = \<sigma>\<^sub>p\<^sub>r\<^sub>e \<rbrace> 
+     quicksort (lo, hi) 
+   \<lbrace>\<lambda>r \<sigma>. \<not>exec_stop \<sigma> \<and> quicksort_post(lo, hi)(\<sigma>\<^sub>p\<^sub>r\<^sub>e)(\<sigma>)(r) \<rbrace>"
+   oops
+
+subsection\<open>Experimental\<close>
 
 (* bric a brac : An example by Fred (For Programming Manual)*)
 
