@@ -101,7 +101,7 @@ record  control_state =
             break_status  :: bool
             return_status :: bool
 
-(* break quites innermost while or for, return quits an entire execution sequence. *)  
+(* break quits innermost while or for, return quits an entire execution sequence. *)  
 definition break :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"
   where   "break \<equiv> (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> break_status := True \<rparr>))"
   
@@ -122,6 +122,30 @@ definition exec_stop :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool"
 text\<open> On the basis of the control-state, assignments, conditionals and loops are reformulated
   into \<^term>\<open>break\<close>-aware and \<^term>\<open>return\<close>-aware versions as shown in the definitions of
   \<^term>\<open>assign\<close> and \<^term>\<open>if_C\<close> (in this theory file, see below). \<close>
+
+text\<open>For Reasoning over Clean programs, we need the notion of independance of an
+     update from the control-block: \<close>
+definition control_independence :: 
+                 "(('b\<Rightarrow>'b)\<Rightarrow>'a control_state_scheme \<Rightarrow> 'a control_state_scheme) \<Rightarrow> bool"    ("\<sharp>")
+           where "\<sharp> upd \<equiv> (\<forall>\<sigma> T b. break_status (upd T \<sigma>) = break_status \<sigma> 
+                                 \<and> return_status (upd T \<sigma>) = return_status \<sigma>
+                                 \<and> upd T (\<sigma>\<lparr> return_status := b \<rparr>) = upd T \<sigma>
+                                 \<and> upd T (\<sigma>\<lparr> break_status := b \<rparr>) = upd T \<sigma>)"
+
+lemma exec_stop_vs_control_independence [simp]:
+  "\<sharp> upd \<Longrightarrow> exec_stop (upd f \<sigma>) = exec_stop \<sigma>"
+  unfolding control_independence_def exec_stop_def  by simp
+
+lemma exec_stop_vs_control_independence' [simp]:
+  "\<sharp> upd \<Longrightarrow> (upd f (\<sigma> \<lparr> return_status := b \<rparr>)) = upd f \<sigma>"
+  unfolding control_independence_def exec_stop_def by simp
+
+lemma exec_stop_vs_control_independence'' [simp]:
+  "\<sharp> upd \<Longrightarrow> (upd f (\<sigma> \<lparr> break_status := b \<rparr>)) = upd f \<sigma>"
+  unfolding control_independence_def exec_stop_def  by simp
+
+
+
 
 subsection\<open>An Example for Global Variable Declarations.\<close>
 text\<open>We present the above definition of the incremental construction of the state-space in more
@@ -165,9 +189,9 @@ definition assign :: "(('\<sigma>_ext) control_state_scheme  \<Rightarrow>
 
 
 definition  assign_global :: "(('a  \<Rightarrow> 'a ) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
-                      \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
-                      \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
-  where    "assign_global upd rhs = assign(\<lambda>\<sigma>. ((upd) (%_. rhs \<sigma>)) \<sigma>)"
+                              \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
+                              \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
+  where    "assign_global upd rhs = assign(\<lambda>\<sigma>. ((upd) (\<lambda>_. rhs \<sigma>)) \<sigma>)"
 
 text\<open>An update of the variable \<open>A\<close> based on the state of the previous example is done 
 by @{term [source = true] \<open>assign_global A_upd (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))\<close>}
@@ -187,9 +211,10 @@ lemma tl_map_hd [simp] :"tl (map_hd f S) = tl S"  by (metis list.sel(3) map_hd.e
 
 definition "map_nth = (\<lambda>i f l. list_update l i (f (l ! i)))"
 
-definition  assign_local :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
-                      \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
-                      \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
+definition  assign_local :: "(('a list \<Rightarrow> 'a list) 
+                                 \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
+                             \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
+                             \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
   where    "assign_local upd rhs = assign(\<lambda>\<sigma>. ((upd o map_hd) (%_. rhs \<sigma>)) \<sigma>)"
 
 
@@ -206,9 +231,8 @@ in this case.\<close>
 definition return\<^sub>C :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
                       \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
                       \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "return\<^sub>C upd rhs = assign_local upd rhs ;- 
-                            (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>) 
-                                                else set_return_status \<sigma>)" 
+  where   "return\<^sub>C upd rhs =(\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>) 
+                                                else (assign_local upd rhs ;- set_return_status) \<sigma>)" 
 
 subsection\<open>Example for a Local Variable Space\<close>
 text\<open>Consider the usual operation \<open>swap\<close> defined in some free-style syntax as follows:
