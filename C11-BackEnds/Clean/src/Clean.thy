@@ -16,7 +16,7 @@ begin
 
 text\<open>Clean (pronounced as: ``C lean'' or ``Céline'' [selin]) is a minimalistic imperative language 
 with C-like control-flow operators based on a shallow embedding into the ``State Exception Monads'' theory 
-formalized in \<^theory>\<open>Clean.MonadSE\<close>. It strives for a type-safe notation of program-variables, an
+formalized in \<^file>\<open>MonadSE.thy\<close>. It strives for a type-safe notation of program-variables, an
 incremental construction of the typed state-space in order to facilitate incremental verification
 and open-world extensibility to new type definitions intertwined with the program
 definition.
