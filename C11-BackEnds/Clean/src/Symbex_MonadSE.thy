@@ -522,7 +522,9 @@ next
     done
 qed
 
+subsection\<open>Miscellaneous\<close>
 
+no_notation unit_SE ("(result _)" 8)
 
 end
   

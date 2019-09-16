@@ -43,6 +43,7 @@ local variables. \<close>
 
 theory Quicksort_concept
   imports Clean.Clean
+          Clean.Hoare_MonadSE
 begin
 
 section\<open>The Quicksort Example\<close>
@@ -103,9 +104,9 @@ ML\<open> val Type("Quicksort_concept.global_state_state_scheme",t)
 text\<open>Note that the state-management uses long-names for complete disambiguation.\<close>
 
 
-subsection \<open>Encoding swap in Clean\<close>
+section \<open>Encoding swap in Clean\<close>
 
-subsubsection \<open>\<^verbatim>\<open>swap\<close> in High-level Notation\<close>
+subsection \<open>\<^verbatim>\<open>swap\<close> in High-level Notation\<close>
 
 text\<open>Unfortunately, the name \<open>result\<close> is already used in the logical context; we use local binders
 instead.\<close>
@@ -142,7 +143,7 @@ text\<open>The state-management is in the following configuration:\<close>
 ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
     StateMgt_core.get_state_field_tab_global @{theory}\<close>
 
-subsubsection \<open>A Similation of \<^verbatim>\<open>swap\<close> in elementary specification constructs:\<close>
+subsection \<open>A Similation of \<^verbatim>\<open>swap\<close> in elementary specification constructs:\<close>
 
 text\<open>Note that we prime identifiers in order to avoid confusion with the definitions of the
 previous section. The pre- and postconditions are just definitions of the following form:\<close>
@@ -187,8 +188,6 @@ definition swap'_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap'_s
     where "swap'_core  \<equiv> (\<lambda>(i,j). ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
                             (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
                             (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>)))))" 
-thm swap_core_def
-
 
 text\<open> a block manages the "dynamically" created fresh instances for the local variables of swap \<close>
 definition swap' :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap'_state_scheme) MON\<^sub>S\<^sub>E"
@@ -209,7 +208,9 @@ text\<open>In case that all local variables are single-assigned in swap, the ent
    could be ommitted.\<close>
 *)
 
-subsection \<open>Encoding partition in Clean\<close>
+section \<open>Encoding \<^verbatim>\<open>partition\<close> in Clean\<close>
+
+subsection \<open>\<^verbatim>\<open>partition\<close> in High-level Notation\<close>
 
 function_spec partition (lo::nat, hi::nat) returns nat
 pre          "\<open>lo < length A \<and> hi < length A\<close>"    
@@ -264,7 +265,7 @@ text\<open>The state-management is in the following configuration:\<close>
 ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
     StateMgt_core.get_state_field_tab_global @{theory}\<close>
 
-subsubsection \<open>A Similation of \<^verbatim>\<open>partition\<close> in elementary specification constructs:\<close>
+subsection \<open>A Similation of \<^verbatim>\<open>partition\<close> in elementary specification constructs:\<close>
 
 definition "partition'_pre \<equiv> \<lambda>(lo, hi) \<sigma>. lo < length (A \<sigma>) \<and> hi < length (A \<sigma>)"
 definition "partition'_post \<equiv> \<lambda>(lo, hi) \<sigma>\<^sub>p\<^sub>r\<^sub>e \<sigma> res. length (A \<sigma>) = length (A \<sigma>\<^sub>p\<^sub>r\<^sub>e) \<and> res = 3"
@@ -328,7 +329,32 @@ definition partition' :: "nat \<times> nat \<Rightarrow>  (nat,'a local_partitio
                                    pop_local_partition_state"
              
 
-subsection \<open>Encoding the core: quicksort in Clean\<close>
+section \<open>Encoding the toplevel : \<^verbatim>\<open>quicksort\<close> in Clean\<close>
+
+subsection \<open>\<^verbatim>\<open>quicksort\<close> in High-level Notation\<close>
+
+rec_function_spec quicksort (lo::nat, hi::nat) returns unit
+pre          "\<open>lo \<le> hi \<and> hi < length A\<close>"
+post         "\<open>\<lambda>res::unit. \<forall>i\<in>{lo .. hi}. \<forall>j\<in>{lo .. hi}. i \<le> j \<longrightarrow> A!i \<le> A!j\<close>"
+variant      "hi - lo" 
+local_vars   p :: "nat" 
+defines      " if\<^sub>C \<open>lo < hi\<close>  
+               then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C partition \<open>(lo, hi)\<close> ; assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
+                     call\<^sub>C quicksort \<open>(lo, p - 1)\<close> ;-
+                     call\<^sub>C quicksort \<open>(lo, p + 1)\<close>  
+               else skip\<^sub>S\<^sub>E 
+               fi"
+
+
+thm quicksort_core_def
+thm quicksort_def
+thm quicksort_pre_def
+thm quicksort_post_def
+
+
+
+
+subsection \<open>A Similation of \<^verbatim>\<open>quicksort\<close> in elementary specification constructs:\<close>
 
 
 local_vars_test  quicksort' "unit"
@@ -337,20 +363,6 @@ local_vars_test  quicksort' "unit"
 
 ML\<open> val (x,y) = StateMgt_core.get_data_global @{theory}; \<close>
 
-(*
-funct quicksort(lo::nat, hi::nat) returns unit
-     pre  "True"
-     post "True"
-     local_vars p :: int     
-     \<open>if\<^sub>C\<^sub>L\<^sub>E\<^sub>A\<^sub>N \<open>lo < hi\<close> then
-        p := partition(lo, hi) ;-
-        quicksort(A, lo, p - 1) ;-
-        quicksort(A, p + 1, hi)
-      else Skip\<close>
-      
-*)
-
- 
 
 
 
@@ -397,12 +409,12 @@ definition quicksort'_post :: "nat \<times> nat \<Rightarrow> unit \<Rightarrow>
 
 definition quicksort'_core :: "   (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort'_state_scheme) MON\<^sub>S\<^sub>E)
                               \<Rightarrow> (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort'_state_scheme) MON\<^sub>S\<^sub>E)"
-  where   "quicksort'_core quicksort \<equiv> \<lambda>(lo, hi). 
+  where   "quicksort'_core quicksort' \<equiv> \<lambda>(lo, hi). 
                             ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
                               then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C partition (\<lambda>\<sigma>. (lo, hi)) ;
                                     assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
-                                    call\<^sub>C quicksort (\<lambda>\<sigma>. (lo, (hd o p) \<sigma> - 1)) ;-
-                                    call\<^sub>C quicksort (\<lambda>\<sigma>. ((hd o p) \<sigma> + 1, hi))  
+                                    call\<^sub>C quicksort' (\<lambda>\<sigma>. (lo, (hd o p) \<sigma> - 1)) ;-
+                                    call\<^sub>C quicksort' (\<lambda>\<sigma>. ((hd o p) \<sigma> + 1, hi))  
                               else skip\<^sub>S\<^sub>E 
                               fi))"
 
@@ -415,21 +427,21 @@ definition quicksort' :: " ((nat \<times> nat) \<times> (nat \<times> nat)) set 
                                                                 pop_local_quicksort'_state)"
 
 
+subsection\<open>Setup for Deductive Verification\<close>
 
+text\<open>The coupling between the pre- and the post-condition state is done by the 
+     free variable (serving as a kind of ghost-variable) @{term "\<sigma>\<^sub>p\<^sub>r\<^sub>e"}. This coupling
+     can also be used to express framing conditions; i.e. parts of the state which are
+     independent and/or not affected by the computations to be verified. \<close>
+lemma quicksort_correct : 
+  "\<lbrace>\<lambda>\<sigma>.   \<not>exec_stop \<sigma> \<and> quicksort_pre (lo, hi)(\<sigma>) \<and> \<sigma> = \<sigma>\<^sub>p\<^sub>r\<^sub>e \<rbrace> 
+     quicksort (lo, hi) 
+   \<lbrace>\<lambda>r \<sigma>. \<not>exec_stop \<sigma> \<and> quicksort_post(lo, hi)(\<sigma>\<^sub>p\<^sub>r\<^sub>e)(\<sigma>)(r) \<rbrace>"
+   oops
 
+subsection\<open>Experimental\<close>
 
-
-ML\<open>
-fun wfrecT order recs = 
-    let val funT = domain_type (fastype_of recs)
-        val aTy  = domain_type funT
-        val ordTy = HOLogic.mk_setT(HOLogic.mk_prodT (aTy,aTy))
-    in Const(@{const_name "Wfrec.wfrec"},ordTy --> (funT --> funT) --> funT) $ order $ recs end
-
-\<close>
-
-
-(* bric a brac *)
+(* bric a brac : An example by Fred (For Programming Manual)*)
 
 definition "zz = ()"
 ML\<open>@{term zz}\<close>  (* So : @(term "zz"} is now a constant*) 
@@ -450,45 +462,6 @@ proof - fix a :: nat
     oops
 
 
-
-
-term "Clean.syntax_assign"
-term "B[x:=(B!n)]"
-term "assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! n )"  
-term "assign(\<lambda>\<sigma>. ((upd o map_hd) (f \<sigma>)) \<sigma>)"
-
-term "assign "
-(*term "(A \<sigma>[n := A \<sigma> ! m]) = list_update (A \<sigma>) (n) (A \<sigma> ! m)"*)
-
-term "assign(\<lambda>\<sigma>. ((A_update ) (\<lambda>_. list_update (A \<sigma>) (n) (A \<sigma> ! n))) \<sigma>)"
-term " ((A_update o map_hd) f)"
-term " body\<^sub>C push_local_state_swap pop_local_state_swap "
-term "assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (n) (A \<sigma> ! m))"
-
-term "B[k:=(B!m)]"
-
-
-rec_function_spec quicksort (lo::nat, hi::nat) returns unit
-pre          "\<open>True\<close>"
-post         "\<open>\<lambda>res::unit. True\<close>"
-(* variant      "XXX" *)
-local_vars   p :: "nat" 
-defines      " ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
-                 then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C partition (\<lambda>\<sigma>. (lo, hi)) ;
-                       assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
-                       call\<^sub>C quicksort (\<lambda>\<sigma>. (lo, (hd o p) \<sigma> - 1)) ;-
-                       call\<^sub>C quicksort (\<lambda>\<sigma>. ((hd o p) \<sigma> + 1, hi))  
-                 else skip\<^sub>S\<^sub>E 
-                 fi))"
-
-
-thm quicksort_core_def
-thm quicksort_def
-
-declare [[ML_print_depth=100]]
-
-ML\<open>!Function_Specification_Parser.SPY1\<close>
-ML\<open>!Function_Specification_Parser.SPY2\<close>
 
 
 end
