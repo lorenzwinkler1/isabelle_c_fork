@@ -113,7 +113,7 @@ instead.\<close>
 definition "i = ()" \<comment> \<open>check that \<^term>\<open>i\<close> can exist as a constant with an arbitrary type before treating \<^theory_text>\<open>function_spec\<close>\<close>
 definition "j = ()" \<comment> \<open>check that \<^term>\<open>j\<close> can exist as a constant with an arbitrary type before treating \<^theory_text>\<open>function_spec\<close>\<close>
 
-function_spec swap (i::"nat",j::"nat") \<comment> \<open>TODO: the hovering on parameters produces a number of report equal to the number of \<^ML>\<open>Proof_Context.add_fixes\<close> called in \<^ML>\<open>Function_Specification_Parser.checkNsem_function_spec\<close>\<close>
+function_spec swap (i::nat,j::nat) \<comment> \<open>TODO: the hovering on parameters produces a number of report equal to the number of \<^ML>\<open>Proof_Context.add_fixes\<close> called in \<^ML>\<open>Function_Specification_Parser.checkNsem_function_spec\<close>\<close>
 pre          "\<open>i < length A \<and> j < length A\<close>"    
 post         "\<open>\<lambda>res. length A = length(old A) \<and> res = ()\<close>" 
 local_vars   tmp :: int 

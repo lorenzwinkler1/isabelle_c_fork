@@ -9,7 +9,7 @@ text\<open>\<^verbatim>\<open>Clean\<close> (pronounced as: ``C lean'' or ``Cél
 with C-like control-flow operators based on a shallow embedding into the SE exception Monad theory 
 formalized in \<^verbatim>\<open>Clean.MonadSE\<close>. It strives for a type-safe notation of program-variables, an
 incremental construction of the typed state-space in order to facilitate incremental verification
-and open-world extensibility to new type definitions intertwined with the the program
+and open-world extensibility to new type definitions intertwined with the program
 definition.
 
 It comprises:
@@ -55,7 +55,7 @@ text\<open> Clean is based on a ``no-frills'' state-exception monad
 usual definitions of \<^term>\<open>bind\<close> and \<^term>\<open>unit\<close>.
 In this language, sequence operators, conditionals and loops can be integrated. \<close>
 
-text\<open>From a concrete program, the underlying state\<^theory_text>\<open>'\<sigma>\<close> is \<^emph>\<open>incrementally\<close> constructed by a
+text\<open>From a concrete program, the underlying state \<^theory_text>\<open>'\<sigma>\<close> is \<^emph>\<open>incrementally\<close> constructed by a
 sequence of extensible record definitions:
 \<^enum> initially, an internal control state is defined to give semantics to \<^term>\<open>break\<close> and
  \<^term>\<open>return\<close> statements:
@@ -173,7 +173,7 @@ subsection\<open> The Assignment Clean Operations (embedded in the State-Excepti
 text\<open>Based on the global variable states, we define   \<^term>\<open>break\<close>-aware and \<^term>\<open>return\<close>-aware 
 version of the assignment. The trick to do this in a generic \<^emph>\<open>and\<close> type-safe way is to provide
 the generated accessor - and update functions (the ``lens'' representing this global variable,
-cf. @{cite "Pierce2009BidirectionalPL" and "Foster:2007:CBT:1232420.1232424" and
+cf. @{cite "Foster2009BidirectionalPL" and "DBLP:journals/toplas/FosterGMPS07" and
 "DBLP:conf/ictac/FosterZW16"}) to the generic assign operators. This pair of accessor and update
 carry all relevant semantic and type information of this particular variable and \<^emph>\<open>characterize\<close>
 this variable semantically. Specific syntactic support --- via the Isabelle concept of
@@ -237,13 +237,13 @@ definition return\<^sub>C :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<
 
 subsection\<open>Example for a Local Variable Space\<close>
 text\<open>Consider the usual operation \<^verbatim>\<open>swap\<close> defined in some free-style syntax as follows:
-\begin{verbatim}
-  function swap (i::nat,j::nat) 
-  local   tmp :: int 
-  defines      " \<open> tmp  := A ! i\<close>  ;-
+@{verbatim [display] \<open>
+  function_spec swap (i::nat,j::nat)
+  local_vars   tmp :: int 
+  defines      " \<open> tmp  := A ! i\<close> ;-
                  \<open> A[i] := A ! j\<close> ;- 
-                 \<open> A[j] := tmp\<close> " 
-\end{verbatim}\<close>
+                 \<open> A[j] := tmp\<close> "\<close>}
+\<close>
 
 text\<open> 
 For the fantasy syntax  \<open>tmp := A ! i\<close>, we can construct the following semantic code:
@@ -256,7 +256,7 @@ the result variable  in the local state (stack) and sets the \<^term>\<open>retu
 The management of the local state space requires function specific \<^verbatim>\<open>push\<close> and  \<^verbatim>\<open>pop\<close> operations,
 for which suitable definitions must be generated:
 
-@{cartouche [source = true]
+@{verbatim [display]
 \<open>definition push_local_swap_state :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
    where   "push_local_swap_state \<sigma> = 
                      Some((),\<sigma>\<lparr>local_swap_state.tmp := undefined # local_swap_state.tmp \<sigma>,
@@ -268,7 +268,7 @@ for which suitable definitions must be generated:
                     Some(hd(local_swap_state.result_value \<sigma>), 
                          \<sigma>\<lparr>local_swap_state.tmp:= tl( local_swap_state.tmp \<sigma>) \<rparr>)"\<close>}
 where \<open>result_value\<close> is the stack for potential result values (not needed in the concrete
-example  \<^verbatim>\<open>swap\<close>.
+example  \<^verbatim>\<open>swap\<close>).
 \<close>
 
 
@@ -369,7 +369,7 @@ definition block\<^sub>C :: "  (unit, ('\<sigma>_ext) control_state_ext)MON\<^su
 
 text\<open> Based on this definition, the running swap example is represented as follows:
 
-@{cartouche [source = true]
+@{verbatim [display]
 \<open>definition swap_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
     where "swap_core  \<equiv> (\<lambda>(i,j). ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
                             (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
