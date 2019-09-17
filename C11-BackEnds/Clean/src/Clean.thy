@@ -1,3 +1,44 @@
+(*<*)
+(******************************************************************************
+ * Quicksort Concept 
+ *
+ * Authors : Burkhart Wolff, Frederic Tuong
+ *           Contributions by Chantal Keller
+ * 
+ * Copyright (c) 2018-2019 Université Paris-Saclay, France
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials provided
+ *       with the distribution.
+ *
+ *     * Neither the name of the copyright holders nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ ******************************************************************************)
+(*>*)
+
 (***************************************************************************************
  * Clean.thy --- a basic abstract ("shallow") programming language for test and proof.
  * Burkhart Wolff, Frederic Tuong and Chantal Keller, LRI, Univ. Paris-Saclay, France
@@ -236,7 +277,7 @@ definition return\<^sub>C :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<
 
 subsection\<open>Example for a Local Variable Space\<close>
 text\<open>Consider the usual operation \<open>swap\<close> defined in some free-style syntax as follows:
-@{verbatim [display] \<open>
+@{cartouche [display] \<open>
   function_spec swap (i::nat,j::nat)
   local_vars   tmp :: int 
   defines      " \<open> tmp  := A ! i\<close> ;-
@@ -255,7 +296,7 @@ the result variable  in the local state (stack). It sets the \<^term>\<open>retu
 The management of the local state space requires function-specific \<open>push\<close> and \<open>pop\<close> operations,
 for which suitable definitions are generated as well:
 
-@{verbatim [display]
+@{cartouche [display]
 \<open>definition push_local_swap_state :: "(unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
    where   "push_local_swap_state \<sigma> = 
                      Some((),\<sigma>\<lparr>local_swap_state.tmp := undefined # local_swap_state.tmp \<sigma>,
@@ -368,7 +409,7 @@ definition block\<^sub>C :: "  (unit, ('\<sigma>_ext) control_state_ext)MON\<^su
 
 text\<open> Based on this definition, the running \<open>swap\<close> example is represented as follows:
 
-@{verbatim [display]
+@{cartouche [display]
 \<open>definition swap_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap_state_scheme) MON\<^sub>S\<^sub>E"
     where "swap_core  \<equiv> (\<lambda>(i,j). ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
                             (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
@@ -835,8 +876,7 @@ val SPY3 = Unsynchronized.ref(Bound 0)
       --| \<^keyword>\<open>pre\<close>             -- Parse.term 
       --| \<^keyword>\<open>post\<close>            -- Parse.term 
       --  Scan.option( \<^keyword>\<open>variant\<close> |-- Parse.term)
-      --| \<^keyword>\<open>local_vars\<close> -- (Scan.repeat1 Parse.const_binding)
-   (* --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.cartouche>>cartouche)) *)
+      --| \<^keyword>\<open>local_vars\<close>      -- (Scan.repeat1 Parse.const_binding)
       --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.term)) 
       ) >> (fn (((((((binding,params),ret_ty),pre_src),post_src),variant_src),locals),body_src) => 
         {
@@ -1252,34 +1292,6 @@ shows  "(\<sigma> \<Turnstile> (while\<^sub>C P do B\<^sub>1 od);-M) = (\<sigma>
   apply simp using assms by blast    
 
 
-
-section\<open> Tactic Support: we use Eisbach to automate the process. \<close>
-
-txt\<open> Necessary prerequisite: turning ematch and dmatch into a proper Isar Method. \<close>
-(* TODO : this code shoud go to TestGen Method setups *)
-ML\<open>
-val _ =
-  Theory.setup
-   (Method.setup @{binding ematch}
-      (Attrib.thms >> (fn rules => fn ctxt => METHOD (HEADGOAL o (K(ematch_tac ctxt rules)) ))) 
-      "fast elimination matching" #>
-    Method.setup @{binding dmatch}
-      (Attrib.thms >> (fn rules => fn ctxt => METHOD (HEADGOAL o (K(dmatch_tac ctxt rules)) ))) 
-       "fast destruction matching" #>
-    Method.setup @{binding match}
-      (Attrib.thms >> (fn rules => fn ctxt => METHOD (HEADGOAL o (K(match_tac ctxt rules)) )))
-       "resolution based on fast matching")
-\<close>
-
-txt\<open> Various tactics for various coverage criteria \<close>
-
-definition while_k :: "nat \<Rightarrow> (('\<sigma>_ext) control_state_ext \<Rightarrow> bool) 
-                        \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E 
-                        \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
-where     "while_k _ \<equiv> while_C"
-
-lemma while_k_SE : "while_C = while_k k"
-by (simp only: while_k_def)
     
     
 lemma if\<^sub>C_cond_cong : "f \<sigma> = g \<sigma> \<Longrightarrow> 
@@ -1338,6 +1350,16 @@ lemma return_cancel2_idem [simp] :
   apply(case_tac "exec_stop \<sigma>")
    apply auto
   by (simp add: exec_stop_def set_return_status_def)
+
+
+
+
+txt\<open> Various tactics for various coverage criteria \<close>
+
+definition while_k :: "nat \<Rightarrow> (('\<sigma>_ext) control_state_ext \<Rightarrow> bool) 
+                        \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E 
+                        \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
+where     "while_k _ \<equiv> while_C"
 
 
 text\<open>Somewhat amazingly, this unfolding lemma crucial for symbolic execution still holds ... 
@@ -1412,12 +1434,33 @@ next
     qed
 qed
 (* ... although it is, oh my god, amazingly complex to prove. *)
-  
+
+
+lemma while_k_SE : "while_C = while_k k"
+by (simp only: while_k_def)
+
+
 corollary exec_while_k : 
 "(\<sigma> \<Turnstile> ((while_k (Suc n) b c) ;- M)) = 
  (\<sigma> \<Turnstile> ((if\<^sub>C b then c ;- (while_k n b c) ;- unset_break_status else skip\<^sub>S\<^sub>E fi)  ;- M))"
   by (metis exec_while\<^sub>C while_k_def)
     
+
+txt\<open> Necessary prerequisite: turning ematch and dmatch into a proper Isar Method. \<close>
+(* TODO : this code shoud go to TestGen Method setups *)
+ML\<open>
+val _ =
+  Theory.setup
+   (Method.setup @{binding ematch}
+      (Attrib.thms >> (fn rules => fn ctxt => METHOD (HEADGOAL o (K(ematch_tac ctxt rules)) ))) 
+      "fast elimination matching" #>
+    Method.setup @{binding dmatch}
+      (Attrib.thms >> (fn rules => fn ctxt => METHOD (HEADGOAL o (K(dmatch_tac ctxt rules)) ))) 
+       "fast destruction matching" #>
+    Method.setup @{binding match}
+      (Attrib.thms >> (fn rules => fn ctxt => METHOD (HEADGOAL o (K(match_tac ctxt rules)) )))
+       "resolution based on fast matching")
+\<close>
 
 lemmas exec_while_kD = exec_while_k[THEN iffD1]
 

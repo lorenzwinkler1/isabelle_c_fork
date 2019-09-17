@@ -57,17 +57,16 @@
 Clean is based on a simple, abstract execution model for an imperative target language. ``Abstract''
 is understood as contrast to ``Concrete Semantics''; alternatively, the term ``shallow-style
 embedding'' could be used. It strives for a type-safe notation of program-variables, an incremental
-construction of typed state-space, facilitating incremental verification approaches, and supports
-open-world extensibility of new type definitions while intertwined with the original program
+construction of the typed state-space, support of incremental verification, and 
+open-world extensibility of new type definitions being intertwined with the program
 definition.
 
 Clean is based on a ``no-frills'' state-exception monad with the usual definitions of \isa{bind} and
 \isa{unit} for the compositional glue of state-based computations. Clean offers conditionals and
 loops supporting C-like control-flow operators such as \isa{break} and \isa{return}. The state-space
-is fully \HOL{}-typed, its incremental construction relies on extensible records. Direct recursion
-of operations is supported.
+construction is based on the extensible record package. Direct recursion of procedures is supported.
 
-The design is striving for extreme simplicity. It is geared towards symbolic execution and proven
+Clean's design strives for extreme simplicity. It is geared towards symbolic execution and proven
 correct verification tools. The underlying libraries of this package, however, deliberately restrict
 themselves to the most elementary infrastructure for these tasks. The package is intended to serve
 as demonstrator semantic backend for Isabelle/C~\cite{TuongWolff19}, or for the test-generation
@@ -85,16 +84,15 @@ technique described in~\cite{DBLP:conf/tap/Keller18}.
 \input{Clean.tex}
 
 \input{Quicksort_concept.tex}
+\input{SquareRoot_concept.tex}
 
 \newpage
 \chapter{Appendix : Used Monad Libraries}
 \input{MonadSE.tex}
-
 \input{Seq_MonadSE.tex}
-
 \input{Symbex_MonadSE.tex}
-
-\input{SquareRoot_concept.tex}
+\input{Hoare_MonadSE.tex}
+\input{Hoare_Clean.tex}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
