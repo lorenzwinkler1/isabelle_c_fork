@@ -127,12 +127,26 @@ lemma cond_clean :
   unfolding hoare\<^sub>3_def hoare\<^sub>3'_def bind_SE_def if_SE_def
   by (simp add: if_C_def)
 
-lemma while_clean :
-  "True "
-  oops
-  text\<open>TODO\<close>
 
-text\<open>Consequence and Sequence rules where inherited from the underlying Hoare-Monad theory.\<close>
+lemma while_clean :
+  assumes  * : "\<lbrace>\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> cond \<sigma> \<and> P \<sigma>\<rbrace>  M \<lbrace>\<lambda>_. P\<rbrace>"
+  and cond_idpc : "\<forall>x \<sigma>.  (cond (\<sigma>\<lparr>break_status := x\<rparr>)) = cond \<sigma> "
+  and inv_idpc : "\<forall>x \<sigma>.  (P (\<sigma>\<lparr>break_status := x\<rparr>)) = P \<sigma> "
+  and measure: "\<forall>\<sigma>. \<not> exec_stop \<sigma> \<and> cond \<sigma> \<and> P \<sigma> \<longrightarrow> M \<sigma> \<noteq> None \<and> f(snd(the(M \<sigma>))) < ((f \<sigma>)::nat) "
+  shows        "\<lbrace>\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> P \<sigma>\<rbrace> while\<^sub>C cond do M od \<lbrace>\<lambda>_ \<sigma>. (exec_stop \<sigma> \<or> \<not>cond \<sigma>) \<and> P \<sigma>\<rbrace>"
+  unfolding while_C_def hoare\<^sub>3_def hoare\<^sub>3'_def
+  apply simp
+  apply(simp only: hoare\<^sub>3_def[symmetric])
+  apply(rule sequence') prefer 2 
+   apply(rule  Hoare_Clean.unset_break1)
+  apply(simp add: cond_idpc inv_idpc)
+  oops
+  find_theorems unset_break_status
+
+
+  text\<open>Consequence and Sequence rules where inherited from the underlying Hoare-Monad theory.\<close>
+
+
 end
 
 
