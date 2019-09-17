@@ -1,7 +1,9 @@
 (******************************************************************************
  * Isabelle/C
  *
- * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Copyright (c) 2018-2019 Université Paris-Saclay, France
+ * 
+ * Authors: Frederic Tuong, Burkhart Wolff
  *
  * All rights reserved.
  *
@@ -40,6 +42,7 @@ session Clean = HOL +
     "src/CleanTest"
     "src/Symbex_MonadSE"
     "src/Hoare_MonadSE"
+    "src/Hoare_Clean"
 
 session Clean_examples = Clean +
   theories
@@ -52,6 +55,9 @@ session Clean_document = Clean +
     "src/Clean"
     "examples/Quicksort_concept"
     "examples/SquareRoot_concept"
+    "src/Symbex_MonadSE"
+    "src/Hoare_MonadSE"
+    "src/Hoare_Clean"
   document_files
     "root.tex"
     "root.bib"

@@ -11,7 +11,7 @@ imports Clean.CleanTest
 begin
 
 
-section{* Re-visiting the squareroot program example *}
+section\<open> Re-visiting the squareroot program example \<close>
 
 text\<open>The state is just a record; and the global variables correspond to fields in this
      record. This corresponds to typed, structured, non-aliasing states.
