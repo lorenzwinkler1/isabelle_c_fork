@@ -93,4 +93,3 @@ session Isabelle_C_archive = Isabelle_C_AutoCorres +
     "C11-FrontEnd/archive/Prime"
     "C11-BackEnds/AutoCorres/examples/program-based/Example1"
     "C11-BackEnds/AutoCorres/examples/program-based/Example2"
-    "C11-BackEnds/AutoCorres/examples/program-based/Example3"
