@@ -48,7 +48,7 @@ text ‹
 Before using the 🗀‹C11-BackEnds/AutoCorres› back-end, the shell variable
 ‹L4V_ARCH› must be additionally set to ‹ARM›.
 
-▪ ▩‹export L4V_ARCH = ARM› ∗‹‹#› the same effect can be made in 🗏‹~/.isabelle/etc/settings››
+▪ ▩‹export L4V_ARCH = ARM› ∗‹‹#› the same effect can be permanently made in 🗏‹$ISABELLE_HOME_USER/etc/settings››
 ▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l CParser› 🗏‹C11-BackEnds/AutoCorres/examples/TestSEL4.thy›
 ▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l AutoCorres› 🗏‹C11-BackEnds/AutoCorres/examples/IsPrime_integrated.thy›
 ›
@@ -58,9 +58,10 @@ For the case of 🗀‹C11-BackEnds/AutoCorres›, we were used to see a sub-win
 ‹Bad session structure› appearing just after starting Isabelle. This is because the
 back-end normally requires to execute some initialization script (for example using
 🗏‹l4v/src/run_tests›) to generate specific Isabelle theory files. Instead, as
-possible workaround, we have introduced by hand 🗀‹l4v/src› several symbolic links
-pointing to the missing files, making the sub-window not supposed to appear anymore. Nevertheless,
-if this ever happens again, the sub-window can be ignored by clicking on ‹OK›.
+possible workaround, we have introduced by hand in 🗀‹l4v/src› several symbolic
+links pointing to the missing files, making the sub-window not supposed to appear
+anymore. Nevertheless, if this ever happens again, the sub-window can be ignored by clicking on
+‹OK›.
 
 Additionally, 🗏‹l4v/src/run_tests› can be executed in
 🗀‹l4v/src›, and interrupted once the success of ‹CBaseRefine›
