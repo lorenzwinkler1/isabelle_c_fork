@@ -36,22 +36,20 @@
 
 theory README imports Main begin
 
-section \<open>Global git structure of the Isabelle/C project\<close>
+section \<open>Global Structure of the Isabelle/C Project\<close>
 
 text \<open>
 The Isabelle/C project consists of four components, where two of them represent AFP submissions.
 
-\<^item> - C11-FrontEnd  (AFP)
-\<^item> - C11-BackEnds  
-\<^item> -- C11-BackEnd Clean (AFP, dependent on C11-FrontEnd)
-\<^item> -- C11-BackEnd AutoCorres 
-\<^item> --- Slightly modified version of AutoCorres Library
-\<^item> --- Adapter to C11-FrontEnd
-\<^item> -- C11-BackEnd-Clean
-\<^item> --- Clean + Library
-\<^item> --- CleanAdapter
-\<^item> - Citadelle (Own Model-based Framework Generating The Granmmars and the AST of
-C11-FrontEnd)
+\<^item> \<longlonglongrightarrow> \<^dir>\<open>C11-FrontEnd\<close> (AFP)
+\<^item> \<longlonglongrightarrow> \<^dir>\<open>C11-BackEnds\<close>
+\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow> \<^dir>\<open>C11-BackEnds/Clean\<close> (AFP, depending of \<^dir>\<open>C11-FrontEnd\<close>)
+\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow>\<longlonglongrightarrow> Clean + Library
+\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow>\<longlonglongrightarrow> CleanAdapter
+\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow> \<^dir>\<open>C11-BackEnds/AutoCorres\<close> 
+\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow>\<longlonglongrightarrow> slightly modified version of AutoCorres library
+\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow>\<longlonglongrightarrow> adapter to \<^dir>\<open>C11-FrontEnd\<close>
+\<^item> \<longlonglongrightarrow> \<^dir>\<open>Citadelle\<close> (own model-based framework generating the grammars and the AST of \<^dir>\<open>C11-FrontEnd\<close>)
 \<close>
 
 section \<open>Isabelle/C\<close>
@@ -69,9 +67,21 @@ documentation can be executed:
 \<close>
 
 text \<open>
-Certain examples in \<^dir>\<open>C11-FrontEnd\<close> actually require to change the initial
-directory provided to \<^verbatim>\<open>isabelle jedit -d\<close>, because they might depend on
-other projects (such as \<open>l4v\<close>):
+Examples in \<^dir>\<open>C11-BackEnds\<close> require to change the initial directory provided to
+\<^verbatim>\<open>isabelle jedit -d\<close>, because they depend on respective semantic back-ends.
+\<close>
+
+subsection \<open>Isabelle/C/Clean\<close>
+
+text \<open>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^file>\<open>C11-BackEnds/Clean/examples/Prime.thy\<close>
+\<close>
+
+subsection \<open>Isabelle/C/AutoCorres\<close>
+
+text \<open>
+Before using the \<^dir>\<open>C11-BackEnds/AutoCorres\<close> back-end, the shell variable
+\<open>L4V_ARCH\<close> must be additionally set to \<open>ARM\<close>.
 
 \<^item> \<^verbatim>\<open>export L4V_ARCH = ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be made in \<^file>\<open>~/.isabelle/etc/settings\<close>\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l CParser\<close> \<^file>\<open>C11-BackEnds/AutoCorres/examples/TestSEL4.thy\<close>
@@ -79,9 +89,13 @@ other projects (such as \<open>l4v\<close>):
 \<close>
 
 text \<open>
-For the last examples, we were used to see a sub-window \<open>Bad session structure\<close>
-appearing just after starting Isabelle. Nevertheless, if this ever happens again, the sub-window can
-be ignored by clicking on \<open>OK\<close>.
+For the case of \<^dir>\<open>C11-BackEnds/AutoCorres\<close>, we were used to see a sub-window
+\<open>Bad session structure\<close> appearing just after starting Isabelle. This is because the
+back-end normally requires to execute some initialization script (for example using
+\<^file>\<open>l4v/src/run_tests\<close>) to generate specific Isabelle theory files. Instead, as
+possible workaround, we have introduced by hand \<^dir>\<open>l4v/src\<close> several symbolic links
+pointing to the missing files, making the sub-window not supposed to appear anymore. Nevertheless,
+if this ever happens again, the sub-window can be ignored by clicking on \<open>OK\<close>.
 
 Additionally, \<^file>\<open>l4v/src/run_tests\<close> can be executed in
 \<^dir>\<open>l4v/src\<close>, and interrupted once the success of \<open>CBaseRefine\<close>
@@ -95,14 +109,22 @@ Note: The version of the \<open>l4v\<close> (\<^url>\<open>https://github.com/se
 project used is \<open>e3352826893db4d00fc402fad2a0125307ebe45e\<close>.
 \<close>
 
-subsection \<open>Authors\<close>
+subsection \<open>Isabelle/C/README\<close>
+
+text \<open>
+\<^file>\<open>README.md\<close> is automatically generated from \<^file>\<open>README.thy\<close>
+using:
+\<^item> \<^verbatim>\<open>isabelle env\<close> \<^file>\<open>./README.sh\<close>
+\<close>
+
+section \<open>Authors\<close>
 
 text \<open>
 \<^item> Frédéric Tuong (\<^url>\<open>https://www.lri.fr/~ftuong\<close>)
 \<^item> Burkhart Wolff (\<^url>\<open>https://www.lri.fr/~wolff\<close>)
 \<close>
 
-subsection \<open>License\<close>
+section \<open>License\<close>
 
 text \<open>
 This project is licensed under a 3-clause BSD-style license.
