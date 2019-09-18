@@ -68,6 +68,7 @@ session Isabelle_C_Clean_document in "C11-BackEnds/Clean" = Isabelle_C_Clean_exa
     "HOL-Computational_Algebra"
   theories
     "src/Clean"
+    "src/Hoare_Clean"
     "examples/Quicksort_concept"
     "examples/SquareRoot_concept"
     "examples/Prime"
