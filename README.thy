@@ -83,7 +83,7 @@ text \<open>
 Before using the \<^dir>\<open>C11-BackEnds/AutoCorres\<close> back-end, the shell variable
 \<open>L4V_ARCH\<close> must be additionally set to \<open>ARM\<close>.
 
-\<^item> \<^verbatim>\<open>export L4V_ARCH = ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be made in \<^file>\<open>~/.isabelle/etc/settings\<close>\<close>
+\<^item> \<^verbatim>\<open>export L4V_ARCH = ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be permanently made in \<^file>\<open>$ISABELLE_HOME_USER/etc/settings\<close>\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l CParser\<close> \<^file>\<open>C11-BackEnds/AutoCorres/examples/TestSEL4.thy\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l AutoCorres\<close> \<^file>\<open>C11-BackEnds/AutoCorres/examples/IsPrime_integrated.thy\<close>
 \<close>
@@ -93,9 +93,10 @@ For the case of \<^dir>\<open>C11-BackEnds/AutoCorres\<close>, we were used to s
 \<open>Bad session structure\<close> appearing just after starting Isabelle. This is because the
 back-end normally requires to execute some initialization script (for example using
 \<^file>\<open>l4v/src/run_tests\<close>) to generate specific Isabelle theory files. Instead, as
-possible workaround, we have introduced by hand \<^dir>\<open>l4v/src\<close> several symbolic links
-pointing to the missing files, making the sub-window not supposed to appear anymore. Nevertheless,
-if this ever happens again, the sub-window can be ignored by clicking on \<open>OK\<close>.
+possible workaround, we have introduced by hand in \<^dir>\<open>l4v/src\<close> several symbolic
+links pointing to the missing files, making the sub-window not supposed to appear
+anymore. Nevertheless, if this ever happens again, the sub-window can be ignored by clicking on
+\<open>OK\<close>.
 
 Additionally, \<^file>\<open>l4v/src/run_tests\<close> can be executed in
 \<^dir>\<open>l4v/src\<close>, and interrupted once the success of \<open>CBaseRefine\<close>
