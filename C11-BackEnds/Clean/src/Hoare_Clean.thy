@@ -46,16 +46,20 @@ begin
 
 subsection\<open>Clean Control Rules\<close>
 
-lemma break1: "\<lbrace>\<lambda>\<sigma>.  P (\<sigma> \<lparr> break_status := True \<rparr>) \<rbrace> break \<lbrace>\<lambda>r \<sigma>.  P \<sigma> \<rbrace>"
+lemma break1: 
+  "\<lbrace>\<lambda>\<sigma>.  P (\<sigma> \<lparr> break_status := True \<rparr>) \<rbrace> break \<lbrace>\<lambda>r \<sigma>.  P \<sigma> \<and> break_status \<sigma> \<rbrace>"
   unfolding    hoare\<^sub>3_def break_def unit_SE_def by auto
 
-lemma unset_break1: "\<lbrace>\<lambda>\<sigma>.  P (\<sigma> \<lparr> break_status := False \<rparr>) \<rbrace> unset_break_status \<lbrace>\<lambda>r \<sigma>. P \<sigma> \<rbrace>"
+lemma unset_break1: 
+  "\<lbrace>\<lambda>\<sigma>.  P (\<sigma> \<lparr> break_status := False \<rparr>) \<rbrace> unset_break_status \<lbrace>\<lambda>r \<sigma>. P \<sigma> \<and> \<not> break_status \<sigma> \<rbrace>"
   unfolding    hoare\<^sub>3_def unset_break_status_def unit_SE_def by auto
 
-lemma set_return1: "\<lbrace>\<lambda>\<sigma>.  P (\<sigma> \<lparr> return_status := True \<rparr>) \<rbrace> set_return_status \<lbrace>\<lambda>r \<sigma>. P \<sigma> \<rbrace>"
+lemma set_return1: 
+  "\<lbrace>\<lambda>\<sigma>.  P (\<sigma> \<lparr> return_status := True \<rparr>) \<rbrace> set_return_status \<lbrace>\<lambda>r \<sigma>. P \<sigma> \<and> return_status \<sigma> \<rbrace>"
   unfolding    hoare\<^sub>3_def set_return_status_def unit_SE_def by auto
 
-lemma unset_return1: "\<lbrace>\<lambda>\<sigma>.  P (\<sigma> \<lparr> return_status := False \<rparr>) \<rbrace> unset_return_status \<lbrace>\<lambda>r \<sigma>. P \<sigma> \<rbrace>"
+lemma unset_return1: 
+  "\<lbrace>\<lambda>\<sigma>.  P (\<sigma> \<lparr> return_status := False \<rparr>) \<rbrace> unset_return_status \<lbrace>\<lambda>r \<sigma>. P \<sigma> \<and> \<not>return_status \<sigma> \<rbrace>"
   unfolding    hoare\<^sub>3_def unset_return_status_def unit_SE_def by auto
 
 
@@ -132,7 +136,7 @@ lemma return_assign:
   assumes * : "\<sharp> (upd \<circ> map_hd)"
   shows "\<lbrace>\<lambda> \<sigma>. \<not> exec_stop \<sigma> \<and> P ((upd \<circ> map_hd) (\<lambda>_. rhs \<sigma>) (\<sigma> \<lparr> return_status := True \<rparr>))\<rbrace> 
           return\<^sub>C upd rhs
-         \<lbrace>\<lambda>r \<sigma>. P \<sigma> \<rbrace>"
+         \<lbrace>\<lambda>r \<sigma>. P \<sigma> \<and> return_status \<sigma> \<rbrace>"
   unfolding return\<^sub>C_def hoare\<^sub>3_def skip\<^sub>S\<^sub>E_def unit_SE_def assign_local_def assign_def 
             set_return_status_def bind_SE'_def bind_SE_def 
   proof (auto)
@@ -168,23 +172,68 @@ lemma cond_clean :
   by (simp add: if_C_def)
 
 
-lemma while_clean :
-  assumes  * : "\<lbrace>\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> cond \<sigma> \<and> P \<sigma>\<rbrace>  M \<lbrace>\<lambda>_. P\<rbrace>"
+text\<open>There is a particular difficulty with a verification of (terminating) while rules
+in a Hoare-logic for a language involving break. The first is, that break is not used
+in the toplevel of a body of a loop (there might be breaks inside an inner loop, though).
+This scheme is covered by the rule below:\<close>
+
+lemma while_clean_nobreak :
+  assumes  *    : "\<lbrace>\<lambda>\<sigma>. \<not> break_status \<sigma> \<and> cond \<sigma> \<and> P \<sigma>\<rbrace>  M \<lbrace>\<lambda>_. \<lambda>\<sigma>.  \<not> break_status \<sigma> \<and> P \<sigma> \<rbrace>"
   and cond_idpc : "\<forall>x \<sigma>.  (cond (\<sigma>\<lparr>break_status := x\<rparr>)) = cond \<sigma> "
-  and inv_idpc : "\<forall>x \<sigma>.  (P (\<sigma>\<lparr>break_status := x\<rparr>)) = P \<sigma> "
-  and measure: "\<forall>\<sigma>. \<not> exec_stop \<sigma> \<and> cond \<sigma> \<and> P \<sigma> \<longrightarrow> M \<sigma> \<noteq> None \<and> f(snd(the(M \<sigma>))) < ((f \<sigma>)::nat) "
-  shows        "\<lbrace>\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> P \<sigma>\<rbrace> while\<^sub>C cond do M od \<lbrace>\<lambda>_ \<sigma>. (exec_stop \<sigma> \<or> \<not>cond \<sigma>) \<and> P \<sigma>\<rbrace>"
+  and inv_idpc  : "\<forall>x \<sigma>.  (P (\<sigma>\<lparr>break_status := x\<rparr>)) = P \<sigma> "
+  and measure:    "\<forall>\<sigma>. \<not> exec_stop \<sigma> \<and> cond \<sigma> \<and> P \<sigma> 
+                              \<longrightarrow> M \<sigma> \<noteq> None \<and> f(snd(the(M \<sigma>))) < ((f \<sigma>)::nat) "
+     shows        "\<lbrace>\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> P \<sigma>\<rbrace> 
+                   while\<^sub>C cond do M od 
+                   \<lbrace>\<lambda>_ \<sigma>. \<not> break_status \<sigma> \<and> P \<sigma>\<rbrace>"
   unfolding while_C_def hoare\<^sub>3_def hoare\<^sub>3'_def
   apply simp
   apply(simp only: hoare\<^sub>3_def[symmetric])
-  apply(rule sequence') prefer 2 
-   apply(rule  Hoare_Clean.unset_break1)
-  apply(simp add: cond_idpc inv_idpc)
-  oops
-  find_theorems unset_break_status
+  apply(rule_tac Q = "\<lambda> \<sigma>. \<not> (\<not> exec_stop \<sigma> \<and> cond \<sigma>) \<and> P \<sigma>" in sequence') 
+   apply(rule_tac P'="\<lambda>\<sigma>. \<not> break_status \<sigma> \<and> P \<sigma>" in consequence_unit)
+  using exec_stop1 apply blast
+    apply(rule_tac f = "f" in while) 
+  apply (smt "*" hoare\<^sub>3_def)
+  using measure apply blast
+  using measure apply blast
+  by (simp add: hoare\<^sub>3_def inv_idpc unset_break_status_def)
+  
 
 
-  text\<open>Consequence and Sequence rules where inherited from the underlying Hoare-Monad theory.\<close>
+text\<open>In the following we present a version allowing a break inside the body, which implies that the 
+     invariant has been established at the break-point and the condition is irrelevant. 
+     A return may occur, but the @{term "break_status"} is guaranteed to be true
+     after leaving the loop.\<close>
+
+
+
+lemma while_clean':
+  assumes  M_inv   : "\<lbrace>\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> cond \<sigma> \<and> P \<sigma>\<rbrace>  M \<lbrace>\<lambda>_. P\<rbrace>"
+  and cond_idpc    : "\<forall>x \<sigma>.  (cond (\<sigma>\<lparr>break_status := x\<rparr>)) = cond \<sigma> "
+  and inv_idpc     : "\<forall>x \<sigma>.  (P (\<sigma>\<lparr>break_status := x\<rparr>)) = P \<sigma> "
+  and f_is_measure : "\<forall>\<sigma>. \<not> exec_stop \<sigma> \<and> cond \<sigma> \<and> P \<sigma> \<longrightarrow> 
+                       M \<sigma> \<noteq> None \<and> f(snd(the(M \<sigma>))) < ((f \<sigma>)::nat) "
+shows    "\<lbrace>\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> P \<sigma>\<rbrace> 
+          while\<^sub>C cond do M od 
+          \<lbrace>\<lambda>_ \<sigma>.  \<not> break_status \<sigma> \<and> P \<sigma>\<rbrace>"
+  unfolding while_C_def hoare\<^sub>3_def hoare\<^sub>3'_def
+  apply(simp add: hoare\<^sub>3_def[symmetric])
+  proof (rule_tac Q="\<lambda>\<sigma>. P (\<sigma>\<lparr>break_status := False\<rparr>)" in sequence')
+    show "\<lbrace>\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> P \<sigma>\<rbrace> 
+            while\<^sub>S\<^sub>E (\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> cond \<sigma>) do M od
+          \<lbrace>\<lambda>_ \<sigma>. P (\<sigma>\<lparr>break_status := False\<rparr>)\<rbrace>"
+          apply(rule consequence_unit, rule impI, erule conjunct2)
+          apply(rule_tac f = "f" in while)
+          using M_inv f_is_measure inv_idpc by auto
+  next
+    show "\<lbrace>\<lambda>\<sigma>. P (\<sigma>\<lparr>break_status := False\<rparr>)\<rbrace> unset_break_status 
+          \<lbrace>\<lambda>x \<sigma>. \<not> break_status \<sigma> \<and> P \<sigma>\<rbrace>"
+          apply(subst conj_commute)
+          by(rule  Hoare_Clean.unset_break1)
+  qed
+
+
+text\<open>Consequence and Sequence rules where inherited from the underlying Hoare-Monad theory.\<close>
 
 
 end

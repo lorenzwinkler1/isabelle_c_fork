@@ -159,6 +159,11 @@ definition unset_return_status :: "(unit, ('\<sigma>_ext) control_state_ext) MON
 definition exec_stop :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool"
   where   "exec_stop = (\<lambda> \<sigma>. break_status \<sigma> \<or> return_status \<sigma> )"
 
+lemma exec_stop1[simp] : "break_status \<sigma> \<Longrightarrow> exec_stop \<sigma>" 
+  unfolding exec_stop_def by simp
+
+lemma exec_stop2[simp] : "return_status \<sigma> \<Longrightarrow> exec_stop \<sigma>" 
+  unfolding exec_stop_def by simp
 
 text\<open> On the basis of the control-state, assignments, conditionals and loops are reformulated
   into \<^term>\<open>break\<close>-aware and \<^term>\<open>return\<close>-aware versions as shown in the definitions of
@@ -873,11 +878,11 @@ val SPY3 = Unsynchronized.ref(Bound 0)
           Parse.binding 
        -- parse_param_decls
        -- parse_returns_clause
-      --| \<^keyword>\<open>pre\<close>             -- Parse.term 
-      --| \<^keyword>\<open>post\<close>            -- Parse.term 
-      --  Scan.option( \<^keyword>\<open>variant\<close> |-- Parse.term)
-      --| \<^keyword>\<open>local_vars\<close>      -- (Scan.repeat1 Parse.const_binding)
-      --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.term)) 
+       --| \<^keyword>\<open>pre\<close>             -- Parse.term 
+       --| \<^keyword>\<open>post\<close>            -- Parse.term 
+       --  Scan.option( \<^keyword>\<open>variant\<close> |-- Parse.term)
+       --| \<^keyword>\<open>local_vars\<close>      -- (Scan.repeat1 Parse.const_binding)
+       --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.term)) 
       ) >> (fn (((((((binding,params),ret_ty),pre_src),post_src),variant_src),locals),body_src) => 
         {
           binding = binding, 
