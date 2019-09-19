@@ -117,7 +117,23 @@ lemma consequence :
    \<Longrightarrow> \<lbrace>P\<rbrace> M \<lbrace>\<lambda>x \<sigma>. x\<in>A \<and> Q x \<sigma>\<rbrace>"
   unfolding hoare\<^sub>3_def bind_SE_def 
   by(auto,erule_tac x="\<sigma>" in allE,auto split: Option.option.split_asm Option.option.split)
-    
+
+lemma consequence_unit : 
+  assumes "(\<And> \<sigma>. P \<sigma> \<longrightarrow> P' \<sigma>)" 
+   and  "\<lbrace>P'\<rbrace> M \<lbrace>\<lambda>x::unit. \<lambda> \<sigma>.  Q' \<sigma>\<rbrace>" 
+   and  " (\<And> \<sigma>. Q'  \<sigma> \<longrightarrow> Q  \<sigma>)" 
+   shows "\<lbrace>P\<rbrace> M \<lbrace>\<lambda>x \<sigma>. Q \<sigma>\<rbrace>"
+proof -
+  have * : "(\<lambda>x \<sigma>. Q  \<sigma>) = (\<lambda>x::unit. \<lambda> \<sigma>. x\<in>UNIV \<and> Q  \<sigma>) " by auto
+  show ?thesis
+    apply(subst *)
+    apply(rule_tac  P' = "P'" and Q' = "%_. Q'" in consequence)
+    apply (simp add: Collect_mono assms(1))
+    using assms(2) apply auto[1]
+    by (simp add: Collect_mono assms(3))
+qed
+
+
 lemma consequence_irpt : 
   "    Collect P \<subseteq> Collect P'
    \<Longrightarrow> \<lbrace>P'\<rbrace> M \<dagger>
