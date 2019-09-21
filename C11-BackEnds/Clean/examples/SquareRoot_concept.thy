@@ -7,7 +7,7 @@ section \<open> Proof of concept for a monadic symbolic execution calculus for W
 \<close> 
 
 theory SquareRoot_concept
-imports Clean.CleanTest
+imports Clean.Test_Clean
 begin
 
 

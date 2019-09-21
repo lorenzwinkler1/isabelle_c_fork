@@ -1,9 +1,7 @@
 (******************************************************************************
  * Isabelle/C
  *
- * Copyright (c) 2018-2019 Université Paris-Saclay, France
- * 
- * Authors: Frederic Tuong, Burkhart Wolff
+ * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
  * All rights reserved.
  *
@@ -36,32 +34,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-session Clean = HOL +
-  theories
-    "src/Clean"
-    "src/Symbex_MonadSE"
-    "src/Test_Clean"
-    "src/Hoare_MonadSE"
-    "src/Hoare_Clean"
-    "src/Clean_Main"
-
-session Clean_examples = Clean +
-  theories
-    "examples/Quicksort_concept"
-    "examples/SquareRoot_concept"
-
-session Clean_document = Clean +
-  options [document = pdf, document_output = "output"]
-  theories
-    "src/Clean"
-    "examples/Quicksort_concept"
-    "examples/SquareRoot_concept"
-    "src/MonadSE"
-    "src/Symbex_MonadSE"
-    "src/Test_Clean"
-    "src/Hoare_MonadSE"
-    "src/Hoare_Clean"
-  document_files
-    "root.tex"
-    "root.bib"
-    "lstisadof.sty"
+theory Test_Clean
+  imports Clean_Symbex
+begin
+  
+end
