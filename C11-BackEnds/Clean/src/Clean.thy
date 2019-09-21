@@ -873,6 +873,9 @@ val SPY3 = Unsynchronized.ref(Bound 0)
     val parse_param_decls = Args.parens (Parse.enum "," parse_arg_decl)
       
     val parse_returns_clause = Scan.optional (\<^keyword>\<open>returns\<close> |--  Parse.typ) "unit"
+ 
+    val locals_clause = (Scan.optional ( \<^keyword>\<open>local_vars\<close> 
+                                        -- (Scan.repeat1 Parse.const_binding)) ("", []))
     
     val parse_proc_spec = (
           Parse.binding 
@@ -880,10 +883,10 @@ val SPY3 = Unsynchronized.ref(Bound 0)
        -- parse_returns_clause
        --| \<^keyword>\<open>pre\<close>             -- Parse.term 
        --| \<^keyword>\<open>post\<close>            -- Parse.term 
-       --  Scan.option( \<^keyword>\<open>variant\<close> |-- Parse.term)
-       --| \<^keyword>\<open>local_vars\<close>      -- (Scan.repeat1 Parse.const_binding)
+       -- (Scan.option  ( \<^keyword>\<open>variant\<close> |-- Parse.term))
+       -- (Scan.optional( \<^keyword>\<open>local_vars\<close> |-- (Scan.repeat1 Parse.const_binding))([]))
        --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.term)) 
-      ) >> (fn (((((((binding,params),ret_ty),pre_src),post_src),variant_src),locals),body_src) => 
+      ) >> (fn ((((((((binding,params),ret_ty),pre_src),post_src),variant_src),locals)),body_src) => 
         {
           binding = binding, 
           params=params, 
