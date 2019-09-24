@@ -8,8 +8,6 @@ section \<open> Proof of concept for a monadic symbolic execution calculus for W
 
 theory SquareRoot_concept
   imports Clean.Test_Clean
-          "~~/src/HOL/Eisbach/Eisbach"
-
 begin
 
 
