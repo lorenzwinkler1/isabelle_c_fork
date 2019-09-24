@@ -7,7 +7,9 @@ section \<open> Proof of concept for a monadic symbolic execution calculus for W
 \<close> 
 
 theory SquareRoot_concept
-imports Clean.Test_Clean
+  imports Clean.Test_Clean
+          "~~/src/HOL/Eisbach/Eisbach"
+
 begin
 
 
@@ -20,7 +22,7 @@ text\<open>The state is just a record; and the global variables correspond to fi
     \<close>
 
 text\<open> The state of the square-root program looks like this : \<close>
-(*
+
 typ "Clean.control_state"
 
 ML\<open>
@@ -32,7 +34,24 @@ global_vars state
    tm    :: int
    i     :: int
    sqsum :: int
-   a     :: int
+
+
+function_spec sqrt (a::int) returns int
+pre          "\<open>0 \<le> a\<close>"    
+post         "\<open>\<lambda>res::int.  (res + 1)\<^sup>2 > a \<and> a \<ge> (res)\<^sup>2\<close>" 
+defines      " (\<open>tm := 1\<close> ;-
+               \<open>sqsum := 1\<close> ;-
+               \<open>i := 0\<close> ;-
+               (while\<^sub>S\<^sub>E \<open>sqsum <= a\<close> do 
+                  \<open>i := i+1\<close> ;-
+                  \<open>tm := tm + 2\<close> ;-
+                  \<open>sqsum := tm + sqsum\<close>
+               od) ;-
+               return\<^sub>C result_value_update \<open>i\<close>   
+               )" 
+
+
+(*
 
 
 
@@ -55,6 +74,8 @@ oops
 
 
 (* TODO: automate this *)
+*)
+
 text\<open> Some lemmas to reason about memory\<close>
 
 lemma tm_simp : "tm (\<sigma>\<lparr>tm := t\<rparr>) = t"
@@ -68,28 +89,20 @@ lemma tm_simp : "tm (\<sigma>\<lparr>tm := t\<rparr>) = t"
 *)
 lemma tm_simp1 : "tm (\<sigma>\<lparr>sqsum := s\<rparr>) = tm \<sigma>" by simp
 lemma tm_simp2 : "tm (\<sigma>\<lparr>i := s\<rparr>) = tm \<sigma>" by simp
-lemma tm_simp3 : "tm (\<sigma>\<lparr>a := s\<rparr>) = tm \<sigma>" by simp
 lemma sqsum_simp : "sqsum (\<sigma>\<lparr>sqsum := s\<rparr>) = s" by simp
 lemma sqsum_simp1 : "sqsum (\<sigma>\<lparr>tm := t\<rparr>) = sqsum \<sigma>" by simp
 lemma sqsum_simp2 : "sqsum (\<sigma>\<lparr>i := t\<rparr>) = sqsum \<sigma>" by simp
-lemma sqsum_simp3 : "sqsum (\<sigma>\<lparr>a := t\<rparr>) = sqsum \<sigma>" by simp
 lemma i_simp : "i (\<sigma>\<lparr>i := i'\<rparr>) = i'" by simp
 lemma i_simp1 : "i (\<sigma>\<lparr>tm := i'\<rparr>) = i \<sigma>" by simp
 lemma i_simp2 : "i (\<sigma>\<lparr>sqsum := i'\<rparr>) = i \<sigma>" by simp
-lemma i_simp3 : "i (\<sigma>\<lparr>a := i'\<rparr>) = i \<sigma>" by simp
-lemma a_simp : "a (\<sigma>\<lparr>a := a'\<rparr>) = a'" by simp
-lemma a_simp1 : "a (\<sigma>\<lparr>tm := a'\<rparr>) = a \<sigma>" by simp
-lemma a_simp2 : "a (\<sigma>\<lparr>sqsum := a'\<rparr>) = a \<sigma>" by simp
-lemma a_simp3 : "a (\<sigma>\<lparr>i := a'\<rparr>) = a \<sigma>" by simp
 
 lemmas memory_theory =
-  tm_simp tm_simp1 tm_simp2 tm_simp3
-  sqsum_simp sqsum_simp1 sqsum_simp2 sqsum_simp3
-  i_simp i_simp1 i_simp2 i_simp3
-  a_simp a_simp1 a_simp2 a_simp3
+  tm_simp tm_simp1 tm_simp2 
+  sqsum_simp sqsum_simp1 sqsum_simp2 
+  i_simp i_simp1 i_simp2 
+     
+
 declare memory_theory [memory_theory]
-
-
 
 text\<open> Now we run a symbolic execution. We run match-tactics (rather than the Isabelle simplifier 
       which would do the trick as well) in order to demonstrate an efficient way for symbolic 
@@ -97,9 +110,9 @@ text\<open> Now we run a symbolic execution. We run match-tactics (rather than t
 
 
 
-lemma 
+lemma x : 
 assumes annotated_program: 
-         "\<sigma>\<^sub>0 \<Turnstile> assume\<^sub>S\<^sub>E \<open>0 \<le> a\<close> ;- 
+         "\<sigma>\<^sub>0 \<Turnstile> assume\<^sub>S\<^sub>E \<open>0 \<le> (a::int)\<close> ;- 
                \<open>tm := 1\<close> ;-
                \<open>sqsum := 1\<close> ;-
                \<open>i := 0\<close> ;-
@@ -109,12 +122,13 @@ assumes annotated_program:
                   \<open>sqsum := tm + sqsum\<close>
                od) ;-
                assert\<^sub>S\<^sub>E(\<lambda>\<sigma>. \<sigma>=\<sigma>\<^sub>R)"
-       shows "\<sigma>\<^sub>R \<Turnstile>assert\<^sub>S\<^sub>E \<open>i * i \<le> a \<and> a < (i + 1) * (i + 1)\<close> "
-  oops
+
+       shows "\<sigma>\<^sub>R \<Turnstile>assert\<^sub>S\<^sub>E \<open>i\<^sup>2  \<le> a \<and> a < (i + 1)\<^sup>2\<close> "
+  
 (*
 apply(insert annotated_program)
 apply(tactic "ematch_tac @{context} [@{thm \"assume_E'\"}] 1")
-apply(tactic "dmatch_tac @{context} [@{thm \"exec_assignD'\"}] 1")+
+apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'\"}] 1")+
 apply(tactic "dmatch_tac @{context} [@{thm \"exec_whileD\"}] 1")
 apply(tactic "ematch_tac @{context} [@{thm \"if_SE_execE''\"}] 1")
 apply(simp_all only: memory_theory MonadSE.bind_assoc')
@@ -148,19 +162,7 @@ oops
 
 text\<open> Using the automatic covering tactics \<close>
 *)
-lemma 
-assumes annotated_program: 
-         "\<sigma>\<^sub>0 \<Turnstile> assume\<^sub>S\<^sub>E \<open>0 \<le> a\<close> ;- 
-               \<open>tm := 1\<close> ;-
-               \<open>sqsum := 1\<close> ;-
-               \<open>i := 0\<close> ;-
-               (while\<^sub>S\<^sub>E \<open>sqsum <= a\<close> do 
-                  \<open>i := i+1\<close> ;-
-                  \<open>tm := tm + 2\<close> ;-
-                  \<open>sqsum := tm + sqsum\<close>
-               od) ;-
-               assert\<^sub>S\<^sub>E(\<lambda>\<sigma>. \<sigma>=\<sigma>\<^sub>R)"
-shows "\<sigma>\<^sub>R \<Turnstile>assert\<^sub>S\<^sub>E \<open>i * i \<le> a \<and> a < (i + 1) * (i + 1)\<close> "
+
 (*
   
   apply(insert annotated_program)
@@ -183,5 +185,5 @@ txt\<open>Instead of testing, we @{emph \<open>prove\<close>} that the test case
 apply(auto simp: assert_simp)
 *)
 oops
-*)
+
 end
