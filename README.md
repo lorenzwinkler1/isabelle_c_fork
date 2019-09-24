@@ -6,17 +6,13 @@ section ‹Global Structure of the Isabelle/C Project›
 text ‹
 The Isabelle/C project consists of several components, where two of them represent AFP submissions.
 
-▪ ⇢ 🗀‹C11-FrontEnd› (AFP)
-▪ ⇢ 🗀‹C11-BackEnds›
-▪ ⇢⇢ 🗀‹C11-BackEnds/Clean› (AFP, depending of 🗀‹C11-FrontEnd›)
-▪ ⇢⇢⇢ Clean Library
-▪ ⇢⇢ 🗀‹C11-BackEnds/Clean_wrapper›
-▪ ⇢⇢⇢ adapter to 🗀‹C11-FrontEnd›
-▪ ⇢⇢ 🗀‹C11-BackEnds/AutoCorres›
-▪ ⇢⇢⇢ slightly modified version of AutoCorres library
-▪ ⇢⇢ 🗀‹C11-BackEnds/AutoCorres_wrapper›
-▪ ⇢⇢⇢ adapter to 🗀‹C11-FrontEnd›
-▪ ⇢ 🗀‹Citadelle› (own model-based framework generating the grammars and the AST of 🗀‹C11-FrontEnd›)
+▪ 🗀‹C11-FrontEnd› (AFP)
+▪ 🗀‹C11-BackEnds›
+  ▪ 🗀‹C11-BackEnds/Clean›: (AFP, depending of 🗀‹C11-FrontEnd›) Clean Library
+  ▪ 🗀‹C11-BackEnds/Clean_wrapper›: adapter to 🗀‹C11-FrontEnd›
+  ▪ 🗀‹C11-BackEnds/AutoCorres›: slightly modified version of AutoCorres library
+  ▪ 🗀‹C11-BackEnds/AutoCorres_wrapper›: adapter to 🗀‹C11-FrontEnd›
+▪ 🗀‹Citadelle›: own model-based framework generating the grammars and the AST of 🗀‹C11-FrontEnd›
 ›
 
 section ‹Isabelle/C›
