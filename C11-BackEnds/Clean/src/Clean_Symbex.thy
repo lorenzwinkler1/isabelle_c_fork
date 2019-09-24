@@ -61,6 +61,7 @@ assumes "\<not> exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> (assign_local upd rhs;- M)) = ((upd (map_hd (\<lambda>_. rhs \<sigma>)) \<sigma>) \<Turnstile>  M)"
   by (metis assms bind_SE'_def non_exec_assign_local)
 
+lemmas non_exec_assign_localD'= non_exec_assign[THEN iffD1]
 
 lemma exec_assign_local  : 
 assumes "exec_stop \<sigma>"
@@ -69,14 +70,25 @@ shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign_local upd rhs; M)) = ( \
 
 lemma exec_assign_local'  : 
 assumes "exec_stop \<sigma>"
-shows   "(\<sigma> \<Turnstile> (assign_global upd rhs;- M)) = ( \<sigma> \<Turnstile>  M)"
-  by (simp add: assign_global_def assign_def assms exec_bind_SE_success bind_SE'_def)
-
+shows   "(\<sigma> \<Turnstile> ( assign_local upd rhs;- M)) = ( \<sigma> \<Turnstile>  M)" 
+  unfolding assign_local_def assign_def sledgehammer
+  by (simp add: assms exec_bind_SE_success2)
 
 lemmas exec_assignD = exec_assign[THEN iffD1]
 thm exec_assignD
 
 lemmas exec_assignD' = exec_assign'[THEN iffD1]
+thm exec_assignD'
+
+lemmas exec_assign_globalD =  exec_assign_global[THEN iffD1]
+
+lemmas exec_assign_globalD' =  exec_assign_global'[THEN iffD1]
+
+lemmas exec_assign_localD = exec_assign_local[THEN iffD1]
+thm exec_assign_localD
+
+lemmas exec_assign_localD' = exec_assign_local'[THEN iffD1]
+
 
 lemma non_exec_call_0  : 
 assumes "\<not> exec_stop \<sigma>"

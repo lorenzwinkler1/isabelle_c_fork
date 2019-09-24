@@ -34,48 +34,36 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-session Isabelle_C_AutoCorres = AutoCorres +
+session Isabelle_C_AutoCorres in "C11-BackEnds/AutoCorres_wrapper" = AutoCorres +
   theories
-    "C11-BackEnds/AutoCorres/src/README"
-    "C11-BackEnds/AutoCorres/src/Backend"
+    "../AutoCorres/src/README"
+    "src/Backend"
 
-session Isabelle_C_AutoCorres_examples = Isabelle_C_AutoCorres +
+session Isabelle_C_AutoCorres_examples in "C11-BackEnds/AutoCorres_wrapper" = Isabelle_C_AutoCorres +
   sessions
     "HOL-Computational_Algebra"
   theories
-    "C11-BackEnds/AutoCorres/examples/IsPrime_integrated"
-    "C11-BackEnds/AutoCorres/examples/IsPrime_linear_outside"
-    "C11-BackEnds/AutoCorres/examples/IsPrime_sqrt_outside"
-    "C11-BackEnds/AutoCorres/examples/Parse_for_loop"
-    "C11-BackEnds/AutoCorres/examples/Quicksort"
-    "C11-BackEnds/AutoCorres/examples/TestSEL4"
+    "examples/IsPrime_integrated"
+    "examples/IsPrime_linear_outside"
+    "examples/IsPrime_sqrt_outside"
+    "examples/Parse_for_loop"
+    "examples/Quicksort"
+    "examples/TestSEL4"
 
-session Isabelle_C_Clean = Isabelle_C +
+session Isabelle_C_Clean in "C11-BackEnds/Clean_wrapper" = Isabelle_C +
   sessions
     Clean
   theories
-    "C11-BackEnds/Clean/src/Backend"
+    "src/Backend"
 
-session Isabelle_C_Clean_examples = Isabelle_C_Clean +
-  theories
-    "C11-BackEnds/Clean/examples/IsPrime_sqrt_outside"
-    "C11-BackEnds/Clean/examples/Quicksort2"
-    "C11-BackEnds/Clean/examples/Quicksort"
-
-session Isabelle_C_Clean_document in "C11-BackEnds/Clean" = Isabelle_C_Clean_examples +
-  options [document = pdf, document_output = "output"]
+session Isabelle_C_Clean_examples in "C11-BackEnds/Clean_wrapper" = Isabelle_C_Clean +
   sessions
     "HOL-Computational_Algebra"
   theories
-    "src/Clean"
-    "src/Hoare_Clean"
-    "examples/Quicksort_concept"
-    "examples/SquareRoot_concept"
+    "examples/IsPrime_sqrt_outside"
     "examples/Prime"
-  document_files
-    "root.tex"
-    "root.bib"
-    "lstisadof.sty"
+    "examples/Quicksort2"
+    "examples/Quicksort"
 
 session Isabelle_C_README in "C11-FrontEnd" = HOL +
   theories
