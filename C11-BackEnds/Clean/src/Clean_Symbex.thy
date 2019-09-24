@@ -61,6 +61,7 @@ assumes "\<not> exec_stop \<sigma>"
 shows   "(\<sigma> \<Turnstile> (assign_local upd rhs;- M)) = ((upd (map_hd (\<lambda>_. rhs \<sigma>)) \<sigma>) \<Turnstile>  M)"
   by (metis assms bind_SE'_def non_exec_assign_local)
 
+lemmas non_exec_assign_localD'= non_exec_assign[THEN iffD1]
 
 lemma exec_assign_local  : 
 assumes "exec_stop \<sigma>"
