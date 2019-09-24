@@ -41,17 +41,13 @@ section \<open>Global Structure of the Isabelle/C Project\<close>
 text \<open>
 The Isabelle/C project consists of several components, where two of them represent AFP submissions.
 
-\<^item> \<longlonglongrightarrow> \<^dir>\<open>C11-FrontEnd\<close> (AFP)
-\<^item> \<longlonglongrightarrow> \<^dir>\<open>C11-BackEnds\<close>
-\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow> \<^dir>\<open>C11-BackEnds/Clean\<close> (AFP, depending of \<^dir>\<open>C11-FrontEnd\<close>)
-\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow>\<longlonglongrightarrow> Clean Library
-\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow> \<^dir>\<open>C11-BackEnds/Clean_wrapper\<close>
-\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow>\<longlonglongrightarrow> adapter to \<^dir>\<open>C11-FrontEnd\<close>
-\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow> \<^dir>\<open>C11-BackEnds/AutoCorres\<close>
-\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow>\<longlonglongrightarrow> slightly modified version of AutoCorres library
-\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow> \<^dir>\<open>C11-BackEnds/AutoCorres_wrapper\<close>
-\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow>\<longlonglongrightarrow> adapter to \<^dir>\<open>C11-FrontEnd\<close>
-\<^item> \<longlonglongrightarrow> \<^dir>\<open>Citadelle\<close> (own model-based framework generating the grammars and the AST of \<^dir>\<open>C11-FrontEnd\<close>)
+\<^item> \<^dir>\<open>C11-FrontEnd\<close> (AFP)
+\<^item> \<^dir>\<open>C11-BackEnds\<close>
+  \<^item> \<^dir>\<open>C11-BackEnds/Clean\<close>: (AFP, depending of \<^dir>\<open>C11-FrontEnd\<close>) Clean Library
+  \<^item> \<^dir>\<open>C11-BackEnds/Clean_wrapper\<close>: adapter to \<^dir>\<open>C11-FrontEnd\<close>
+  \<^item> \<^dir>\<open>C11-BackEnds/AutoCorres\<close>: slightly modified version of AutoCorres library
+  \<^item> \<^dir>\<open>C11-BackEnds/AutoCorres_wrapper\<close>: adapter to \<^dir>\<open>C11-FrontEnd\<close>
+\<^item> \<^dir>\<open>Citadelle\<close>: own model-based framework generating the grammars and the AST of \<^dir>\<open>C11-FrontEnd\<close>
 \<close>
 
 section \<open>Isabelle/C\<close>
