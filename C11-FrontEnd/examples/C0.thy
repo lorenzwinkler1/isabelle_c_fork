@@ -34,7 +34,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-chapter \<open>Example\<close>
+chapter \<open>Example: A C11-Lexer Stress-Test\<close>
 
 theory C0
   imports Isabelle_C.C_Main
@@ -44,7 +44,8 @@ declare[[C_lexer_trace]]
 
 section \<open>Regular C Code\<close>
 
-C \<comment> \<open>Nesting of comments \<^url>\<open>https://gcc.gnu.org/onlinedocs/cpp/Initial-processing.html\<close>\<close> \<open>
+C \<comment> \<open>Nesting of comments following the example suite of
+      \<^url>\<open>https://gcc.gnu.org/onlinedocs/cpp/Initial-processing.html\<close>\<close> \<open>
 /* inside /* inside */ int a = "outside";
 // inside // inside until end of line
 int a = "outside";
@@ -92,7 +93,7 @@ _Pragma /\
 \<close>
 *)
 C \<comment> \<open>Directive: macro\<close> \<open>
-#define a zz
+#define a zz 
 #define a(x1,x2) z erz(( zz
 #define a (x1,x2) z erz(( zz
 #undef z
