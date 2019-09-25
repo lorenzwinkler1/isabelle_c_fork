@@ -39,17 +39,15 @@ theory README imports Main begin
 section \<open>Global Structure of the Isabelle/C Project\<close>
 
 text \<open>
-The Isabelle/C project consists of four components, where two of them represent AFP submissions.
+The Isabelle/C project consists of several components, where two of them represent AFP submissions.
 
-\<^item> \<longlonglongrightarrow> \<^dir>\<open>C11-FrontEnd\<close> (AFP)
-\<^item> \<longlonglongrightarrow> \<^dir>\<open>C11-BackEnds\<close>
-\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow> \<^dir>\<open>C11-BackEnds/Clean\<close> (AFP, depending of \<^dir>\<open>C11-FrontEnd\<close>)
-\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow>\<longlonglongrightarrow> Clean + Library
-\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow>\<longlonglongrightarrow> CleanAdapter
-\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow> \<^dir>\<open>C11-BackEnds/AutoCorres\<close> 
-\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow>\<longlonglongrightarrow> slightly modified version of AutoCorres library
-\<^item> \<longlonglongrightarrow>\<longlonglongrightarrow>\<longlonglongrightarrow> adapter to \<^dir>\<open>C11-FrontEnd\<close>
-\<^item> \<longlonglongrightarrow> \<^dir>\<open>Citadelle\<close> (own model-based framework generating the grammars and the AST of \<^dir>\<open>C11-FrontEnd\<close>)
+\<^item> \<^dir>\<open>C11-FrontEnd\<close> (AFP)
+\<^item> \<^dir>\<open>C11-BackEnds\<close>
+  \<^item> \<^dir>\<open>C11-BackEnds/Clean\<close>: (AFP, depending of \<^dir>\<open>C11-FrontEnd\<close>) Clean Library
+  \<^item> \<^dir>\<open>C11-BackEnds/Clean_wrapper\<close>: adapter to \<^dir>\<open>C11-FrontEnd\<close>
+  \<^item> \<^dir>\<open>C11-BackEnds/AutoCorres\<close>: slightly modified version of AutoCorres library
+  \<^item> \<^dir>\<open>C11-BackEnds/AutoCorres_wrapper\<close>: adapter to \<^dir>\<open>C11-FrontEnd\<close>
+\<^item> \<^dir>\<open>Citadelle\<close>: own model-based framework generating the grammars and the AST of \<^dir>\<open>C11-FrontEnd\<close>
 \<close>
 
 section \<open>Isabelle/C\<close>
@@ -74,24 +72,24 @@ Examples in \<^dir>\<open>C11-BackEnds\<close> require to change the initial dir
 subsection \<open>Isabelle/C/Clean\<close>
 
 text \<open>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^file>\<open>C11-BackEnds/Clean/examples/Prime.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^file>\<open>C11-BackEnds/Clean_wrapper/examples/Prime.thy\<close>
 \<close>
 
 subsection \<open>Isabelle/C/AutoCorres\<close>
 
 text \<open>
-Before using the \<^dir>\<open>C11-BackEnds/AutoCorres\<close> back-end, the shell variable
+Before using the \<^dir>\<open>C11-BackEnds/AutoCorres_wrapper\<close> back-end, the shell variable
 \<open>L4V_ARCH\<close> must be additionally set to \<open>ARM\<close>.
 
 \<^item> \<^verbatim>\<open>export L4V_ARCH = ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be permanently made in \<^file>\<open>$ISABELLE_HOME_USER/etc/settings\<close>\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l CParser\<close> \<^file>\<open>C11-BackEnds/AutoCorres/examples/TestSEL4.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l AutoCorres\<close> \<^file>\<open>C11-BackEnds/AutoCorres/examples/IsPrime_integrated.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l CParser\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/TestSEL4.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l AutoCorres\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_integrated.thy\<close>
 \<close>
 
 text \<open>
-For the case of \<^dir>\<open>C11-BackEnds/AutoCorres\<close>, we were used to see a sub-window
-\<open>Bad session structure\<close> appearing just after starting Isabelle. This is because the
-back-end normally requires to execute some initialization script (for example using
+For the case of \<^dir>\<open>C11-BackEnds/AutoCorres_wrapper\<close>, we were used to see a
+sub-window \<open>Bad session structure\<close> appearing just after starting Isabelle. This is
+because the back-end normally requires to execute some initialization script (for example using
 \<^file>\<open>l4v/src/run_tests\<close>) to generate specific Isabelle theory files. Instead, as
 possible workaround, we have introduced by hand in \<^dir>\<open>l4v/src\<close> several symbolic
 links pointing to the missing files, making the sub-window not supposed to appear
