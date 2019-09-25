@@ -4,17 +4,15 @@
 section ‹Global Structure of the Isabelle/C Project›
 
 text ‹
-The Isabelle/C project consists of four components, where two of them represent AFP submissions.
+The Isabelle/C project consists of several components, where two of them represent AFP submissions.
 
-▪ ⇢ 🗀‹C11-FrontEnd› (AFP)
-▪ ⇢ 🗀‹C11-BackEnds›
-▪ ⇢⇢ 🗀‹C11-BackEnds/Clean› (AFP, depending of 🗀‹C11-FrontEnd›)
-▪ ⇢⇢⇢ Clean + Library
-▪ ⇢⇢⇢ CleanAdapter
-▪ ⇢⇢ 🗀‹C11-BackEnds/AutoCorres› 
-▪ ⇢⇢⇢ slightly modified version of AutoCorres library
-▪ ⇢⇢⇢ adapter to 🗀‹C11-FrontEnd›
-▪ ⇢ 🗀‹Citadelle› (own model-based framework generating the grammars and the AST of 🗀‹C11-FrontEnd›)
+▪ 🗀‹C11-FrontEnd› (AFP)
+▪ 🗀‹C11-BackEnds›
+  ▪ 🗀‹C11-BackEnds/Clean›: (AFP, depending of 🗀‹C11-FrontEnd›) Clean Library
+  ▪ 🗀‹C11-BackEnds/Clean_wrapper›: adapter to 🗀‹C11-FrontEnd›
+  ▪ 🗀‹C11-BackEnds/AutoCorres›: slightly modified version of AutoCorres library
+  ▪ 🗀‹C11-BackEnds/AutoCorres_wrapper›: adapter to 🗀‹C11-FrontEnd›
+▪ 🗀‹Citadelle›: own model-based framework generating the grammars and the AST of 🗀‹C11-FrontEnd›
 ›
 
 section ‹Isabelle/C›
@@ -39,24 +37,24 @@ Examples in 🗀‹C11-BackEnds› require to change the initial directory provi
 subsection ‹Isabelle/C/Clean›
 
 text ‹
-▪ ▩‹isabelle jedit -d› 🗀‹.› 🗏‹C11-BackEnds/Clean/examples/Prime.thy›
+▪ ▩‹isabelle jedit -d› 🗀‹.› 🗏‹C11-BackEnds/Clean_wrapper/examples/Prime.thy›
 ›
 
 subsection ‹Isabelle/C/AutoCorres›
 
 text ‹
-Before using the 🗀‹C11-BackEnds/AutoCorres› back-end, the shell variable
+Before using the 🗀‹C11-BackEnds/AutoCorres_wrapper› back-end, the shell variable
 ‹L4V_ARCH› must be additionally set to ‹ARM›.
 
 ▪ ▩‹export L4V_ARCH = ARM› ∗‹‹#› the same effect can be permanently made in 🗏‹$ISABELLE_HOME_USER/etc/settings››
-▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l CParser› 🗏‹C11-BackEnds/AutoCorres/examples/TestSEL4.thy›
-▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l AutoCorres› 🗏‹C11-BackEnds/AutoCorres/examples/IsPrime_integrated.thy›
+▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l CParser› 🗏‹C11-BackEnds/AutoCorres_wrapper/examples/TestSEL4.thy›
+▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l AutoCorres› 🗏‹C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_integrated.thy›
 ›
 
 text ‹
-For the case of 🗀‹C11-BackEnds/AutoCorres›, we were used to see a sub-window
-‹Bad session structure› appearing just after starting Isabelle. This is because the
-back-end normally requires to execute some initialization script (for example using
+For the case of 🗀‹C11-BackEnds/AutoCorres_wrapper›, we were used to see a
+sub-window ‹Bad session structure› appearing just after starting Isabelle. This is
+because the back-end normally requires to execute some initialization script (for example using
 🗏‹l4v/src/run_tests›) to generate specific Isabelle theory files. Instead, as
 possible workaround, we have introduced by hand in 🗀‹l4v/src› several symbolic
 links pointing to the missing files, making the sub-window not supposed to appear
