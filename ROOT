@@ -75,7 +75,6 @@ session Isabelle_C_archive = Isabelle_C_AutoCorres +
     Clean
     "HOL-Computational_Algebra"
   theories
-    "C11-FrontEnd/archive/C0"
     "C11-FrontEnd/archive/Clean_old"
     "C11-FrontEnd/archive/IsPrime_sqrt2_outside"
     "C11-FrontEnd/archive/IsPrime_sqrt_outside"

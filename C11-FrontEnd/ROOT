@@ -51,6 +51,7 @@ session Isabelle_C_examples = Isabelle_C + (* a standard test suite *)
   theories [document = false]
     "~~/src/HOL/ex/Cartouche_Examples" (* LaTeX error in Isabelle2019 *)
   theories
+    "examples/C0"
     "examples/C1"
     "examples/C2"
     "examples/C3"
