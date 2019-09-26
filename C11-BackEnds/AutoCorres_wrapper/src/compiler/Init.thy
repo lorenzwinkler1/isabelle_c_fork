@@ -629,7 +629,7 @@ val scan_opt_colon = Scan.option (C_Parse.$$$ ":")
 val scan_colon = C_Parse.$$$ ":" >> SOME
 fun command cmd scan0 scan f =
   C_Annotation.command' cmd "" (K (scan0 -- (scan >> f)
-                                      >> K C_Transition.Never))
+                                      >> K C_Env.Never))
 in
 val _ = Theory.setup ((* 1 '@' *)
                          command ("INVARIANT", \<^here>) scan_colon C_Parse.term Invariant

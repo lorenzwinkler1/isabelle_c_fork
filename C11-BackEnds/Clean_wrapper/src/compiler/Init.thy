@@ -64,16 +64,16 @@ fun toplevel _ = C_Inner_Toplevel.keep''
 fun bind scan _ ((stack1, (to_delay, stack2)), _) =
   C_Parse.range scan
   >> (fn (src, range) =>
-      C_Transition.Parsing
+      C_Env.Parsing
         ( (stack1, stack2)
         , ( range
-          , C_Transition.Bottom_up
+          , C_Inner_Syntax.bottom_up
+              (fn _ => fn context =>
+                ML_Context.exec
+                  (tap (fn _ => Syntax.read_term (Context.proof_of context) (Token.inner_syntax_of src)))
+                  context)
           , Symtab.empty
-          , to_delay
-          , fn _ => fn context =>
-              ML_Context.exec
-                (tap (fn _ => Syntax.read_term (Context.proof_of context) (Token.inner_syntax_of src)))
-                context)))
+          , to_delay)))
 
 fun scan >>> f = bind scan f
 

@@ -206,7 +206,7 @@ fun command f name =
     (K
       (C_Parse.range (C_Parse.binding -- (AutoCorres.Parser_Inner.autocorres_parser'' (Scan.succeed ()))) >>
         (fn (src, range) =>
-          C_Transition.Lexing (range, f src))))
+          C_Env.Lexing (range, f src))))
 val cmd = ("install_autocorres", \<^here>)
 in
 val _ =
