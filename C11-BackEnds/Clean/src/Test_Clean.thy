@@ -45,4 +45,5 @@ named_theorems memory_theory
 method memory_theory = (simp only: memory_theory MonadSE.bind_assoc')
 method norm = (auto dest!: assert_D)
 
+
 end

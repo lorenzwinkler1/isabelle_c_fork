@@ -1,5 +1,5 @@
 (******************************************************************************
- * Isabelle/C
+ * Isabelle/C 
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
@@ -54,14 +54,23 @@ structure Data_Out = Generic_Data
 
 fun get_module thy =
   let val context = Context.Theory thy
-  in (Data_Out.get context |> map (apfst (C_Grammar_Rule.start_happy1 #> the)), C_Module.Data_In_Env.get context) end
+  in (Data_Out.get context 
+      |> map (apfst (C_Grammar_Rule.start_happy1 #> the)), C_Module.Data_In_Env.get context) 
+  end
 \<close>
 
-setup \<open>Context.theory_map (C_Module.Data_Accept.put (fn ast => fn env_lang => Data_Out.map (cons (ast, #stream_ignored env_lang |> rev))))\<close>
+setup \<open>Context.theory_map (C_Module.Data_Accept.put 
+                           (fn ast => fn env_lang => 
+                             Data_Out.map (cons (ast, #stream_ignored env_lang |> rev))))\<close>
+
 
 section \<open>Implementing \<open>#include\<close>\<close>
+text\<open>The cpp-directive include is used to import signatures of modules in C. This has the effect
+ that imported identifiers are included in the C environment and, as a consequence, appear as
+constant symbols and not as free variables in the output.  \<close>
 
-subsection \<open>\<close>
+text\<open>The following structure is an extra mechanism to definee the effect of include wrt. to its 
+definition in its environment.\<close>
 
 ML \<open>
 structure Directive_include = Generic_Data
@@ -95,7 +104,9 @@ val _ =
                    C_Lex.Token (_, (C_Lex.String (_, file), _)) => exec file
                  | C_Lex.Token (_, (C_Lex.File (_, file), _)) => exec file
                  | _ => tap (fn _ => (* not yet implemented *)
-                                     warning ("Ignored directive" ^ Position.here (Position.range_position (C_Lex.pos_of tok, C_Lex.end_pos_of (List.last toks_bl)))))
+                                     warning ("Ignored directive" ^ Position.here 
+                                                (Position.range_position (C_Lex.pos_of tok, 
+                                                    C_Lex.end_pos_of (List.last toks_bl)))))
                end |> K |> K
            | _ => K (K I)))))
 in end
@@ -124,9 +135,10 @@ val show =
         (Symtab.dest
          #>
           app (fn (fic, vars) =>
-            writeln ("Content of \"" ^ fic ^ "\": " ^ String.concat (map (fn (i, _) => let val (name, pos) = Input.source_content i
-                                                                                       in name ^ Position.here pos ^ " " end)
-                                                                         vars))))))
+            writeln ("Content of \"" ^ fic ^ "\": " ^ String.concat 
+                 (map (fn (i, _) => let val (name, pos) = Input.source_content i
+                                    in name ^ Position.here pos ^ " " end)
+                      vars))))))
 end
 \<close>
 
@@ -182,9 +194,13 @@ ML \<comment> \<open>\<^theory>\<open>Isabelle_C.C_Command\<close>\<close> \<ope
 local
 datatype antiq_hol = Term of string (* term *)
 val scan_opt_colon = Scan.option (C_Parse.$$$ ":")
+fun msg cmd_name call_pos cmd_pos = (fn _ => tap (fn _ => 
+        tracing ("\<open>Hello World\<close> reported by \"" ^ cmd_name ^ "\" here" ^ call_pos cmd_pos)) C_Env.Never)
+
+
 fun command (cmd as (cmd_name, _)) scan0 scan f =
-  C_Annotation.command' cmd "" (fn (_, (cmd_pos, _)) => (scan0 -- (scan >> f)
-                                      >> (fn _ => tap (fn _ => tracing ("\<open>Hello World\<close> reported by \"" ^ cmd_name ^ "\" here" ^ Position.here cmd_pos)) C_Env.Never)))
+    C_Annotation.command' cmd "" (fn (_, (cmd_pos, _)) => 
+                                     (scan0 -- (scan >> f) >> (msg cmd_name Position.here cmd_pos)))
 in
 val _ = Theory.setup (   C_Inner_Syntax.command_no_range
                            (C_Inner_Toplevel.generic_theory oo C_Inner_Isar_Cmd.setup \<open>K (K (K I))\<close>)
@@ -264,6 +280,8 @@ int allzeros(int t[], int n) {
 }
 
 \<close>
+
+
 
 C\<open>
 

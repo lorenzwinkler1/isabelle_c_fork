@@ -171,23 +171,34 @@ text\<open> On the basis of the control-state, assignments, conditionals and loo
 
 text\<open>For Reasoning over Clean programs, we need the notion of independance of an
      update from the control-block: \<close>
-definition control_independence :: 
+
+
+definition control_independence ::
                  "(('b\<Rightarrow>'b)\<Rightarrow>'a control_state_scheme \<Rightarrow> 'a control_state_scheme) \<Rightarrow> bool"    ("\<sharp>")
            where "\<sharp> upd \<equiv> (\<forall>\<sigma> T b. break_status (upd T \<sigma>) = break_status \<sigma> 
                                  \<and> return_status (upd T \<sigma>) = return_status \<sigma>
-                                 \<and> upd T (\<sigma>\<lparr> return_status := b \<rparr>) = upd T \<sigma>
-                                 \<and> upd T (\<sigma>\<lparr> break_status := b \<rparr>) = upd T \<sigma>)"
+                                 \<and> upd T (\<sigma>\<lparr> return_status := b \<rparr>) = (upd T \<sigma>)\<lparr> return_status := b \<rparr>
+                                 \<and> upd T (\<sigma>\<lparr> break_status := b \<rparr>) = (upd T \<sigma>)\<lparr> break_status := b \<rparr>) "
+
+
+(*
+definition control_independence :: 
+                 "(('b\<Rightarrow>'b)\<Rightarrow>'a control_state_scheme \<Rightarrow> 'a control_state_scheme) \<Rightarrow> bool"    ("\<sharp>")
+           where "\<sharp> upd \<equiv> (\<forall>\<sigma> T.   break_status (upd T \<sigma>) = break_status \<sigma> 
+                                 \<and> return_status (upd T \<sigma>) = return_status \<sigma> ) "
+*)
 
 lemma exec_stop_vs_control_independence [simp]:
   "\<sharp> upd \<Longrightarrow> exec_stop (upd f \<sigma>) = exec_stop \<sigma>"
   unfolding control_independence_def exec_stop_def  by simp
 
+
 lemma exec_stop_vs_control_independence' [simp]:
-  "\<sharp> upd \<Longrightarrow> (upd f (\<sigma> \<lparr> return_status := b \<rparr>)) = upd f \<sigma>"
+  "\<sharp> upd \<Longrightarrow> (upd f (\<sigma> \<lparr> return_status := b \<rparr>)) = (upd f \<sigma>)\<lparr> return_status := b \<rparr>"
   unfolding control_independence_def exec_stop_def by simp
 
 lemma exec_stop_vs_control_independence'' [simp]:
-  "\<sharp> upd \<Longrightarrow> (upd f (\<sigma> \<lparr> break_status := b \<rparr>)) = upd f \<sigma>"
+  "\<sharp> upd \<Longrightarrow> (upd f (\<sigma> \<lparr> break_status := b \<rparr>)) = (upd f \<sigma>) \<lparr> break_status := b \<rparr>"
   unfolding control_independence_def exec_stop_def  by simp
 
 

@@ -28,10 +28,27 @@ val Type(s,t) = StateMgt_core.get_state_type_global @{theory}
 val Type(u,v) = @{typ unit}
 \<close>
 
+(* could also be local variable, we flipped a coin and it became this way *)
 global_vars state
    tm    :: int
    i     :: int
    sqsum :: int
+
+ML\<open>
+val Type(s,t) = StateMgt_core.get_state_type_global @{theory}
+val Type(u,v) = @{typ unit}
+\<close>
+
+
+(* should be automatic *)
+lemma tm_independent [simp]: "\<sharp> tm_update"
+  unfolding control_independence_def  by auto
+
+lemma i_independent [simp]: "\<sharp> i_update"
+  unfolding control_independence_def  by auto
+
+lemma sqsum_independent [simp]: "\<sharp> sqsum_update"
+  unfolding control_independence_def  by auto
 
 
 function_spec sqrt (a::int) returns int
@@ -49,8 +66,8 @@ defines      " (\<open>tm := 1\<close> ;-
                )" 
 
 
-(*
 
+(*
 
 
 txt\<open> The program and the property under test \<close>
@@ -102,86 +119,101 @@ lemmas memory_theory =
 
 declare memory_theory [memory_theory]
 
+
+lemma non_exec_assign_globalD':
+  assumes "\<sharp> upd"
+  shows   "\<sigma> \<Turnstile> assign_global upd rhs ;- M \<Longrightarrow>\<not> exec_stop \<sigma> \<Longrightarrow>  upd (\<lambda>_. rhs \<sigma>) \<sigma> \<Turnstile> M"
+  apply(drule non_exec_assign_global'[THEN iffD1])
+  using assms exec_stop_vs_control_independence apply blast
+  by auto
+
+lemmas non_exec_assign_globalD'_tm = non_exec_assign_globalD'[OF tm_independent]
+lemmas non_exec_assign_globalD'_i = non_exec_assign_globalD'[OF i_independent]
+lemmas non_exec_assign_globalD'_sqsum = non_exec_assign_globalD'[OF sqsum_independent]
+
 text\<open> Now we run a symbolic execution. We run match-tactics (rather than the Isabelle simplifier 
       which would do the trick as well) in order to demonstrate an efficient way for symbolic 
       execution in Isabelle. \<close>
 
-
-
-lemma x : 
-assumes annotated_program: 
-         "\<sigma>\<^sub>0 \<Turnstile> assume\<^sub>S\<^sub>E \<open>0 \<le> (a::int)\<close> ;- 
-               \<open>tm := 1\<close> ;-
-               \<open>sqsum := 1\<close> ;-
-               \<open>i := 0\<close> ;-
-               (while\<^sub>S\<^sub>E \<open>sqsum <= a\<close> do 
-                  \<open>i := i+1\<close> ;-
-                  \<open>tm := tm + 2\<close> ;-
-                  \<open>sqsum := tm + sqsum\<close>
-               od) ;-
-               assert\<^sub>S\<^sub>E(\<lambda>\<sigma>. \<sigma>=\<sigma>\<^sub>R)"
+lemma x :
+  assumes non_exec_stop: "\<not> exec_stop \<sigma>\<^sub>0" 
+   and    pos : "0 \<le> (a::int)"
+   and    annotated_program: 
+          "\<sigma>\<^sub>0 \<Turnstile> \<open>tm := 1\<close> ;-
+                \<open>sqsum := 1\<close> ;-
+                \<open>i := 0\<close> ;-
+                (while\<^sub>S\<^sub>E \<open>sqsum <= a\<close> do 
+                   \<open>i := i+1\<close> ;-
+                   \<open>tm := tm + 2\<close> ;-
+                   \<open>sqsum := tm + sqsum\<close>
+                od) ;-
+                assert\<^sub>S\<^sub>E(\<lambda>\<sigma>. \<sigma>=\<sigma>\<^sub>R)"
 
        shows "\<sigma>\<^sub>R \<Turnstile>assert\<^sub>S\<^sub>E \<open>i\<^sup>2  \<le> a \<and> a < (i + 1)\<^sup>2\<close> "
   
-(*
-apply(insert annotated_program)
-apply(tactic "ematch_tac @{context} [@{thm \"assume_E'\"}] 1")
-apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'\"}] 1")+
-apply(tactic "dmatch_tac @{context} [@{thm \"exec_whileD\"}] 1")
-apply(tactic "ematch_tac @{context} [@{thm \"if_SE_execE''\"}] 1")
-apply(simp_all only: memory_theory MonadSE.bind_assoc')
-apply(tactic "dmatch_tac @{context} [@{thm \"exec_assignD'\"}] 1")+
-apply(tactic "dmatch_tac @{context} [@{thm \"exec_whileD\"}] 1")
-apply(tactic "ematch_tac @{context} [@{thm \"if_SE_execE''\"}] 1")
-apply(simp_all only: memory_theory MonadSE.bind_assoc')
-apply(tactic "dmatch_tac @{context} [@{thm \"exec_assignD'\"}] 1")+
-apply(tactic "dmatch_tac @{context} [@{thm \"exec_whileD\"}] 1")
-apply(tactic "ematch_tac @{context} [@{thm \"if_SE_execE''\"}] 1")
-apply(simp_all only: memory_theory MonadSE.bind_assoc')
- apply(tactic "dmatch_tac @{context} [@{thm \"exec_assignD'\"}] 1")+
-apply(simp_all)
-text\<open>Here are the test-statements explicit. \<close>
 
-txt\<open>push away the test-hyp: postcond is true for programs with more than
-    three loop traversals (criterion: all-paths(k). This reveals explicitly
-    the three test-cases for  @{term "k<3"}. \<close>   
-defer 1 
-
-txt\<open>Instead of testing, we @{emph \<open>prove\<close>} that the test cases satisfy the
-    post-condition for all @{term "k<3"} loop traversals and @{emph \<open>all\<close>} 
-    positive inputs @{term "a \<sigma>"}.\<close>     
-apply(auto  simp: assert_simp)
-oops
-
-(* TODO Develop a Hoare-Calculus with WP *) 
-
-(* TODO Re-Develop IMP for Program testing *) 
-
-
-text\<open> Using the automatic covering tactics \<close>
-*)
-
-(*
-  
   apply(insert annotated_program)
 
-txt\<open>Automatically unrolls the loop 10 times using branch coverage criterion\<close>
-apply (mcdc_and_loop_coverage "Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc 0)))))))))")
-(* Takes 22s for 100 unrollings *)
-(* apply (mcdc_and_loop_coverage "Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (0))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))") *)
+  apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_tm\"}] 1",
+        simp add: non_exec_stop)
+  apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_sqsum\"}] 1",
+        simp add: non_exec_stop)
+  apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_i\"}] 1",
+        simp add: non_exec_stop)
 
-text\<open>Here are the test-statements explicit. \<close>
+  apply(tactic "dmatch_tac @{context} [@{thm \"exec_whileD\"}] 1")
+  apply(tactic "ematch_tac @{context} [@{thm \"if_SE_execE''\"}] 1")
+   apply(simp_all only: memory_theory MonadSE.bind_assoc')
 
-txt\<open>push away the test-hyp: postcond is true for programs with more than
-    10 loop traversals (criterion: all-paths(k). This reveals explicitly
-    the ten test-cases for @{term "k<10"}. \<close>   
-defer 1 
+   apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_i\"}] 1",
+         simp add: non_exec_stop)
+   apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_tm\"}] 1",
+         simp add: non_exec_stop)
+   apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_sqsum\"}] 1",
+         simp add: non_exec_stop)
 
+   apply(tactic "dmatch_tac @{context} [@{thm \"exec_whileD\"}] 1")
+    apply(tactic "ematch_tac @{context} [@{thm \"if_SE_execE''\"}] 1")
+    apply(simp_all only: memory_theory MonadSE.bind_assoc')
+
+    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_i\"}] 1",
+          simp add: non_exec_stop)
+    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_tm\"}] 1",
+          simp add: non_exec_stop)
+    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_sqsum\"}] 1",
+          simp add: non_exec_stop)
+
+    apply(tactic "dmatch_tac @{context} [@{thm \"exec_whileD\"}] 1")
+    apply(tactic "ematch_tac @{context} [@{thm \"if_SE_execE''\"}] 1")
+    apply(simp_all only: memory_theory MonadSE.bind_assoc')
+
+     
+    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_i\"}] 1",
+          simp add: non_exec_stop)
+    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_tm\"}] 1",
+          simp add: non_exec_stop)
+    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_sqsum\"}] 1",
+          simp add: non_exec_stop)
+     apply(simp_all)
+
+  text\<open>Here are all abstract test-cases explicit. Each subgoal correstponds to 
+       a path taken through the loop.\<close>
+
+
+  txt\<open>push away the test-hyp: postcond is true for programs with more than
+    three loop traversals (criterion: all-paths(k). This reveals explicitly
+    the three test-cases for  @{term "k<3"}. \<close>   
+   defer 1 
+
+
+(*
 txt\<open>Instead of testing, we @{emph \<open>prove\<close>} that the test cases satisfy the
-    post-condition for all @{term "k<10"} loop traversals and @{emph \<open>all\<close>} 
-    positive inputs @{term "a \<sigma>"}.\<close>     
-apply(auto simp: assert_simp)
-*)
+    post-condition for all @{term "k<3"} loop traversals and @{emph \<open>all\<close>} 
+    positive inputs @{term "a "}.\<close>     
+   apply(auto  simp: assert_simp)
+ *) 
 oops
+
+text\<open>TODO: re-establish  automatic test-coverage tactics of @{cite "DBLP:conf/tap/Keller18"}.\<close>
 
 end

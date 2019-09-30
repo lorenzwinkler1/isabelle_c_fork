@@ -103,7 +103,7 @@ C \<comment> \<open>Directive: macro\<close> \<open>
 #define a (x1,x2) z erz(( zz
 #endif
 \<close>
-
+ML "fn a => (a,a)"
 C \<comment> \<open>Example of obfuscated code \<^url>\<open>https://en.wikipedia.org/wiki/International_Obfuscated_C_Code_Contest\<close>\<close> \<open>
 #define _ -F<00||--F-OO--;
 int F=00,OO=00;main(){F_OO();printf("%1.3f\n",4.*-F/OO/OO);}F_OO()
@@ -155,6 +155,17 @@ W+M(j/2/2,+06)*2+w*014      +00+M(00+      000+j,002      +00)]=000      +00+k)k
   G=I+W*H;L(t=T;i<1<<21;i++)T[i]=i<Y?i:-1;E(Y);L(i=-1;++i<W*H;t=T+Z*Y+Y)c=I[i]?I[i]*31-31:(31<
     j?j-31:31-j),Z=c[t[c]<z?E(Z),k<(1<<12)-2?t[c]=++k,T:T:t];E(Z);E(257);L(G++;k=G-r>X?X:G-r
         ,C(k),k;)L(;k--;C(*r++/*---#$%&04689@ABDOPQRabdegopq---*/));}C(53+6);return(z);}
+\<close>
+
+
+C\<open>
+typedef int T;
+void f(void) {
+  for(int T; ; ) if(1) { }
+  T x;
+  x = 0;
+}
+
 \<close>
 
 end
