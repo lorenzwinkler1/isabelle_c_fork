@@ -225,7 +225,7 @@ variable \<open>tmp\<close> is defined:
 needed for modeling recursive instances is just a synonym for \<open>list\<close>.
 \<close>
 
-subsection\<open> The Assignment Clean Operations (embedded in the State-Exception Monad) \<close>
+subsection\<open> The Assignment Operations (embedded in State-Exception Monad) \<close>
 text\<open>Based on the global variable states, we define   \<^term>\<open>break\<close>-aware and \<^term>\<open>return\<close>-aware 
 version of the assignment. The trick to do this in a generic \<^emph>\<open>and\<close> type-safe way is to provide
 the generated accessor and update functions (the ``lens'' representing this global variable,
@@ -328,7 +328,7 @@ example \<open>swap\<close>).
 \<close>
 
 
-section\<open> Global and Local State Management based on Extensible Records \<close>
+section\<open> Global and Local State Management via Extensible Records \<close>
 
 text\<open>In the sequel, we present the automation of the state-management as schematically discussed
 in the previous section; the declarations of global and local variable blocks are constructed by 
@@ -407,7 +407,7 @@ fun declare_state_variable_local f field ctxt  =
 
 end\<close>
 
-subsection\<open>Block-Structures and Call Semantics\<close>
+subsection\<open>Block-Structures\<close>
 text\<open> On the managed local state-spaces, it is now straight-forward to define the semantics for 
 a \<open>block\<close> representing the necessary management of local variable instances:
 \<close>
@@ -436,6 +436,8 @@ definition swap :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap_state_sc
 \<close>}
 
 \<close>
+
+subsection\<open>Call Semantics\<close>
 
 text\<open>It is now straight-forward to define the semantics of a generic call --- 
 which is simply a monad execution that is \<^term>\<open>break\<close>-aware and \<^term>\<open>return\<close>-aware.\<close>
@@ -477,7 +479,7 @@ definition call_3\<^sub>C :: "( '\<alpha> \<Rightarrow> '\<beta> \<Rightarrow>  
 (* and 4 and 5 and ... *)                        
   
 
-section\<open> Global and Local State Management based on Extensible Records \<close>
+section\<open> Some Term-Coding Functions \<close>
 
 text\<open>In the following, we add a number of advanced HOL-term constructors in the style of 
 @{ML_structure "HOLogic"} from the Isabelle/HOL libraries. They incorporate the construction

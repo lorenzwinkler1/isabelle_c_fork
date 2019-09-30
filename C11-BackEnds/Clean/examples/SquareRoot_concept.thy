@@ -3,15 +3,37 @@
  * Burkhart Wolff and Chantal Keller, LRI, Univ. Paris-Sud, France
  ******************************************************************************)
 
-section \<open> Proof of concept for a monadic symbolic execution calculus for WHILE programs
-\<close> 
+section \<open> The Squareroot Example for Symbolic Execution \<close> 
 
 theory SquareRoot_concept
   imports Clean.Test_Clean
 begin
 
 
-section\<open> Re-visiting the squareroot program example \<close>
+subsection\<open> The Conceptual Algorithm in Clean Notation\<close>
+
+text\<open> In high-level notation, the algorithm we are investigating looks like this:
+
+@{cartouche [display=true]
+\<open>\<open>
+function_spec sqrt (a::int) returns int
+pre          "\<open>0 \<le> a\<close>"    
+post         "\<open>\<lambda>res::int.  (res + 1)\<^sup>2 > a \<and> a \<ge> (res)\<^sup>2\<close>" 
+defines      " (\<open>tm := 1\<close> ;-
+               \<open>sqsum := 1\<close> ;-
+               \<open>i := 0\<close> ;-
+               (while\<^sub>S\<^sub>E \<open>sqsum <= a\<close> do 
+                  \<open>i := i+1\<close> ;-
+                  \<open>tm := tm + 2\<close> ;-
+                  \<open>sqsum := tm + sqsum\<close>
+               od) ;-
+               return\<^sub>C result_value_update \<open>i\<close>   
+               )" 
+\<close>\<close>}
+
+\<close>
+
+subsection\<open> Definition of the Global State \<close>
 
 text\<open>The state is just a record; and the global variables correspond to fields in this
      record. This corresponds to typed, structured, non-aliasing states.
@@ -51,45 +73,10 @@ lemma sqsum_independent [simp]: "\<sharp> sqsum_update"
   unfolding control_independence_def  by auto
 
 
-function_spec sqrt (a::int) returns int
-pre          "\<open>0 \<le> a\<close>"    
-post         "\<open>\<lambda>res::int.  (res + 1)\<^sup>2 > a \<and> a \<ge> (res)\<^sup>2\<close>" 
-defines      " (\<open>tm := 1\<close> ;-
-               \<open>sqsum := 1\<close> ;-
-               \<open>i := 0\<close> ;-
-               (while\<^sub>S\<^sub>E \<open>sqsum <= a\<close> do 
-                  \<open>i := i+1\<close> ;-
-                  \<open>tm := tm + 2\<close> ;-
-                  \<open>sqsum := tm + sqsum\<close>
-               od) ;-
-               return\<^sub>C result_value_update \<open>i\<close>   
-               )" 
 
 
 
-(*
-
-
-txt\<open> The program and the property under test \<close>
-
-lemma 
-assumes annotated_program: 
-         "\<sigma>\<^sub>0 \<Turnstile> assume\<^sub>S\<^sub>E \<open>0 \<le> a\<close> ;- 
-               \<open>tm := 1\<close> ;-
-               \<open>sqsum := 1\<close> ;-
-               \<open>i := 0\<close> ;-
-               (while\<^sub>S\<^sub>E \<open>sqsum <= a\<close> do 
-                  \<open>i := i+1\<close> ;-
-                  \<open>tm := tm + 2\<close> ;-
-                  \<open>sqsum := tm + sqsum\<close>
-               od) ;-
-               assert\<^sub>S\<^sub>E(\<lambda>\<sigma>. \<sigma>=\<sigma>\<^sub>R)"
-shows "\<sigma>\<^sub>R \<Turnstile>assert\<^sub>S\<^sub>E \<open>i * i \<le> a \<and> a < (i + 1) * (i + 1)\<close> "
-oops
-
-
-(* TODO: automate this *)
-*)
+subsection\<open> Setting for Symbolic Execution \<close>
 
 text\<open> Some lemmas to reason about memory\<close>
 
@@ -135,7 +122,11 @@ text\<open> Now we run a symbolic execution. We run match-tactics (rather than t
       which would do the trick as well) in order to demonstrate an efficient way for symbolic 
       execution in Isabelle. \<close>
 
-lemma x :
+
+subsection\<open> A Symbolic Execution Simulation \<close>
+
+
+lemma 
   assumes non_exec_stop: "\<not> exec_stop \<sigma>\<^sub>0" 
    and    pos : "0 \<le> (a::int)"
    and    annotated_program: 

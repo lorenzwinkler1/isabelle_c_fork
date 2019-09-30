@@ -1,5 +1,5 @@
 (******************************************************************************
- * Isabelle/C
+ * Clean
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *

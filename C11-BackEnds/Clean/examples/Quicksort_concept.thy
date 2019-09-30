@@ -411,22 +411,22 @@ definition quicksort'_post :: "nat \<times> nat \<Rightarrow> unit \<Rightarrow>
 
 definition quicksort'_core :: "   (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort'_state_scheme) MON\<^sub>S\<^sub>E)
                               \<Rightarrow> (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort'_state_scheme) MON\<^sub>S\<^sub>E)"
-  where   "quicksort'_core quicksort' \<equiv> \<lambda>(lo, hi). 
+  where   "quicksort'_core quicksort_rec \<equiv> \<lambda>(lo, hi). 
                             ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
                               then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C partition (\<lambda>\<sigma>. (lo, hi)) ;
                                     assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
-                                    call\<^sub>C quicksort' (\<lambda>\<sigma>. (lo, (hd o p) \<sigma> - 1)) ;-
-                                    call\<^sub>C quicksort' (\<lambda>\<sigma>. ((hd o p) \<sigma> + 1, hi))  
+                                    call\<^sub>C quicksort_rec (\<lambda>\<sigma>. (lo, (hd o p) \<sigma> - 1)) ;-
+                                    call\<^sub>C quicksort_rec (\<lambda>\<sigma>. ((hd o p) \<sigma> + 1, hi))  
                               else skip\<^sub>S\<^sub>E 
                               fi))"
 
 term " ((quicksort'_core X) (lo,hi))"
 
 definition quicksort' :: " ((nat \<times> nat) \<times> (nat \<times> nat)) set \<Rightarrow>
-                           (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort'_state_scheme) MON\<^sub>S\<^sub>E)"
+                            (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort'_state_scheme) MON\<^sub>S\<^sub>E)"
   where   "quicksort' order \<equiv> wfrec order (\<lambda>X. \<lambda>(lo, hi). block\<^sub>C push_local_quicksort'_state 
-                                                                (quicksort'_core X (lo,hi)) 
-                                                                pop_local_quicksort'_state)"
+                                                                 (quicksort'_core X (lo,hi)) 
+                                                                 pop_local_quicksort'_state)"
 
 
 subsection\<open>Setup for Deductive Verification\<close>
