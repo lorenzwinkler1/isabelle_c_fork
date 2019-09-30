@@ -119,15 +119,14 @@ lemmas non_exec_assign_globalD'_i = non_exec_assign_globalD'[OF i_independent]
 lemmas non_exec_assign_globalD'_sqsum = non_exec_assign_globalD'[OF sqsum_independent]
 
 text\<open> Now we run a symbolic execution. We run match-tactics (rather than the Isabelle simplifier 
-      which would do the trick as well) in order to demonstrate an efficient way for symbolic 
-      execution in Isabelle. \<close>
+  which would do the trick as well) in order to demonstrate a symbolic execution in Isabelle. \<close>
 
 
 subsection\<open> A Symbolic Execution Simulation \<close>
 
 
 lemma 
-  assumes non_exec_stop: "\<not> exec_stop \<sigma>\<^sub>0" 
+  assumes non_exec_stop[simp]: "\<not> exec_stop \<sigma>\<^sub>0" 
    and    pos : "0 \<le> (a::int)"
    and    annotated_program: 
           "\<sigma>\<^sub>0 \<Turnstile> \<open>tm := 1\<close> ;-
@@ -145,46 +144,34 @@ lemma
 
   apply(insert annotated_program)
 
-  apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_tm\"}] 1",
-        simp add: non_exec_stop)
-  apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_sqsum\"}] 1",
-        simp add: non_exec_stop)
-  apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_i\"}] 1",
-        simp add: non_exec_stop)
+  apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_tm\"}] 1",simp)
+  apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_sqsum\"}] 1",simp)
+  apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_i\"}] 1",simp)
 
   apply(tactic "dmatch_tac @{context} [@{thm \"exec_whileD\"}] 1")
   apply(tactic "ematch_tac @{context} [@{thm \"if_SE_execE''\"}] 1")
    apply(simp_all only: memory_theory MonadSE.bind_assoc')
 
-   apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_i\"}] 1",
-         simp add: non_exec_stop)
-   apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_tm\"}] 1",
-         simp add: non_exec_stop)
-   apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_sqsum\"}] 1",
-         simp add: non_exec_stop)
+   apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_i\"}] 1",simp)
+   apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_tm\"}] 1",simp)
+   apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_sqsum\"}] 1",simp)
 
    apply(tactic "dmatch_tac @{context} [@{thm \"exec_whileD\"}] 1")
     apply(tactic "ematch_tac @{context} [@{thm \"if_SE_execE''\"}] 1")
     apply(simp_all only: memory_theory MonadSE.bind_assoc')
 
-    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_i\"}] 1",
-          simp add: non_exec_stop)
-    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_tm\"}] 1",
-          simp add: non_exec_stop)
-    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_sqsum\"}] 1",
-          simp add: non_exec_stop)
+    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_i\"}] 1",simp)
+    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_tm\"}] 1",simp)
+    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_sqsum\"}] 1",simp)
 
     apply(tactic "dmatch_tac @{context} [@{thm \"exec_whileD\"}] 1")
     apply(tactic "ematch_tac @{context} [@{thm \"if_SE_execE''\"}] 1")
     apply(simp_all only: memory_theory MonadSE.bind_assoc')
 
      
-    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_i\"}] 1",
-          simp add: non_exec_stop)
-    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_tm\"}] 1",
-          simp add: non_exec_stop)
-    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_sqsum\"}] 1",
-          simp add: non_exec_stop)
+    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_i\"}] 1",simp)
+    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_tm\"}] 1",simp)
+    apply(tactic "dmatch_tac @{context} [@{thm \"non_exec_assign_globalD'_sqsum\"}] 1",simp)
      apply(simp_all)
 
   text\<open>Here are all abstract test-cases explicit. Each subgoal correstponds to 
