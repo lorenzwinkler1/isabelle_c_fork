@@ -139,24 +139,12 @@ lemma return_assign:
          \<lbrace>\<lambda>r \<sigma>. P \<sigma> \<and> return_status \<sigma> \<rbrace>"
   unfolding return\<^sub>C_def hoare\<^sub>3_def skip\<^sub>S\<^sub>E_def unit_SE_def assign_local_def assign_def 
             set_return_status_def bind_SE'_def bind_SE_def 
-  proof (auto)
+proof (auto)
   fix \<sigma> :: "'b control_state_scheme"
     assume a1: "P (upd (map_hd (\<lambda>_. rhs \<sigma>)) (\<sigma>\<lparr>return_status := True\<rparr>))"
-  assume "\<not> exec_stop \<sigma>"
-  then have f2: "\<not> exec_stop ((upd \<circ> map_hd) (\<lambda>a. rhs \<sigma>) \<lparr>break_status = break_status \<sigma>, return_status = return_status \<sigma>, \<dots> = more \<sigma>\<rparr>)"
-    by (metis (full_types) assms exec_stop_vs_control_independence surjective)
-    have f3: "(upd \<circ> map_hd) (\<lambda>a. rhs \<sigma>) \<lparr>break_status = break_status \<sigma>, return_status = return_status \<sigma>, \<dots> = more \<sigma>\<rparr> = upd (map_hd (\<lambda>a. rhs \<sigma>)) \<sigma>"
-      by (metis comp_def surjective)
-  then have "\<lparr>break_status = break_status (upd (map_hd (\<lambda>a. rhs \<sigma>)) \<sigma>), return_status = return_status (upd (map_hd (\<lambda>a. rhs \<sigma>)) \<sigma>), \<dots> = more (upd (map_hd (\<lambda>a. rhs \<sigma>)) \<sigma>)\<rparr> = \<lparr>break_status = False, return_status = False, \<dots> = more (upd (map_hd (\<lambda>a. rhs \<sigma>)) \<sigma>)\<rparr>"
-  using f2 by (simp add: exec_stop_def)
-  then have "\<not> exec_stop \<lparr>break_status = False, return_status = True, \<dots> = more (upd (map_hd (\<lambda>a. rhs \<sigma>)) \<sigma>)\<rparr>"
-      using f3 f2 by (metis (no_types) assms exec_stop_vs_control_independence exec_stop_vs_control_independence' surjective update_convs(2))
-    then have f4: "upd (map_hd (\<lambda>a. rhs \<sigma>)) (\<sigma>\<lparr>return_status := True\<rparr>) = \<lparr>break_status = False, return_status = True, \<dots> = more (upd (map_hd (\<lambda>a. rhs \<sigma>)) \<sigma>)\<rparr>"
-      by (simp add: exec_stop_def)
-    have "upd (map_hd (\<lambda>a. rhs \<sigma>)) \<sigma> = \<lparr>break_status = False, return_status = False, \<dots> = more (upd (map_hd (\<lambda>a. rhs \<sigma>)) \<sigma>)\<rparr>"
-      using f3 f2 by (simp add: exec_stop_def)
-    then show "P (upd (map_hd (\<lambda>a. rhs \<sigma>)) \<sigma> \<lparr>return_status := True\<rparr>)"
-      using f4 a1 by (metis (no_types) update_convs(2))
+    assume "\<not> exec_stop \<sigma>"
+    show "P (upd (map_hd (\<lambda>_. rhs \<sigma>)) \<sigma>\<lparr>return_status := True\<rparr>)"
+      using a1 assms exec_stop_vs_control_independence' by fastforce
   qed
   (* do we need independence of rhs ? Not really. 'Normal' programs would never
      be control-state dependent, and 'artificial' ones would still be correct ...*)

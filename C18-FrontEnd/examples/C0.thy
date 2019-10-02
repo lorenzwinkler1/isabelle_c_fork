@@ -128,4 +128,13 @@ _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
 }
 \<close>
 
+C\<open>
+typedef int T;
+void f(void) {
+  for(int T; ; ) if(1) { }
+  T x;
+  x = 0;
+}
+\<close>
+
 end
