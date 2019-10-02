@@ -1,5 +1,5 @@
 (******************************************************************************
- * Isabelle/C
+ * Clean
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
@@ -44,5 +44,6 @@ named_theorems memory_theory
 
 method memory_theory = (simp only: memory_theory MonadSE.bind_assoc')
 method norm = (auto dest!: assert_D)
+
 
 end

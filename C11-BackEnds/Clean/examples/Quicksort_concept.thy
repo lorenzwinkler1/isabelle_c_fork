@@ -359,15 +359,14 @@ thm quicksort_post_def
 
 subsection \<open>A Similation of \<^verbatim>\<open>quicksort\<close> in elementary specification constructs:\<close>
 
+text\<open>This is the most complex form a Clean function may have: it may be directly 
+recursive. Two subcases are to be distinguished: either a measure is provided or not.\<close>
 
+text\<open>We start again with our simulation: First, we define the local variable \<open>p\<close>.\<close>
 local_vars_test  quicksort' "unit"
     p  :: "nat"
 
-
 ML\<open> val (x,y) = StateMgt_core.get_data_global @{theory}; \<close>
-
-
-
 
 thm pop_local_quicksort'_state_def
 thm push_local_quicksort'_state_def
@@ -387,10 +386,9 @@ definition pop_local_quicksort_state' :: "(unit,'a local_quicksort'_state_scheme
                          local_quicksort'_state.result_value := 
                                                       tl(local_quicksort'_state.result_value \<sigma>) \<rparr>)"
 
-(* recursion not yet treated. Either axiomatazitation hack (super-dangerous) or 
-   proper formalization via lfp. *)
-
-(*
+text\<open>We recall the structure of the direct-recursive call in Clean syntax:
+@{cartouche [display=true]
+\<open>
 funct quicksort(lo::int, hi::int) returns unit
      pre  "True"
      post "True"
@@ -400,8 +398,9 @@ funct quicksort(lo::int, hi::int) returns unit
         quicksort(lo, p - 1) ;-
         quicksort(p + 1, hi)
       else Skip\<close>
-      
-*)
+\<close>}
+\<close>
+
 
 definition quicksort'_pre :: "nat \<times> nat \<Rightarrow> 'a local_quicksort'_state_scheme \<Rightarrow>   bool"
   where   "quicksort'_pre \<equiv> \<lambda>(i,j). \<lambda>\<sigma>.  True "
@@ -412,22 +411,22 @@ definition quicksort'_post :: "nat \<times> nat \<Rightarrow> unit \<Rightarrow>
 
 definition quicksort'_core :: "   (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort'_state_scheme) MON\<^sub>S\<^sub>E)
                               \<Rightarrow> (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort'_state_scheme) MON\<^sub>S\<^sub>E)"
-  where   "quicksort'_core quicksort' \<equiv> \<lambda>(lo, hi). 
+  where   "quicksort'_core quicksort_rec \<equiv> \<lambda>(lo, hi). 
                             ((if\<^sub>C (\<lambda>\<sigma>. lo < hi ) 
                               then (p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C partition (\<lambda>\<sigma>. (lo, hi)) ;
                                     assign_local p_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p)) ;-
-                                    call\<^sub>C quicksort' (\<lambda>\<sigma>. (lo, (hd o p) \<sigma> - 1)) ;-
-                                    call\<^sub>C quicksort' (\<lambda>\<sigma>. ((hd o p) \<sigma> + 1, hi))  
+                                    call\<^sub>C quicksort_rec (\<lambda>\<sigma>. (lo, (hd o p) \<sigma> - 1)) ;-
+                                    call\<^sub>C quicksort_rec (\<lambda>\<sigma>. ((hd o p) \<sigma> + 1, hi))  
                               else skip\<^sub>S\<^sub>E 
                               fi))"
 
 term " ((quicksort'_core X) (lo,hi))"
 
 definition quicksort' :: " ((nat \<times> nat) \<times> (nat \<times> nat)) set \<Rightarrow>
-                           (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort'_state_scheme) MON\<^sub>S\<^sub>E)"
+                            (nat \<times> nat \<Rightarrow> (unit,'a local_quicksort'_state_scheme) MON\<^sub>S\<^sub>E)"
   where   "quicksort' order \<equiv> wfrec order (\<lambda>X. \<lambda>(lo, hi). block\<^sub>C push_local_quicksort'_state 
-                                                                (quicksort'_core X (lo,hi)) 
-                                                                pop_local_quicksort'_state)"
+                                                                 (quicksort'_core X (lo,hi)) 
+                                                                 pop_local_quicksort'_state)"
 
 
 subsection\<open>Setup for Deductive Verification\<close>
@@ -441,29 +440,6 @@ lemma quicksort_correct :
      quicksort (lo, hi) 
    \<lbrace>\<lambda>r \<sigma>. \<not>exec_stop \<sigma> \<and> quicksort_post(lo, hi)(\<sigma>\<^sub>p\<^sub>r\<^sub>e)(\<sigma>)(r) \<rbrace>"
    oops
-
-subsection\<open>Experimental\<close>
-
-(* bric a brac : An example by Fred (For Programming Manual)*)
-
-definition "zz = ()"
-ML\<open>@{term zz}\<close>  (* So : @(term "zz"} is now a constant*) 
-ML\<open>Proof_Context.add_fixes [(@{binding "zz"}, SOME @{typ nat}, NoSyn)] @{context}
-   |> (fn (S, ctxt) => (writeln (String.concat S); Syntax.read_term ctxt "zz")) \<close>
-ML\<open>@{term zz}\<close>  (* So : @(term "zz"} is now a constant*) 
-locale Z =
-  fixes zz :: nat
-begin
-ML\<open>@{term "(zz)"}\<close>
-end
-
-lemma True
-proof - fix a :: nat
-  show True
-    ML_prf \<open>@{term a}\<close>
-    term a
-    oops
-
 
 
 

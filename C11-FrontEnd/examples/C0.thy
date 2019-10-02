@@ -157,4 +157,14 @@ W+M(j/2/2,+06)*2+w*014      +00+M(00+      000+j,002      +00)]=000      +00+k)k
         ,C(k),k;)L(;k--;C(*r++/*---#$%&04689@ABDOPQRabdegopq---*/));}C(53+6);return(z);}
 \<close>
 
+\<^cancel>\<open>
+C\<open>
+typedef int T;
+void f(void) {
+  for(int T; ; ) if(1) { }
+  T x;
+  x = 0;
+}
+\<close>
+\<close>
 end
