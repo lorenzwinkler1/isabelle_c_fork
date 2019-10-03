@@ -39,9 +39,10 @@ theory README imports Main begin
 section \<open>Global Structure of the Isabelle/C Project\<close>
 
 text \<open>
-The Isabelle/C project consists of several components, where two of them represent AFP submissions.
+The Isabelle/C project consists of several components, where some of them represent AFP submissions.
 
 \<^item> \<^dir>\<open>C11-FrontEnd\<close> (AFP)
+\<^item> \<^dir>\<open>C18-FrontEnd\<close> (AFP)
 \<^item> \<^dir>\<open>C11-BackEnds\<close>
   \<^item> \<^dir>\<open>C11-BackEnds/Clean\<close>: (AFP, depending of \<^dir>\<open>C11-FrontEnd\<close>) Clean Library
   \<^item> \<^dir>\<open>C11-BackEnds/Clean_wrapper\<close>: adapter to \<^dir>\<open>C11-FrontEnd\<close>
@@ -53,14 +54,21 @@ The Isabelle/C project consists of several components, where two of them represe
 section \<open>Isabelle/C\<close>
 
 text \<open>
-Isabelle/C contains a C11 front-end support for Isabelle.
+Isabelle/C contains a C99/C11/C18 front-end support for Isabelle. The front-end is actually composed
+of two possibly interchangeable parsers (from two different projects):
 
-The code requires Isabelle2019. For a first start, the following C examples or entry-points of
+\<^item> \<^dir>\<open>C11-FrontEnd\<close>: \<^url>\<open>https://hackage.haskell.org/package/language-c\<close>
+\<^item> \<^dir>\<open>C18-FrontEnd\<close>: \<^url>\<open>https://github.com/jhjourdan/C11parser\<close>
+
+Thus, one can select which parser(s) are better suitable to be enabled in front of a piece of C
+code.
+
+Isabelle/C requires Isabelle2019. For a first start, the following C examples or entry-points of
 documentation can be executed:
 
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^file>\<open>C11-FrontEnd/examples/C3.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C18-FrontEnd\<close> \<^file>\<open>C11-FrontEnd/examples/C0.thy\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^file>\<open>C11-FrontEnd/C_Appendices.thy\<close>
 \<close>
 
