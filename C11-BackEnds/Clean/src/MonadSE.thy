@@ -1,14 +1,14 @@
 (*****************************************************************************
+ * Clean
+ *                                                                            
  * HOL-TestGen --- theorem-prover based test case generation
  *                 http://www.brucker.ch/projects/hol-testgen/
  *                                                                            
- * Monads.thy --- a base testing theory for sequential computations.
- * This file is part of HOL-TestGen.
- *
  * Copyright (c) 2005-2007 ETH Zurich, Switzerland
  *               2009-2017 Univ. Paris-Sud, France 
  *               2009-2012 Achim D. Brucker, Germany
  *               2015-2017 University Sheffield, UK
+ *               2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
  * All rights reserved.
  *
@@ -40,7 +40,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(* $Id:$ *)
+
+(*
+ * Monads --- a base testing theory for sequential computations.
+ * This file is part of HOL-TestGen.
+ *)
 
 theory MonadSE
   imports Main

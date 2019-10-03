@@ -1,9 +1,7 @@
 (******************************************************************************
- * Isabelle/C
+ * Clean
  *
- * Copyright (c) 2018-2019 Université Paris-Saclay, France
- * 
- * Authors: Frederic Tuong, Burkhart Wolff
+ * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
  * All rights reserved.
  *
@@ -36,13 +34,14 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+(*
+ * Clean --- a basic abstract ("shallow") programming language for test and proof.
+ * Authors : Burkhart Wolff, Frédéric Tuong
+ *           Contributions by Chantal Keller
+ *)
+
 session Clean = HOL +
   theories
-    "src/Clean"
-    "src/Symbex_MonadSE"
-    "src/Test_Clean"
-    "src/Hoare_MonadSE"
-    "src/Hoare_Clean"
     "src/Clean_Main"
 
 session Clean_examples = Clean +
@@ -50,17 +49,12 @@ session Clean_examples = Clean +
     "examples/Quicksort_concept"
     "examples/SquareRoot_concept"
 
-session Clean_document = Clean +
+session Clean_document = Clean_examples +
   options [document = pdf, document_output = "output"]
   theories
-    "src/Clean"
+    "src/Clean_Main"
     "examples/Quicksort_concept"
     "examples/SquareRoot_concept"
-    "src/MonadSE"
-    "src/Symbex_MonadSE"
-    "src/Test_Clean"
-    "src/Hoare_MonadSE"
-    "src/Hoare_Clean"
   document_files
     "root.tex"
     "root.bib"

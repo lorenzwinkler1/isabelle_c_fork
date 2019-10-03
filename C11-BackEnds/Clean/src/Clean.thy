@@ -1,11 +1,7 @@
-(*<*)
 (******************************************************************************
- * Quicksort Concept 
+ * Clean
  *
- * Authors : Burkhart Wolff, Frederic Tuong
- *           Contributions by Chantal Keller
- * 
- * Copyright (c) 2018-2019 Université Paris-Saclay, France
+ * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
  * All rights reserved.
  *
@@ -37,12 +33,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(*>*)
 
-(***************************************************************************************
- * Clean.thy --- a basic abstract ("shallow") programming language for test and proof.
- * Burkhart Wolff, Frederic Tuong and Chantal Keller, LRI, Univ. Paris-Saclay, France
- ***************************************************************************************)
+(*
+ * Clean --- a basic abstract ("shallow") programming language for test and proof.
+ * Burkhart Wolff, Frédéric Tuong and Chantal Keller, LRI, Univ. Paris-Saclay, France
+ *)
 
 chapter \<open>The Clean Language\<close>
 

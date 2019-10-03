@@ -1,11 +1,7 @@
-(*<*)
 (******************************************************************************
- * Isabelle/C
+ * Clean
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
- *
- * Authors : Burkhart Wolff, Frederic Tuong
- *           Contributions by Chantal Keller
  *
  * All rights reserved.
  *
@@ -37,7 +33,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(*>*)
+
+(*
+ * Clean --- a basic abstract ("shallow") programming language for test and proof.
+ * Authors : Burkhart Wolff, Frédéric Tuong
+ *           Contributions by Chantal Keller
+ *)
 
 theory Clean_Main
   imports Clean Hoare_Clean Test_Clean
