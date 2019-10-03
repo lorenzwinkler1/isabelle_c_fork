@@ -158,13 +158,61 @@ W+M(j/2/2,+06)*2+w*014      +00+M(00+      000+j,002      +00)]=000      +00+k)k
         ,C(k),k;)L(;k--;C(*r++/*---#$%&04689@ABDOPQRabdegopq---*/));}C(53+6);return(z);}
 \<close>
 
-C\<open>
-typedef int T;
-void f(void) {
-  for(int T; ; ) if(1) { }
-  T x;
-  x = 0;
-}
-\<close>
+section \<open>Experiments with \<^dir>\<open>../../parser_menhir\<close>\<close>
+
+declare[[C_lexer_trace = false]]
+
+subsection \<open>Expecting to succeed\<close>
+
+C_file \<open>../../parser_menhir/tests/aligned_struct_c18.c\<close>
+C_file \<open>../../parser_menhir/tests/argument_scope.c\<close>
+C_file \<open>../../parser_menhir/tests/atomic.c\<close>
+C_file \<open>../../parser_menhir/tests/atomic_parenthesis.c\<close>
+C_file \<open>../../parser_menhir/tests/bitfield_declaration_ambiguity.c\<close>
+C_file \<open>../../parser_menhir/tests/bitfield_declaration_ambiguity.ok.c\<close>
+C_file \<open>../../parser_menhir/tests/block_scope.c\<close>
+C_file \<open>../../parser_menhir/tests/c11-noreturn.c\<close>
+C_file \<open>../../parser_menhir/tests/c1x-alignas.c\<close>
+C_file \<open>../../parser_menhir/tests/char-literal-printing.c\<close>
+C_file \<open>../../parser_menhir/tests/c-namespace.c\<close>
+C_file \<open>../../parser_menhir/tests/control-scope.c\<close>
+C_file \<open>../../parser_menhir/tests/dangling_else.c\<close>
+C_file \<open>../../parser_menhir/tests/dangling_else_lookahead.c\<close>
+C_file \<open>../../parser_menhir/tests/dangling_else_lookahead.if.c\<close>
+C_file \<open>../../parser_menhir/tests/declaration_ambiguity.c\<close>
+C_file \<open>../../parser_menhir/tests/declarators.c\<close>
+C_file \<open>../../parser_menhir/tests/declarator_visibility.c\<close>
+C_file \<open>../../parser_menhir/tests/designator.c\<close>
+C_file \<open>../../parser_menhir/tests/enum.c\<close>
+C_file \<open>../../parser_menhir/tests/enum_constant_visibility.c\<close>
+C_file \<open>../../parser_menhir/tests/enum_shadows_typedef.c\<close>
+C_file \<open>../../parser_menhir/tests/enum-trick.c\<close>
+C_file \<open>../../parser_menhir/tests/expressions.c\<close>
+C_file \<open>../../parser_menhir/tests/function-decls.c\<close>
+C_file \<open>../../parser_menhir/tests/function_parameter_scope.c\<close>
+C_file \<open>../../parser_menhir/tests/function_parameter_scope_extends.c\<close>
+C_file \<open>../../parser_menhir/tests/if_scopes.c\<close>
+C_file \<open>../../parser_menhir/tests/local_scope.c\<close>
+C_file \<open>../../parser_menhir/tests/local_typedef.c\<close>
+C_file \<open>../../parser_menhir/tests/long-long-struct.c\<close>
+C_file \<open>../../parser_menhir/tests/loop_scopes.c\<close>
+C_file \<open>../../parser_menhir/tests/namespaces.c\<close>
+C_file \<open>../../parser_menhir/tests/no_local_scope.c\<close>
+C_file \<open>../../parser_menhir/tests/parameter_declaration_ambiguity.c\<close>
+C_file \<open>../../parser_menhir/tests/parameter_declaration_ambiguity.test.c\<close>
+C_file \<open>../../parser_menhir/tests/statements.c\<close>
+C_file \<open>../../parser_menhir/tests/struct-recursion.c\<close>
+C_file \<open>../../parser_menhir/tests/typedef_star.c\<close>
+C_file \<open>../../parser_menhir/tests/types.c\<close>
+C_file \<open>../../parser_menhir/tests/variable_star.c\<close>
+
+subsection \<open>Expecting to fail\<close>
+
+C_file \<open>../../parser_menhir/tests/bitfield_declaration_ambiguity.fail.c\<close>
+\<^cancel>\<open>C_file \<open>../../parser_menhir/tests/dangling_else_misleading.fail.c\<close>\<close>
+
+subsection \<open>Miscellaneous\<close>
+
+\<^cancel>\<open>C_file \<open>../../l4v/generated/spec/cspec/c/build/ARM/kernel_all.c_pp\<close>\<close>
 
 end
