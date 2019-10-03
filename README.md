@@ -4,9 +4,10 @@
 section ‹Global Structure of the Isabelle/C Project›
 
 text ‹
-The Isabelle/C project consists of several components, where two of them represent AFP submissions.
+The Isabelle/C project consists of several components, where some of them represent AFP submissions.
 
 ▪ 🗀‹C11-FrontEnd› (AFP)
+▪ 🗀‹C18-FrontEnd› (AFP)
 ▪ 🗀‹C11-BackEnds›
   ▪ 🗀‹C11-BackEnds/Clean›: (AFP, depending of 🗀‹C11-FrontEnd›) Clean Library
   ▪ 🗀‹C11-BackEnds/Clean_wrapper›: adapter to 🗀‹C11-FrontEnd›
@@ -18,14 +19,21 @@ The Isabelle/C project consists of several components, where two of them represe
 section ‹Isabelle/C›
 
 text ‹
-Isabelle/C contains a C11 front-end support for Isabelle.
+Isabelle/C contains a C99/C11/C18 front-end support for Isabelle. The front-end is actually composed
+of two possibly interchangeable parsers (from two different projects):
 
-The code requires Isabelle2019. For a first start, the following C examples or entry-points of
+▪ 🗀‹C11-FrontEnd›: 🌐‹https://hackage.haskell.org/package/language-c›
+▪ 🗀‹C18-FrontEnd›: 🌐‹https://github.com/jhjourdan/C11parser›
+
+Thus, one can select which parser(s) are better suitable to be enabled in front of a piece of C
+code.
+
+Isabelle/C requires Isabelle2019. For a first start, the following C examples or entry-points of
 documentation can be executed:
 
 ▪ ▩‹isabelle jedit -d› 🗀‹C11-FrontEnd› 🗏‹C11-FrontEnd/examples/C1.thy›
 ▪ ▩‹isabelle jedit -d› 🗀‹C11-FrontEnd› 🗏‹C11-FrontEnd/examples/C2.thy›
-▪ ▩‹isabelle jedit -d› 🗀‹C11-FrontEnd› 🗏‹C11-FrontEnd/examples/C3.thy›
+▪ ▩‹isabelle jedit -d› 🗀‹C18-FrontEnd› 🗏‹C11-FrontEnd/examples/C0.thy›
 ▪ ▩‹isabelle jedit -d› 🗀‹C11-FrontEnd› 🗏‹C11-FrontEnd/C_Appendices.thy›
 ›
 
