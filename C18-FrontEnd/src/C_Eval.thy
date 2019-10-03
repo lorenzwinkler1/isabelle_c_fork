@@ -191,21 +191,45 @@ fun add_stream_hook (syms_shift, syms, ml_exec) =
                               (case eval2 of e :: es => ((syms_shift, syms, ml_exec) :: e) :: es
                                            | [] => [[(syms_shift, syms, ml_exec)]]))
 
+datatype ('a, 'b, 'c) lexing_state = Lex_new_token of 'a
+                                   | Lex_state_ident of 'b
+                                   | Lex_state_string of 'c
+
 fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
   let val (token, arg) =
         C_Env_Ext.map_stream_lang'
           (fn (st, stream) =>
               case st of
-                C_Env.Stream_ident data => (C_Scan.Right data, (C_Env.Stream_regular, stream))
+                C_Env.Stream_ident data => (Lex_state_ident data, (C_Env.Stream_regular, stream))
+              | C_Env.Stream_string strs =>
+                let fun new_token x xs = (Lex_new_token (SOME x), (C_Env.Stream_string strs, xs))
+                in case stream of
+                     (x as C_Scan.Right (C_Lex.Token (_, (C_Lex.String (C_Lex.Encoding_file (SOME _), _), _)))) :: xs =>
+                       new_token x xs
+                   | C_Scan.Right (C_Lex.Token (range, (C_Lex.String _, src))) :: xs =>
+                       (Lex_state_string NONE, (C_Env.Stream_string ((range, src) :: strs), xs))
+                   | (x as C_Scan.Left _) :: xs =>
+                       new_token x xs
+                   | (x as C_Scan.Right (C_Lex.Token (_, (C_Lex.Directive _, _)))) :: xs =>
+                       new_token x xs
+                   | stream =>
+                       (Lex_state_string (SOME (rev strs)), (C_Env.Stream_regular, stream))
+                end
               | _ =>
-                  (case stream of
-                     [] => (NONE, (st, []))
-                   | x :: xs =>
-                       ( SOME x
-                       , ( case x of 
-                             C_Scan.Right (C_Lex.Token (range, (C_Lex.Ident, src))) => C_Env.Stream_ident (src, range)
-                           | _ => st
-                         , xs))) |> apfst C_Scan.Left)
+                let fun new_token x xs =
+                     ( Lex_new_token (SOME x)
+                     , ( case x of 
+                           C_Scan.Right (C_Lex.Token (range, (C_Lex.Ident, src))) => C_Env.Stream_ident (range, src)
+                         | _ => st
+                       , xs))
+                in case stream of
+                     [] => (Lex_new_token NONE, (st, []))
+                   | (x as C_Scan.Right (C_Lex.Token (_, (C_Lex.String (C_Lex.Encoding_file (SOME _), _), _)))) :: xs =>
+                       new_token x xs
+                   | C_Scan.Right (C_Lex.Token (range, (C_Lex.String _, src))) :: xs =>
+                       (Lex_state_string NONE, (C_Env.Stream_string [(range, src)], xs))
+                   | x :: xs => new_token x xs
+                end)
           arg
       fun return0' f =
         (arg, stack_ml)
@@ -229,7 +253,7 @@ fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
       open C_Scan
   in
     case token
-    of Left NONE => 
+    of Lex_new_token NONE => 
         return0'
           (tap (fn (arg, _) => 
               fold (uncurry
@@ -240,7 +264,7 @@ fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
                    (map_index I (#stream_hook arg))
                    ()))
           (C_Grammar.Tokens.EOF ((), Position.none, Position.none))
-     | Left (SOME (Left (antiq_raw, l_antiq))) =>
+     | Lex_new_token (SOME (Left (antiq_raw, l_antiq))) =>
         makeLexer
           ( (stack, stack_ml, stack_pos, stack_tree)
           , (arg, false)
@@ -251,7 +275,7 @@ fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
                      l_antiq
              |> (fn (arg, false) => arg
                   | (arg, true) => C_Env_Ext.map_stream_ignored (cons (Left antiq_raw)) arg))
-     | Left (SOME (Right (tok as C_Lex.Token (_, (C_Lex.Directive dir, _))))) =>
+     | Lex_new_token (SOME (Right (tok as C_Lex.Token (_, (C_Lex.Directive dir, _))))) =>
         makeLexer
           ( (stack, stack_ml, stack_pos, stack_tree)
           , arg
@@ -272,12 +296,21 @@ fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
                      (C_Lex.directive_cmds dir)
                end
             |> C_Env_Ext.map_stream_ignored (cons (Right tok)))
-     | Right (src, (pos1, pos2)) =>
-       return0 (if C_Grammar_Rule_Lib.is_typedefname src arg then
+     | Lex_state_ident ((pos1, pos2), src) =>
+        return0 (if C_Grammar_Rule_Lib.is_typedefname src arg then
                    C_Grammar.Tokens.TYPE ((), pos1, pos2)
                  else
                    C_Grammar.Tokens.VARIABLE ((), pos1, pos2))
-     | Left (SOME (Right (C_Lex.Token ((pos1, pos2), (tok, src))))) =>
+     | Lex_state_string NONE =>
+        makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg)
+     | Lex_state_string (SOME strs) =>
+        let val ((pos1, _), _) = hd strs
+            val ((_, pos2), _) = last strs
+            val (pos1, pos2) = Position.range (pos1, pos2)
+        in
+          return0 (C_Grammar.Tokens.STRING_LITERAL ((), pos1, pos2))
+        end
+     | Lex_new_token (SOME (Right (C_Lex.Token ((pos1, pos2), (tok, src))))) =>
       case tok of 
         C_Lex.String (C_Lex.Encoding_file (SOME err), _) =>
         return0' (apfst (C_Env.map_env_tree (C_Env.map_error_lines (cons (err ^ Position.here pos1)))))
@@ -287,8 +320,6 @@ fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
           (case tok of
              C_Lex.Char _ =>
               C_Grammar.Tokens.CONSTANT ((), pos1, pos2)
-           | C_Lex.String _ =>
-              C_Grammar.Tokens.STRING_LITERAL ((), pos1, pos2)
            | C_Lex.Integer _ =>
               C_Grammar.Tokens.CONSTANT ((), pos1, pos2)
            | C_Lex.Float _ =>
