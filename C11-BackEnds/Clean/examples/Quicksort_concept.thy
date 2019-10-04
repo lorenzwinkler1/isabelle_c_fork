@@ -48,8 +48,8 @@ well as direct-recursive operations (i.e. C-like functions with side-effects on 
 local variables. \<close>
 
 theory Quicksort_concept
-  imports Clean.Clean
-          Clean.Hoare_MonadSE
+  imports Clean_Main.Clean
+          Clean_Main.Hoare_MonadSE
 begin
 
 section\<open>The Quicksort Example\<close>
