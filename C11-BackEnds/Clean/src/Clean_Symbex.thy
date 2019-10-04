@@ -408,17 +408,16 @@ corollary exec_while_k :
 txt\<open> Necessary prerequisite: turning ematch and dmatch into a proper Isar Method. \<close>
 (* TODO : this code shoud go to TestGen Method setups *)
 ML\<open>
+local
+fun method_setup b tac =
+  Method.setup b
+    (Attrib.thms >> (fn rules => fn ctxt => METHOD (HEADGOAL o K (tac ctxt rules))))
+in
 val _ =
-  Theory.setup
-   (Method.setup @{binding ematch}
-      (Attrib.thms >> (fn rules => fn ctxt => METHOD (HEADGOAL o (K(ematch_tac ctxt rules)) ))) 
-      "fast elimination matching" #>
-    Method.setup @{binding dmatch}
-      (Attrib.thms >> (fn rules => fn ctxt => METHOD (HEADGOAL o (K(dmatch_tac ctxt rules)) ))) 
-       "fast destruction matching" #>
-    Method.setup @{binding match}
-      (Attrib.thms >> (fn rules => fn ctxt => METHOD (HEADGOAL o (K(match_tac ctxt rules)) )))
-       "resolution based on fast matching")
+  Theory.setup (   method_setup @{binding ematch} ematch_tac "fast elimination matching"
+                #> method_setup @{binding dmatch} dmatch_tac "fast destruction matching"
+                #> method_setup @{binding match} match_tac "resolution based on fast matching")
+end
 \<close>
 
 lemmas exec_while_kD = exec_while_k[THEN iffD1]

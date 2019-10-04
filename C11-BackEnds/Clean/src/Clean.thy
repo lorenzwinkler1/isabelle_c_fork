@@ -544,7 +544,6 @@ struct
 open StateMgt_core
 
 val result_name = "result_value"
-fun mk_result_name x = result_name
 
 fun get_result_value_conf name thy = 
         let val  S = filter_attr_of name thy
@@ -578,13 +577,6 @@ fun construct_update is_pop binding sty thy =
        in  fold (map_to_update sty is_pop thy) (attrS) (Free("\<sigma>",sty)) end
 
 fun cmd (decl, spec, prems, params) = #2 oo Specification.definition' decl params prems spec
-
-
-val SPY  = Unsynchronized.ref (Bound 0)
-val SPY1 = Unsynchronized.ref (Binding.empty)
-val SPY2 = Unsynchronized.ref (@{typ "unit"})
-val SPY3 = Unsynchronized.ref (@{typ "unit"})
-
 
 fun mk_push_name binding = Binding.prefix_name "push_" binding
 
@@ -744,11 +736,6 @@ section\<open>Syntactic Sugar supporting \<open>\<lambda>\<close>-lifting for Gl
 ML \<open>
 structure Clean_Syntax_Lift =
 struct
-val SPY4 = Unsynchronized.ref (@{typ "unit"});
-val SPY5 = Unsynchronized.ref (Bound 0);
-val SPY6 = Unsynchronized.ref (Bound 0);
-val SPY7 = Unsynchronized.ref (Bound 0);
-
   local
     fun mk_local_access X = Const (@{const_name "Fun.comp"}, dummyT) 
                             $ Const (@{const_name "List.list.hd"}, dummyT) $ X
@@ -801,18 +788,10 @@ val SPY7 = Unsynchronized.ref (Bound 0);
         (case args of
           [(Const (@{syntax_const "_constrain"}, _)) $ (Free (s, _)) $ p] =>
             (case Term_Position.decode_position p of
-              SOME (pos, _) =>
-              let val txt = Symbol_Pos.implode(content (s,pos))
-                  val tm = Syntax.parse_term ctxt txt
-                  val sty = StateMgt_core.get_state_type ctxt
-val _ = (SPY4:=sty) val _ = (SPY5:=tm)
-                  val tr = transform_term ctxt sty tm
-val _ = (SPY6:=tr)
-                  val ct = Syntax.check_term ctxt tr
-val _ = (SPY7:=ct)
-              in
-                ct
-              end
+              SOME (pos, _) => Symbol_Pos.implode (content (s, pos))
+                            |> Syntax.parse_term ctxt
+                            |> transform_term ctxt (StateMgt_core.get_state_type ctxt)
+                            |> Syntax.check_term ctxt
             | NONE => err ())
         | _ => err ())
       end
@@ -851,10 +830,6 @@ ML\<open>
 ML \<open> 
 structure Function_Specification_Parser  = 
   struct
-
-val SPY1 = Unsynchronized.ref(Bound 0)
-val SPY2 = Unsynchronized.ref(Bound 0)
-val SPY3 = Unsynchronized.ref(Bound 0)
 
     type funct_spec_src = {    
         binding:  binding,                         (* name *)
@@ -916,9 +891,7 @@ val SPY3 = Unsynchronized.ref(Bound 0)
               val ctxt' = Variable.declare_typ ty ctxt           
           in  (ty, ctxt') end
 
-   fun read_function_spec ({ binding ,  params,  ret_type,  pre_src,  post_src, 
-                                  variant_src, ...} : funct_spec_src
-                               ) ctxt =
+   fun read_function_spec ({ params, ret_type, variant_src, ...} : funct_spec_src) ctxt =
        let val (params_Ts, ctxt') = read_params params ctxt
            val (rty, ctxt'') = read_result ret_type ctxt' 
            val variant = Option.map (Syntax.read_term ctxt'')  variant_src
@@ -932,7 +905,7 @@ val SPY3 = Unsynchronized.ref(Bound 0)
             in  exists_Const test term end
    
    fun transform_old sty term = 
-       let fun  transform_old0 (Const(@{const_name "old"}, ty as Type("fun", [_,_])) $ term ) 
+       let fun  transform_old0 (Const(@{const_name "old"}, Type ("fun", [_,_])) $ term ) 
                               = (case term of
                                   (Const(s,ty) $ Bound x) =>  (Const(s,ty) $ Bound (x+1))
                                 | _ => error("illegal application of the old notation."))
@@ -966,11 +939,10 @@ val SPY3 = Unsynchronized.ref(Bound 0)
            val eq = mk_meta_eq(Free (bdg_core_name, umty),mk_pat_tupleabs(map(apsnd #2)params) body)
            val args_core =(SOME (bdg_core, SOME umty, NoSyn), (Binding.empty_atts, eq), [], [])
 
-       in fn ctxt => (writeln "define_body_core";
-                      StateMgt.cmd args_core true ctxt)
+       in StateMgt.cmd args_core true
        end 
  
-   fun define_body_main {recursive = x:bool} binding rty sty params variant_src body ctxt = 
+   fun define_body_main {recursive = x:bool} binding rty sty params variant_src _ ctxt = 
        let val push_name = StateMgt.mk_push_name (StateMgt.mk_local_state_name binding)
            val pop_name = StateMgt.mk_pop_name (StateMgt.mk_local_state_name binding)
            val bdg_core = Binding.suffix_name "_core" binding
@@ -980,8 +952,6 @@ val SPY3 = Unsynchronized.ref(Bound 0)
 
            val args_ty = HOLogic.mk_tupleT (map (#2 o #2) params)
            val params' = map (apsnd #2) params
-           val _ = writeln "define_body_main"
-           val _ = (SPY1:=body)
            val rmty = StateMgt_core.MON_SE_T rty sty 
 
            val umty = StateMgt.MON_SE_T @{typ "unit"} sty
@@ -989,8 +959,7 @@ val SPY3 = Unsynchronized.ref(Bound 0)
            val argsRelSet = HOLogic.mk_setT argsProdT
            val measure_term = case variant_src of
                                  NONE => Free(bdg_ord_name,args_ty --> HOLogic.natT)
-                               | SOME str => (writeln str;  Syntax.read_term ctxt str
-                                                 |> mk_pat_tupleabs params')
+                               | SOME str => (Syntax.read_term ctxt str |> mk_pat_tupleabs params')
            val measure =  Const(@{const_name "Wellfounded.measure"}, (args_ty --> HOLogic.natT)
                                                                      --> argsRelSet )
                           $ measure_term
@@ -1017,7 +986,6 @@ val SPY3 = Unsynchronized.ref(Bound 0)
                                       $ HOLogic.mk_tuple (map Free params'))
                                    $ Const(read_constname ctxt (Binding.name_of pop_name),rmty))))
            val eq_main = mk_meta_eq(lhs_main, if x then rhs_main_rec else rhs_main )
-           val _ = (SPY2:=eq_main)
            val args_main = (SOME(binding,NONE,NoSyn), (Binding.empty_atts,eq_main),[],[]) 
        in  ctxt |> StateMgt.cmd args_main true 
        end 
@@ -1026,7 +994,7 @@ val SPY3 = Unsynchronized.ref(Bound 0)
    fun checkNsem_function_spec {recursive = false} ({variant_src=SOME _, ...}) _ = 
                                error "No measure required in non-recursive call"
       |checkNsem_function_spec (isrec as {recursive = _:bool}) 
-                               (args as {binding, params, ret_type, variant_src, locals, body_src, pre_src, post_src, ...} : funct_spec_src)
+                               (args as {binding, ret_type, variant_src, locals, body_src, pre_src, post_src, ...} : funct_spec_src)
                                thy =
        let val (theory_map, thy') =
              Named_Target.theory_map_result
@@ -1058,7 +1026,6 @@ val SPY3 = Unsynchronized.ref(Bound 0)
                                 else
                                   ctxt
                               val body = Syntax.read_term ctxt' (fst body_src)
-                              val _ = (SPY1 := body)
                           in  ctxt' |> define_body_core binding args_ty sty params body
                           end)
                 |> theory_map
