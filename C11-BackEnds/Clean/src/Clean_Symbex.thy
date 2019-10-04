@@ -1,3 +1,39 @@
+(******************************************************************************
+ * Clean
+ *
+ * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials provided
+ *       with the distribution.
+ *
+ *     * Neither the name of the copyright holders nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ ******************************************************************************)
+
 theory Clean_Symbex
   imports Clean
 begin
@@ -372,17 +408,16 @@ corollary exec_while_k :
 txt\<open> Necessary prerequisite: turning ematch and dmatch into a proper Isar Method. \<close>
 (* TODO : this code shoud go to TestGen Method setups *)
 ML\<open>
+local
+fun method_setup b tac =
+  Method.setup b
+    (Attrib.thms >> (fn rules => fn ctxt => METHOD (HEADGOAL o K (tac ctxt rules))))
+in
 val _ =
-  Theory.setup
-   (Method.setup @{binding ematch}
-      (Attrib.thms >> (fn rules => fn ctxt => METHOD (HEADGOAL o (K(ematch_tac ctxt rules)) ))) 
-      "fast elimination matching" #>
-    Method.setup @{binding dmatch}
-      (Attrib.thms >> (fn rules => fn ctxt => METHOD (HEADGOAL o (K(dmatch_tac ctxt rules)) ))) 
-       "fast destruction matching" #>
-    Method.setup @{binding match}
-      (Attrib.thms >> (fn rules => fn ctxt => METHOD (HEADGOAL o (K(match_tac ctxt rules)) )))
-       "resolution based on fast matching")
+  Theory.setup (   method_setup @{binding ematch} ematch_tac "fast elimination matching"
+                #> method_setup @{binding dmatch} dmatch_tac "fast destruction matching"
+                #> method_setup @{binding match} match_tac "resolution based on fast matching")
+end
 \<close>
 
 lemmas exec_while_kD = exec_while_k[THEN iffD1]

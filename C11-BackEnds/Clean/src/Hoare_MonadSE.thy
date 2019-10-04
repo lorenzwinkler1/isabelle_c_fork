@@ -1,10 +1,7 @@
-(*<*)
 (******************************************************************************
- * Basic Hoare Calculus for the State Exception Monad 
+ * Clean
  *
- * Authors : Burkhart Wolff
- * 
- * Copyright (c) 2018-2019 Université Paris-Saclay, France
+ * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
  * All rights reserved.
  *
@@ -36,7 +33,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(*>*)
+
+(*
+ * Basic Hoare Calculus for the State Exception Monad 
+ *
+ * Authors : Burkhart Wolff
+ *)
+
 theory Hoare_MonadSE
   imports Symbex_MonadSE
 begin

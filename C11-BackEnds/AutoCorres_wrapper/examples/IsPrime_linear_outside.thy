@@ -89,23 +89,6 @@ lemma partial_prime_2 [simp]: "(partial_prime a 2) = (a > 1)"
 definition [simp]: "is_prime_linear_inv n i s \<equiv> (1 < i \<and> 1 < n \<and> i \<le> n \<and> partial_prime n i)"
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 section\<open>The Gory C Code --- pure without annotations\<close>
 text\<open>... except just one : the invocation of AutoCorres.\<close>
 
@@ -132,15 +115,7 @@ unsigned is_prime_linear(unsigned n)
 }
 \<close>
 
-find_theorems name:"is_prime_linear"
-
-
-
 C_export_file  (* This exports the C code into a C file ready to be compiled by gcc. *)
-
-
-
-
 
 lemma uint_max_factor [simp]: "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
   by (clarsimp simp: UINT_MAX_def SQRT_UINT_MAX_def)

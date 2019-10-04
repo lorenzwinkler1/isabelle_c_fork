@@ -34,7 +34,16 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-theory CleanTest
-  imports Main
-begin
-end
+(* For modularity reasons, and to ease the importation of a specific session by
+   semantic back-ends, theory files are (at the time of writing) not regrouped
+   into a unique session. *)
+
+session Isabelle_C_Advance = HOL +
+  theories
+    C_Main
+
+session Isabelle_C_Advance_examples = Isabelle_C_Advance + (* a standard test suite *)
+  theories
+    "examples/C0"
+    "examples/C2"
+    "examples/C3"

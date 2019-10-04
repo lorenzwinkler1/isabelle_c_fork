@@ -1,10 +1,7 @@
-(*<*)
 (******************************************************************************
- * Quicksort Concept 
+ * Clean
  *
- * Authors : Burkhart Wolff, Frederic Tuong
- * 
- * Copyright (c) 2018-2019 Université Paris-Saclay, France
+ * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
  * All rights reserved.
  *
@@ -36,7 +33,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(*>*)
+
+(*
+ * Quicksort Concept 
+ *
+ * Authors : Burkhart Wolff, Frédéric Tuong
+ *)
+
 chapter \<open> Clean Semantics : A Coding-Concept Example\<close>
 
 text\<open>The following show-case introduces subsequently a non-trivial example involving

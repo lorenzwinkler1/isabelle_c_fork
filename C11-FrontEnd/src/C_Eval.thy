@@ -192,7 +192,7 @@ fun add_stream_hook (syms_shift, syms, ml_exec) =
                                            | [] => [[(syms_shift, syms, ml_exec)]]))
 
 fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
-  let val (token, arg) = C_Env_Ext.map_stream_lang' (fn [] => (NONE, []) | x :: xs => (SOME x, xs)) arg
+  let val (token, arg) = C_Env_Ext.map_stream_lang' (fn (st, []) => (NONE, (st, [])) | (st, x :: xs) => (SOME x, (st, xs))) arg
       fun return0' f =
         (arg, stack_ml)
         |> advance_hook stack
@@ -273,9 +273,9 @@ fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
         return0
           (case tok of
              C_Lex.Char (b, [c]) =>
-              C_Grammar.Tokens.cchar (CChar (From_char_hd c) (encoding b), pos1, pos2)
+              C_Grammar.Tokens.cchar (CChar (From_char_hd (case c of Left c => c | _ => chr 0)) (encoding b), pos1, pos2)
            | C_Lex.String (b, s) =>
-              C_Grammar.Tokens.cstr (CString0 (From_string (implode s), encoding b), pos1, pos2)
+              C_Grammar.Tokens.cstr (CString0 (From_string (implode (map (fn Left s => s | Right _ => chr 0) s)), encoding b), pos1, pos2)
            | C_Lex.Integer (i, repr, flag) =>
               C_Grammar.Tokens.cint
                ( CInteger i repr
