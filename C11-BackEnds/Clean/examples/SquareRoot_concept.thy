@@ -33,6 +33,7 @@ defines      " (\<open>tm := 1\<close> ;-
 
 \<close>
 
+
 subsection\<open> Definition of the Global State \<close>
 
 text\<open>The state is just a record; and the global variables correspond to fields in this
@@ -55,6 +56,7 @@ global_vars state
    tm    :: int
    i     :: int
    sqsum :: int
+
 
 ML\<open>
 val Type(s,t) = StateMgt_core.get_state_type_global @{theory}

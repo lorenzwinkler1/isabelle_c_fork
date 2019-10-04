@@ -181,12 +181,6 @@ definition control_independence ::
                                  \<and> upd T (\<sigma>\<lparr> break_status := b \<rparr>) = (upd T \<sigma>)\<lparr> break_status := b \<rparr>) "
 
 
-(*
-definition control_independence :: 
-                 "(('b\<Rightarrow>'b)\<Rightarrow>'a control_state_scheme \<Rightarrow> 'a control_state_scheme) \<Rightarrow> bool"    ("\<sharp>")
-           where "\<sharp> upd \<equiv> (\<forall>\<sigma> T.   break_status (upd T \<sigma>) = break_status \<sigma> 
-                                 \<and> return_status (upd T \<sigma>) = return_status \<sigma> ) "
-*)
 
 lemma exec_stop_vs_control_independence [simp]:
   "\<sharp> upd \<Longrightarrow> exec_stop (upd f \<sigma>) = exec_stop \<sigma>"
