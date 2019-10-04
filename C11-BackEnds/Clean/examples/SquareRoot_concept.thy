@@ -42,7 +42,7 @@
 section \<open> The Squareroot Example for Symbolic Execution \<close> 
 
 theory SquareRoot_concept
-  imports Clean.Test_Clean
+  imports Clean_Main.Test_Clean
 begin
 
 
