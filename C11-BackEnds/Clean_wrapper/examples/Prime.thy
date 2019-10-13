@@ -46,6 +46,8 @@
 theory Prime imports Isabelle_C_Clean.Backend
                   \<comment> \<open>Clean back-end is now on\<close>   "../../../C11-FrontEnd/archive/Clean_backend_old" "HOL-Computational_Algebra.Primes"
 begin                                             no_syntax "_C" :: \<open>cartouche_position \<Rightarrow> _\<close> ("\<^C> _")
+
+
 C \<open>
 //@ definition \<open>prime\<^sub>H\<^sub>O\<^sub>L (p :: nat) =          \
           (1 < p \<and> (\<forall> n \<in> {2..<p}. \<not> n dvd p))\<close>
