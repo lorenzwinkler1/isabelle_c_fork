@@ -1,77 +1,94 @@
+%% Copyright (c) 2019 University of Exeter
+%%               2018-2019 University of Paris-Saclay
+%%               2018-2019 The University of Sheffield
+%%
+%% License:
+%%   This program can be redistributed and/or modified under the terms
+%%   of the LaTeX Project Public License Distributed from CTAN
+%%   archives in directory macros/latex/base/lppl.txt; either
+%%   version 1.3c of the License, or (at your option) any later version.
+%%   OR
+%%   The 2-clause BSD-style license.
+%%
+%%   SPDX-License-Identifier: LPPL-1.3c+ OR BSD-2-Clause
+
+%%   2019/09/21 Unreleased/Isabelle2019
+
+%% Warning: Do Not Edit!
+%% =====================
+%% This is the root file for the Isabelle/DOF using the scrreprt class.
+%%
+%% All customization and/or additional packages should be added to the file
+%% preamble.tex.
+
+\RequirePackage{ifvtex}
 \documentclass[fontsize=11pt,paper=a4,open=right,twoside,abstract=true]{scrreprt}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
-\usepackage{lmodern}
-\usepackage[numbers, sort&compress, sectionbib]{natbib}
-\usepackage{isabelle,isabellesym}
-\usepackage{ifthen}
-\IfFileExists{railsetup.sty}{\usepackage{railsetup}}{}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% command
-
-\newenvironment{matharray}[1]{\[\begin{array}{#1}}{\end{array}\]} % from 'iman.sty'
-\newcommand{\indexdef}[3]%
-{\ifthenelse{\equal{}{#1}}{\index{#3 (#2)|bold}}{\index{#3 (#1\ #2)|bold}}} % from 'isar.sty'
-\newcommand{\isactrlurl}{$\oplus$}
-\newcommand{\isactrlC}{{\isacommand C}}
-
-%%
-
-\newcommand\inputif[1]{\IfFileExists{./#1}{\input{#1}}{}}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% fix for package declaration to be at the end
-\usepackage[pdfpagelabels, pageanchor=false, plainpages=false]{hyperref}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% document
-
-\urlstyle{rm}
-\isabellestyle{it}
-
-\begin{document}
-
-\title{Isabelle/C}
-\author{%
-  \href{https://www.lri.fr/~ftuong/}{Fr\'ed\'eric Tuong}
-  \and
-  \href{https://www.lri.fr/~wolff/}{Burkhart Wolff}}
-\publishers{%
-  \mbox{LRI, Univ. Paris-Sud, CNRS, CentraleSup\'elec, Universit\'e Paris-Saclay} \\
-  b\^at. 650 Ada Lovelace, 91405 Orsay, France \texorpdfstring{\\}{}
-    \href{mailto:"Frederic Tuong"
-    <frederic.tuong@lri.fr>}{frederic.tuong@lri.fr} \hspace{4.5em}
-    \href{mailto:"Burkhart Wolff"
-    <burkhart.wolff@lri.fr>}{burkhart.wolff@lri.fr}
+\usepackage{textcomp}
+\bibliographystyle{abbrvnat}
+\usepackage[english]{babel}
+\RequirePackage[caption]{subfig}
+\usepackage{isabelle}
+\usepackage{isabellesym}
+\IfFileExists{DOF-core.sty}{}{%
+  \PackageError{DOF-core}{Isabelle/DOF not installed. 
+    This is a Isabelle_DOF project. The document preparation requires
+    the Isabelle_DOF framework. Please obtain the framework by cloning
+    the Isabelle_DOF git repository, i.e.: 
+         "git clone https://git.logicalhacking.com/Isabelle_DOF/Isabelle_DOF"
+    You can install the framework as follows:
+         "cd Isabelle_DOF/document-generator && ./install"}{%
+    For further help, see https://git.logicalhacking.com/Isabelle_DOF/Isabelle_DOF}
 }
 
+\newcommand\inputif[1]{\IfFileExists{./#1}{\input{#1}}{}}
+\inputif{ontologies}
+\IfFileExists{preamble.tex}{\input{preamble.tex}}{}%
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[numbers, sort&compress, sectionbib]{natbib}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\setcounter{tocdepth}{2} 
+\hypersetup{%
+   bookmarksdepth=3
+  ,pdfpagelabels
+  ,pageanchor=true
+  ,bookmarksnumbered
+  ,plainpages=false
+} % more detailed digital TOC (aka bookmarks)
+\sloppy
+\allowdisplaybreaks[4]
+\urlstyle{rm}
+\isabellestyle{it}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Overrides the (rightfully issued) warning by Koma Script that \rm
+%%% etc. should not be used (they are deprecated since more than a
+%%% decade)
+  \DeclareOldFontCommand{\rm}{\normalfont\rmfamily}{\mathrm}
+  \DeclareOldFontCommand{\sf}{\normalfont\sffamily}{\mathsf}
+  \DeclareOldFontCommand{\tt}{\normalfont\ttfamily}{\mathtt}
+  \DeclareOldFontCommand{\bf}{\normalfont\bfseries}{\mathbf}
+  \DeclareOldFontCommand{\it}{\normalfont\itshape}{\mathit}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newenvironment{frontmatter}{}{}
+
+\begin{document}
+\renewcommand{\chapterautorefname}{Chapter}
+\renewcommand{\sectionautorefname}{Section}
+\renewcommand{\subsectionautorefname}{Section}
+\renewcommand{\subsubsectionautorefname}{Section}
+\newcommand{\subtableautorefname}{\tableautorefname}
+\newcommand{\subfigureautorefname}{\figureautorefname}
+\begin{frontmatter}
 \maketitle
-
-\begin{abstract}
-Isabelle/C is a particular infrastructure composed of a \emph{syntax front-end} accepting C text in
-input (currently C11), with together a way to ``hot-plug'' and run \emph{semantic back-ends} in
-output.
-
-Isabelle/C and Isabelle/ML have several characteristics in common, but instead of proceeding to the
-compilation of a ML code and by default starting to execute it, within Isabelle/C the user can at
-any time define how a C code in input will be semantically interpreted (or translated to a
-well-defined language). Also, multiple semantic back-ends can be selected to be independently run in
-parallel.
-
-Ultimately, the language(s) in which semantic back-ends are written is arbitrary: our back-ends are
-currently implemented in some fine-grain combination of HOL and ML --- and with this work, a next
-typical implementation of choice would include C itself.
-
-In return, theorems and proofs generated by semantic back-ends get ultimately evaluated in ML, with
-a performance close to native (by only considering standard Isabelle
-versions).\cite{brucker.ea:featherweight:2014}
-\end{abstract}
 \tableofcontents
-
-\parindent 0pt\parskip 0.5ex
-
+\end{frontmatter}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\inputif{paper.tex}
+
 \inputif{1/document/C_Ast.tex}
 \inputif{1/document/C_Lexer_Language.tex}
 \inputif{1/document/C_Environment.tex}
@@ -90,13 +107,11 @@ versions).\cite{brucker.ea:featherweight:2014}
 \inputif{3/document/C_Conclusion.tex}
 \inputif{3/document/C_Appendices.tex}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\bibliographystyle{abbrvnat}
-\bibliography{root}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+\input{session}
+% optional bibliography
+\IfFileExists{root.bib}{%
+    \bibliography{root}
+}{}
 \end{document}
 
 %%% Local Variables:
