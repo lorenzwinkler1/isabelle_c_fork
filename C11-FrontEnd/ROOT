@@ -38,6 +38,7 @@
    semantic back-ends, theory files are (at the time of writing) not regrouped
    into a unique session. *)
 
+
 session Isabelle_C = HOL +
   options [document = pdf, document_output = "generated/document/1"]
   theories
@@ -68,10 +69,42 @@ session Isabelle_C_document = Isabelle_C_examples +
     "root.tex"
     "root.bib"
 
+
 session Isabelle_C_all = Isabelle_C_document +
   options [document = pdf, document_output = "generated"]
+  theories
+    C_Appendices
+    "examples/C0"
+    "examples/C1"
+    "examples/C2"
+    "examples/C3"
+    "examples/C_paper"    
+    C_Main
   (* TODO: find a way to concatenate together PDF in:
            generated/document/1 + generated/document/2 + generated/document/3 *)
   document_files
+    "isabellesym.sty"	
+    "isadof.cfg"
+    "lstisadof.sty"	
+    "preamble.tex"
+    "ontologies.tex"
+    "DOF-core.sty"
+    "DOF-technical_report.sty"
+    "DOF-scholarly_paper.sty"
+    "paper.tex"
+    "figures/C11-Package-Architecture.pdf"	
+    "figures/document-model1.pdf"		
+    "figures/document-model2.pdf"
+    "figures/A-C-Source.png"	
+    "figures/A-C-Source3.png"	
+    "figures/A-C-Source7.png"	
+    "figures/A-C-Source9.png"
+    "figures/A-C-Source10.png"	
+    "figures/A-C-Source5.png"	
+    "figures/A-C-Source8.png"	
+    "figures/markup-demo.png"
+    "figures/A-C-Source2.png"	
+    "figures/A-C-Source6.png"	
+    "figures/A-C-Source80.png"
     "root.tex"
     "root.bib"
