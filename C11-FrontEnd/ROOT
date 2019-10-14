@@ -91,7 +91,6 @@ session Isabelle_C_all = Isabelle_C_document +
     "figures/document-model1.pdf"		
     "figures/document-model2.pdf"
     "figures/markup-demo.png"
-    "isabellesym.sty"	
     "lstisadof.sty"	
     "ontologies.tex"
     "paper.tex"
