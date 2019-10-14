@@ -78,4 +78,6 @@ void quicksort (unsigned long lo, unsigned long hi) {
 }
 \<close>
 
+find_theorems (100) name:quick name:"inv"
+
 end

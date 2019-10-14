@@ -48,12 +48,12 @@ chapter\<open>A Sqrt Prime Sample Proof\<close>
 text\<open>This example is used to demonstrate Isabelle/C/Autocorres in a version that keeps
 annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
 
-theory IsPrime_sqrt2_outside
+theory IsPrime_sqrt_opt_outside
 imports
   Isabelle_C_AutoCorres.Backend
   "HOL-Computational_Algebra.Primes"
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
+\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
 section\<open>The Theory of the \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
 text\<open>This section develops basic concepts of the invariant. This bit is presented here \<^emph>\<open>before\<close>
@@ -84,7 +84,7 @@ lemma partial_prime_ge [simp]:
      "\<lbrakk> p' \<ge> p \<rbrakk> \<Longrightarrow> partial_prime p p' = prime p"
   by (clarsimp simp: partial_prime_def prime_nat_iff' min_def)
 
-lemma divide_self_plus_one [simp]: "(x dvd Suc x) = (x = 1)" sledgehammer
+lemma divide_self_plus_one [simp]: "(x dvd Suc x) = (x = 1)" 
   by (metis dvd_add_triv_right_iff nat_dvd_1_iff_1 plus_1_eq_Suc)
 
 lemma partial_prime_Suc [simp]:
@@ -189,7 +189,7 @@ unsigned int is_prime(unsigned int n)
     /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX), whichever comes first. */
     /* Find the first non-trivial factor of 'n' less than sqrt(n). */
 
-    for (unsigned i = 3; i < SQRT_UINT_MAX && i * i <= n; i+=2) {
+    for (unsigned i = 3; i <= SQRT_UINT_MAX - 2 && i * i <= n; i+=2) {
         if (n % i == 0)
             return 0; 
     }
@@ -219,8 +219,8 @@ text\<open>This section contains the auxilliary definitions and lemmas for the
      final correctness proof; in particular, the loop invariant is stated here.\<close>
 
 definition is_prime_inv
-  where [simp]: "is_prime_inv n i s \<equiv> (8 < i \<and> i \<le> n \<and> i < SQRT_UINT_MAX \<and> 
-                                        i * i \<le> n + 4 * i - 4 \<and>
+  where [simp]: "is_prime_inv n i s \<equiv> (8 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX \<and>
+                                         i * i \<le> UINT_MAX + 1\<and>
                                        \<not> 2 dvd i \<and>  partial_prime n i)"
 
 lemma uint_max_factor [simp]:  "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
@@ -232,10 +232,18 @@ lemma uint_max_factor_even [simp]: "(2::nat) dvd SQRT_UINT_MAX "
 lemma uint_max_factor_min1_dvd3 [simp]: "(3::nat) dvd (SQRT_UINT_MAX-1) "
   by (clarsimp simp:  SQRT_UINT_MAX_def) 
 
+lemma uint_max_factor_min1_dvd4 [simp]: "(4::nat) dvd (SQRT_UINT_MAX) "
+  by (clarsimp simp:  SQRT_UINT_MAX_def) 
+
 
 lemma sqr_less_mono [simp]:
     "((i::nat) * i < j * j) = (i < j)" 
   by (meson le_def mult_le_mono mult_strict_mono' zero_le)
+
+lemma sqr_le_mono [simp]:
+    "((i::nat) * i \<le> j * j) = (i \<le> j)" 
+  by (meson le_def mult_le_mono mult_strict_mono' zero_le)
+
 
 lemma [simp]: "(a - b < a - c) = ((b::nat) > c \<and> c < a)"
   by arith
@@ -246,7 +254,9 @@ lemma sqr_le_sqr_minus_1 [simp]:
     "\<lbrakk> b \<noteq> 0 \<rbrakk> \<Longrightarrow> (a * a \<le> b * b - Suc 0) = (a < b)"
   by (metis gr0I sqr_less_mono nat_0_less_mult_iff nat_le_Suc_less)
 
-
+lemma sqr_bla : 
+  "Suc (Suc (Suc (Suc (r + (r + (r + (r + r * r))))))) = Suc(Suc r)*Suc(Suc r)"
+  by simp
 
 section\<open>The Correctness Proof \<close>
 
@@ -332,6 +342,18 @@ proof (rule validNF_assume_pre)
            apply (subst whileLoopE_add_inv [  where I = "\<lambda>r s. is_prime_inv n r s"
                                               and M = "(\<lambda>(r, s). (Suc n) * (Suc n) - r * r)"])
            apply wp
+              apply(clarsimp, intro conjI) 
+           apply (metis "*" Nat.diff_diff_eq bigger_prime diff_diff_cancel diff_self_eq_0 diff_zero dvd_1_left le_square nat_dvd_not_less nat_le_Suc_less not_numeral_le_zero numeral_1_eq_Suc_0 prime_gt_0_nat prime_nat_iff prime_nat_not_dvd prime_product zero_diff zero_less_numeral)
+              apply(clarsimp, intro conjI) 
+           apply (metis "**" All_less_Suc Suc_le_eq dvd_refl even_Suc le_less_Suc_eq less_Suc_eq less_zeroE linorder_neqE_nat nat_mult_dvd_cancel_disj sqr_less_mono)
+           apply(simp add: SQRT_UINT_MAX_def)
+                 apply(subst sqr_bla)
+           apply(subst sqr_le_mono,simp add: SQRT_UINT_MAX_def) 
+                apply auto[1]
+               prefer 3 apply clarsimp
+           apply(erule HOL.impCE')
+           apply (simp add: partial_prime_sqr)
+
 (*
               apply (wp,auto simp: prime_dvd partial_prime_sqr)
                apply (metis "**" Ex_less_Suc dvd_refl even_Suc le_Suc_eq le_antisym le_refl le_trans 
@@ -372,11 +394,6 @@ proof (rule validNF_assume_pre)
            sorry
     qed
  *)
-
-           sorry
-         qed
-qed
-qed
-qed
+           oops
 
 end

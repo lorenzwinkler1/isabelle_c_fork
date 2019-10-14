@@ -65,7 +65,7 @@ text\<open> This C code contains a function that determines if the given number
 
 
 C \<open>
-// @ Clean
+//@ declare [[Clean_C99]]
 
 #define SQRT_UINT_MAX 65536
 
