@@ -25,22 +25,15 @@
 \documentclass[fontsize=11pt,paper=a4,open=right,twoside,abstract=true]{scrreprt}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
+\usepackage{lmodern}
 \usepackage{textcomp}
 \bibliographystyle{abbrvnat}
 \usepackage[english]{babel}
 \RequirePackage[caption]{subfig}
 \usepackage{isabelle}
 \usepackage{isabellesym}
-\IfFileExists{DOF-core.sty}{}{%
-  \PackageError{DOF-core}{Isabelle/DOF not installed. 
-    This is a Isabelle_DOF project. The document preparation requires
-    the Isabelle_DOF framework. Please obtain the framework by cloning
-    the Isabelle_DOF git repository, i.e.: 
-         "git clone https://git.logicalhacking.com/Isabelle_DOF/Isabelle_DOF"
-    You can install the framework as follows:
-         "cd Isabelle_DOF/document-generator && ./install"}{%
-    For further help, see https://git.logicalhacking.com/Isabelle_DOF/Isabelle_DOF}
-}
+\usepackage{ifthen}
+\IfFileExists{railsetup.sty}{\usepackage{railsetup}}{}
 
 \newcommand\inputif[1]{\IfFileExists{./#1}{\input{#1}}{}}
 \inputif{ontologies}
@@ -74,7 +67,19 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newenvironment{frontmatter}{}{}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% command
+
+\newenvironment{matharray}[1]{\[\begin{array}{#1}}{\end{array}\]} % from 'iman.sty'
+\newcommand{\indexdef}[3]%
+{\ifthenelse{\equal{}{#1}}{\index{#3 (#2)|bold}}{\index{#3 (#1\ #2)|bold}}} % from 'isar.sty'
+\newcommand{\isactrlurl}{$\oplus$}
+\newcommand{\isactrlC}{{\isacommand C}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \begin{document}
+\IfFileExists{preamble.tex}{}{\title{Isabelle/C}}%
 \renewcommand{\chapterautorefname}{Chapter}
 \renewcommand{\sectionautorefname}{Section}
 \renewcommand{\subsectionautorefname}{Section}
@@ -86,9 +91,14 @@
 \tableofcontents
 \end{frontmatter}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+\IfFileExists{preamble.tex}{}{\cite{brucker.ea:featherweight:2014}}%
+\chapter{A Conceptual Description of the Isabelle/C Package}
 \inputif{paper.tex}
-
+\IfFileExists{preamble.tex}{%
+\begin{isamarkuptitle*}%
+[label = {tit},type = {scholarly_paper.title}, args={label = {tit},type = {scholarly_paper.title}, scholarly_paper.title.short_title = {}}]Isabelle/C%
+\end{isamarkuptitle*}\isamarkuptrue%
+}{}%
 \inputif{1/document/C_Ast.tex}
 \inputif{1/document/C_Lexer_Language.tex}
 \inputif{1/document/C_Environment.tex}

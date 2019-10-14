@@ -73,6 +73,7 @@ session Isabelle_C_all = Isabelle_C_document +
   (* TODO: find a way to concatenate together PDF in:
            generated/document/1 + generated/document/2 + generated/document/3 *)
   document_files
+    "DOF-COL.sty"
     "DOF-core.sty"
     "DOF-scholarly_paper.sty"
     "DOF-technical_report.sty"
@@ -91,7 +92,6 @@ session Isabelle_C_all = Isabelle_C_document +
     "figures/document-model2.pdf"
     "figures/markup-demo.png"
     "isabellesym.sty"	
-    "isadof.cfg"
     "lstisadof.sty"	
     "ontologies.tex"
     "paper.tex"
