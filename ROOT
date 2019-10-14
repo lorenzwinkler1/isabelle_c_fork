@@ -46,6 +46,7 @@ session Isabelle_C_AutoCorres_examples in "C11-BackEnds/AutoCorres_wrapper" = Is
     "examples/IsPrime_integrated"
     "examples/IsPrime_linear_outside"
     "examples/IsPrime_sqrt_outside"
+    "examples/IsPrime_sqrt_opt_outside"
     "examples/Parse_for_loop"
     "examples/Quicksort"
     "examples/TestSEL4"
@@ -76,7 +77,6 @@ session Isabelle_C_archive = Isabelle_C_AutoCorres +
     "HOL-Computational_Algebra"
   theories
     "C11-FrontEnd/archive/Clean_old"
-    "C11-FrontEnd/archive/IsPrime_sqrt2_outside"
     "C11-FrontEnd/archive/IsPrime_sqrt_outside"
     "C11-FrontEnd/archive/Prime"
     "C11-BackEnds/AutoCorres/examples/program-based/Example1"

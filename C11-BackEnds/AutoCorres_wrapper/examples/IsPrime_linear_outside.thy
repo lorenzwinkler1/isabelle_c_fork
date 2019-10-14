@@ -92,6 +92,13 @@ definition [simp]: "is_prime_linear_inv n i s \<equiv> (1 < i \<and> 1 < n \<and
 section\<open>The Gory C Code --- pure without annotations\<close>
 text\<open>... except just one : the invocation of AutoCorres.\<close>
 
+
+
+
+
+
+
+
 C \<open>
 //  Setup of AutoCorres for semantically representing this C element.
 //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime_linear  ]
@@ -115,6 +122,9 @@ unsigned is_prime_linear(unsigned n)
 }
 \<close>
 
+find_theorems name:"is_prime_linear"
+thm is_prime.is_prime_linear'_def
+
 C_export_file  (* This exports the C code into a C file ready to be compiled by gcc. *)
 
 lemma uint_max_factor [simp]: "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
@@ -124,6 +134,7 @@ lemma uint_max_factor [simp]: "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
 section\<open>The Correctness Proof of \<^const>\<open>is_prime.is_prime_linear'\<close>\<close>
 text\<open>Note that the proof \<^emph>\<open>injects\<close> the loop invariant at the point where the proof
      treats the loop.\<close>
+
 
 (* imperative "red" style proof *)
 theorem (in is_prime) is_prime_correct:
@@ -142,7 +153,6 @@ theorem (in is_prime) is_prime_correct:
                                       and M = "\<lambda>(r, _). n - r"])
   apply (wp, auto)
   done
-
 
 
 (* declarative "blue" style proof *)

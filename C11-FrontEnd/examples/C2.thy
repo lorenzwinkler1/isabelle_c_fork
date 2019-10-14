@@ -196,7 +196,6 @@ ML\<open> val ((C_Ast.CTranslUnit0 (t,u), v)::R, env) = get_module @{theory};
     C_Ast.CTypeSpec0; \<close>
 
 
-
 section \<open>Working with Annotation Commands\<close>
 
 ML \<comment> \<open>\<^theory>\<open>Isabelle_C.C_Command\<close>\<close> \<open>
@@ -229,6 +228,8 @@ val _ = Theory.setup (   C_Inner_Syntax.command_no_range
 end
 \<close>
 
+
+
 C\<open>
 /*@ ensures "result >= x && result >= y"
  */
@@ -237,6 +238,9 @@ int max(int x, int y) {
   if (x > y) return x; else return y;
 }
 \<close>
+
+
+
 
 ML\<open> 
 val ((C_Ast.CTranslUnit0 (t,u), v)::R, env) = get_module @{theory};
