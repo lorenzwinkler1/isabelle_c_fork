@@ -87,7 +87,7 @@ scoping. SML user-programmed extensions can benefit from the parallel evaluation
 Isabelle. The plug-in mechanism of Isabelle/C can integrate diverse semantic representations,
 including those already made available in Isabelle/HOL \cite{DBLP:books/sp/NipkowPW02}: AutoCorres
 \cite{DBLP:conf/pldi/GreenawayLAK14}, IMP2 \cite{DBLP:journals/afp/LammichW19},
-Orca \cite{bockenek:hal-02069705}, or Clean (discussed in this paper). A particular advantage of
+Orca \cite{bockenek:hal-02069705}, or Clean \cite{journals/afp/TuongW19}. A particular advantage of
 the overall approach compared to systems like Frama-C or VCC is that all these semantic
 theories are conservative extensions of HOL, hence no axiom-generators are used that produce the
 "background theory" and the verification conditions passed to automated provers. Isabelle/C provides
@@ -1099,7 +1099,7 @@ statically compiled, which results in a very efficient reporting of C type infor
 %
 \begin{isamarkuptext}%
 In this section, we briefly present two integrations of verification back-ends for C. We
-chose Clean~\footnote{stemming from recent HOL-TestGen distributions
+chose Clean \cite{journals/afp/TuongW19}~\footnote{stemming from recent HOL-TestGen distributions
     \url{https://www.brucker.ch/projects/hol-testgen/index.en.html}} used
 for program-based test generation \cite{DBLP:conf/tap/Keller18}, and AutoCorres \cite{DBLP:conf/pldi/GreenawayLAK14}, arguably the most developed deductive verification environment
 for machine-oriented C available at present.
@@ -1110,7 +1110,16 @@ annotations, or ``automatic'' incremental declarations~\footnote{\url{https://gi
 may require internal revisions on the back-end side. This is out of the scope of this paper.%
 \end{isamarkuptext}\isamarkuptrue%
 %
+\begin{isamarkupsubsection*}%
+[label = {clean},type = {scholarly_paper.technical}, args={label = {clean},type = {scholarly_paper.technical}, scholarly_paper.text_section.main_author = {@{docitem ''bu''}}, Isa_COL.text_element.level = {}, Isa_COL.text_element.referentiable = {False}, Isa_COL.text_element.variants = {{STR ''outline'', STR ''document''}}, scholarly_paper.text_section.fixme_list = {}, Isa_COL.text_element.level = {}, scholarly_paper.technical.definition_list = {}}]A Simple Typed Memory Model: Clean%
+\end{isamarkupsubsection*}\isamarkuptrue%
+%
 \begin{isamarkuptext}%
+Clean (pronounced as: ``C lean'' or ``Céline'' [selin]) is based on a simple,
+shallow-style execution model for an imperative target language.
+Importing Clean into a theory with its activated back-end proceeds as in \autoref{fig:clean}.
+For a deep presentation of Clean, the reader is referred to the published AFP document \cite{journals/afp/TuongW19}.
+
 \begin{figure}
   \centering
   \begin{minipage}{0.53\linewidth}
@@ -1147,7 +1156,12 @@ prime$_{\text{C}}$_def: "prime$_{\text{C}}$ n \<equiv>
 %% \begin{wrapfigure}{r}{0.4\textwidth}
 %%   \vspace{-14pt}
 %%   \includegraphics[width=0.4\textwidth]{figures/A-C-Source10}
-%% \end{wrapfigure}%
+%% \end{wrapfigure}
+Finally, we will have a glance at the code for the registration of the annotation commands presented
+in \csname isaDof.ref\endcsname[type={Isa_COL.figure}]{C-sample10}, and used in the example of \autoref{fig:clean}. Thanks to
+Isabelle/C's function \isatt{C{\char`\_}Annotation.command{\char`\'}}, the registration of
+user-defined annotations is very similar to the registration of ordinary commands in the Isabelle
+platform.%
 \end{isamarkuptext}\isamarkuptrue%
 %
 \begin{isamarkupsubsection*}%
