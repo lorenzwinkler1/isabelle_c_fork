@@ -34,51 +34,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-session Isabelle_C_AutoCorres in "C11-BackEnds/AutoCorres_wrapper" = AutoCorres +
-  theories
-    "../AutoCorres/src/README"
-    "src/Backend"
-
-session Isabelle_C_AutoCorres_examples in "C11-BackEnds/AutoCorres_wrapper" = Isabelle_C_AutoCorres +
-  sessions
-    "HOL-Computational_Algebra"
-  theories
-    "examples/IsPrime_integrated"
-    "examples/IsPrime_linear_outside"
-    "examples/IsPrime_sqrt_outside"
-    "examples/IsPrime_sqrt_opt_outside"
-    "examples/Parse_for_loop"
-    "examples/Quicksort"
-    "examples/TestSEL4"
-
-session Isabelle_C_Clean in "C11-BackEnds/Clean_wrapper" = Isabelle_C +
-  sessions
-    Clean
-  theories
-    "src/Backend"
-
-session Isabelle_C_Clean_examples in "C11-BackEnds/Clean_wrapper" = Isabelle_C_Clean +
-  sessions
-    "HOL-Computational_Algebra"
-  theories
-    "examples/IsPrime_sqrt_outside"
-    "examples/Prime"
-    "examples/Quicksort2"
-    "examples/Quicksort"
-
 session Isabelle_C_README in "C11-FrontEnd" = HOL +
   theories
     "../README"
-
-session Isabelle_C_archive = Isabelle_C_AutoCorres +
-  options [quick_and_dirty]
-  sessions
-    Clean
-    "HOL-Computational_Algebra"
-  theories
-    "C11-FrontEnd/archive/Clean_old"
-    "C11-FrontEnd/archive/C_DOF"
-    "C11-FrontEnd/archive/IsPrime_sqrt_outside"
-    "C11-FrontEnd/archive/Prime"
-    "C11-BackEnds/AutoCorres/examples/program-based/Example1"
-    "C11-BackEnds/AutoCorres/examples/program-based/Example2"

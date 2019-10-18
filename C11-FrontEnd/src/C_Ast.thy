@@ -64,7 +64,7 @@ val fresh_ident0 =
 \<close>
 
 ML \<comment> \<open>\<^file>\<open>../generated/c_ast.ML\<close>\<close> \<open>
-\<comment> \<open>\<^file>\<open>../../Citadelle/src/compiler_generic/meta_isabelle/Printer_init.thy\<close>\<close>
+\<comment> \<open>\<^url>\<open>https://gitlri.lri.fr/ftuong/isabelle_c/blob/C/Citadelle/src/compiler_generic/meta_isabelle/Printer_init.thy\<close>\<close>
 structure CodeType = struct
   type mlInt = string
   type 'a mlMonad = 'a option
