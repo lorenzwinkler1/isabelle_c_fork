@@ -1,1 +1,0 @@
-skel/Intermediate_H.thy

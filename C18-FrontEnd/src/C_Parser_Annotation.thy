@@ -1,1 +1,0 @@
-../../C11-FrontEnd/src/C_Parser_Annotation.thy
