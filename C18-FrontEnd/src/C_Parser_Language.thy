@@ -34,13 +34,21 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-section \<open>Parsing Support for the Core Language (C11 Instance)\<close>
+section \<open>Core Language: Parsing Support (C Language without Annotations)\<close>
 
 theory C_Parser_Language
   imports C_Environment
 begin
 
-subsection \<open>Core C11 Parsing Library (fully mimicking the Haskell counterpart)\<close>
+text \<open> As mentioned in \<^theory>\<open>Isabelle_C_Advance.C_Ast\<close>, Isabelle/C depends on
+certain external parsing libraries, such as \<^dir>\<open>../../mlton\<close>, and more specifically
+\<^dir>\<open>../../mlton/lib/mlyacc-lib\<close>. Actually, the sole theory making use of the files
+in \<^dir>\<open>../../mlton/lib/mlyacc-lib\<close> is the present
+\<^file>\<open>C_Parser_Language.thy\<close>. (Any remaining files in
+\<^dir>\<open>../../mlton\<close> are not used by Isabelle/C, they come from the original repository
+of MLton: \<^url>\<open>https://github.com/MLton/mlton\<close>). \<close>
+
+subsection \<open>Parsing Library (Including Semantic Functions)\<close>
 
 ML \<comment> \<open>\<^file>\<open>../generated/c_grammar_fun.grm.sml\<close>\<close>
 (*
@@ -642,11 +650,7 @@ struct
 end
 \<close>
 
-subsection \<open>Loading the Generic Grammar Simulator\<close>
-
-text \<open> The parser consists of a generic module
-\<^file>\<open>../../mlton/lib/mlyacc-lib/base.sig\<close>, which interprets an
-automata-like format generated from ML-Yacc. \<close>
+subsection \<open>Miscellaneous\<close>
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/document_antiquotations.ML\<close>\<close>
 (*  Author:     Frédéric Tuong, Université Paris-Saclay *)
@@ -704,6 +708,12 @@ end;
 end;
 \<close>
 
+subsection \<open>Loading the Grammar Simulator\<close>
+
+text \<open> The parser consists of a generic module
+\<^file>\<open>../../mlton/lib/mlyacc-lib/base.sig\<close>, which interprets an
+automata-like format generated from ML-Yacc. \<close>
+
 ML_file "../../mlton/lib/mlyacc-lib/base.sig" \<comment>
 \<open>\<^ML_file>\<open>../../mlton/lib/mlyacc-lib/base.sig\<close>\<close>
 ML_file "../../mlton/lib/mlyacc-lib/join.sml" \<comment>
@@ -719,7 +729,7 @@ subsection \<open>Loading the Generated Grammar (SML signature)\<close>
 
 ML_file "../generated/c_grammar_fun.grm.sig"
 
-subsection \<open>Overloading Grammar Rules\<close>
+subsection \<open>Overloading Grammar Rules (Optional Part)\<close>
 
 ML \<comment> \<open>\<^file>\<open>../generated/c_grammar_fun.grm.sml\<close>\<close> \<open>
 structure C_Grammar_Rule_Wrap_Overloading = struct
@@ -749,7 +759,7 @@ ML \<comment> \<open>\<^file>\<open>../generated/c_grammar_fun.grm.sml\<close>\<
 structure C_Grammar = C_Grammar_Fun (structure Token = LALR_Parser_Eval.Token)
 \<close>
 
-subsubsection \<open>Mapping Lexing Strings to Parsing Tokens\<close>
+subsubsection \<open>Mapping Strings to Structured Tokens\<close>
 
 ML \<comment> \<open>\<^file>\<open>../generated/c_grammar_fun.grm.sml\<close>\<close> \<open>
 structure C_Grammar_Tokens =
