@@ -39,16 +39,17 @@ theory README imports Main begin
 section \<open>Global Structure of the Isabelle/C Project\<close>
 
 text \<open>
-The Isabelle/C project consists of several components, where some of them represent AFP submissions.
+The Isabelle/C project consists of several components, where some of them are published in the
+Isabelle AFP, or represent AFP submissions.
 
 \<^item> \<^dir>\<open>C11-FrontEnd\<close> (AFP)
-\<^item> \<^dir>\<open>C18-FrontEnd\<close> (AFP)
+\<^item> \<^dir>\<open>C18-FrontEnd\<close>
 \<^item> \<^dir>\<open>C11-BackEnds\<close>
-  \<^item> \<^dir>\<open>C11-BackEnds/Clean\<close>: (AFP, depending of \<^dir>\<open>C11-FrontEnd\<close>) Clean Library
-  \<^item> \<^dir>\<open>C11-BackEnds/Clean_wrapper\<close>: adapter to \<^dir>\<open>C11-FrontEnd\<close>
+  \<^item> \<^dir>\<open>C11-BackEnds/Clean\<close>: (AFP) Clean Library
+  \<^item> \<^dir>\<open>C11-BackEnds/Clean_wrapper\<close>: (AFP) adapter to \<^dir>\<open>C11-FrontEnd\<close>
   \<^item> \<^dir>\<open>C11-BackEnds/AutoCorres\<close>: slightly modified version of AutoCorres library
   \<^item> \<^dir>\<open>C11-BackEnds/AutoCorres_wrapper\<close>: adapter to \<^dir>\<open>C11-FrontEnd\<close>
-\<^item> \<^dir>\<open>Citadelle\<close>: own model-based framework generating the grammars and the AST of \<^dir>\<open>C11-FrontEnd\<close>
+\<^item> \<^dir>\<open>Citadelle\<close>: model-based framework generating the grammars and the AST of \<^dir>\<open>C11-FrontEnd\<close>
 \<close>
 
 section \<open>Isabelle/C\<close>
@@ -68,7 +69,7 @@ documentation can be executed:
 
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C18-FrontEnd\<close> \<^file>\<open>C11-FrontEnd/examples/C0.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C18-FrontEnd\<close> \<^file>\<open>C18-FrontEnd/examples/C0.thy\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^file>\<open>C11-FrontEnd/C_Appendices.thy\<close>
 \<close>
 
@@ -134,7 +135,35 @@ text \<open>
 section \<open>License\<close>
 
 text \<open>
-This project is licensed under a 3-clause BSD-style license.
+Isabelle/C is licensed under a 3-clause BSD-style license (where certain files are in the HPND
+license compatible with the 3-clause BSD).
+
+In more details:
+\<^item> The generated files \<^file>\<open>C11-FrontEnd/generated/c_ast.ML\<close> and
+  \<^file>\<open>C11-FrontEnd/generated/c_grammar_fun.grm\<close> are mixing several source code of
+    different projects:
+  \<^item> In 3-clause BSD: the part representing the Haskell Language.C library.  
+  \<^item> In 2-clause BSD: the C99 AST in HOL (before reflection to SML) adapted from the original
+    one in the L4.verified project.
+  \<^item> In 3-clause BSD: the HOL translation C11 to C99 from the Securify project.    
+  \<^item> In 3-clause BSD: any other binding and translations of meta-models from the Citadelle
+    project.
+\<^item> In 3-clause BSD: the two combined generators generating
+  \<^file>\<open>C11-FrontEnd/generated/c_ast.ML\<close> based on some modified version of Haskabelle
+  and Citadelle.
+\<^item> In 3-clause BSD: the Happy modified generator generating
+  \<^file>\<open>C11-FrontEnd/generated/c_grammar_fun.grm\<close>
+\<^item> In HPND: the ML-Yacc modified generator generating the two
+  \<^file>\<open>C11-FrontEnd/generated/c_grammar_fun.grm.sig\<close> and
+  \<^file>\<open>C11-FrontEnd/generated/c_grammar_fun.grm.sml\<close> (i.e., the ML-Yacc version of
+  MLton).
+\<^item> In HPND: the modified grammar library of ML-Yacc loaded in
+  \<^file>\<open>C11-FrontEnd/src/C_Parser_Language.thy\<close>.
+\<^item> In 3-clause BSD: the remaining files in \<^dir>\<open>C11-FrontEnd/src\<close> constituting
+  Isabelle/C core implementation.
+\<^item> Most examples in \<^dir>\<open>C11-FrontEnd/examples\<close> are in 3-clause BSD, some are
+  used for quotation purposes to test the Isabelle/C lexer (hyperlinks around each example detail
+  their provenance).
 \<close>
 
 end
