@@ -444,4 +444,12 @@ void display(int a[],const int size)
 }
 \<close>
 
+section \<open>C Code: Floats Exist\<close>
+
+C\<open>
+int a;
+float b;
+int m() {return 0;}
+\<close>
+
 end
