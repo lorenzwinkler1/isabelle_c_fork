@@ -97,14 +97,20 @@ val _ =
                let
                  fun exec file =
                    if exists (fn C_Scan.Left _ => false | C_Scan.Right _ => true) file then
-                     K (error ("Unsupported character" ^ Position.here (Position.range_position (C_Lex.pos_of tok, C_Lex.end_pos_of (List.last toks_bl)))))
+                     K (error ("Unsupported character"
+                               ^ Position.here
+                                   (Position.range_position
+                                     (C_Lex.pos_of tok, C_Lex.end_pos_of (List.last toks_bl)))))
                    else
                      fn (env_lang, env_tree) =>
                        fold
                          (fn (src, _) => fn (env_lang, env_tree) => 
                            let val (name, _) = Input.source_content src
                            in (C_Grammar_Rule_Lib.declare_varname0 name env_lang, env_tree) end)
-                         (these (Symtab.lookup (Directive_include.get (#context env_tree)) (String.concat (maps (fn C_Scan.Left s => [s] | _ => []) file))))
+                         (these
+                           (Symtab.lookup (Directive_include.get (#context env_tree))
+                                          (String.concat (maps (fn C_Scan.Left s => [s] | _ => [])
+                                                               file))))
                          (env_lang, env_tree)
                in
                  case tok of
@@ -135,7 +141,8 @@ fun append name vars =
     (Directive_include.map
       (Symtab.map_default
         (name, [])
-        (rev o fold (cons o rpair {global = true, params = [], ret = C_Env.Previous_in_stack}) vars o rev)))
+        (rev o fold (cons o rpair {global = true, params = [], ret = C_Env.Previous_in_stack}) vars
+             o rev)))
 
 val show =
   Context.theory_map
