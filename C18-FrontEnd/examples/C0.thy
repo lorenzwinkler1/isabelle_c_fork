@@ -34,7 +34,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-chapter \<open>Example: A C11-Lexer Stress-Test\<close>
+chapter \<open>Example: Lexer Stress Test\<close>
 
 theory C0
   imports Isabelle_C_Advance.C_Main

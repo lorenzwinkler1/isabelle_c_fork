@@ -34,7 +34,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-chapter \<open>Example\<close>
+chapter \<open>Example: A Simple C Program with Directives and Annotations\<close>
 
 theory C2
   imports Isabelle_C_Advance.C_Main
@@ -42,7 +42,7 @@ begin
 
 section \<open>A Simplistic Setup: Parse and Store\<close>
 
-text\<open>The following setup stores the result of the parsed vales just in the environment.\<close>
+text\<open>The following setup just stores the result of the parsed values in the environment.\<close>
 
 
 ML\<open>
@@ -64,15 +64,15 @@ setup \<open>Context.theory_map (C_Module.Data_Accept.put
                               Data_Out.map (cons (ast, #stream_ignored env_lang |> rev))))\<close>
 
 
-section \<open>Implementing \<open>#include\<close>\<close>
+section \<open>Example of a Possible Semantics for \<open>#include\<close>\<close>
 
-subsection \<open>Core\<close>
+subsection \<open>Implementation\<close>
 
 text \<open> The CPP directive \<open>#include _\<close> is used to import signatures of
 modules in C. This has the effect that imported identifiers are included in the C environment and,
 as a consequence, appear as constant symbols and not as free variables in the output. \<close>
 
-text \<open> The following structure is an extra mechanism to define the effect of include wrt. to
+text \<open> The following structure is an extra mechanism to define the effect of \<open>#include _\<close> wrt. to
 its definition in its environment. \<close>
 
 ML \<open>
@@ -97,14 +97,20 @@ val _ =
                let
                  fun exec file =
                    if exists (fn C_Scan.Left _ => false | C_Scan.Right _ => true) file then
-                     K (error ("Unsupported character" ^ Position.here (Position.range_position (C_Lex.pos_of tok, C_Lex.end_pos_of (List.last toks_bl)))))
+                     K (error ("Unsupported character"
+                               ^ Position.here
+                                   (Position.range_position
+                                     (C_Lex.pos_of tok, C_Lex.end_pos_of (List.last toks_bl)))))
                    else
                      fn (env_lang, env_tree) =>
                        fold
                          (fn (src, _) => fn (env_lang, env_tree) => 
                            let val (name, _) = Input.source_content src
                            in (C_Grammar_Rule_Lib.declare_varname0 name env_lang, env_tree) end)
-                         (these (Symtab.lookup (Directive_include.get (#context env_tree)) (String.concat (maps (fn C_Scan.Left s => [s] | _ => []) file))))
+                         (these
+                           (Symtab.lookup (Directive_include.get (#context env_tree))
+                                          (String.concat (maps (fn C_Scan.Left s => [s] | _ => [])
+                                                               file))))
                          (env_lang, env_tree)
                in
                  case tok of
@@ -135,7 +141,8 @@ fun append name vars =
     (Directive_include.map
       (Symtab.map_default
         (name, [])
-        (rev o fold (cons o rpair {global = true, params = [], ret = C_Env.Previous_in_stack}) vars o rev)))
+        (rev o fold (cons o rpair {global = true, params = [], ret = C_Env.Previous_in_stack}) vars
+             o rev)))
 
 val show =
   Context.theory_map
@@ -221,7 +228,7 @@ int max(int x, int y) {
 
 
 
-section \<open>A Collection Standard Example (No Semantics so far)\<close>
+section \<open>C Code: Various Examples\<close>
 
 text\<open>This example suite is drawn from Frama-C and used in our GLA - TPs. \<close>
 
@@ -332,7 +339,7 @@ int linearsearch(int x, int t[], int n) {
 \<close>
 
 
-section \<open>Some realistic Selection sort with Input and Output\<close>
+section \<open>C Code: A Sorting Algorithm\<close>
 
 C\<open>
 #include <stdio.h>
@@ -442,6 +449,14 @@ void display(int a[],const int size)
         printf("%d ",a[i]);
     printf("\n");
 }
+\<close>
+
+section \<open>C Code: Floats Exist\<close>
+
+C\<open>
+int a;
+float b;
+int m() {return 0;}
 \<close>
 
 end

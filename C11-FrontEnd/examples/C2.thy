@@ -42,7 +42,7 @@ begin
 
 section \<open>A Simplistic Setup: Parse and Store\<close>
 
-text\<open>The following setup stores the result of the parsed vales just in the environment.\<close>
+text\<open>The following setup just stores the result of the parsed values in the environment.\<close>
 
 
 ML\<open>
@@ -72,7 +72,7 @@ text \<open> The CPP directive \<^C>\<open>#include _\<close> is used to import 
 modules in C. This has the effect that imported identifiers are included in the C environment and,
 as a consequence, appear as constant symbols and not as free variables in the output. \<close>
 
-text \<open> The following structure is an extra mechanism to define the effect of include wrt. to
+text \<open> The following structure is an extra mechanism to define the effect of \<^C>\<open>#include _\<close> wrt. to
 its definition in its environment. \<close>
 
 ML \<open>
@@ -97,15 +97,25 @@ val _ =
                let
                  fun exec file =
                    if exists (fn C_Scan.Left _ => false | C_Scan.Right _ => true) file then
-                     K (error ("Unsupported character" ^ Position.here (Position.range_position (C_Lex.pos_of tok, C_Lex.end_pos_of (List.last toks_bl)))))
+                     K (error ("Unsupported character"
+                               ^ Position.here
+                                   (Position.range_position
+                                     (C_Lex.pos_of tok, C_Lex.end_pos_of (List.last toks_bl)))))
                    else
                      fn (env_lang, env_tree) =>
                        fold
                          (fn (src, data) => fn (env_lang, env_tree) => 
                            let val (name, pos) = Input.source_content src
-                           in C_Grammar_Rule_Lib.shadowTypedef0'''' name [pos] data env_lang env_tree end)
+                           in C_Grammar_Rule_Lib.shadowTypedef0''''
+                                name
+                                [pos]
+                                data
+                                env_lang
+                                env_tree
+                           end)
                          (these (Symtab.lookup (Directive_include.get (#context env_tree))
-                                               (String.concat (maps (fn C_Scan.Left s => [s] | _ => []) file))))
+                                               (String.concat
+                                                 (maps (fn C_Scan.Left s => [s] | _ => []) file))))
                          (env_lang, env_tree)
                in
                  case tok of
@@ -136,7 +146,8 @@ fun append name vars =
     (Directive_include.map
       (Symtab.map_default
         (name, [])
-        (rev o fold (cons o rpair {global = true, params = [], ret = C_Env.Previous_in_stack}) vars o rev)))
+        (rev o fold (cons o rpair {global = true, params = [], ret = C_Env.Previous_in_stack}) vars
+             o rev)))
 
 val show =
   Context.theory_map
@@ -474,11 +485,19 @@ local open C_Ast in
 val _ = CTranslUnit0
 val ((CTranslUnit0 (t,u), v)::_, _) = get_module @{theory};
 val u = C_Grammar_Rule_Lib.decode u
-val _ = case  u of Left (p1,p2) => writeln (Position.here p1 ^ " " ^ Position.here p2)
+val _ = case u of Left (p1,p2) => writeln (Position.here p1 ^ " " ^ Position.here p2)
+                | Right _ => error "Not expecting that value"
 val CDeclExt0(x1)::_ = t;
 val _ = CDecl0
 end
 \<close>
 
+section \<open>C Code: Floats Exist\<close>
+
+C\<open>
+int a;
+float b;
+int m() {return 0;}
+\<close>
 
 end

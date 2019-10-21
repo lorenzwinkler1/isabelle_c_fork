@@ -85,7 +85,8 @@ val _ = Theory.setup
 end
 \<close>
 
-text\<open>The next command is predefined here, so that the example below can later refer to the constant.\<close>
+text \<open> The next command is predefined here, so that the example below can later refer to the
+constant. \<close>
 definition [simplified]: "UINT_MAX \<equiv> (2 :: nat) ^ 32 - 1"
 
 section \<open>Defining Annotation Commands\<close>
@@ -144,6 +145,8 @@ int a (int b) { return &a + b + c; }
 
 section \<open>Proofs inside C-Annotations\<close>
 
+\<comment> \<open>See also: \<^file>\<open>../../C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_integrated.thy\<close>\<close>
+
 C \<open>
 #define SQRT_UINT_MAX 65536
 /*@ lemma uint_max_factor [simp]:
@@ -190,7 +193,10 @@ C (*NONE*) \<comment> \<open> the command starts with a default empty environmen
      */
     return a + b + c + d; /* explicit highlighting */ }\<close>
 
-text \<open> Note that C directives must be propagated in C annotations, even if they are supposed
-to be evaluated before any C code. \<close>
+text \<open> Note that in the current design-implementation of Isabelle/C, C directives have a
+propagation side-effect to any occurring subsequent C annotations, even if C directives are supposed
+to be all evaluated before any C code. (Making such effect inexistent would be equally easier to
+implement though, this is what was the default behavior of directives in previous versions of
+Isabelle/C.)\<close>
 
 end

@@ -4,16 +4,17 @@
 section ‹Global Structure of the Isabelle/C Project›
 
 text ‹
-The Isabelle/C project consists of several components, where some of them represent AFP submissions.
+The Isabelle/C project consists of several components, where some of them are published in the
+Isabelle AFP, or represent AFP submissions.
 
 ▪ 🗀‹C11-FrontEnd› (AFP)
-▪ 🗀‹C18-FrontEnd› (AFP)
+▪ 🗀‹C18-FrontEnd›
 ▪ 🗀‹C11-BackEnds›
-  ▪ 🗀‹C11-BackEnds/Clean›: (AFP, depending of 🗀‹C11-FrontEnd›) Clean Library
-  ▪ 🗀‹C11-BackEnds/Clean_wrapper›: adapter to 🗀‹C11-FrontEnd›
+  ▪ 🗀‹C11-BackEnds/Clean›: (AFP) Clean Library
+  ▪ 🗀‹C11-BackEnds/Clean_wrapper›: (AFP) adapter to 🗀‹C11-FrontEnd›
   ▪ 🗀‹C11-BackEnds/AutoCorres›: slightly modified version of AutoCorres library
   ▪ 🗀‹C11-BackEnds/AutoCorres_wrapper›: adapter to 🗀‹C11-FrontEnd›
-▪ 🗀‹Citadelle›: own model-based framework generating the grammars and the AST of 🗀‹C11-FrontEnd›
+▪ 🗀‹Citadelle›: model-based framework generating the grammars and the AST of 🗀‹C11-FrontEnd›
 ›
 
 section ‹Isabelle/C›
@@ -33,7 +34,7 @@ documentation can be executed:
 
 ▪ ▩‹isabelle jedit -d› 🗀‹C11-FrontEnd› 🗏‹C11-FrontEnd/examples/C1.thy›
 ▪ ▩‹isabelle jedit -d› 🗀‹C11-FrontEnd› 🗏‹C11-FrontEnd/examples/C2.thy›
-▪ ▩‹isabelle jedit -d› 🗀‹C18-FrontEnd› 🗏‹C11-FrontEnd/examples/C0.thy›
+▪ ▩‹isabelle jedit -d› 🗀‹C18-FrontEnd› 🗏‹C18-FrontEnd/examples/C0.thy›
 ▪ ▩‹isabelle jedit -d› 🗀‹C11-FrontEnd› 🗏‹C11-FrontEnd/C_Appendices.thy›
 ›
 
@@ -99,7 +100,35 @@ text ‹
 section ‹License›
 
 text ‹
-This project is licensed under a 3-clause BSD-style license.
+Isabelle/C is licensed under a 3-clause BSD-style license (where certain files are in the HPND
+license compatible with the 3-clause BSD).
+
+In more details:
+▪ The generated files 🗏‹C11-FrontEnd/generated/c_ast.ML› and
+  🗏‹C11-FrontEnd/generated/c_grammar_fun.grm› are mixing several source code of
+    different projects:
+  ▪ In 3-clause BSD: the part representing the Haskell Language.C library.  
+  ▪ In 2-clause BSD: the C99 AST in HOL (before reflection to SML) adapted from the original
+    one in the L4.verified project.
+  ▪ In 3-clause BSD: the HOL translation C11 to C99 from the Securify project.    
+  ▪ In 3-clause BSD: any other binding and translations of meta-models from the Citadelle
+    project.
+▪ In 3-clause BSD: the two combined generators generating
+  🗏‹C11-FrontEnd/generated/c_ast.ML› based on some modified version of Haskabelle
+  and Citadelle.
+▪ In 3-clause BSD: the Happy modified generator generating
+  🗏‹C11-FrontEnd/generated/c_grammar_fun.grm›
+▪ In HPND: the ML-Yacc modified generator generating the two
+  🗏‹C11-FrontEnd/generated/c_grammar_fun.grm.sig› and
+  🗏‹C11-FrontEnd/generated/c_grammar_fun.grm.sml› (i.e., the ML-Yacc version of
+  MLton).
+▪ In HPND: the modified grammar library of ML-Yacc loaded in
+  🗏‹C11-FrontEnd/src/C_Parser_Language.thy›.
+▪ In 3-clause BSD: the remaining files in 🗀‹C11-FrontEnd/src› constituting
+  Isabelle/C core implementation.
+▪ Most examples in 🗀‹C11-FrontEnd/examples› are in 3-clause BSD, some are
+  used for quotation purposes to test the Isabelle/C lexer (hyperlinks around each example detail
+  their provenance).
 ›
 ```
 

@@ -76,7 +76,11 @@ fun clean_name "\<dots>" = "dots"
   | clean_name "_" = "underscore"
   | clean_name "{" = "braceleft"
   | clean_name "}" = "braceright"
-  | clean_name s = s |> translate (fn "_" => "-" | "\<hyphen>" => "-" | "\<approx>" => "symbol-lower-approx" | "\<Down>" => "symbol-upper-down" | c => c);
+  | clean_name s = s |> translate (fn "_" => "-"
+                                    | "\<hyphen>" => "-"
+                                    | "\<approx>" => "symbol-lower-approx"
+                                    | "\<Down>" => "symbol-upper-down"
+                                    | c => c);
 
 
 (* Isabelle/Isar entities (with index) *)
@@ -161,13 +165,12 @@ text \<open>
     ;
   \<close>
 
-  \<^descr> \<^theory_text>\<open>C_file name\<close> resembles to \<^theory_text>\<open>ML_file
-  name\<close>: it reads the given C file, and let any attached semantic back-ends to proceed for
-  further subsequent evaluation. Top-level C bindings are stored within the (global or local) theory
-  context; the initial environment is set by default to be an empty one, or the one returned by a
-  previous \<^theory_text>\<open>C_file\<close> (depending on @{attribute_def C_starting_env}). The
-  entry-point of the grammar taken as initial starting parser is read from @{attribute_def
-    C_starting_rule} (see
+  \<^descr> \<^theory_text>\<open>C_file name\<close> reads the given C file, and let any attached
+  semantic back-ends to proceed for further subsequent evaluation. Top-level C bindings are stored
+  within the (global or local) theory context; the initial environment is set by default to be an
+  empty one, or the one returned by a previous \<^theory_text>\<open>C_file\<close> (depending on
+  @{attribute_def C_starting_env}). The entry-point of the grammar taken as initial starting parser
+  is read from @{attribute_def C_starting_rule} (see
   \<^url>\<open>https://www.haskell.org/happy/doc/html/sec-directives.html#sec-parser-name\<close>).
   Multiple \<^theory_text>\<open>C_file\<close> commands may be used to build larger C projects if
   they are all written in a single theory file (existing parent theories are ignored, and not
@@ -281,28 +284,41 @@ text \<open>
 section \<open>Quick Start (for People More Familiar with C than Isabelle)\<close>
 
 text \<open>
-\<^item> The latest version of Isabelle can be easily retrieved at
-\<^url>\<open>http://isabelle.in.tum.de/\<close>.
-\<^item> Assuming one is working with the version 2019
+\<^item> Assuming we are working with Isabelle 2019
 \<^url>\<open>http://isabelle.in.tum.de/dist/Isabelle2019_app.tar.gz\<close>, the shortest way to
-start programming in C is to open a new theory file:
-\<open>$ISABELLE_HOME/bin/isabelle jedit -d $AFP_HOME/thys Scratch.thy\<close>, where
-\<open>$ISABELLE_HOME\<close> is the extracted Isabelle source, and \<open>$AFP_HOME\<close> is the
-downloaded content of \<^url>\<open>https://bitbucket.org/isa-afp/afp-2019\<close>.
-\<^item> Then, this following minimal content can be copied in the newly opened window:
-\<^verbatim>\<open>theory Scratch
-imports Isabelle_C.C_Main begin C \<open>
+start programming in C is to open a new theory file with the shell-command:
+
+\<^verbatim>\<open>$ISABELLE_HOME/bin/isabelle jedit -d $AFP_HOME/thys Scratch.thy\<close>
+
+where \<^verbatim>\<open>$ISABELLE_HOME\<close> is the path of the above extracted Isabelle source,
+and \<^verbatim>\<open>$AFP_HOME\<close> is the downloaded content of
+\<^url>\<open>https://bitbucket.org/isa-afp/afp-2019\<close>.\<^footnote>\<open>This folder
+particularly contains the Isabelle/C project, located in
+\<^url>\<open>https://bitbucket.org/isa-afp/afp-2019/src/default/thys/Isabelle_C\<close>. To inspect
+the latest developper version, one can also replace \<^verbatim>\<open>$AFP_HOME/thys\<close> by the
+content downloaded from \<^url>\<open>https://gitlri.lri.fr/ftuong/isabelle_c\<close>.\<close>
+\<^item> The next step is to copy this minimal content inside the newly opened window:
+\<^verbatim>\<open>theory Scratch imports Isabelle_C.C_Main begin C \<open>
 // C code
 \<close> end\<close>
-\<^item> This already enables the support of C code inside the special brackets
-``\<^verbatim>\<open>\<open>\<close>\<close>'', now depicted as ``\<open>\<open>\<close>\<close>''
-for readability reasons.
-\<^item> Writing theorems and proofs along with C code becomes possible inside the special C
-comments \<^C>\<open>/*@ (* Isabelle content *) */\<close> --- newly supported by the
-project. Additionally, the complete documentations on Isabelle are located in the accompanying above
-archive (for example in \<^dir>\<open>~~/src/Doc/Isar_Ref\<close>). \<close>
+\<^item> \<^emph>\<open>Quod Erat Demonstrandum!\<close> This already enables the support of C code inside the special
+brackets ``\<^verbatim>\<open>\<open>\<close>\<close>'', now depicted as
+``\<open>\<open>\<close>\<close>'' for readability reasons. \<close>
 
-text \<open> To edit an existing C file, it suffices to replace:
+text \<open> Additionally, Isabelle/C comes with several functionalities that can be alternatively
+explored:
+\<^item> To write theorems and proofs along with C code, the special C comment
+\<^C>\<open>/*@ (* Isabelle content *) */\<close> can be used at any position where C comments are
+usually regularly allowed. At the time of writing, not yet all Isabelle commands can be written in C
+comments, and certain proof-solving-command combinations are also not yet implemented --- manual
+registration of commands to retrieve some more or less native user-experience remains possible
+though. Generally, the kind of content one can write in C comments should be arbitrary. The
+exhaustive list of Isabelle commands is provided in the accompanying above archive, for example in
+\<^dir>\<open>$ISABELLE_HOME/src/Doc/Isar_Ref\<close> or
+\<^file>\<open>$ISABELLE_HOME/doc/isar-ref.pdf\<close>.
+
+\<^item> Instead of starting from scratch, any existing C files can also be opened with Isabelle/C,
+it suffices to replace:
 
 \begin{tabular}{c}
  \<^verbatim>\<open>C\<close> \<^theory_text>\<open>\<open> /* C */ \<close>\<close> \\
@@ -311,9 +327,18 @@ text \<open> To edit an existing C file, it suffices to replace:
 \end{tabular}
 
 Once done, one can press a CTRL-like key while hovering the mouse over the file name, then followed
-by a click on it to open a new window loading that file. In this situation, it is still possible to
-write \<^C>\<open>/*@ (* Isabelle content *) */\<close> at any position where C comments are
-usually allowed. \<close>
+by a click on it to open a new window loading that file. 
+
+\<^item> After writing
+\<^verbatim>\<open>C\<close> \<^theory_text>\<open>\<open> /* C */ \<close>\<close>, one has either
+the possibility to keep the content as such in the theory file, or use
+\<^verbatim>\<open>C_export_file\<close> to export all previous C content to a ``real'' C file.
+
+In more details, the latter case makes the output window show a message suggesting to click on
+\<open>theory exports\<close>. Clicking on it makes the \<open>File Browser\<close> panel appear
+with the generated C file inside. It is only after loading the C file with a double click, that one
+can use the normal click on \<open>File\<close> and \<open>Save As...\<close> operations to finalize
+the explicit file writing. \<close>
 
 section \<open>Case Study: Mapping on the Parsed AST\<close>
 
@@ -557,7 +582,7 @@ sequence of Shift Reduce actions associated to the \<^theory_text>\<open>C\<clos
 interest.
 \<close> 
 
-section \<open>Known Limitation and Future Work\<close>
+section \<open>Known Limitations, Troubleshooting\<close>
 subsection \<open>The Document Model of the Isabelle/PIDE (applying for Isabelle 2019)\<close>
 subsubsection \<open>Introduction\<close>
 
@@ -609,16 +634,17 @@ For the above reasons, we have come up in Isabelle/C with the choice of making t
 be supported inside the inner syntax allocated space. In particular, this has become all the more
 syntactically easy with the introduction of cartouches since Isabelle
 2014.\<^footnote>\<open>Fortunately, parsing tokens of C do not strongly conflict with cartouche
-delimiter symbols. For example, it should be legal in C to write an opening cartouche symbol in a C
-comment without writing any closing cartouche symbol afterwards. However, this functionality is
-implicitly rejected by the parser of Isabelle/C, as it is relying on Isabelle 2019's parser
-combinator library for the lexing part.\<close> However, for the case of the C language, certain C
-directives like \<open>#include\<close> are meant to heavily interact with external files. In
-particular, resources would be best utilized if we were taking advantage of the Isabelle's
-asynchronous document model for such interaction task. Unfortunately, the inner syntax space only
-has a minimum interaction with the document model, compared to the outer syntax one. Otherwise said,
-be it for experimenting the inner syntax layer and see how far it can deal with the document layer,
-or otherwise reimplementing parts of Isabelle/C in the outer syntax layer, the two solutions are
+delimiter symbols. For example, it should not be ethically wrong in C to write an opening cartouche
+symbol (possibly in a C comment) without writing any closing cartouche symbol afterwards. However,
+we have not encountered such C code in our tested codebase, and it is a functionality implicitly
+rejected by the current parser of Isabelle/C, as it is relying on Isabelle 2019's parser combinator
+library for the lexing part.\<close> However, for the case of the C language, certain C directives
+like \<open>#include\<close> are meant to heavily interact with external files. In particular,
+resources would be best utilized if we were taking advantage of the Isabelle's asynchronous document
+model for such interaction task. Unfortunately, the inner syntax space only has a minimum
+interaction with the document model, compared to the outer syntax one. Otherwise said, be it for
+experimenting the inner syntax layer and see how far it can deal with the document layer, or
+otherwise reimplementing parts of Isabelle/C in the outer syntax layer, the two solutions are
 conducting to do modifications in the Isabelle 2019 source code. \<close>
 
 text \<open> Note that the language embedding space of \<^theory_text>\<open>C\<close> closely
@@ -632,16 +658,22 @@ subsubsection \<open>Examples\<close>
 text \<open>
   \<^item> Commands declared as of type \<open>thy_decl\<close> in the theory header are scheduled
   to be executed once. Additionally, they are not tracking the content of file names provided in
-  argument, so a change there will not trigger a reevaluation of the associated command.
+  argument, so a change there will not trigger a reevaluation of the associated command. For
+  example, even if the type of \<^theory_text>\<open>ML_file\<close> is not \<open>thy_decl\<close>,
+  nothing prevents one to set it with \<open>thy_decl\<close> as type. In particular, by doing so,
+  it is no more possible to CTRL-hover-click on the file name written after
+  \<^theory_text>\<open>ML_file\<close>.
   \<^item> To make a command \<open>C\<close> track the content of \<open>file\<close>, whenever the
   file is changing, setting \<open>C\<close> to be of type \<open>thy_load\<close> in the theory
   header is a first step, but not enough. To be effective, \<open>file\<close> must also be loaded,
   by either explicitly opening it, or clicking on its name after the command. Examples of commands
-  in this situation include: \<^theory_text>\<open>external_file\<close>,
-  \<^theory_text>\<open>bibtex_file\<close>, \<^theory_text>\<open>ML_file\<close>.
-  \<^item> In terms of recursivity, for the case of a chain of sub-documents of the form (theory
-  file containing:
-  \<^theory_text>\<open>C_file \<open>#include <file0.c>\<close>\<close>)
+  in this situation requiring a preliminary one-time-click include:
+  \<^theory_text>\<open>external_file\<close>, \<^theory_text>\<open>bibtex_file\<close>,
+  \<^theory_text>\<open>ML_file\<close>.
+  Internally, the click is bound to a Scala code invoking a request to make an asynchronous
+  dependency to the newly opened document at ML side.
+  \<^item> In terms of recursivity, for the case of a chain of sub-documents of the form
+  (a theory file containing: \<^theory_text>\<open>C_file \<open>file0.c\<close>\<close>)
   \<open>\<Longrightarrow>\<close>
   (C file \<^verbatim>\<open>file0.c\<close> containing: \<^C>\<open>#include <file1.c>\<close>)
   \<open>\<Longrightarrow>\<close>
@@ -650,15 +682,33 @@ text \<open>
   (C file \<^verbatim>\<open>file2.c\<close> containing: \<^C>\<open>#include <file3.c>\<close>), we
   ideally expect a modification in \<^verbatim>\<open>file3.c\<close> be taken into account in all
   ancestor files including the initial theory, provoking the associated command of the theory be
-  reevaluated.
-  \<^item> When a theory is depending on other theories (such as \<^theory>\<open>Isabelle_C.C_Eval\<close>
-  depending on \<^theory>\<open>Isabelle_C.C_Parser_Language\<close> and
-  \<^theory>\<open>Isabelle_C.C_Parser_Annotation\<close>), modifying the list of theories in importation
-  automatically triggers what the user is expecting: for example, the newly added theories are
-  dynamically imported, any change by another external editor makes everything consequently
-  propagated. \<close>
+  reevaluated. However in C, directives resolving might be close to Turing-complete. For instance,
+  one can also include files based on particular conditional situations: \<^C>\<open>#if _
+    #include <file1>
+  #else
+    #include <file2>
+    #include <file3>
+  #endif\<close>
+  \<^item> When a theory is depending on other theories (such as
+  \<^theory>\<open>Isabelle_C.C_Eval\<close> depending on
+  \<^theory>\<open>Isabelle_C.C_Parser_Language\<close> and
+  \<^theory>\<open>Isabelle_C.C_Parser_Annotation\<close>), modifying the list of theories in
+  importation automatically triggers what the user is expecting: for example, the newly added
+  theories are dynamically imported, any change by another external editor makes everything
+  consequently propagated.
 
-subsection \<open>Parsing Error\<close>
+  Following the internal implementation of the document model engine, we basically distinguish two
+  phases of document importation: either at start-up time, or dynamically on user requests. Although
+  the case of start-up time can be handled in pure ML side, the language dedicated to express which
+  Isabelle theory files to import is less powerful than the close-to-Turing-completeness
+  expressivity of C directives. On the other hand, the dynamic importation of files on user requests
+  seems to be performed (at the time of writing) through a too high level ML protocol, mostly called
+  from Scala side. Due to the fact that Isabelle/C is currently implemented in pure ML, a solution
+  also in pure ML would thus sound more natural (although we are not excluding solutions interacting
+  with Scala, as long as the resulting can be implemented in Isabelle, preferably outside of its own
+  source).\<close>
+
+subsection \<open>Parsing Error versus Parsing Correctness\<close>
 
 text \<open> When trying to decide if the next parsing action is a Shift or Reduce action to
 perform, the grammar simulator \<^ML>\<open>LALR_Parser_Eval.parse\<close> can actually decide to do
@@ -708,5 +758,18 @@ make the error disappear at the position the error is indicated can be detailed 
   \<^item> Ultimately, modifying the grammar with new rules cancelling the exception would only work
   if the problem really relies on the grammar, as it was mentioned for the acceptance state.
   \<close>
+
+text \<open> In terms of parsing correctness, Isabelle/C provides at least two different parsers:
+\<^item> a parser limited to C99/C11 code provided in \<^dir>\<open>../C11-FrontEnd\<close> that can
+parse certain liberal extensions out of the C
+standard~\<^footnote>\<open>\<^url>\<open>http://hackage.haskell.org/package/language-c\<close>\<close>;
+\<^item> and another parser accepting C99/C11/C18 code in \<^dir>\<open>../C18-FrontEnd\<close> that
+is close to the C standard while focusing on resolving ambiguities of the
+standard~\<^footnote>\<open>\<^url>\<open>https://github.com/jhjourdan/C11parser\<close>\<close>~\cite{DBLP:journals/toplas/JourdanP17}. \<close>
+
+text \<open> Since the two are not accepting the same range of arbitrary C code (but possibly with a
+certain substantial part in common), we have actually already encountered situations where an error
+is raised by one parser, while a success is happening with the other parser (and
+vice-versa). \<close>
 
 end

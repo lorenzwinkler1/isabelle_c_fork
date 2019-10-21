@@ -46,4 +46,3 @@ session Isabelle_C_Advance_examples = Isabelle_C_Advance + (* a standard test su
   theories
     "examples/C0"
     "examples/C2"
-    "examples/C3"

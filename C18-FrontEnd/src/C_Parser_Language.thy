@@ -34,13 +34,21 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-section \<open>Parsing Support for the Core Language (C11 Instance)\<close>
+section \<open>Core Language: Parsing Support (C Language without Annotations)\<close>
 
 theory C_Parser_Language
   imports C_Environment
 begin
 
-subsection \<open>Core C11 Parsing Library (fully mimicking the Haskell counterpart)\<close>
+text \<open> As mentioned in \<^theory>\<open>Isabelle_C_Advance.C_Ast\<close>, Isabelle/C depends on
+certain external parsing libraries, such as \<^dir>\<open>../../mlton\<close>, and more specifically
+\<^dir>\<open>../../mlton/lib/mlyacc-lib\<close>. Actually, the sole theory making use of the files
+in \<^dir>\<open>../../mlton/lib/mlyacc-lib\<close> is the present
+\<^file>\<open>C_Parser_Language.thy\<close>. (Any other remaining files in
+\<^dir>\<open>../../mlton\<close> are not used by Isabelle/C, they come from the original repository
+of MLton: \<^url>\<open>https://github.com/MLton/mlton\<close>.) \<close>
+
+subsection \<open>Parsing Library (Including Semantic Functions)\<close>
 
 ML \<comment> \<open>\<^file>\<open>../generated/c_grammar_fun.grm.sml\<close>\<close>
 (*
@@ -157,7 +165,8 @@ struct
   fun report _ [] _ = I
     | report markup ps x =
         let val ms = markup x
-        in fold (fn p => fold (fn {markup, markup_body} => cons ((p, markup), markup_body)) ms) ps end
+        in fold (fn p => fold (fn {markup, markup_body} => cons ((p, markup), markup_body)) ms) ps
+        end
 
   fun markup_make typing get_global desc report' data =
    report
@@ -179,8 +188,11 @@ struct
             , typing param)
         | Left ((ps, id, param), _) => (true, ps, id, Left (get_global param), typing param)
         | Right (_, SOME (ps, id, param)) => (false, ps, id, Left (get_global param), typing param)
-        | Right (ps, _) =>
-            (true, ps, serial (), Right (NONE, "Undeclared " ^ quote name ^ Position.here_list ps, I), NONE)
+        | Right (ps, _) => ( true
+                           , ps
+                           , serial ()
+                           , Right (NONE, "Undeclared " ^ quote name ^ Position.here_list ps, I)
+                           , NONE)
       fun markup_elem name = (name, (name, []): Markup.T)
       val (varN, var) = markup_elem (desc (case global of Left b => SOME b
                                                         | Right (SOME b, _, _) => SOME b
@@ -191,7 +203,9 @@ struct
      (cons' var
       #> report' cons' def global
       #> (case typing of NONE => I | SOME x => cons x))
-       (map (fn pos => markup_init (Markup.properties (Position.entity_properties_of def id pos) entity)) ps)
+       (map (fn pos =>
+              markup_init (Markup.properties (Position.entity_properties_of def id pos) entity))
+            ps)
     end)
 
   fun markup_make' typing get_global desc report =
@@ -254,22 +268,26 @@ struct
     SOME
     { markup = Markup.typing
     , markup_body =
-       case ( string_of_list
-               (fn C_Ast.CPtrDeclr0 _ => "pointer"
-                 | C_Ast.CArrDeclr0 _ => "array"
-                 | C_Ast.CFunDeclr0 (C_Ast.Left _, _, _) => "function [...] ->"
-                 | C_Ast.CFunDeclr0 (C_Ast.Right (l_decl, _), _, _) =>
-                    "function "
-                    ^ (String.concatWith
-                        " -> "
-                        (map (fn CDecl0 ([decl], _, _) => string_of_cDeclarationSpecifier decl
-                               | CDecl0 (l, _, _) => "(" ^ String.concatWith " " (map string_of_cDeclarationSpecifier l) ^ ")"
-                               | CStaticAssert0 _ => "static_assert")
-                             l_decl))
-                    ^ " ->")
-               params
-            , case ret of C_Env.Previous_in_stack => SOME "..."
-                        | C_Env.Parsed ret => string_of_list string_of_cDeclarationSpecifier ret)
+       case
+        ( string_of_list
+           (fn C_Ast.CPtrDeclr0 _ => "pointer"
+             | C_Ast.CArrDeclr0 _ => "array"
+             | C_Ast.CFunDeclr0 (C_Ast.Left _, _, _) => "function [...] ->"
+             | C_Ast.CFunDeclr0 (C_Ast.Right (l_decl, _), _, _) =>
+                "function "
+                ^ (String.concatWith
+                    " -> "
+                    (map (fn CDecl0 ([decl], _, _) => string_of_cDeclarationSpecifier decl
+                           | CDecl0 (l, _, _) => "(" ^ String.concatWith
+                                                         " "
+                                                         (map string_of_cDeclarationSpecifier l)
+                                                     ^ ")"
+                           | CStaticAssert0 _ => "static_assert")
+                         l_decl))
+                ^ " ->")
+           params
+        , case ret of C_Env.Previous_in_stack => SOME "..."
+                    | C_Env.Parsed ret => string_of_list string_of_cDeclarationSpecifier ret)
        of (NONE, NONE) => let val _ = warning "markup_var: Not yet implemented" in "" end
         | (SOME params, NONE) => params
         | (NONE, SOME ret) => ret
@@ -281,7 +299,10 @@ struct
       #global
       "variable"
       (fn cons' => fn def =>
-       fn true => if def then cons' Markup.free else cons' Markup.delimiter (*explicit black color, otherwise the default color of constants might be automatically chosen (especially in term cartouches)*)
+       fn true => if def then cons' Markup.free else cons' Markup.delimiter (*explicit black color,
+                                                     otherwise the default color of constants might
+                                                     be automatically chosen (especially in term
+                                                     cartouches)*)
         | false => cons' Markup.bound)
 
   val markup_var_bound =
@@ -315,7 +336,9 @@ struct
     (if mk_range then Position.range else I)
     #> (fn (pos1, pos2) =>
           let val {offset = offset, end_offset = end_offset, ...} = Position.dest pos1
-          in (Position offset (From_string (C_Env.encode_positions [pos1, pos2])) 0 0, end_offset - offset) end)
+          in ( Position offset (From_string (C_Env.encode_positions [pos1, pos2])) 0 0
+             , end_offset - offset)
+          end)
   fun posOf'' node env =
     let val (stack, len) = #rule_input env
         val (mk_range, (pos1a, pos1b)) = case node of Left i => (true, nth stack (len - i - 1))
@@ -380,7 +403,8 @@ struct
   fun liftStrLit (CStrLit0 (str, at)) = CStrConst str at
 
   (* Language.C.Syntax.Constants *)
-  fun concatCStrings cs = CString0 (flattena (map (fn CString0 (s,_) => s) cs), exists (fn CString0 (_, b) => b) cs)
+  fun concatCStrings cs =
+        CString0 (flattena (map (fn CString0 (s,_) => s) cs), exists (fn CString0 (_, b) => b) cs)
 
   (* Language.C.Parser.ParserMonad *)
   fun getNewName env =
@@ -392,14 +416,25 @@ struct
         val data = (pos1, serial (), null (C_Env_Ext.get_scopes env))
     in ((), env |> C_Env_Ext.map_idents (Symtab.delete_safe name)
                 |> C_Env_Ext.map_tyidents_typedef (Symtab.update (name, data))
-                |> C_Env_Ext.map_reports_text (markup_tvar (Left (data, flat [ look_idents env name, look_tyidents_typedef env name ])) pos1 name)) end
+                |> C_Env_Ext.map_reports_text
+                     (markup_tvar
+                       (Left (data, flat [ look_idents env name, look_tyidents_typedef env name ]))
+                       pos1
+                       name))
+    end
   fun shadowTypedef0''' name pos data0 env_lang env_tree =
     let val data = (pos, serial (), data0)
         val update_id = Symtab.update (name, data)
     in ( env_lang |> C_Env_Ext.map_tyidents'_typedef (Symtab.delete_safe name)
                   |> C_Env_Ext.map_idents' update_id
        , update_id
-       , env_tree |> C_Env.map_reports_text (markup_var (Left (data, flat [ look_idents' env_lang name, look_tyidents'_typedef env_lang name ])) pos name)) end
+       , env_tree
+          |> C_Env.map_reports_text
+               (markup_var (Left (data, flat [ look_idents' env_lang name
+                                             , look_tyidents'_typedef env_lang name ]))
+                           pos
+                           name))
+    end
   fun shadowTypedef0'''' name pos data0 env_lang env_tree =
     let val (env_lang, _, env_tree) = shadowTypedef0''' name pos data0 env_lang env_tree
     in ( env_lang, env_tree) end
@@ -414,16 +449,19 @@ struct
     let val (update_id, env) =
           C_Env.map_env_lang_tree'
             (fn env_lang => fn env_tree => 
-              let val (env_lang, update_id, env_tree) = shadowTypedef0'' ret global ident env_lang env_tree 
+              let val (env_lang, update_id, env_tree) =
+                        shadowTypedef0'' ret global ident env_lang env_tree 
               in (update_id, (env_lang, env_tree)) end)
             env
     in ((), f update_id env) end
   fun shadowTypedef_fun ident env =
     shadowTypedef0 C_Env.Previous_in_stack
                    (case C_Env_Ext.get_scopes env of _ :: [] => true | _ => false)
-                   (fn update_id => C_Env_Ext.map_scopes (fn (NONE, x) :: xs => (SOME (fst ident), C_Env.map_idents update_id x) :: xs
-                                                           | (SOME _, _) :: _ => error "Not yet implemented"
-                                                           | [] => error "Not expecting an empty scope"))
+                   (fn update_id =>
+                    C_Env_Ext.map_scopes
+                     (fn (NONE, x) :: xs => (SOME (fst ident), C_Env.map_idents update_id x) :: xs
+                       | (SOME _, _) :: _ => error "Not yet implemented"
+                       | [] => error "Not expecting an empty scope"))
                    ident
                    env
   fun shadowTypedef (i, params, ret) env =
@@ -432,9 +470,10 @@ struct
   fun enterScope env =
     ((), C_Env_Ext.map_scopes (cons (NONE, C_Env_Ext.get_var_table env)) env)
   fun leaveScope env = 
-    case C_Env_Ext.get_scopes env of [] => error "leaveScope: already in global scope"
-                                   | (_, var_table) :: scopes => ((), env |> C_Env_Ext.map_scopes (K scopes)
-                                                                          |> C_Env_Ext.map_var_table (K var_table))
+    case C_Env_Ext.get_scopes env of
+      [] => error "leaveScope: already in global scope"
+    | (_, var_table) :: scopes => ((), env |> C_Env_Ext.map_scopes (K scopes)
+                                           |> C_Env_Ext.map_var_table (K var_table))
   val getCurrentPosition = return NoPosition
 
   (* Language.C.Parser.Tokens *)
@@ -461,9 +500,13 @@ struct
                       | CAsmExt0 (_, node) => node)
   val get_node_CExpr =
     fn CComma0 (_, a) => a | CAssign0 (_, _, _, a) => a | CCond0 (_, _, _, a) => a |
-    CBinary0 (_, _, _, a) => a | CCast0 (_, _, a) => a | CUnary0 (_, _, a) => a | CSizeofExpr0 (_, a) => a | CSizeofType0 (_, a) => a | CAlignofExpr0 (_, a) => a | CAlignofType0 (_, a) => a | CComplexReal0 (_, a) => a | CComplexImag0 (_, a) => a | CIndex0 (_, _, a) => a |
+    CBinary0 (_, _, _, a) => a | CCast0 (_, _, a) => a | CUnary0 (_, _, a) => a |
+    CSizeofExpr0 (_, a) => a | CSizeofType0 (_, a) => a | CAlignofExpr0 (_, a) => a |
+    CAlignofType0 (_, a) => a | CComplexReal0 (_, a) => a | CComplexImag0 (_, a) => a |
+    CIndex0 (_, _, a) => a |
     CCall0 (_, _, a) => a | CMember0 (_, _, _, a) => a | CVar0 (_, a) => a | CConst0 c => (case c of
-    CIntConst0 (_, a) => a | CCharConst0 (_, a) => a | CFloatConst0 (_, a) => a | CStrConst0 (_, a) => a) |
+    CIntConst0 (_, a) => a | CCharConst0 (_, a) => a | CFloatConst0 (_, a) => a |
+    CStrConst0 (_, a) => a) |
     CCompoundLit0 (_, _, a) => a | CGenericSelection0 (_, _, a) => a | CStatExpr0 (_, a) => a |
     CLabAddrExpr0 (_, a) => a | CBuiltinExpr0 cBuiltinThing => (case cBuiltinThing
      of CBuiltinVaArg0 (_, _, a) => a
@@ -474,16 +517,20 @@ struct
     bind (posOf'' (decode_error node)) (fn range => 
       withNodeInfo00 range mkAttrNode (case nameOfNode node of NONE => error "nameOfNode"
                                                              | SOME name => name))
-  fun reverseDeclr (CDeclrR0 (ide, reversedDDs, asmname, cattrs, at)) = CDeclr ide (rev reversedDDs) asmname cattrs at
+  fun reverseDeclr (CDeclrR0 (ide, reversedDDs, asmname, cattrs, at)) =
+                    CDeclr ide (rev reversedDDs) asmname cattrs at
   fun appendDeclrAttrs newAttrs (CDeclrR0 (ident, l, asmname, cattrs, at)) =
     case l of
       [] => CDeclrR ident empty asmname (cattrs @ newAttrs) at
     | x :: xs =>
-      let val appendAttrs = fn CPtrDeclr0 (typeQuals, at) => CPtrDeclr (typeQuals @ map CAttrQual newAttrs) at
-                             | CArrDeclr0 (typeQuals, arraySize, at) => CArrDeclr (typeQuals @ map CAttrQual newAttrs) arraySize at
-                             | CFunDeclr0 (parameters, cattrs, at) => CFunDeclr parameters (cattrs @ newAttrs) at
-      in CDeclrR ident (appendAttrs x :: xs) asmname cattrs at
-      end
+      let
+        val appendAttrs =
+          fn CPtrDeclr0 (typeQuals, at) => CPtrDeclr (typeQuals @ map CAttrQual newAttrs) at
+           | CArrDeclr0 (typeQuals, arraySize, at) => CArrDeclr (typeQuals @ map CAttrQual newAttrs)
+                                                                arraySize
+                                                                at
+           | CFunDeclr0 (parameters, cattrs, at) => CFunDeclr parameters (cattrs @ newAttrs) at
+      in CDeclrR ident (appendAttrs x :: xs) asmname cattrs at end
   fun withAttribute node cattrs mkDeclrNode =
     bind (posOf''' node) (fn (pos, _) =>
     bind getNewName (fn name =>
@@ -510,12 +557,18 @@ struct
       Left (n1, n2) => let fun showName (CStrLit0 (CString0 (s, _), _)) = To_string0 s
                        in error ("Duplicate assembler name: " ^ showName n1 ^ " " ^ showName n2) end
     | Right newName => return (CDeclrR ident indirections newName cattrs at)
-  fun withAsmNameAttrs (mAsmName, newAttrs) declr = setAsmName mAsmName (appendObjAttrsR newAttrs declr)
+  fun withAsmNameAttrs (mAsmName, newAttrs) declr =
+        setAsmName mAsmName (appendObjAttrsR newAttrs declr)
   fun ptrDeclr (CDeclrR0 (ident, derivedDeclrs, asmname, cattrs, dat)) tyquals at =
     CDeclrR ident (snoc derivedDeclrs (CPtrDeclr tyquals at)) asmname cattrs dat
   fun funDeclr (CDeclrR0 (ident, derivedDeclrs, asmname, dcattrs, dat)) params cattrs at =
     CDeclrR ident (snoc derivedDeclrs (CFunDeclr params cattrs at)) asmname dcattrs dat
-  fun arrDeclr (CDeclrR0 (ident, derivedDeclrs, asmname, cattrs, dat)) tyquals var_sized static_size size_expr_opt at =
+  fun arrDeclr (CDeclrR0 (ident, derivedDeclrs, asmname, cattrs, dat))
+               tyquals
+               var_sized
+               static_size
+               size_expr_opt
+               at =
     CDeclrR ident
             (snoc
                derivedDeclrs
@@ -529,10 +582,15 @@ struct
   val liftCAttrs = map (CTypeQual o CAttrQual)
   fun addTrailingAttrs declspecs new_attrs =
     case viewr declspecs of
-      (specs_init, CTypeSpec0 (CSUType0 (CStruct0 (tag, name, Some def, def_attrs, su_node), node))) =>
-        snoc specs_init (CTypeSpec (CSUType (CStruct tag name (Just def) (def_attrs @ new_attrs) su_node) node))
+      (specs_init, CTypeSpec0 (CSUType0 (CStruct0 (tag, name, Some def, def_attrs, su_node), node)))
+      =>
+        snoc
+          specs_init
+          (CTypeSpec (CSUType (CStruct tag name (Just def) (def_attrs @ new_attrs) su_node) node))
     | (specs_init, CTypeSpec0 (CEnumType0 (CEnum0 (name, Some def, def_attrs, e_node), node))) => 
-        snoc specs_init (CTypeSpec (CEnumType (CEnum name (Just def) (def_attrs @ new_attrs) e_node) node))
+        snoc
+          specs_init
+          (CTypeSpec (CEnumType (CEnum name (Just def) (def_attrs @ new_attrs) e_node) node))
     | _ => rappend declspecs (liftCAttrs new_attrs)
   val emptyDeclr = CDeclrR Nothing empty Nothing [] undefNode
   fun mkVarDeclr ident = CDeclrR (Some ident) empty Nothing []
@@ -562,11 +620,17 @@ struct
   val is_fun = fn CFunDeclr0 _ => true | _ => false
   in
   fun doFuncParamDeclIdent (CDeclr0 (mIdent0, param0, _, _, node0)) =
-    let val (param_not_fun, param0') = chop_prefix (not o is_fun) param0
-        val () =
-          if null param_not_fun then ()
-          else Output.information ("Not a function" ^ Position.here (decode_error' (case mIdent0 of None => node0 | Some (Ident0 (_, _, node)) => node) |> #1))
-        val (param_fun, param0') = chop_prefix is_fun param0'
+    let
+      val (param_not_fun, param0') = chop_prefix (not o is_fun) param0
+      val () =
+        if null param_not_fun then ()
+        else
+          Output.information
+            ("Not a function"
+             ^ Position.here
+                 (decode_error' (case mIdent0 of None => node0
+                                               | Some (Ident0 (_, _, node)) => node) |> #1))
+      val (param_fun, param0') = chop_prefix is_fun param0'
     in
       (case mIdent0 of None => return ()
                      | Some mIdent0 => shadowTypedef_fun (mIdent0, param0))
@@ -583,10 +647,17 @@ struct
                     let
                       val name = ident_decode i
                       val pos = [decode_error' node |> #1]
-                      val data = (pos, serial (), {global = false, params = params, ret = C_Env.Parsed ret})
+                      val data = ( pos
+                                 , serial ()
+                                 , {global = false, params = params, ret = C_Env.Parsed ret})
                     in
                       ( env_lang |> Symtab.update (name, data)
-                      , env_tree |> C_Env.map_reports_text (markup_var_improper (Left (data, C_Env_Ext.list_lookup env_lang name)) pos name))
+                      , env_tree
+                          |> C_Env.map_reports_text
+                               (markup_var_improper
+                                 (Left (data, C_Env_Ext.list_lookup env_lang name))
+                                 pos
+                                 name))
                     end)
                   params
                #> #2 o #2)
@@ -642,11 +713,7 @@ struct
 end
 \<close>
 
-subsection \<open>Loading the Generic Grammar Simulator\<close>
-
-text \<open> The parser consists of a generic module
-\<^file>\<open>../../mlton/lib/mlyacc-lib/base.sig\<close>, which interprets an
-automata-like format generated from ML-Yacc. \<close>
+subsection \<open>Miscellaneous\<close>
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/document_antiquotations.ML\<close>\<close>
 (*  Author:     Frédéric Tuong, Université Paris-Saclay *)
@@ -672,14 +739,18 @@ fun ml_text name ml =
                                  Position.none
                                  (Path.explode (#1 (Input.source_content text))))
           val _ = (*TODO: avoid multiple file scanning*)
-                  ML_Context.eval_in (SOME ctxt) ML_Compiler.flags Position.none (* \<leftarrow> (optionally) disabling a potential double report*) (ml file_content)
+            ML_Context.eval_in (SOME ctxt) ML_Compiler.flags Position.none (* \<leftarrow> (optionally)
+                                                                              disabling a potential
+                                                                              double report*)
+                                                                           (ml file_content)
       in file_content
          |> Input.source_explode
          |> Source.of_list
          |> Source.source
               Symbol_Pos.stopper
                 (Scan.bulk (Symbol_Pos.scan_comment "" >> (C_Scan.Left o pair true)
-                            || Scan.many1 (Symbol.is_ascii_blank o Symbol_Pos.symbol) >> (C_Scan.Left o pair false)
+                            || Scan.many1 (Symbol.is_ascii_blank o Symbol_Pos.symbol)
+                                 >> (C_Scan.Left o pair false)
                             || Scan.one (not o Symbol_Pos.is_eof) >> C_Scan.Right))
          |> Source.exhaust
          |> drop_prefix (fn C_Scan.Left _ => true | _ => false)
@@ -704,6 +775,12 @@ end;
 end;
 \<close>
 
+subsection \<open>Loading the Grammar Simulator\<close>
+
+text \<open> The parser consists of a generic module
+\<^file>\<open>../../mlton/lib/mlyacc-lib/base.sig\<close>, which interprets an
+automata-like format generated from ML-Yacc. \<close>
+
 ML_file "../../mlton/lib/mlyacc-lib/base.sig" \<comment>
 \<open>\<^ML_file>\<open>../../mlton/lib/mlyacc-lib/base.sig\<close>\<close>
 ML_file "../../mlton/lib/mlyacc-lib/join.sml" \<comment>
@@ -719,13 +796,14 @@ subsection \<open>Loading the Generated Grammar (SML signature)\<close>
 
 ML_file "../generated/c_grammar_fun.grm.sig"
 
-subsection \<open>Overloading Grammar Rules\<close>
+subsection \<open>Overloading Grammar Rules (Optional Part)\<close>
 
 ML \<comment> \<open>\<^file>\<open>../generated/c_grammar_fun.grm.sml\<close>\<close> \<open>
 structure C_Grammar_Rule_Wrap_Overloading = struct
 
 fun update_env_bottom_up f x arg = ((), C_Env.map_env_lang_tree (f x) arg)
-fun update_env_top_down f x = pair () ##> (fn arg => C_Env_Ext.map_output_env (K (SOME (f x (#env_lang arg)))) arg)
+fun update_env_top_down f x =
+  pair () ##> (fn arg => C_Env_Ext.map_output_env (K (SOME (f x (#env_lang arg)))) arg)
 
 end
 \<close>
@@ -749,7 +827,7 @@ ML \<comment> \<open>\<^file>\<open>../generated/c_grammar_fun.grm.sml\<close>\<
 structure C_Grammar = C_Grammar_Fun (structure Token = LALR_Parser_Eval.Token)
 \<close>
 
-subsubsection \<open>Mapping Lexing Strings to Parsing Tokens\<close>
+subsubsection \<open>Mapping Strings to Structured Tokens\<close>
 
 ML \<comment> \<open>\<^file>\<open>../generated/c_grammar_fun.grm.sml\<close>\<close> \<open>
 structure C_Grammar_Tokens =
