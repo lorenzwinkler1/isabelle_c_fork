@@ -332,7 +332,7 @@ by a click on it to open a new window loading that file.
 \<^item> After a
 \<^verbatim>\<open>C\<close> \<^theory_text>\<open>\<open> /* C */ \<close>\<close> command, one has either
 the possibility to keep the content as such in the theory file, or use
-\<^verbatim>\<open>C_export_file\<close> to export all previous C content to a ``real'' C file.
+\<^verbatim>\<open>C_export_file\<close> to export all previous C content into a ``real'' C file.
 
 Note that since Isabelle2019, Isabelle uses a virtual file-system. This has the consequence, 
 that some extra operations are needed to export a file generated into the virtual file-system 
