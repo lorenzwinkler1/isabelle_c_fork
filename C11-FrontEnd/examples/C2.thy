@@ -311,7 +311,7 @@ C\<open>
 
 /*@ requires "n >= 0"
     requires "valid(t+(0..n-1))"
-    ensures "(forall integer i; 0<=i<n ==> t[i] != v) <==> result == -1"
+    ensures "(forall integer i; 0<=i<n ==> t[i] != v) <==> result  == -1"
     ensures "(exists integer i; 0<=i<n && t[i] == v) <==> result == v"
     assigns nothing
  */
