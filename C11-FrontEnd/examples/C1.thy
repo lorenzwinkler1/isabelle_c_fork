@@ -237,7 +237,7 @@ int a = 0;
    */
 \<close>
 
-subsection \<open>Bottom-Up Evaluation vs. Top-Down\<close>
+subsection \<open>Bottom-Up vs. Top-Down Evaluation\<close>
 
 ML\<open>
 structure Example_Data = Generic_Data (type T = string list
@@ -747,6 +747,32 @@ int main () {
   char * ó\<^url>ò = "ó\<^url>ò";
   printf ("%s", ó\<^url>ò);
 }
+\<close>
+
+section\<open>Exporting C Files to the File-System\<close>
+
+text\<open>From the Isabelle/C side, the task is easy, just type:\<close>
+
+C_export_file
+
+text_raw \<open>
+\begin{figure}
+  \centering
+\includegraphics[width=\textwidth]{figures/C-export-example}
+  \caption{Making the File Browser Pointing to the Virtual File System}
+  \label{fig:file-bro}
+\end{figure}
+\<close>
+
+text\<open>... which does the trick and generates a file \<^verbatim>\<open>C1.c\<close>. But hold
+on --- where is it?  Well, Isabelle/C uses since version Isabelle2019 a virtual
+file-system. Exporting from it to the real file-system requires a few mouse-clicks (unfortunately).
+
+So activating the command \<^theory_text>\<open>C_export_file\<close> leads to the output
+\<^verbatim>\<open>See theory exports "C/64/C1.c"\<close> (see \autoref{fig:file-bro}), and clicking on the highlighted
+\<^verbatim>\<open>theory exports\<close> lets Isabelle display a part of the virtual file-system
+(see subwidget left). Activating it in the subwidget lets jEdit open it as an editable file, which
+can be exported via \<^verbatim>\<open>File->Save As->...\<close> into the real file-system.
 \<close>
 
 end

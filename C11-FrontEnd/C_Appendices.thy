@@ -281,6 +281,18 @@ text \<open>
   except that their evaluations happen later.
 \<close>
 
+subsection \<open>Inner Directive Commands\<close>
+
+text \<open>
+  \<^descr> Among the directives provided as predefined in Isabelle/C, we currently have:
+  \<^C>\<open>#define _\<close> and \<^C>\<open>#undef _\<close>. In particular, for the case of
+  \<^C>\<open>#define _\<close>, rewrites are restricted to variable-form macros: support of
+  functional macros is not yet provided.
+  \<^descr> In Isabelle/C, not-yet-defined directives (such as \<^C>\<open>#include _\<close> or
+  \<^C>\<open>#if
+  #endif\<close>, etc.) do not make the parsing fail, but are treated as ``free variable commands''.
+\<close>
+
 section \<open>Quick Start (for People More Familiar with C than Isabelle)\<close>
 
 text \<open>
@@ -329,16 +341,19 @@ it suffices to replace:
 Once done, one can press a CTRL-like key while hovering the mouse over the file name, then followed
 by a click on it to open a new window loading that file. 
 
-\<^item> After writing
-\<^verbatim>\<open>C\<close> \<^theory_text>\<open>\<open> /* C */ \<close>\<close>, one has either
+\<^item> After a
+\<^verbatim>\<open>C\<close> \<^theory_text>\<open>\<open> /* C */ \<close>\<close> command, one has either
 the possibility to keep the content as such in the theory file, or use
-\<^verbatim>\<open>C_export_file\<close> to export all previous C content to a ``real'' C file.
+\<^verbatim>\<open>C_export_file\<close> to export all previous C content into a ``real'' C file.
 
-In more details, the latter case makes the output window show a message suggesting to click on
-\<open>theory exports\<close>. Clicking on it makes the \<open>File Browser\<close> panel appear
-with the generated C file inside. It is only after loading the C file with a double click, that one
-can use the normal click on \<open>File\<close> and \<open>Save As...\<close> operations to finalize
-the explicit file writing. \<close>
+Note that since Isabelle2019, Isabelle uses a virtual file-system. This has the consequence, 
+that some extra operations are needed to export a file generated into the virtual file-system 
+of Isabelle into the ``real'' file-system. First, the \<^verbatim>\<open>C_export_file\<close> command needs to be 
+activated leading to a message in the output window. 
+By clicking on \<open>theory exports\<close> in this message, Isabelle opens a \<open>File Browser\<close>
+showing the content of the virtual file-system in the left window. Selecting and opening a generated file 
+in the latter lets jEdit display it in a new buffer, which gives the possibility to export this file
+via \<open>File\<rightarrow>Save As\<close> into the real file-system.\<close>
 
 section \<open>Case Study: Mapping on the Parsed AST\<close>
 
@@ -767,9 +782,12 @@ standard~\<^footnote>\<open>\<^url>\<open>http://hackage.haskell.org/package/lan
 is close to the C standard while focusing on resolving ambiguities of the
 standard~\<^footnote>\<open>\<^url>\<open>https://github.com/jhjourdan/C11parser\<close>\<close>~\cite{DBLP:journals/toplas/JourdanP17}. \<close>
 
-text \<open> Since the two are not accepting the same range of arbitrary C code (but possibly with a
-certain substantial part in common), we have actually already encountered situations where an error
-is raised by one parser, while a success is happening with the other parser (and
-vice-versa). \<close>
+text \<open> Note that the two parsers are not accepting/rejecting the same range of arbitrary C
+code. We have actually already encountered situations where an error is raised by one parser, while
+a success is happening with the other parser (and vice-versa). Consequently, in front of a C code,
+it can be a good recommendation to try out the parsing with all possible parsers of Isabelle/C. In
+any cases, a failure in one or several activated parsers might not be necessarily harmful: it might
+also indicate that a wrong parser has been selected, or a semantic back-end not yet supporting
+aspects of the C code being parsed. \<close>
 
 end
