@@ -266,10 +266,15 @@ theorem (in is_prime) is_prime_faster_correct:
 
 */\<close>
 
+C_export_file  (* This exports the C code into a C file ready to be compiled by gcc. *)
+
+
 find_theorems name:is_prime
 
 thm is_prime_linear_inv_def
 thm is_prime.is_prime_linear'_def
 thm is_prime.is_prime_faster_correct
+
+
 
 end

@@ -612,12 +612,14 @@ setup \<open>C_Module.C_Term.map_default (fn _ => fn _ => fn _ => @{term "True"}
 
 subsection \<open>Validity of Context for Annotations\<close>
 
+ML \<open>fun fac x = if x = 0 then 1 else x * fac (x - 1)\<close>
+
 ML \<comment> \<open>Execution of annotations in term possible in (the outermost) \<^theory_text>\<open>ML\<close>\<close> \<open>
-\<^term>\<open> \<^C> \<open>int c = 0; /*@ ML \<open>()\<close> */\<close> \<close>
+\<^term>\<open> \<^C> \<open>int c = 0; /*@ ML \<open>fac 100\<close> */\<close> \<close>
 \<close>
 
 definition \<comment> \<open>Execution of annotations in term possible in \<^ML_type>\<open>local_theory\<close> commands (such as \<^theory_text>\<open>definition\<close>)\<close> \<open>
-term = \<^C> \<open>int c = 0; /*@ ML \<open>()\<close> */\<close>
+term = \<^C> \<open>int c = 0; /*@ ML \<open>fac 100\<close> */\<close>
 \<close>
 
 section \<open>Scopes of Inner and Outer Terms\<close>
