@@ -1,7 +1,8 @@
 (******************************************************************************
  * Isabelle/C
  *
- * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Copyright (c) 2018-2019 LRI, Université Paris-Saclay, France
+ * Authors : Frederic Tuong, Burkhart Wolff
  *
  * All rights reserved.
  *
@@ -46,21 +47,38 @@ of two possibly interchangeable parsers (from two different projects):
 \<^item> \<^url>\<open>https://gitlri.lri.fr/ftuong/isabelle_c/tree/C/C18-FrontEnd\<close>:
   \<^url>\<open>https://github.com/jhjourdan/C11parser\<close>
 
-Thus, one can select which parser(s) are better suitable to be enabled in front of a piece of C
-code.
+At present, the recommended and default version is C11.
 
-Isabelle/C requires Isabelle2019. For a first start, the following C examples or entry-points of
+Isabelle/C requires Isabelle2019. \<close>
+
+section\<open>Getting started\<close>
+
+text\<open>A first installation step is:
+\<^item> \<^verbatim>\<open>isabelle build -D .\<close>
+\<close>
+text\<open>which should work out of the box. \<close>
+
+text\<open>The following C examples or entry-points of
 documentation can be executed:
 
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^file>\<open>C11-FrontEnd/C_Appendices.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d .\<close> \<^file>\<open>C11-FrontEnd/examples/C0.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d .\<close> \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d .\<close> \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d .\<close> \<^file>\<open>C11-FrontEnd/C_Appendices.thy\<close>
 \<close>
 
+text\<open>The example \<^file>\<open>C11-FrontEnd/examples/C0.thy\<close> is basically used to demonstrate the faithfulness
+of the C11 parser implementation. The example \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close> shows common cases
+of C and C-editing support in PIDE; it also contains annotation commands without any semantics.
+The example \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close> is a show-case for markup generation and the use use
+of bindings resulting from the static C environment. The example \<^file>\<open>C11-FrontEnd/C_Appendices.thy\<close>
+shows the use of Isabelle/C documentation facilities.\<close>
+
 text \<open>
-The AFP version of Isabelle/C does not include semantic back-ends. However, the structure of
-\<^dir>\<open>.\<close> has been designed to let one easily create a directory
-\<open>C11-BackEnds\<close> for possibly supporting new back-ends of interests. The structure of
+The AFP version of Isabelle/C does not include semantic back-ends (these are distributed
+by other AFP submissions or available via the web; see below). 
+The structure of \<^dir>\<open>.\<close> has been designed to create a directory
+\<open>C11-BackEnds\<close> into which backends can be installed. The structure of
 \<^dir>\<open>.\<close> is actually similar as
 \<^url>\<open>https://gitlri.lri.fr/ftuong/isabelle_c\<close>: see for example
 \<^url>\<open>https://gitlri.lri.fr/ftuong/isabelle_c/tree/C/C11-BackEnds\<close> where several
