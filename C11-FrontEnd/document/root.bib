@@ -7,6 +7,45 @@
   MONTH = Jul
 }
 
+@incollection{Tuong-IsabelleC:2019,
+  abstract = {We present a framework for C code in C11 syntax deeply 
+    integrated into the Isabelle/PIDE devel- opment environment. Our framework 
+    provides an abstract interface for verification back-ends to be plugged-in 
+    independently. Thus, various techniques such as deductive program 
+    verification or white- box testing can be applied to the same source, 
+    which is part of an integrated PIDE document model. Semantic back-ends 
+    are free to choose the supported C fragment and its semantics. In 
+    particular, they can differ on the chosen memory model or the specification 
+    mechanism for framing conditions.
+
+    Our framework supports semantic annotations of C sources in the form of 
+    comments. Annota- tions serve to locally control back-end settings, and can 
+    express the term focus to which an annotation refers. Both the logical and 
+    the syntactic context are available when semantic annotations are evaluated. 
+    As a consequence, a formula in an annotation can refer both to HOL or C 
+    variables.
+    
+    Our approach demonstrates the degree of maturity and expressive power the 
+    Isabelle/PIDE sub-system has achieved in recent years. Our integration 
+    technique employs Lex and Yacc style grammars to ensure efficient 
+    deterministic parsing. We present two case studies for the integration of 
+    (known) semantic back-ends in order to validate the design decisions for 
+    our back-end interface.
+},
+  author = {Fr\'ederic Tuong and Burkhart Wolff},
+  booktitle = {International Workshop on Formal Integrated Development Environments (F-IDE)},
+  doi = {10.4204/EPTCS.314},
+  keywords = {Isabelle, HOL, C11, Program Verification, Program Testing},
+  language = {USenglish},
+  location = {Porto, Protogal},
+  number = {314},
+  pdf = {https://www.lri.fr/~wolff/papers/conf/2019-fide-isabelle_c.pdf},
+  publisher = {Open Publishing Association},
+  series = {Electronic Proceedings in Theoretical Computer Science (EPTCS)},
+  title = {{D}eeply {I}ntegrating {C11} {C}ode {S}upport into {I}sabelle/{PIDE}},
+  year = {2019}
+}
+
 @book{DBLP:books/sp/NipkowPW02,
   author    = {Tobias Nipkow and
                Lawrence C. Paulson and
