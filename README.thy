@@ -92,6 +92,7 @@ text \<open>
 using:
 \<^item> \<^verbatim>\<open>isabelle env\<close> \<^file>\<open>./README.sh\<close>
 \<close>
+text\<open>Note that this shell-script requires the prior installation of \<^verbatim>\<open>pandoc\<close>.\<close>
 
 section \<open>Authors\<close>
 
