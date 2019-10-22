@@ -329,12 +329,16 @@ it suffices to replace:
 Once done, one can press a CTRL-like key while hovering the mouse over the file name, then followed
 by a click on it to open a new window loading that file. 
 
-\<^item> After writing
-\<^verbatim>\<open>C\<close> \<^theory_text>\<open>\<open> /* C */ \<close>\<close>, one has either
+\<^item> After a
+\<^verbatim>\<open>C\<close> \<^theory_text>\<open>\<open> /* C */ \<close>\<close> command, one has either
 the possibility to keep the content as such in the theory file, or use
 \<^verbatim>\<open>C_export_file\<close> to export all previous C content to a ``real'' C file.
 
-In more details, the latter case makes the output window show a message suggesting to click on
+Note that since Isabelle2019, Isabelle uses a virtual file-system. This has consequence, that
+that an extra operation is needed to flush a file generated inside Isabelle generated to the 
+``real'' file-system.
+This is done by clicking on \<open>theory exports\<close>  
+ the output window show a message suggesting to click on
 \<open>theory exports\<close>. Clicking on it makes the \<open>File Browser\<close> panel appear
 with the generated C file inside. It is only after loading the C file with a double click, that one
 can use the normal click on \<open>File\<close> and \<open>Save As...\<close> operations to finalize
