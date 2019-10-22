@@ -47,7 +47,9 @@
   has achieved in recent years. Our integration technique employs Lex and Yacc style grammars to 
   ensure efficient deterministic parsing. We present two case studies for the integration of 
   (known) semantic back-ends in order to validate the design decisions for our
-  back-end interface.%
+  back-end interface.
+
+  \textbf{In case that you consider to cite this work, please refer to \cite{Tuong-IsabelleC:2019}.}%
 \end{isamarkuptext*}\isamarkuptrue%
 %
 \begin{isamarkupsection*}%
@@ -300,7 +302,8 @@ the interface.%
 \end{isamarkuptext}\isamarkuptrue%
 %
 \begin{isamarkupfigure*}%
-[label = {hyplinkout},type = {Isa_COL.figure}, args={label = {hyplinkout},type = {Isa_COL.figure}, Isa_COL.figure.relative_width = {40}, Isa_COL.figure.src = {figures/markup-demo}, Isa_COL.figure.spawn_columns = {True}}]Output window showing the evaluation result of \autoref{fig:ml-pos} (clicking on the hyperlink $\protect\house$ makes the cursor jump to the \isatt{@{\char`\{}here{\char`\}}} of \autoref{fig:ml-pos})%
+[label = {hyplinkout},type = {Isa_COL.figure}, args={label = {hyplinkout},type = {Isa_COL.figure}, Isa_COL.figure.relative_width = {40}, Isa_COL.figure.src = {figures/markup-demo}, Isa_COL.figure.spawn_columns = {True}}]Output window showing the evaluation result of \autoref{fig:ml-pos} (the anchor of this hyperlink
+ $\protect\house$ targets at the position marked by \isatt{@{\char`\{}here{\char`\}}})%
 \end{isamarkupfigure*}\isamarkuptrue%
 %
 \begin{isamarkuptext}%
@@ -678,7 +681,7 @@ call to \isatt{cpp} before any in-depth treatment.}%
 \end{isamarkuptext}\isamarkuptrue%
 %
 \begin{isamarkupsubsection*}%
-[label = {lexer_ex},type = {scholarly_paper.technical}, args={label = {lexer_ex},type = {scholarly_paper.technical}, Isa_COL.text_element.level = {}, Isa_COL.text_element.referentiable = {False}, Isa_COL.text_element.variants = {{STR ''outline'', STR ''document''}}, scholarly_paper.text_section.main_author = {}, scholarly_paper.text_section.fixme_list = {}, Isa_COL.text_element.level = {}, scholarly_paper.technical.definition_list = {}}]Preprocessing Lexical Conventions: Comments and Backslash Newlines%
+[label = {lexer_ex},type = {scholarly_paper.technical}, args={label = {lexer_ex},type = {scholarly_paper.technical}, Isa_COL.text_element.level = {}, Isa_COL.text_element.referentiable = {False}, Isa_COL.text_element.variants = {{STR ''outline'', STR ''document''}}, scholarly_paper.text_section.main_author = {}, scholarly_paper.text_section.fixme_list = {}, Isa_COL.text_element.level = {}, scholarly_paper.technical.definition_list = {}}]Preprocessing Lexical Conventions: Comments and Newlines%
 \end{isamarkupsubsection*}\isamarkuptrue%
 %
 \begin{isamarkupfigure*}%
@@ -999,7 +1002,7 @@ above. It represents the registration of a chain of several consecutive actions.
   pure-computational (proofs) execution (even if a command can always launch several computing
   threads). Such information is ``encoded in its kind''; such as \isa{thy{\isacharunderscore}decl},
   \isa{thy{\isacharunderscore}load}, \isa{thy{\isacharunderscore}defn}, etc., for example we should have defined
-  $K_\text{\emph{cmd}}$ as : $K_\text{\emph{cmd}} = \isa{\isacommand{definition}\ {\isacharcolon}{\isacharcolon}\ thy{\isacharunderscore}defn} \isatt{|} \isa{\isacommand{lemma}\ {\isacharcolon}{\isacharcolon}\ thy{\isacharunderscore}goal{\isacharunderscore}stmt}
+  $K_\text{\emph{cmd}}$ as: $K_\text{\emph{cmd}} = \isa{\isacommand{definition}\ {\isacharcolon}{\isacharcolon}\ thy{\isacharunderscore}defn} \isatt{|} \isa{\isacommand{lemma}\ {\isacharcolon}{\isacharcolon}\ thy{\isacharunderscore}goal{\isacharunderscore}stmt}
   \isatt{|} \dots $}
 
 Since the type \isatt{c{\char`\_}parser} is isomorphic to \isatt{parser},
@@ -1143,7 +1146,8 @@ prime$_{\text{C}}$_def: "prime$_{\text{C}}$ n \<equiv>
              pop_local_prime$_{\text{C}}$_state"
 \end{isar}
   \end{minipage}
-  \caption{Activating the Isabelle/C/Clean back-end triggers the generation of theorems}
+  \caption{Activating the Isabelle/C/Clean back-end \\ 
+           triggers the generation of theorems}
   \label{fig:clean}
 \end{figure}%
 \end{isamarkuptext}\isamarkuptrue%
@@ -1190,7 +1194,8 @@ model, which complicates the workflow substantially.%
 \includegraphics[width=\textwidth]{figures/A-C-Source8}\vspace{-3pt}\hfill\allowbreak%
 \vspace{0pt}$\quad\vdots$\vspace{2pt}\hfill\allowbreak%
 \end{minipage}
-  \caption{Isabelle/C/AutoCorres: integrating an HOL correctness proof near its C code}
+  \caption{Isabelle/C/AutoCorres: integrating an HOL correctness \\
+           proof as annotation \emph{inside} C code}
   \label{fig:autocorres-c}
 \end{figure}
 %% \end{wrapfigure}
@@ -1338,7 +1343,7 @@ which was straightforward).%
 %
 \isatagdocument
 %
-\isamarkupsubsection{A Gentle Zoom on Citadelle's Generator%
+\isamarkupsubsection{A Zoom on Citadelle's HOL Generator%
 }
 \isamarkuptrue%
 %
@@ -1350,14 +1355,21 @@ which was straightforward).%
 \endisadelimdocument
 %
 \begin{isamarkuptext}%
-In more details, combining Haskabelle and Citadelle is almost direct, as Haskabelle's
-output AST and Citadelle's input AST are already both subsets models of a rich Isar/HOL interface,
+In the generation process of the parsers for Isabelle/C, the Citadelle 
+system~\cite{DBLP:journals/afp/TuongW15} plays a vital role. In particular, it is used to 
+convert Haskell AST presentations into HOL AST presentations through an initial call to 
+Haskabelle. However, the resulting output can be run natively in order to increase efficiency
+via Citadelle. 
+
+In more detail, combining Haskabelle and Citadelle is almost direct, as Haskabelle's
+output AST and Citadelle's input AST are already both subset models of a rich Isar/HOL interface,
 defined in past works~\cite{DBLP:journals/afp/TuongW15}. Note that one can configure Citadelle
-for it to generate $\text{AST}^\text{C11}_{\text{HOL}}$ using
-\isa{\isacommand{old{\isacharunderscore}datatype}} commands instead of
-\isa{\isacommand{datatype}}, in particular to gain 10~min on the shallow-reflected
-evaluation side (with the option \isa{quick{\isacharminus}and{\isacharminus}dirty} activated). In a nutshell, our new
-implemented \isa{\isacommand{Haskell{\isacharunderscore}file}} command accepts other various
+to generate $\text{AST}^\text{C11}_{\text{HOL}}$ using \isa{\isacommand{old{\isacharunderscore}datatype}} commands instead of 
+\isa{\isacommand{datatype}}. This results in a gain of 10~min on the shallow-reflected evaluation with the option 
+\isa{quick{\isacharminus}and{\isacharminus}dirty} activated. 
+
+In the following, we show how we proceed: 
+we implemented a command \isa{\isacommand{Haskell{\isacharunderscore}file}} that accepts  various
 options:~\footnote{Note that \isa{\isacommand{old{\isacharunderscore}datatype}} is a command,
   whereas \isa{\isakeyword{datatype{\isacharunderscore}old}} is an option provided to the command
   \isa{\isacommand{Haskell{\isacharunderscore}file}}.}
@@ -1371,26 +1383,27 @@ options:~\footnote{Note that \isa{\isacommand{old{\isacharunderscore}datatype}} 
 \end{tabular}
 \end{gather*}
 
-The advantage of this construction is the possibility to do immediate code value transformations
+This construction has the advantage to allow immediate code value transformations
 obtained from Haskabelle: operationally, \isa{\isacommand{Haskell{\isacharunderscore}file}} makes an
-implicit call to Haskabelle, translates the Haskell's output of Haskabelle to an acceptable HOL
-input, and lets the Citadelle framework execute generated theorems and proofs in native concurrent
-speed, based on a version of Isabelle specially modified for the purpose.\footnote{The use
-  of a modified Isabelle is just optional: the whole Citadelle framework can also be configured to
-  run with the standard version of Isabelle, i.e., at run-time the difference only relies on the
-  performance treatment of consecutive commands.} On the one hand, the measure performance
-of the \isa{\isacommand{datatype}} package is not improving when being generated and
-executed by our Citadelle infrastructure, because the blocking expensive point remains located on
+implicit call to Haskabelle, translates the output of Haskabelle to HOL
+input, and lets the Citadelle framework execute the generated theorems and proofs in parallel.
+For the latter, we use an Isabelle version that has been especially modified for this purpose.
+\footnote{The use of a modified Isabelle is just an optimization: the whole Citadelle framework can 
+also be configured to run on a standard Isabelle version, albeit with a significantly higher
+execution time.}
+
+ On the one hand, the execution of the AST mostly consisting of  \isa{\isacommand{datatype}} commands
+ is not improving when being generated and
+executed by our Citadelle infrastructure, because the blocking point is located in just
 \emph{one} problematic mutually recursive \isa{\isacommand{datatype}}
-command (which is not interacting with other commands). On the other hand, the question
-of: \begin{quote}\emph{``How fast that specific \isa{\isacommand{datatype}}
-  command would perform if from the 20 mutually recursive sub-definitions it were instead generating
-  20 or several (sub-)commands to be executed in native concurrent speed?''}\end{quote} is
-  actually opening an interesting topic of future experiments.%
+command (which is not interacting with other commands). 
+On the other hand, the question of advanced parallelisation techniques in the  \isa{\isacommand{datatype}}
+package is actually opening an interesting topic of future experiments. 
+The Citadelle infrastructure offers a number of mechanisms to address this task.%
 \end{isamarkuptext}\isamarkuptrue%
 %
 \begin{isamarkupsubsection*}%
-[label = {forest},type = {scholarly_paper.technical}, args={label = {forest},type = {scholarly_paper.technical}, Isa_COL.text_element.level = {}, Isa_COL.text_element.referentiable = {False}, Isa_COL.text_element.variants = {{STR ''outline'', STR ''document''}}, scholarly_paper.text_section.main_author = {}, scholarly_paper.text_section.fixme_list = {}, Isa_COL.text_element.level = {}, scholarly_paper.technical.definition_list = {}}]Shift-Reduce forest of a parsing execution%
+[label = {forest},type = {scholarly_paper.technical}, args={label = {forest},type = {scholarly_paper.technical}, Isa_COL.text_element.level = {}, Isa_COL.text_element.referentiable = {False}, Isa_COL.text_element.variants = {{STR ''outline'', STR ''document''}}, scholarly_paper.text_section.main_author = {}, scholarly_paper.text_section.fixme_list = {}, Isa_COL.text_element.level = {}, scholarly_paper.technical.definition_list = {}}]Shift-Reduce Forest of a Parsing Execution%
 \end{isamarkupsubsection*}\isamarkuptrue%
 %
 \begin{isamarkuptext}%
