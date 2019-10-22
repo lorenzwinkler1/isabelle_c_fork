@@ -13,37 +13,41 @@ of two possibly interchangeable parsers (from two different projects):
 
 At present, the recommended and default version is C11.
 
-Isabelle/C requires Isabelle2019. ›
-
-section‹Getting started›
-
-text‹A first installation step is:
-▪ ▩‹isabelle build -D .›
-›
-text‹which should work out of the box. ›
-
-text‹The following C examples or entry-points of
-documentation can be executed:
-
-▪ ▩‹isabelle jedit -d .› 🗏‹C11-FrontEnd/examples/C0.thy›
-▪ ▩‹isabelle jedit -d .› 🗏‹C11-FrontEnd/examples/C1.thy›
-▪ ▩‹isabelle jedit -d .› 🗏‹C11-FrontEnd/examples/C2.thy›
-▪ ▩‹isabelle jedit -d .› 🗏‹C11-FrontEnd/C_Appendices.thy›
+Isabelle/C requires Isabelle2019.
 ›
 
-text‹The example 🗏‹C11-FrontEnd/examples/C0.thy› is basically used to demonstrate the faithfulness
-of the C11 parser implementation. The example 🗏‹C11-FrontEnd/examples/C2.thy› shows common cases
-of C and C-editing support in PIDE; it also contains annotation commands without any semantics.
-The example 🗏‹C11-FrontEnd/examples/C1.thy› is a show-case for markup generation and the use use
-of bindings resulting from the static C environment. The example 🗏‹C11-FrontEnd/C_Appendices.thy›
-shows the use of Isabelle/C documentation facilities.›
+section ‹Getting started›
+
+text ‹ A first installation step is:
+▪ ▩‹isabelle build -D› 🗀‹.›
+›
+text ‹ which should work out of the box.
+›
+
+text ‹ The following C examples or entry-points of documentation can be executed:
+
+▪ ▩‹isabelle jedit -d› 🗀‹.› 🗏‹C11-FrontEnd/examples/C0.thy›
+▪ ▩‹isabelle jedit -d› 🗀‹.› 🗏‹C11-FrontEnd/examples/C2.thy›
+▪ ▩‹isabelle jedit -d› 🗀‹.› 🗏‹C11-FrontEnd/examples/C1.thy›
+▪ ▩‹isabelle jedit -d› 🗀‹.› 🗏‹C11-FrontEnd/C_Appendices.thy›
+›
 
 text ‹
-The AFP version of Isabelle/C does not include semantic back-ends (these are distributed
-by other AFP submissions or available via the web; see below). 
-The structure of 🗀‹.› has been designed to create a directory
-‹C11-BackEnds› into which backends can be installed. The structure of
-🗀‹.› is actually similar as
+▪ The example 🗏‹C11-FrontEnd/examples/C0.thy› is basically used to
+demonstrate the faithfulness of the C11 parser implementation.
+▪ The example 🗏‹C11-FrontEnd/examples/C2.thy› shows common cases of C and
+C editing support in PIDE; it also contains annotation commands without any semantics.
+▪ The example 🗏‹C11-FrontEnd/examples/C1.thy› is a show-case for markup
+generation and the use of bindings resulting from the static C environment.
+▪ The example 🗏‹C11-FrontEnd/C_Appendices.thy› shows the use of
+Isabelle/C documentation facilities.
+›
+
+text ‹
+The AFP version of Isabelle/C does not include semantic back-ends (these are distributed by other
+AFP submissions or available via the web; see below). The structure of 🗀‹.› has
+been designed to create a directory ‹C11-BackEnds› into which backends can be
+installed. The structure of 🗀‹.› is actually similar as
 🌐‹https://gitlri.lri.fr/ftuong/isabelle_c›: see for example
 🌐‹https://gitlri.lri.fr/ftuong/isabelle_c/tree/C/C11-BackEnds› where several
 back-ends can be copied and tried.
@@ -56,7 +60,10 @@ text ‹
 using:
 ▪ ▩‹isabelle env› 🗏‹./README.sh›
 ›
-text‹Note that this shell-script requires the prior installation of ▩‹pandoc›.›
+
+text ‹ Note that this shell-script requires the prior installation of
+▩‹pandoc› (🌐‹https://github.com/jgm/pandoc›).
+›
 
 section ‹Authors›
 
