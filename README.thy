@@ -61,21 +61,49 @@ of two possibly interchangeable parsers (from two different projects):
 \<^item> \<^dir>\<open>C11-FrontEnd\<close>: \<^url>\<open>https://hackage.haskell.org/package/language-c\<close>
 \<^item> \<^dir>\<open>C18-FrontEnd\<close>: \<^url>\<open>https://github.com/jhjourdan/C11parser\<close>
 
-Thus, one can select which parser(s) are better suitable to be enabled in front of a piece of C
-code.
+At present, the recommended and default version is C11.
 
-Isabelle/C requires Isabelle2019. For a first start, the following C examples or entry-points of
-documentation can be executed:
+Isabelle/C requires Isabelle2019.
+\<close>
 
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C18-FrontEnd\<close> \<^file>\<open>C18-FrontEnd/examples/C0.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^file>\<open>C11-FrontEnd/C_Appendices.thy\<close>
+section \<open>Getting started\<close>
+
+text \<open> A first installation step is:
+\<^item> \<^verbatim>\<open>isabelle build -D\<close> \<^dir>\<open>.\<close>
+\<close>
+text \<open> which should work out of the box.
+\<close>
+
+text \<open> The following C examples or entry-points of documentation can be executed:
+
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^file>\<open>C11-FrontEnd/examples/C0.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^file>\<open>C18-FrontEnd/examples/C0.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^file>\<open>C11-FrontEnd/C_Appendices.thy\<close>
 \<close>
 
 text \<open>
-Examples in \<^dir>\<open>C11-BackEnds\<close> require to change the initial directory provided to
-\<^verbatim>\<open>isabelle jedit -d\<close>, because they depend on respective semantic back-ends.
+\<^item> The example \<^file>\<open>C11-FrontEnd/examples/C0.thy\<close> is basically used to
+demonstrate the faithfulness of the C11 parser implementation.
+\<^item> The example \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close> shows common cases of C and
+C editing support in PIDE; it also contains annotation commands without any semantics.
+\<^item> The example \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close> is a show-case for markup
+generation and the use of bindings resulting from the static C environment.
+\<^item> The example \<^file>\<open>C18-FrontEnd/examples/C0.thy\<close> is basically used to
+demonstrate the faithfulness of the C18 parser implementation.
+\<^item> The example \<^file>\<open>C11-FrontEnd/C_Appendices.thy\<close> shows the use of
+Isabelle/C documentation facilities.
+\<close>
+
+text \<open>
+The AFP version of Isabelle/C does not include semantic back-ends (these are distributed by other
+AFP submissions or available via the web; see below). The structure of \<^dir>\<open>.\<close> has
+been designed to create a directory \<^dir>\<open>C11-BackEnds\<close> into which back-ends can be
+installed. The structure of \<^dir>\<open>.\<close> is actually similar as
+\<^url>\<open>https://gitlri.lri.fr/ftuong/isabelle_c\<close>: see for example
+\<^url>\<open>https://gitlri.lri.fr/ftuong/isabelle_c/tree/C/C11-BackEnds\<close> where several
+back-ends can be copied and tried.
 \<close>
 
 subsection \<open>Isabelle/C/Clean\<close>
@@ -123,6 +151,10 @@ text \<open>
 \<^file>\<open>README.md\<close> is automatically generated from \<^file>\<open>README.thy\<close>
 using:
 \<^item> \<^verbatim>\<open>isabelle env\<close> \<^file>\<open>./README.sh\<close>
+\<close>
+
+text \<open> Note that this shell-script requires the prior installation of
+\<^verbatim>\<open>pandoc\<close> (\<^url>\<open>https://github.com/jgm/pandoc\<close>).
 \<close>
 
 section \<open>Authors\<close>
