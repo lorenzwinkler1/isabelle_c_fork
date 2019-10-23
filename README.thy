@@ -34,6 +34,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+(* Authors: Frédéric Tuong, Burkhart Wolff *)
+
 theory README imports Main begin
 
 section \<open>Global Structure of the Isabelle/C Project\<close>
