@@ -47,9 +47,7 @@
   has achieved in recent years. Our integration technique employs Lex and Yacc style grammars to 
   ensure efficient deterministic parsing. We present two case studies for the integration of 
   (known) semantic back-ends in order to validate the design decisions for our
-  back-end interface.
-
-  \textbf{In case that you consider to cite this work, please refer to \cite{Tuong-IsabelleC:2019}.}%
+  back-end interface.%
 \end{isamarkuptext*}\isamarkuptrue%
 %
 \begin{isamarkupsection*}%
@@ -302,8 +300,9 @@ the interface.%
 \end{isamarkuptext}\isamarkuptrue%
 %
 \begin{isamarkupfigure*}%
-[label = {hyplinkout},type = {Isa_COL.figure}, args={label = {hyplinkout},type = {Isa_COL.figure}, Isa_COL.figure.relative_width = {40}, Isa_COL.figure.src = {figures/markup-demo}, Isa_COL.figure.spawn_columns = {True}}]Output window showing the evaluation result of \autoref{fig:ml-pos} (the anchor of this hyperlink
- $\protect\house$ targets at the position marked by \isatt{@{\char`\{}here{\char`\}}})%
+[label = {hyplinkout},type = {Isa_COL.figure}, args={label = {hyplinkout},type = {Isa_COL.figure}, Isa_COL.figure.relative_width = {40}, Isa_COL.figure.src = {figures/markup-demo}, Isa_COL.figure.spawn_columns = {True}}]Output window showing the evaluation result of \autoref{fig:ml-pos} (the anchor of this
+hyperlink $\protect\house$ targets at the position marked by
+\isatt{@{\char`\{}here{\char`\}}})%
 \end{isamarkupfigure*}\isamarkuptrue%
 %
 \begin{isamarkuptext}%
@@ -1355,23 +1354,22 @@ which was straightforward).%
 \endisadelimdocument
 %
 \begin{isamarkuptext}%
-In the generation process of the parsers for Isabelle/C, the Citadelle 
-system~\cite{DBLP:journals/afp/TuongW15} plays a vital role. In particular, it is used to 
-convert Haskell AST presentations into HOL AST presentations through an initial call to 
-Haskabelle. However, the resulting output can be run natively in order to increase efficiency
-via Citadelle. 
+In the generation process of the parsers for Isabelle/C, the Citadelle system~\cite{DBLP:journals/afp/TuongW15} plays a vital role. In particular, it is used to convert Haskell AST
+presentations into HOL AST presentations through an initial call to Haskabelle. However, the
+resulting output can be run natively in order to increase efficiency via Citadelle.
 
-In more detail, combining Haskabelle and Citadelle is almost direct, as Haskabelle's
-output AST and Citadelle's input AST are already both subset models of a rich Isar/HOL interface,
-defined in past works~\cite{DBLP:journals/afp/TuongW15}. Note that one can configure Citadelle
-to generate $\text{AST}^\text{C11}_{\text{HOL}}$ using \isa{\isacommand{old{\isacharunderscore}datatype}} commands instead of 
-\isa{\isacommand{datatype}}. This results in a gain of 10~min on the shallow-reflected evaluation with the option 
-\isa{quick{\isacharminus}and{\isacharminus}dirty} activated. 
+In more detail, combining Haskabelle and Citadelle is almost direct, as Haskabelle's output AST and
+Citadelle's input AST are already both subset models of a rich Isar/HOL interface, where the latter
+model is still up-to-date and maintained~\cite{DBLP:journals/afp/TuongW15}. Note that one can
+configure Citadelle to generate an $\text{AST}_{\text{HOL}}$ built with
+\isa{\isacommand{old{\isacharunderscore}datatype}} commands instead of
+\isa{\isacommand{datatype}}. This results in a gain of 10~min on the shallow-reflected
+evaluation with the option \isa{quick{\isacharminus}and{\isacharminus}dirty} activated.
 
-In the following, we show how we proceed: 
-we implemented a command \isa{\isacommand{Haskell{\isacharunderscore}file}} that accepts  various
-options:~\footnote{Note that \isa{\isacommand{old{\isacharunderscore}datatype}} is a command,
-  whereas \isa{\isakeyword{datatype{\isacharunderscore}old}} is an option provided to the command
+In the following, we show how we proceeded: we implemented a command
+\isa{\isacommand{Haskell{\isacharunderscore}file}} that accepts various options:~\footnote{Note that
+  \isa{\isacommand{old{\isacharunderscore}datatype}} is a command, whereas
+  \isa{\isakeyword{datatype{\isacharunderscore}old}} is an option provided to the command
   \isa{\isacommand{Haskell{\isacharunderscore}file}}.}
 \begin{gather*}
 \begin{tabular}{ll}
@@ -1383,23 +1381,23 @@ options:~\footnote{Note that \isa{\isacommand{old{\isacharunderscore}datatype}} 
 \end{tabular}
 \end{gather*}
 
-This construction has the advantage to allow immediate code value transformations
-obtained from Haskabelle: operationally, \isa{\isacommand{Haskell{\isacharunderscore}file}} makes an
-implicit call to Haskabelle, translates the output of Haskabelle to HOL
-input, and lets the Citadelle framework execute the generated theorems and proofs in parallel.
-For the latter, we use an Isabelle version that has been especially modified for this purpose.
-\footnote{The use of a modified Isabelle is just an optimization: the whole Citadelle framework can 
-also be configured to run on a standard Isabelle version, albeit with a significantly higher
-execution time.}
+This construction has the advantage to allow immediate code value transformations obtained from
+Haskabelle: operationally, \isa{\isacommand{Haskell{\isacharunderscore}file}} makes an implicit call to
+Haskabelle, translates the output of Haskabelle to HOL input, and lets the Citadelle framework
+execute the generated theorems and proofs in parallel. For the latter, we use an Isabelle version
+that has been especially modified for this purpose.\footnote{The use of a modified Isabelle
+  is just an optimization: the whole Citadelle framework can also be configured to run on a standard
+  Isabelle version, albeit with a significantly higher execution time.}
 
- On the one hand, the execution of the AST mostly consisting of  \isa{\isacommand{datatype}} commands
- is not improving when being generated and
-executed by our Citadelle infrastructure, because the blocking point is located in just
+On the one hand, the execution of the $\text{AST}_{\text{HOL}}$ mostly consisting of
+\isa{\isacommand{datatype}} commands is not improving when being generated and executed
+by our Citadelle infrastructure, because the blocking point is located in just
 \emph{one} problematic mutually recursive \isa{\isacommand{datatype}}
-command (which is not interacting with other commands). 
-On the other hand, the question of advanced parallelisation techniques in the  \isa{\isacommand{datatype}}
-package is actually opening an interesting topic of future experiments. 
-The Citadelle infrastructure offers a number of mechanisms to address this task.%
+command (which is not interacting with other commands). On the other hand, the question of advanced
+parallelisation techniques in the \isa{\isacommand{datatype}} package is actually opening
+an interesting topic of future experiments --- i.e., whenever mutually recursive constructions could
+be expressed with \emph{several} commands. The Citadelle infrastructure offers a
+number of mechanisms to address this task.%
 \end{isamarkuptext}\isamarkuptrue%
 %
 \begin{isamarkupsubsection*}%
