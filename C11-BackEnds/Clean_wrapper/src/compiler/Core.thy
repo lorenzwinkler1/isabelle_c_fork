@@ -44,153 +44,7 @@ theory Core
           Clean.Clean
 begin
 
-section \<open>Conversion\<close>
-
-ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_syntax.ML\<close>\<close> \<open>
-structure ML_Syntax' =
-struct
-fun make_pos s (theory_name, cmd) = theory_name ^ Int.toString cmd ^ "_" ^ s
-fun print_pair3 f1 f2 f3 (x, y, z) = "(" ^ f1 x ^ ", " ^ f2 y ^ ", " ^ f3 z ^ ")";
-fun print_binding b = ML_Syntax.make_binding (Binding.name_of b, Binding.pos_of b)
-fun print_binding' pos b = ML_Syntax.make_binding (make_pos (Binding.name_of b) pos, Binding.pos_of b)
-end
-\<close>
-
-ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_antiquotations.ML\<close>\<close>
-   \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/document_antiquotations.ML\<close>\<close> \<open>
-structure ML_Antiquotations' =
-struct
-fun ml_enclose bg en source =
-  ML_Lex.read bg @ ML_Lex.read_source source @ ML_Lex.read en;
-
-val _ = Theory.setup
- (ML_Antiquotation.inline_embedded \<^binding>\<open>ML'\<close>
-    (Scan.peek (fn context => 
-      Args.text_input >> (fn text =>
-      let val _ = ML_Context.eval_in (SOME (Context.proof_of context))
-                                     ML_Compiler.flags
-                                     (Input.pos_of text)
-                                     (ml_enclose "fn _ => (" ");" text)
-      in #1 (Input.source_content text) end))
-     >> ML_Syntax.print_string))
-end
-\<close>
-
-ML \<comment> \<open>\<^file>\<open>../../../../C11-FrontEnd/generated/c_ast.ML\<close>\<close> \<open>
-structure T =
-struct
-open C_Ast
-local
-val s = SS_base o ST
-in
-val setup = Theory_setup o Setup
-fun definition v1 v2 v3 = Theory_definition (Definitiona (Term_rewrite (v1, s v2, v3)))
-val one = META_semi_theories o Theories_one
-val locale = META_semi_theories o Theories_locale
-end
-end
-\<close>
-
-ML \<comment> \<open>\<^file>\<open>../../../../Citadelle/src/compiler/Core.thy\<close>\<close> \<open>
-structure Clean_Core =
-struct
-open C_Ast
-
-local
-val s = SS_base o ST
-fun b x = Term_basic [x]
-fun b' x = SML_basic [x]
-val bs = b o s
-val b's = b' o s
-
-val of_typ = fn Term.Type (ty, _) => Typ_base (s ty)
-              | _ => error ("Not yet implemented" ^ Position.here \<^here>)
-
-fun map_typ f = fn
-    Term.Type (s, l) => f (s, map (map_typ f) l)
-  | x => x
-
-fun sort_fun l =
-  fold
-    (fn (_, NONE, _) => I
-      | (_, SOME {src_name, src_return_var, src_fname, isa_name, ...}, (b, typ, mixfix)) =>
-          let val (fname, fname_param) =
-                case src_fname of NONE => ("", false)
-                                | SOME ("", _) => error ("Reserved name" ^ Position.here \<^here>)
-                                | SOME x => x
-              val var =
-                Symtab.update
-                  ( HoarePackage.varname (MString.dest isa_name)
-                  , ( fname_param
-                    , ( Binding.map_name (K (if src_return_var then StateMgt.result_name else src_name)) b
-                      , map_typ (fn ("Arrays.array", x :: _ :: []) => Term.Type ("List.list", [x])
-                                  | x => Term.Type x)
-                                typ
-                      , mixfix)))
-          in
-            Symtab.map_default (fname, var Symtab.empty) var
-          end)
-    l
-    Symtab.empty
-  |> Symtab.map (K (Symtab.dest #> map #2 #> partition #1 #> (fn (l1, l2) => (map #2 l1, map #2 l2))))
-
-fun new_state_record pos b rcd_name flds =
-  (T.setup o SML_top)
-    [SML_val_fun
-      ( NONE
-      , SML_apply ( b's \<^ML'>\<open>StateMgt.new_state_record'\<close>
-                  , [ b's (if b then \<^ML'>\<open>true\<close> else \<^ML'>\<open>false\<close>)
-                    , b's (ML_Syntax.print_pair
-                              (ML_Syntax.print_pair (ML_Syntax.print_pair (ML_Syntax.print_list (ML_Syntax.print_pair ML_Syntax.print_string (ML_Syntax.print_option ML_Syntax.print_string)))
-                                                                            (ML_Syntax'.print_binding' pos))
-                                                    (ML_Syntax.print_option ML_Syntax.print_typ))
-                              (ML_Syntax.print_list (ML_Syntax'.print_pair3
-                                                      ML_Syntax'.print_binding
-                                                      ML_Syntax.print_typ
-                                                      (fn NoSyn => \<^ML'>\<open>NoSyn\<close> | _ => error "Not implemented")))
-                              ((([], rcd_name), NONE), flds))]))]
-
-in
-
-fun compile ast env_lang pos =
-  let val ((local_name, local_flds), (global_name, global_flds), fninfo) = IsarInstall.install_C_file0 ast env_lang
-      val global_flds = sort_fun global_flds |> Symtab.dest |> map (#2 #> op @) |> flat
-      val local_tab = sort_fun local_flds
-  in 
-    fninfo
-    |> rev
-    |> map
-     (fn function =>
-       let val (param, body) =
-             case Symtab.lookup local_tab (#fname function) of
-               NONE => ([], NONE)
-             | SOME (l1, l2) =>
-                 ( [(map (fn (b, ty, _) => (bs (Binding.name_of b), of_typ ty)) l1, NONE)]
-                 , let val l2 =
-                         if exists (fn (b, _, _) => Binding.name_of b = StateMgt.result_name) l2 then
-                           l2
-                         else
-                           (Binding.make (StateMgt.result_name, Position.none), \<^typ>\<open>int\<close>, NoSyn) :: l2
-                   in (SOME o T.one) (new_state_record pos false (Binding.map_name (fn name => ML_Syntax'.make_pos (#fname function ^ "_" ^ name) pos) local_name) l2)
-                   end)
-       in
-       [ (SOME o T.locale)
-           ( Semi_locale_ext (s (ML_Syntax'.make_pos (#fname function) pos), param, ())
-           , [])
-       , body ]
-       end)
-    |> flat
-    |> cons (case global_flds of
-               [] => NONE
-             | _ => (SOME o T.one) (new_state_record pos true global_name global_flds))
-    |> map_filter I
-  end
-
-end
-end
-\<close>
-
-section \<open>Syntax\<close>
+section \<open>Conversion to Pure Term\<close>
 
 ML \<open>
 structure Conversion_C11 =
@@ -338,6 +192,154 @@ val statement = fn env_lang => fn ctxt =>
 
 end
 \<close>
+
+section \<open>Conversion to Meta Isabelle\<close>
+
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_syntax.ML\<close>\<close> \<open>
+structure ML_Syntax' =
+struct
+fun make_pos s (theory_name, cmd) = theory_name ^ Int.toString cmd ^ "_" ^ s
+fun print_pair3 f1 f2 f3 (x, y, z) = "(" ^ f1 x ^ ", " ^ f2 y ^ ", " ^ f3 z ^ ")";
+fun print_binding b = ML_Syntax.make_binding (Binding.name_of b, Binding.pos_of b)
+fun print_binding' pos b = ML_Syntax.make_binding (make_pos (Binding.name_of b) pos, Binding.pos_of b)
+end
+\<close>
+
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_antiquotations.ML\<close>\<close>
+   \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/document_antiquotations.ML\<close>\<close> \<open>
+structure ML_Antiquotations' =
+struct
+fun ml_enclose bg en source =
+  ML_Lex.read bg @ ML_Lex.read_source source @ ML_Lex.read en;
+
+val _ = Theory.setup
+ (ML_Antiquotation.inline_embedded \<^binding>\<open>ML'\<close>
+    (Scan.peek (fn context => 
+      Args.text_input >> (fn text =>
+      let val _ = ML_Context.eval_in (SOME (Context.proof_of context))
+                                     ML_Compiler.flags
+                                     (Input.pos_of text)
+                                     (ml_enclose "fn _ => (" ");" text)
+      in #1 (Input.source_content text) end))
+     >> ML_Syntax.print_string))
+end
+\<close>
+
+ML \<comment> \<open>\<^file>\<open>../../../../C11-FrontEnd/generated/c_ast.ML\<close>\<close> \<open>
+structure T =
+struct
+open C_Ast
+local
+val s = SS_base o ST
+in
+val setup = Theory_setup o Setup
+fun definition v1 v2 v3 = Theory_definition (Definitiona (Term_rewrite (v1, s v2, v3)))
+val one = META_semi_theories o Theories_one
+val locale = META_semi_theories o Theories_locale
+end
+end
+\<close>
+
+ML \<comment> \<open>\<^file>\<open>../../../../Citadelle/src/compiler/Core.thy\<close>\<close> \<open>
+structure Clean_Core =
+struct
+open C_Ast
+
+local
+val s = SS_base o ST
+fun b x = Term_basic [x]
+fun b' x = SML_basic [x]
+val bs = b o s
+val b's = b' o s
+
+val of_typ = fn Term.Type (ty, _) => Typ_base (s ty)
+              | _ => error ("Not yet implemented" ^ Position.here \<^here>)
+
+fun map_typ f = fn
+    Term.Type (s, l) => f (s, map (map_typ f) l)
+  | x => x
+
+fun sort_fun l =
+  fold
+    (fn (_, NONE, _) => I
+      | (_, SOME {src_name, src_return_var, src_fname, isa_name, ...}, (b, typ, mixfix)) =>
+          let val (fname, fname_param) =
+                case src_fname of NONE => ("", false)
+                                | SOME ("", _) => error ("Reserved name" ^ Position.here \<^here>)
+                                | SOME x => x
+              val var =
+                Symtab.update
+                  ( HoarePackage.varname (MString.dest isa_name)
+                  , ( fname_param
+                    , ( Binding.map_name (K (if src_return_var then StateMgt.result_name else src_name)) b
+                      , map_typ (fn ("Arrays.array", x :: _ :: []) => Term.Type ("List.list", [x])
+                                  | x => Term.Type x)
+                                typ
+                      , mixfix)))
+          in
+            Symtab.map_default (fname, var Symtab.empty) var
+          end)
+    l
+    Symtab.empty
+  |> Symtab.map (K (Symtab.dest #> map #2 #> partition #1 #> (fn (l1, l2) => (map #2 l1, map #2 l2))))
+
+fun new_state_record pos b rcd_name flds =
+  (T.setup o SML_top)
+    [SML_val_fun
+      ( NONE
+      , SML_apply ( b's \<^ML'>\<open>StateMgt.new_state_record'\<close>
+                  , [ b's (if b then \<^ML'>\<open>true\<close> else \<^ML'>\<open>false\<close>)
+                    , b's (ML_Syntax.print_pair
+                              (ML_Syntax.print_pair (ML_Syntax.print_pair (ML_Syntax.print_list (ML_Syntax.print_pair ML_Syntax.print_string (ML_Syntax.print_option ML_Syntax.print_string)))
+                                                                            (ML_Syntax'.print_binding' pos))
+                                                    (ML_Syntax.print_option ML_Syntax.print_typ))
+                              (ML_Syntax.print_list (ML_Syntax'.print_pair3
+                                                      ML_Syntax'.print_binding
+                                                      ML_Syntax.print_typ
+                                                      (fn NoSyn => \<^ML'>\<open>NoSyn\<close> | _ => error "Not implemented")))
+                              ((([], rcd_name), NONE), flds))]))]
+
+in
+
+fun compile ast env_lang pos =
+  let val ((local_name, local_flds), (global_name, global_flds), fninfo) = IsarInstall.install_C_file0 ast env_lang
+      val global_flds = sort_fun global_flds |> Symtab.dest |> map (#2 #> op @) |> flat
+      val local_tab = sort_fun local_flds
+  in 
+    fninfo
+    |> rev
+    |> map
+     (fn function =>
+       let val (param, body) =
+             case Symtab.lookup local_tab (#fname function) of
+               NONE => ([], NONE)
+             | SOME (l1, l2) =>
+                 ( [(map (fn (b, ty, _) => (bs (Binding.name_of b), of_typ ty)) l1, NONE)]
+                 , let val l2 =
+                         if exists (fn (b, _, _) => Binding.name_of b = StateMgt.result_name) l2 then
+                           l2
+                         else
+                           (Binding.make (StateMgt.result_name, Position.none), \<^typ>\<open>int\<close>, NoSyn) :: l2
+                   in (SOME o T.one) (new_state_record pos false (Binding.map_name (fn name => ML_Syntax'.make_pos (#fname function ^ "_" ^ name) pos) local_name) l2)
+                   end)
+       in
+       [ (SOME o T.locale)
+           ( Semi_locale_ext (s (ML_Syntax'.make_pos (#fname function) pos), param, ())
+           , [])
+       , body ]
+       end)
+    |> flat
+    |> cons (case global_flds of
+               [] => NONE
+             | _ => (SOME o T.one) (new_state_record pos true global_name global_flds))
+    |> map_filter I
+  end
+
+end
+end
+\<close>
+
+section \<open>Syntax\<close>
 
 ML \<open>
 val _ = Theory.setup (C_Module.C_Term.map_expression (fn expr => fn _ => fn ctxt => Conversion_C11.expression () ctxt expr))
