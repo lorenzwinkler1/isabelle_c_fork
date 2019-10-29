@@ -1196,10 +1196,30 @@ fun mk_block_C push body pop =
         val bty = body_ty --> body_ty --> pop_ty --> pop_ty
     in Const(@{const_name \<open>block\<^sub>C\<close>}, bty) $ push $ body $ pop end  
 
-end;
+end;\<close>
 
+term "a \<leftarrow> M; M' "
+section\<open>Function-calls in Expressions\<close>
+text\<open>The precise semantics of function-calls appearing inside expressions is underspecified in C, 
+which is a notorious problem for compilers and analysis tools. In Clean, it is impossible by 
+construction --- and the type displine --- to have function-calls inside expressions.
+However, there is a somewhat \<^emph>\<open>recommended coding-scheme\<close> for this feature, which leaves this
+issue to decisions in the front-end:
+\begin{verbatim}
+  a = f() + g();
+\end{verbatim}
+can be represented in Clean by:
+\<open>x \<leftarrow> f(); y \<leftarrow> g(); \<open>a := x + y\<close> \<close> or 
+\<open>x \<leftarrow> g(); y \<leftarrow> f(); \<open>a := y + x\<close> \<close>
+which makes the evaluation order explicit without introducing
+local variables or any form of explicit trace on the state-space of the Clean program. We assume, 
+however, even in this coding scheme, that \<^verbatim>\<open>f()\<close> and \<^verbatim>\<open>g()\<close> are atomic actions; note that this 
+assumption is not necessarily justified in modern compilers, where actually neither of these
+two (atomic) serializations of \<^verbatim>\<open>f()\<close> and \<^verbatim>\<open>g()\<close> exists in some cases.
+
+Note, furthermore, that expressions may not only be right-hand-sides of (local or global) assignments
+or conceptually similar return-statements,  but also as argument of other function calls.  
 \<close>
-
 
 
 end
