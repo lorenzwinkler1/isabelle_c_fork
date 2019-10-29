@@ -52,10 +52,15 @@ session Isabelle_C_AutoCorres_examples in "C11-BackEnds/AutoCorres_wrapper" = Is
     "examples/TestSEL4"
 
 session Isabelle_C_Clean in "C11-BackEnds/Clean_wrapper" = Isabelle_C +
+  options [document = pdf, document_output = "output"]
   sessions
     Clean
   theories
     "src/Backend"
+  document_files
+    "root.tex"
+    "root.bib"
+    "lstisadof.sty"
 
 session Isabelle_C_Clean_examples in "C11-BackEnds/Clean_wrapper" = Isabelle_C_Clean +
   sessions

@@ -46,6 +46,7 @@ session Clean_Main = HOL +
 
 session Clean_examples = Clean_Main +
   theories
+    "examples/LinearSearch" 
     "examples/Quicksort_concept"
     "examples/SquareRoot_concept"
 
@@ -53,6 +54,7 @@ session Clean = Clean_examples +
   options [document = pdf, document_output = "output"]
   theories
     "src/Clean_Main"
+    "examples/LinearSearch"
     "examples/Quicksort_concept"
     "examples/SquareRoot_concept"
   document_files

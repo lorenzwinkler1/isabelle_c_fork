@@ -224,7 +224,7 @@ post         "\<open>\<lambda>res::nat. length A = length(old A) \<and> res = 3\
 local_vars   pivot  :: int
              i      :: nat
              j      :: nat
-defines      " (\<open>pivot := A ! hi \<close>  ;- \<open>i := lo \<close> ;- \<open>j := lo \<close> ;-
+defines      " \<open>pivot := A ! hi \<close>  ;- \<open>i := lo \<close> ;- \<open>j := lo \<close> ;-
                (while\<^sub>C \<open>j \<le> hi - 1 \<close> 
                 do (if\<^sub>C \<open>A ! j < pivot\<close>  
                     then  call\<^sub>C swap \<open>(i , j) \<close>  ;-
@@ -234,8 +234,7 @@ defines      " (\<open>pivot := A ! hi \<close>  ;- \<open>i := lo \<close> ;- \
                     \<open>j := j + 1 \<close> 
                 od) ;-
                 call\<^sub>C swap \<open>(i, j)\<close>  ;-
-                return\<^sub>C result_value_update \<open>i\<close>   
-               ) " 
+                return\<^sub>C result_value_update \<open>i\<close>" 
 
 text\<open> The body is a fancy syntax for :
 
