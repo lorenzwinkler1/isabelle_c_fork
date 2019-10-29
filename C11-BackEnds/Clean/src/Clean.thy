@@ -278,7 +278,7 @@ definition return\<^sub>C :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<
                       \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
                       \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
   where   "return\<^sub>C upd rhs =(\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>) 
-                                                else (assign_local upd rhs ;- set_return_status) \<sigma>)" 
+                                 else (assign_local upd rhs ;- set_return_status) \<sigma>)" 
 
 subsection\<open>Example for a Local Variable Space\<close>
 text\<open>Consider the usual operation \<open>swap\<close> defined in some free-style syntax as follows:
@@ -832,7 +832,7 @@ structure Function_Specification_Parser  =
         locals: (binding*string*mixfix)list,       (* local variables *)
         pre_src: string,                           (* precondition src *)
         post_src: string,                          (* postcondition src *)
-        variant_src: string option,                       (* variant src *)
+        variant_src: string option,                (* variant src *)
         body_src: string * Position.T              (* body src *)
       }
 
@@ -1076,7 +1076,131 @@ syntax    (xsymbols)
 translations 
           "while\<^sub>C c do b od" == "CONST Clean.while_C c b"
 
-  
+
+
+section\<open>Miscellaneous\<close>
+
+text\<open>Since \<^verbatim>\<open>int\<close> were mapped to Isabelle/HOL @{typ "int"} and \<^verbatim>\<open>unsigned int\<close> to @{typ "nat"},
+there is the need for a common interface for accesses in arrays, which were represented by 
+Isabelle/HOL lists:
+\<close>
+
+consts nth\<^sub>C :: "'a list \<Rightarrow> 'b \<Rightarrow> 'a"
+overloading nth\<^sub>C \<equiv> "nth\<^sub>C :: 'a list \<Rightarrow> nat \<Rightarrow> 'a"
+begin 
+definition
+   nth\<^sub>C_nat : "nth\<^sub>C (S::'a list) (a) \<equiv> nth S a"
+end
+
+overloading nth\<^sub>C \<equiv> "nth\<^sub>C :: 'a list \<Rightarrow> int \<Rightarrow> 'a"
+begin 
+definition
+   nth\<^sub>C_int : "nth\<^sub>C (S::'a list) (a) \<equiv> nth S (nat a)"
+end
+
+definition while_C_A :: " (('\<sigma>_ext) control_state_scheme \<Rightarrow> bool)
+                        \<Rightarrow> (('\<sigma>_ext) control_state_scheme \<Rightarrow> nat) 
+                        \<Rightarrow> (('\<sigma>_ext) control_state_ext \<Rightarrow> bool) 
+                        \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E 
+                        \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
+  where   "while_C_A Inv f c B \<equiv> while_C c B"
+
+
+ML\<open>
+
+structure Clean_Term_interface = 
+struct
+
+fun mk_seq_C C C' = let val t = fastype_of C
+                     val t' =  fastype_of C'
+                 in  Const(@{const_name "bind_SE'"}, t --> t' --> t') end;
+
+fun mk_skip_C sty = Const(@{const_name "skip\<^sub>S\<^sub>E"}, StateMgt_core.MON_SE_T HOLogic.unitT sty)
+
+fun mk_break sty = 
+    Const(@{const_name "if_C"}, StateMgt_core.MON_SE_T HOLogic.unitT sty )
+
+fun mk_return_C upd rhs =
+    let val ty = fastype_of rhs 
+        val (sty,rty) = case ty of 
+                         Type("fun", [sty,rty]) => (sty,rty)
+                        | _  => error "mk_return_C: illegal type for body"
+        val upd_ty = (HOLogic.listT rty --> HOLogic.listT rty) --> sty --> sty
+        val rhs_ty = sty --> rty
+        val mty = StateMgt_core.MON_SE_T HOLogic.unitT sty
+    in Const(@{const_name "return\<^sub>C"}, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
+
+fun mk_assign_global_C upd rhs =
+    let val ty = fastype_of rhs 
+        val (sty,rty) = case ty of 
+                         Type("fun", [sty,rty]) => (sty,rty)
+                        | _  => error "mk_assign_global_C: illegal type for body"
+        val upd_ty = (rty --> rty) --> sty --> sty
+        val rhs_ty = sty --> rty
+        val mty = StateMgt_core.MON_SE_T HOLogic.unitT sty
+    in Const(@{const_name "assign_global"}, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
+
+fun mk_assign_local_C upd rhs =
+    let val ty = fastype_of rhs 
+        val (sty,rty) = case ty of 
+                         Type("fun", [sty,rty]) => (sty,rty)
+                        | _  => error "mk_assign_local_C: illegal type for body"
+        val upd_ty = (HOLogic.listT rty --> HOLogic.listT rty) --> sty --> sty
+        val rhs_ty = sty --> rty
+        val mty = StateMgt_core.MON_SE_T HOLogic.unitT sty
+    in Const(@{const_name "assign_global"}, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
+
+fun mk_call_C opn args =
+    let val ty = fastype_of opn 
+        val (argty,mty) = case ty of 
+                         Type("fun", [argty,mty]) => (argty,mty)
+                        | _  => error "mk_call_C: illegal type for body"
+        val sty = case mty of 
+                         Type("fun", [sty,_]) => sty
+                        | _  => error "mk_call_C: illegal type for body 2"
+        val args_ty = sty --> argty
+    in Const(@{const_name "call\<^sub>C"}, ty --> args_ty --> mty) $ opn $ args end
+
+(* missing : a call_assign_local and a call_assign_global. Or define at HOL level ? *)
+
+fun mk_if_C c B B' =
+    let val ty = fastype_of B
+        val ty_cond = case ty of 
+                         Type("fun", [argty,_]) => argty --> HOLogic.boolT
+                        |_ => error "mk_if_C: illegal type for body"
+    in  Const(@{const_name "if_C"}, ty_cond --> ty --> ty --> ty) $ c $ B $ B'
+    end;
+
+fun mk_while_C c B =
+    let val ty = fastype_of B
+        val ty_cond = case ty of 
+                         Type("fun", [argty,_]) => argty --> HOLogic.boolT
+                        |_ => error "mk_while_C: illegal type for body"
+    in  Const(@{const_name "while_C"}, ty_cond --> ty --> ty) $ c $ B
+    end;
+
+fun mk_while_anno_C inv f c B =
+    (* no  type-check on inv and measure f *)
+    let val ty = fastype_of B
+        val (ty_cond,ty_m) = case ty of 
+                         Type("fun", [argty,_]) =>( argty --> HOLogic.boolT,
+                                                    argty --> HOLogic.natT)
+                        |_ => error "mk_while_anno_C: illegal type for body"
+    in  Const(@{const_name "while_C_A"}, ty_cond --> ty_m --> ty_cond --> ty --> ty) 
+        $ inv $ f $ c $ B
+    end;
+
+fun mk_block_C push body pop = 
+    let val body_ty = fastype_of body 
+        val pop_ty  = fastype_of pop
+        val bty = body_ty --> body_ty --> pop_ty --> pop_ty
+    in Const(@{const_name \<open>block\<^sub>C\<close>}, bty) $ push $ body $ pop end  
+
+end;
+
+\<close>
+
+
 
 end
 

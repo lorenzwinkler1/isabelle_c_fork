@@ -86,5 +86,8 @@ unsigned int is_prime(unsigned int n)
     /* No factors. */
     return 1;
 }\<close>
+find_theorems (100) name:is_prime name:core
+
+
 
 end
