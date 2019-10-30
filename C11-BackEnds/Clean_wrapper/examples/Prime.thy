@@ -89,4 +89,17 @@ is_prime_def: "is_prime n \<equiv>
 lemma "prime\<^sub>H\<^sub>O\<^sub>L p = prime p"
 by (simp add: prime\<^sub>H\<^sub>O\<^sub>L_def prime_nat_iff')
 
+text_raw \<open>
+\begin{figure}
+  \centering
+  \includegraphics[width=0.96\textwidth]{figures/A-C-Source7}
+  \caption{Activating the Isabelle/C/Clean back-end}
+  \label{fig:clean}
+\end{figure}
+\<close>
+
+text \<open>
+See \autoref{fig:clean}.
+\<close>
+
 end
