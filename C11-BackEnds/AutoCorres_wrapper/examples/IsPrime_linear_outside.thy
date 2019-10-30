@@ -43,7 +43,7 @@
  * @TAG(NICTA_BSD)
  *)
 
-chapter\<open>Linear Prime Sample Proof\<close>
+chapter \<open>Example: Linear Prime Sample Proof\<close>
 
 text\<open>This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
 annotations completely \<^emph>\<open>outside\<close> the C source. \<close>

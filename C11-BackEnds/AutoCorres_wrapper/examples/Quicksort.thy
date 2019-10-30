@@ -43,6 +43,8 @@
  * @TAG(NICTA_BSD)
  *)
 
+chapter \<open>Example: Quicksort\<close>
+
 theory Quicksort
 imports
   Isabelle_C_AutoCorres.AutoCorres_Wrapper

@@ -34,6 +34,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+chapter\<open>The Isabelle/C/AutoCorres Demonstrator\<close>
+
 theory AutoCorres_Wrapper
   imports AutoCorres.AutoCorres
 begin

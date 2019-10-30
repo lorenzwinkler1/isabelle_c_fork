@@ -43,6 +43,8 @@
  * @TAG(NICTA_BSD)
  *)
 
+chapter \<open>Example: seL4\<close>
+
 theory TestSEL4
 imports
   Isabelle_C_AutoCorres.AutoCorres_Wrapper

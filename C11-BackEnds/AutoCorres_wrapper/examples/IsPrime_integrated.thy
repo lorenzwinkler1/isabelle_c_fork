@@ -43,7 +43,7 @@
  * @TAG(NICTA_BSD)
  *)
 
-chapter\<open>Integrated Prime Sample Proof\<close>
+chapter \<open>Example: Integrated Prime Sample Proof\<close>
 
 text \<open> This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
 annotations completely \<^emph>\<open>inside\<close> the C source. As such, this is an exercise of

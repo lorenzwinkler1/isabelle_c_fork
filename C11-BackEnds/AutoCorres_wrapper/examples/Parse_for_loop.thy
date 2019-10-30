@@ -43,7 +43,7 @@
  * @TAG(NICTA_BSD)
  *)
 
-chapter\<open>Example \<close>
+chapter \<open>Example: Miscellaneous\<close>
 
 text \<open> This example is used to demonstrate Isabelle/C/AutoCorres in a version that uses
 AutoCorres Annotations addressed to AutoCorres. The example annotation is found in the C function

@@ -61,6 +61,8 @@ session Isabelle_C_AutoCorres_examples = Isabelle_C_AutoCorres +
 
 session Isabelle_C_AutoCorres_document = Isabelle_C_AutoCorres_examples +
   options [document = pdf, document_output = "output"]
+  theories
+    "src/compiler/Init" (* already used in session CParser, but only mentioned here for the document generation *)
   document_files
     "root.tex"
     "root.bib"
