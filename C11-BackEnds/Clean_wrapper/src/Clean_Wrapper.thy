@@ -44,8 +44,8 @@ theory Clean_Wrapper
 begin
 
 text \<open>
-Isabelle/C~\cite{TuongWolff19} is a C front-end for Isabelle/PIDE providing generic support for C
-parsing, editing, and highlighting. Isabelle/C also provides a generic interface for semantic
+Isabelle/C~\cite{Tuong-IsabelleC:2019} is a C front-end for Isabelle/PIDE providing generic support
+for C parsing, editing, and highlighting. Isabelle/C also provides a generic interface for semantic
 interpretations of C11 programs and program fragments. In particular, Isabelle/C also offers the
 generic framework to define \emph{annotation commands} and \emph{C antiquotations} that can be
 custumized to a specific semantic back-end.
@@ -90,7 +90,7 @@ text\<open>Such semantic annotation commands may yield support for:
 \<^enum> Classics in program-based tests such as:
   unfolding-depths, coverage criteria to be applied, hints feasibility-checking.
 \<^enum> Isabelle inline proofs establishing properties of local C elements or configuration data
-  (Isabelle/C supports proof-carrying code in a sense, see @{cite "TuongWolff19"} page 9).
+  (Isabelle/C supports proof-carrying code in a sense, see @{cite "Tuong-IsabelleC:2019"} page 9).
 \<^enum> Pragmas for code-generation.
 \<^enum> Ontological information used to assure tracability of requirements or tests down to
   specific spots in the code (cf. @{cite "brucker.wolff:isadof-design-impl:2019"}). 
