@@ -128,6 +128,14 @@ section\<open>The Correctness Proof of \<^const>\<open>is_prime.is_prime_linear'
 text\<open>Note that the proof \<^emph>\<open>injects\<close> the loop invariant at the point where the proof
      treats the loop.\<close>
 
+
+lemma
+"whileLoopE (B n) (C n) = 
+ (\<lambda>x. whileLoopE_inv (B n) (C n) x (is_prime_linear_inv n) (measure' (\<lambda>(r, _). n - r))) "
+  unfolding whileLoopE_inv_def
+  by simp
+
+
 (* imperative "red" style proof *)
 theorem (in is_prime) is_prime_correct:
     "\<lbrace> \<lambda>s. n \<le> UINT_MAX \<rbrace> is_prime_linear' n \<lbrace> \<lambda>r s. (r \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"

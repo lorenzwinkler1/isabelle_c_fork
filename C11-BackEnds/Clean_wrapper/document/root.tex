@@ -1,0 +1,123 @@
+\documentclass[fontsize=11pt,paper=a4,open=right,twoside,abstract=true]{scrreprt}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[numbers, sort&compress, sectionbib]{natbib}
+\usepackage{isabelle,isabellesym}
+\usepackage[only,bigsqcap]{stmaryrd}
+\usepackage{ifthen}
+\usepackage{wrapfig}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\IfFileExists{railsetup.sty}{\usepackage{railsetup}}{}
+
+\newcommand\inputif[1]{\IfFileExists{./#1}{\input{#1}}{}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% command
+
+\newenvironment{matharray}[1]{\[\begin{array}{#1}}{\end{array}\]} % from 'iman.sty'
+\newcommand{\indexdef}[3]%
+{\ifthenelse{\equal{}{#1}}{\index{#3 (#2)|bold}}{\index{#3 (#1\ #2)|bold}}} % from 'isar.sty'
+\newcommand{\isactrlC}{{\isacommand C}}
+\newcommand{\isactrlMLPRIME}{{\isacommand MLPRIME}}
+
+%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% fix for package declaration to be at the end
+\usepackage[pdfpagelabels, pageanchor=false, plainpages=false]{hyperref}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% document
+
+\urlstyle{rm}
+\isabellestyle{it}
+
+\newcommand{\HOL}{HOL}
+\newcommand{\eg}{e.g.}
+\newcommand{\ie}{i.e.}
+
+\begin{document}
+
+\title{Isabelle/C/Clean - A Show-Case for a Semantic Back-End for Isabelle/C}
+\author{%
+  \href{https://www.lri.fr/~ftuong/}{Fr\'ed\'eric Tuong}
+  \and
+  \href{https://www.lri.fr/~wolff/}{Burkhart Wolff}}
+\publishers{%
+  \mbox{LRI, Univ. Paris-Sud, CNRS, Universit\'e Paris-Saclay} \\
+  b\^at. 650 Ada Lovelace, 91405 Orsay, France \texorpdfstring{\\}{}
+}
+
+\maketitle
+
+\begin{abstract}
+Isabelle/C~\cite{TuongWolff19} is a C front-end for Isabelle/PIDE providing
+generic support for C parsing, editing, and highlighting. Isabelle/C also
+provides a generic interface for semantic interpretations of C11 programs and
+program fragments. In particular, Isabelle/C also offers the generic framework
+to define \emph{annotation commands} and \emph{C antiquotations} that can be
+custumized to a specific semantic back-end.
+
+Clean is such a semantic back-end, i.e. an Isabelle theory providing a
+semantics and execution model. Clean is an abstract, ``shallow-style
+embedding'' for an imperative core language. It strives for a type-safe
+notation of program-variables, an incremental construction of the typed
+state-space, support of incremental verification, and open-world extensibility
+of new type definitions being intertwined with the program definitions.
+
+Clean is based on a ``no-frills'' state-exception monad with the usual
+definitions of \isa{bind} and \isa{unit} for the compositional glue of
+state-based computations.  Clean offers conditionals and loops supporting
+C-like control-flow operators such as \isa{break} and \isa{return}. The
+state-space construction is based on the extensible record package. Direct
+recursion of C-functions is supported.
+
+The current session instantiates Isabelle/C with Clean and produces the
+Isabelle/C/Clean instance. It is conceived as a demonstrator for creating other
+instances of Isabelle/C with other semantic backends such as
+AutoCorres~\cite{DBLP:conf/pldi/GreenawayLAK14},
+IMP2~\cite{DBLP:journals/afp/LammichW19} or Orca~\cite{bockenek:hal-02069705}.
+\end{abstract}
+
+\newpage
+\tableofcontents
+
+\parindent 0pt\parskip 0.5ex
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \input{session}
+\newpage
+\inputif{1/document/Init.tex}
+%\inputif{1/document/Meta_C.tex}
+\inputif{1/document/Core.tex}
+%\inputif{1/document/Isabelle_code_runtime.tex}
+%\inputif{1/document/Isabelle_typedecl.tex}
+%\inputif{1/document/Generator_dynamic_sequential.tex}
+\inputif{1/document/Backend.tex}
+
+%\inputif{2/document/IsPrime_sqrt_outside.tex}
+%\inputif{2/document/Clean_backend_old.tex}
+\inputif{2/document/Prime.tex}
+\inputif{2/document/Quicksort2.tex}
+\inputif{2/document/Quicksort.tex}
+
+%\newpage
+%\chapter{Appendix}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\bibliographystyle{abbrvnat}
+\bibliography{root}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

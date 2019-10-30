@@ -51,21 +51,6 @@ session Isabelle_C_AutoCorres_examples in "C11-BackEnds/AutoCorres_wrapper" = Is
     "examples/Quicksort"
     "examples/TestSEL4"
 
-session Isabelle_C_Clean in "C11-BackEnds/Clean_wrapper" = Isabelle_C +
-  sessions
-    Clean
-  theories
-    "src/Backend"
-
-session Isabelle_C_Clean_examples in "C11-BackEnds/Clean_wrapper" = Isabelle_C_Clean +
-  sessions
-    "HOL-Computational_Algebra"
-  theories
-    "examples/IsPrime_sqrt_outside"
-    "examples/Prime"
-    "examples/Quicksort2"
-    "examples/Quicksort"
-
 session Isabelle_C_README in "C11-FrontEnd" = HOL +
   theories
     "../README"
