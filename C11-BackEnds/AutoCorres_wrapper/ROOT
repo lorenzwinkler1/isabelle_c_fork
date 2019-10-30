@@ -34,19 +34,33 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-session Isabelle_C_README in "C11-FrontEnd" = HOL +
+session Isabelle_C_AutoCorres = AutoCorres +
+  options [document = pdf, document_output = "output/document/1"]
   theories
-    "../README"
+    "../AutoCorres/src/README"
+    "src/AutoCorres_Wrapper"
+  document_files
+    "root.tex"
+    "root.bib"
 
-session Isabelle_C_archive = Isabelle_C_AutoCorres +
-  options [quick_and_dirty]
+session Isabelle_C_AutoCorres_examples = Isabelle_C_AutoCorres +
+  options [document = pdf, document_output = "output/document/2"]
   sessions
-    Clean
     "HOL-Computational_Algebra"
   theories
-    "C11-FrontEnd/archive/Clean_old"
-    "C11-FrontEnd/archive/C_DOF"
-    "C11-FrontEnd/archive/IsPrime_sqrt_outside"
-    "C11-FrontEnd/archive/Prime"
-    "C11-BackEnds/AutoCorres/examples/program-based/Example1"
-    "C11-BackEnds/AutoCorres/examples/program-based/Example2"
+    "examples/IsPrime_integrated"
+    "examples/IsPrime_linear_outside"
+    "examples/IsPrime_sqrt_outside"
+    "examples/IsPrime_sqrt_opt_outside"
+    "examples/Parse_for_loop"
+    "examples/Quicksort"
+    "examples/TestSEL4"
+  document_files
+    "root.tex"
+    "root.bib"
+
+session Isabelle_C_AutoCorres_document = Isabelle_C_AutoCorres_examples +
+  options [document = pdf, document_output = "output"]
+  document_files
+    "root.tex"
+    "root.bib"
