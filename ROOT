@@ -56,7 +56,7 @@ session Isabelle_C_Clean in "C11-BackEnds/Clean_wrapper" = Isabelle_C +
   sessions
     Clean
   theories
-    "src/Backend"
+    "src/Clean_Wrapper"
   document_files
     "root.tex"
     "root.bib"
