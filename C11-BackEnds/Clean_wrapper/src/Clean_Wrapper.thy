@@ -71,6 +71,35 @@ Isabelle/C as a framework offers:
   logical and C-AST context. 
 \<close>
 
+text\<open>The task of constructing a wrapper, \ie{} an instantiation of Isabelle/C with a specific
+semantic back-end can be decomposed in essentially three tasks:
+\<^enum> Constructing the translation of C11-AST into the terms in the terms provided by
+  the Isabelle structure @{ML_structure "Term"}; an intermediate solution is to generate
+  string's and to let them parse by the Isabelle parsers. 
+\<^enum> Constructing a semantics for the usual C pragmas \<^verbatim>\<open>#define ...\<close>, \<^verbatim>\<open>#include ...\<close> and friends;
+  an alternative is to consider only files expanded by the C preprocessor.
+  (This solution is disadvised since cpp's tend to be very platform specific and expansions
+   might lead to very lengthy sources without modularization information. Wasting structural
+   information is a capital sin in an interactive environment).
+\<^enum> Defining control-attributes suitable for the wrapper.
+\<^enum> Defining semantic annotation commands yielding specific support for automation.
+\<close>
+
+text\<open>Such semantic annotation commands may yield support for:
+\<^enum> Classics in verification:
+  pre- and post-conditions, rely-guarantees, flags for arithmetic interpretation, 
+  assertions, assumptions, invariants. 
+\<^enum> Classics in program-based tests such as:
+  unfolding-depths, coverage criteria to be applied, hints feasibility-checking.
+\<^enum> Isabelle inline proofs establishing properties of local C elements or configuration data
+  (Isabelle/C supports proof-carrying code in a sense, see @{cite "TuongWolff19"} page 9).
+\<^enum> Pragmas for code-generation.
+\<^enum> Ontological information used to assure tracability of requirements or tests down to
+  specific spots in the code (cf. @{cite "brucker.wolff:isadof-design-impl:2019"}). 
+\<close>
+
+text\<open>In the sequel, we will present some aspects of the translation, the handling of pragmas
+and semantic annotation commands giving specific support for Clean.\<close>
 
 generation_syntax [ deep [in self], shallow ]
 end
