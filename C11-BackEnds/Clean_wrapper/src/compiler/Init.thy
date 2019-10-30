@@ -34,6 +34,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+chapter \<open>Appendix: Isabelle/C/Clean Annotations\<close>
+
 theory Init
   imports Isabelle_C.C_Main
 begin

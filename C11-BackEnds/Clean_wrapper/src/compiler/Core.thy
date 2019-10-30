@@ -39,6 +39,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+chapter \<open>Appendix: Compiling C Meta-Model to Pure Meta-Model\<close>
+
 theory Core
   imports Meta_C
           Clean.Clean

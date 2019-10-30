@@ -34,6 +34,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+chapter \<open>Appendix: Miscellaneous (Example Preparation)\<close>
+
 theory Clean_backend_old
   imports Isabelle_C_Clean.Generator_dynamic_sequential
 begin

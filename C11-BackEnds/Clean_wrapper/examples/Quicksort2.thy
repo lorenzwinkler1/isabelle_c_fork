@@ -43,6 +43,8 @@
  * @TAG(NICTA_BSD)
  *)
 
+chapter \<open>Example: Quicksort (version 2)\<close>
+
 theory Quicksort2
   imports Isabelle_C_Clean.Clean_Wrapper
 begin

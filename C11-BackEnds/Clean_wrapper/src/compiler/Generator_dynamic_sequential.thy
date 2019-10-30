@@ -39,6 +39,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+chapter \<open>Appendix: Citadelle's Meta Interface\<close>
+
 theory Generator_dynamic_sequential
   imports Core
           "../../../../Citadelle/src/compiler_generic/isabelle_home/src/Tools/Code/Isabelle_code_runtime"

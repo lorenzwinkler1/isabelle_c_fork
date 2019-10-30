@@ -34,6 +34,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+chapter \<open>Appendix: C11 to C99 Toolkit\<close>
+
 theory Meta_C
   imports Init
 begin
