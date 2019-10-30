@@ -83,9 +83,9 @@ semantic back-end can be decomposed in essentially three tasks:
    information is a capital sin in an interactive environment).
 \<^enum> Defining control-attributes suitable for the wrapper.
 \<^enum> Defining semantic annotation commands yielding specific support for automation.
-\<close>
+\<close> 
 
-text\<open>Such semantic annotation commands may yield support for:
+text\<open>Such semantic annotation commands may yield support for:  
 \<^enum> Classics in verification:
   pre- and post-conditions, rely-guarantees, flags for arithmetic interpretation, 
   assertions, assumptions, invariants. 
