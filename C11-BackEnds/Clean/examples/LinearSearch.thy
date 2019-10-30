@@ -35,8 +35,6 @@
  ******************************************************************************)
 
 (*
- * Quicksort Concept 
- *
  * Authors : Burkhart Wolff, Frédéric Tuong
  *)
 

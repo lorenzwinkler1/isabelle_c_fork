@@ -1,5 +1,5 @@
 (******************************************************************************
- * Isabelle/C
+ * Clean
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
@@ -34,37 +34,31 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-session Isabelle_C_AutoCorres in "C11-BackEnds/AutoCorres_wrapper" = AutoCorres +
-  theories
-    "../AutoCorres/src/README"
-    "src/Backend"
-
-session Isabelle_C_AutoCorres_examples in "C11-BackEnds/AutoCorres_wrapper" = Isabelle_C_AutoCorres +
-  sessions
-    "HOL-Computational_Algebra"
-  theories
-    "examples/IsPrime_integrated"
-    "examples/IsPrime_linear_outside"
-    "examples/IsPrime_sqrt_outside"
-    "examples/IsPrime_sqrt_opt_outside"
-    "examples/Parse_for_loop"
-    "examples/Quicksort"
-    "examples/TestSEL4"
-
-
-session Isabelle_C_README in "C11-FrontEnd" = HOL +
-  theories
-    "../README"
-
-session Isabelle_C_archive = Isabelle_C_AutoCorres +
-  options [quick_and_dirty]
+session Isabelle_C_Clean = Isabelle_C +
+  options [document = pdf, document_output = "output/document/1"]
   sessions
     Clean
+  theories
+    "src/Clean_Wrapper"
+  document_files
+    "root.tex"
+    "root.bib"
+
+session Isabelle_C_Clean_examples = Isabelle_C_Clean +
+  options [document = pdf, document_output = "output/document/2"]
+  sessions
     "HOL-Computational_Algebra"
   theories
-    "C11-FrontEnd/archive/Clean_old"
-    "C11-FrontEnd/archive/C_DOF"
-    "C11-FrontEnd/archive/IsPrime_sqrt_outside"
-    "C11-FrontEnd/archive/Prime"
-    "C11-BackEnds/AutoCorres/examples/program-based/Example1"
-    "C11-BackEnds/AutoCorres/examples/program-based/Example2"
+    "examples/IsPrime_sqrt_outside"
+    "examples/Prime"
+    "examples/Quicksort2"
+    "examples/Quicksort"
+  document_files
+    "root.tex"
+    "root.bib"
+
+session Isabelle_C_Clean_document = Isabelle_C_Clean_examples +
+  options [document = pdf, document_output = "output"]
+  document_files
+    "root.tex"
+    "root.bib"

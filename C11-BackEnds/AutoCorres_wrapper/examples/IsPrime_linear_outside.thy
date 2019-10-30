@@ -129,7 +129,7 @@ text\<open>Note that the proof \<^emph>\<open>injects\<close> the loop invariant
      treats the loop.\<close>
 
 
-lemma inv96 :
+lemma
 "whileLoopE (B n) (C n) = 
  (\<lambda>x. whileLoopE_inv (B n) (C n) x (is_prime_linear_inv n) (measure' (\<lambda>(r, _). n - r))) "
   unfolding whileLoopE_inv_def
