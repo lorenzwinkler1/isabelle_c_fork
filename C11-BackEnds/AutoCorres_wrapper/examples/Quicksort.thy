@@ -45,7 +45,7 @@
 
 theory Quicksort
 imports
-  Isabelle_C_AutoCorres.Backend
+  Isabelle_C_AutoCorres.AutoCorres_Wrapper
   "HOL-Library.Multiset"
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>

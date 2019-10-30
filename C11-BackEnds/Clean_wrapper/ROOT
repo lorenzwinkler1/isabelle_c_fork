@@ -39,7 +39,7 @@ session Isabelle_C_Clean = Isabelle_C +
   sessions
     Clean
   theories
-    "src/Backend"
+    "src/Clean_Wrapper"
   document_files
     "root.tex"
     "root.bib"

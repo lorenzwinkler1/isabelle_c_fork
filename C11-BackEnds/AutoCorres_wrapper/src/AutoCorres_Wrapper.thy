@@ -34,9 +34,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-theory Backend
-  imports Clean.Clean
-          "compiler/Generator_dynamic_sequential"
+theory AutoCorres_Wrapper
+  imports AutoCorres.AutoCorres
 begin
-generation_syntax [ deep [in self], shallow ]
 end

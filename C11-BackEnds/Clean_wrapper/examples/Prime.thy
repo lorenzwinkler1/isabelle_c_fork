@@ -43,7 +43,7 @@
  * @TAG(NICTA_BSD)
  *)
 
-theory Prime imports Isabelle_C_Clean.Backend
+theory Prime imports Isabelle_C_Clean.Clean_Wrapper
                   \<comment> \<open>Clean back-end is now on\<close>   "../../../C11-FrontEnd/archive/Clean_backend_old" "HOL-Computational_Algebra.Primes"
 begin                                             no_syntax "_C" :: \<open>cartouche_position \<Rightarrow> _\<close> ("\<^C> _")
 C \<open>

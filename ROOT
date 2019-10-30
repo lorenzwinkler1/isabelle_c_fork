@@ -37,7 +37,7 @@
 session Isabelle_C_AutoCorres in "C11-BackEnds/AutoCorres_wrapper" = AutoCorres +
   theories
     "../AutoCorres/src/README"
-    "src/Backend"
+    "src/AutoCorres_Wrapper"
 
 session Isabelle_C_AutoCorres_examples in "C11-BackEnds/AutoCorres_wrapper" = Isabelle_C_AutoCorres +
   sessions
@@ -50,6 +50,7 @@ session Isabelle_C_AutoCorres_examples in "C11-BackEnds/AutoCorres_wrapper" = Is
     "examples/Parse_for_loop"
     "examples/Quicksort"
     "examples/TestSEL4"
+
 
 session Isabelle_C_README in "C11-FrontEnd" = HOL +
   theories
