@@ -34,7 +34,35 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-theory Backend
-  imports AutoCorres.AutoCorres
-begin
-end
+session Isabelle_C_AutoCorres = AutoCorres +
+  options [document = pdf, document_output = "output/document/1"]
+  theories
+    "../AutoCorres/src/README"
+    "src/AutoCorres_Wrapper"
+  document_files
+    "root.tex"
+    "root.bib"
+
+session Isabelle_C_AutoCorres_examples = Isabelle_C_AutoCorres +
+  options [document = pdf, document_output = "output/document/2"]
+  sessions
+    "HOL-Computational_Algebra"
+  theories
+    "examples/IsPrime_integrated"
+    "examples/IsPrime_linear_outside"
+    "examples/IsPrime_sqrt_outside"
+    "examples/IsPrime_sqrt_opt_outside"
+    "examples/Parse_for_loop"
+    "examples/Quicksort"
+    "examples/TestSEL4"
+  document_files
+    "root.tex"
+    "root.bib"
+
+session Isabelle_C_AutoCorres_document = Isabelle_C_AutoCorres_examples +
+  options [document = pdf, document_output = "output"]
+  theories
+    "src/compiler/Init" (* already used in session CParser, but only mentioned here for the document generation *)
+  document_files
+    "root.tex"
+    "root.bib"

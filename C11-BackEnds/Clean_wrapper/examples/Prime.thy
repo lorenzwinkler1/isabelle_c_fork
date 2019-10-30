@@ -43,6 +43,8 @@
  * @TAG(NICTA_BSD)
  *)
 
+chapter \<open>Example: Prime\<close>
+
 theory Prime imports Isabelle_C_Clean.Clean_Wrapper
                   \<comment> \<open>Clean back-end is now on\<close>   "../../../C11-FrontEnd/archive/Clean_backend_old" "HOL-Computational_Algebra.Primes"
 begin                                             no_syntax "_C" :: \<open>cartouche_position \<Rightarrow> _\<close> ("\<^C> _")
@@ -86,5 +88,18 @@ is_prime_def: "is_prime n \<equiv>
 
 lemma "prime\<^sub>H\<^sub>O\<^sub>L p = prime p"
 by (simp add: prime\<^sub>H\<^sub>O\<^sub>L_def prime_nat_iff')
+
+text_raw \<open>
+\begin{figure}
+  \centering
+  \includegraphics[width=0.96\textwidth]{figures/A-C-Source7}
+  \caption{Activating the Isabelle/C/Clean back-end}
+  \label{fig:clean}
+\end{figure}
+\<close>
+
+text \<open>
+See \autoref{fig:clean}.
+\<close>
 
 end

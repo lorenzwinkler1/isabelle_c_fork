@@ -43,14 +43,14 @@
  * @TAG(NICTA_BSD)
  *)
 
-chapter\<open>A Sqrt Prime Sample Proof\<close>
+chapter \<open>Example: A Sqrt Prime Sample Proof\<close>
 
 text\<open>This example is used to demonstrate Isabelle/C/Autocorres in a version that keeps
 annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
 
 theory IsPrime_sqrt_opt_outside
 imports
-  Isabelle_C_AutoCorres.Backend
+  Isabelle_C_AutoCorres.AutoCorres_Wrapper
   "HOL-Computational_Algebra.Primes"
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>

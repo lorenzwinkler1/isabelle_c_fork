@@ -34,23 +34,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-chapter \<open>Appendix: Miscellaneous (Example Preparation)\<close>
+chapter\<open>The Isabelle/C/AutoCorres Demonstrator\<close>
 
-theory Clean_backend_old
-  imports Isabelle_C_Clean.Generator_dynamic_sequential
+theory AutoCorres_Wrapper
+  imports AutoCorres.AutoCorres
 begin
-
-definition "UINT_MAX = 0"
-
-section \<open>\<close>
-
-no_syntax "_C" :: \<open>cartouche_position \<Rightarrow> _\<close> ("\<^C> _")
-syntax "_C'" :: \<open>cartouche_position \<Rightarrow> _\<close> ("\<^C> _")
-
-setup \<open>C_Module.C_Term.map_expression (fn _ => fn _ => fn _ => @{term "1 :: nat"})\<close>
-
-parse_translation \<open>
-C_Module.C_Term'.parse_translation [ (\<^syntax_const>\<open>_C'\<close>, SOME C_Module.C_Term.tok_expression) ]
-\<close>
-
 end

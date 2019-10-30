@@ -43,7 +43,7 @@
  * @TAG(NICTA_BSD)
  *)
 
-chapter\<open>Integrated Prime Sample Proof\<close>
+chapter \<open>Example: Integrated Prime Sample Proof\<close>
 
 text \<open> This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
 annotations completely \<^emph>\<open>inside\<close> the C source. As such, this is an exercise of
@@ -56,7 +56,7 @@ ensure fast feedback as a consequence of changes of the source. \<close>
 
 theory IsPrime_integrated
 imports
-  Isabelle_C_AutoCorres.Backend
+  Isabelle_C_AutoCorres.AutoCorres_Wrapper
   "HOL-Computational_Algebra.Primes"
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>

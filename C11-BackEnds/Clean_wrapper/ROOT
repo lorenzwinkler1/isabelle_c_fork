@@ -54,11 +54,13 @@ session Isabelle_C_Clean_examples = Isabelle_C_Clean +
     "examples/Quicksort2"
     "examples/Quicksort"
   document_files
+    "figures/A-C-Source7.png"
     "root.tex"
     "root.bib"
 
 session Isabelle_C_Clean_document = Isabelle_C_Clean_examples +
   options [document = pdf, document_output = "output"]
   document_files
+    "figures/A-C-Source7.png"
     "root.tex"
     "root.bib"

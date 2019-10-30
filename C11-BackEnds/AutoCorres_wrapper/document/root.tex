@@ -21,8 +21,6 @@
 \newcommand{\indexdef}[3]%
 {\ifthenelse{\equal{}{#1}}{\index{#3 (#2)|bold}}{\index{#3 (#1\ #2)|bold}}} % from 'isar.sty'
 \newcommand{\isactrlC}{{\isacommand C}}
-\newcommand{\isactrlmkUNDERSCOREstring}{\isakeywordcontrol{mk{\isacharunderscore}string}}
-\newcommand{\isactrlMLPRIME}{{\isacommand ML{\isacharprime}}}
 
 %%
 
@@ -42,7 +40,7 @@
 
 \begin{document}
 
-\title{Isabelle/C/Clean - A Show-Case for a Semantic Back-End for Isabelle/C}
+\title{Isabelle/C/AutoCorres - A Show-Case for a Semantic Back-End for Isabelle/C}
 \author{%
   \href{https://www.lri.fr/~ftuong/}{Fr\'ed\'eric Tuong}
   \and
@@ -62,24 +60,10 @@ and program fragments. In particular, Isabelle/C also offers the generic
 framework to define \emph{annotation commands} and \emph{C antiquotations} that
 can be custumized to a specific semantic back-end.
 
-Clean is such a semantic back-end, i.e. an Isabelle theory providing a
-semantics and execution model. Clean is an abstract, ``shallow-style
-embedding'' for an imperative core language. It strives for a type-safe
-notation of program-variables, an incremental construction of the typed
-state-space, support of incremental verification, and open-world extensibility
-of new type definitions being intertwined with the program definitions.
-
-Clean is based on a ``no-frills'' state-exception monad with the usual
-definitions of \isa{bind} and \isa{unit} for the compositional glue of
-state-based computations.  Clean offers conditionals and loops supporting
-C-like control-flow operators such as \isa{break} and \isa{return}. The
-state-space construction is based on the extensible record package. Direct
-recursion of C-functions is supported.
-
-The current session instantiates Isabelle/C with Clean and produces the
-Isabelle/C/Clean instance. It is conceived as a demonstrator for creating other
+The current session instantiates Isabelle/C with AutoCorres and produces the
+Isabelle/C/AutoCorres instance. It is conceived as a demonstrator for creating other
 instances of Isabelle/C with other semantic backends such as
-AutoCorres~\cite{DBLP:conf/pldi/GreenawayLAK14},
+Clean~\cite{journals/afp/TuongW19},
 IMP2~\cite{DBLP:journals/afp/LammichW19} or Orca~\cite{bockenek:hal-02069705}.
 \end{abstract}
 
@@ -90,22 +74,18 @@ IMP2~\cite{DBLP:journals/afp/LammichW19} or Orca~\cite{bockenek:hal-02069705}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\inputif{1/document/Clean_Wrapper.tex}
+\inputif{1/document/AutoCorres_Wrapper.tex}
 
-\inputif{2/document/Prime.tex}
+\inputif{2/document/IsPrime_integrated.tex}
+\inputif{2/document/IsPrime_linear_outside.tex}
 \inputif{2/document/IsPrime_sqrt_outside.tex}
+\inputif{2/document/IsPrime_sqrt_opt_outside.tex}
+\inputif{2/document/Parse_for_loop.tex}
 \inputif{2/document/Quicksort.tex}
-\inputif{2/document/Quicksort2.tex}
+\inputif{2/document/TestSEL4.tex}
 
-\inputif{1/document/Init.tex}
-\inputif{1/document/Meta_C.tex}
-\inputif{1/document/Core.tex}
-\chapter{Appendix: Miscellaneous (Interface to ``typedecl'')}
-\inputif{1/document/Isabelle_code_runtime.tex}
-\chapter{Appendix: Miscellaneous (Overloading ``code\_reflect'')}
-\inputif{1/document/Isabelle_typedecl.tex}
-\inputif{1/document/Generator_dynamic_sequential.tex}
-\inputif{2/document/Clean_backend_old.tex}
+\inputif{1/document/README.tex}
+\inputif{Init.tex}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
