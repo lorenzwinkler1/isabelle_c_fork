@@ -99,5 +99,6 @@ text\<open>Such semantic annotation commands may yield support for:
 text\<open>In the sequel, we will present some aspects of the translation, the handling of pragmas
 and semantic annotation commands giving specific support for Clean.\<close>
 
+
 generation_syntax [ deep [in self], shallow ]
 end
