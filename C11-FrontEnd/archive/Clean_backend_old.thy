@@ -36,16 +36,14 @@
 
 chapter \<open>Appendix: Miscellaneous (Example Preparation)\<close>
 
-text\<open>A Mockup installation for the the \<^verbatim>\<open>Prime.thy\<close> - example. 
+text\<open>A Mockup Logical Context for the the \<^verbatim>\<open>Prime.thy\<close> - example. 
 Will disappear in the final distribution. \<close>
 
 theory Clean_backend_old
   imports Isabelle_C_Clean.Generator_dynamic_sequential
 begin
 
-definition "UINT_MAX = 0"
-
-section \<open>\<close>
+consts "UINT_MAX" :: "nat"
 
 no_syntax "_C" :: \<open>cartouche_position \<Rightarrow> _\<close> ("\<^C> _")
 syntax "_C'" :: \<open>cartouche_position \<Rightarrow> _\<close> ("\<^C> _")

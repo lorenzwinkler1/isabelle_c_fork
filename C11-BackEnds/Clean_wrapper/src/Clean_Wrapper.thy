@@ -100,14 +100,19 @@ text\<open>In the sequel, we will present some aspects of the translation, the h
 and semantic annotation commands giving specific support for Clean.\<close>
 
 
-
-section\<open>Isabelle/C/Clean specific commands\<close>
+(* text\<open> @{theory Clean.Core}\<close> *)
+section\<open>Isabelle/C/Clean specific Commands and Constructions\<close>
 
 text\<open>
 \<^enum> \<open>declare [[Clean]]\<close> activates the Clean semantic backend, \ie{} from this point on, 
   the \<open>AST\<^sub>C\<^sub>1\<^sub>1\<close> is compiled to \<open>AST\<^sub>C\<^sub>9\<^sub>9\<close> and converted to terms in the logical context of the Clean
   theory. Note that this command is also available as semantic annotation command.
 
+\<^enum> the C11 term cartouches term \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r \<open>...\<close>\<close> et  \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>...\<close>\<close> (\<^verbatim>\<open>Theory "Core"\<close>).
+
+\<^enum> the annotation commands \<open>pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n\<close>,  \<open>post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n\<close> , and \<open>inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n \<close> (\<^verbatim>\<open>Theory "Core"\<close>). 
+
+\<^enum> and a C code antiquotation (en lieu of a preprocessing example) (NOT YET DONE). 
 
 \<close>
 
@@ -122,6 +127,7 @@ text\<open>
 
 \<^enum>  The Example Prime.thy is not functional.
 
+\<^enum>  Theory \<^verbatim>\<open>Meta_C\<close> is a problematic hack to provide another form of cenv environment based on C99.
 
 \<close>
 

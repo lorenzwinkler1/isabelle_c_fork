@@ -34,7 +34,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-chapter \<open>Appendix: Compiling C to Clean Terms\<close>
+chapter \<open>Compiling C to Clean Terms\<close>
 text\<open>In the following, we define a few term-antiquotations (or cartouches); this means that
      C fragments were compiled into HOL-terms interpreted in the Clean theory. \<close>
 
