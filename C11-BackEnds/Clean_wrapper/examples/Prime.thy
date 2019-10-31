@@ -62,7 +62,7 @@ theory Prime imports Isabelle_C_Clean.Clean_Wrapper
 begin                
                      no_syntax "_C" :: \<open>cartouche_position \<Rightarrow> _\<close> ("\<^C> _")
 
-declare [[Clean]]
+declare [[Clean=false]] (* temporarily off *)
 
 
 C \<open>

@@ -37,7 +37,7 @@
 chapter \<open>Appendix: C11 to C99 Toolkit\<close>
 
 theory Meta_C
-  imports Init
+  imports CleanAnnotationCommandSetup
 begin
 
 section \<open>\<^dir>\<open>../../../../l4v/src\<close>\<close>
