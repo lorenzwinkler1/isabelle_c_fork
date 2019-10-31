@@ -899,6 +899,7 @@ structure Function_Specification_Parser  =
        let val (params_Ts, ctxt') = read_params params ctxt
            val (rty, ctxt'') = read_result ret_type ctxt' 
            val variant = Option.map (Syntax.read_term ctxt'')  variant_src
+           val paramT_l = (map2 (fn (b, _) => fn T => (b, SOME T, NoSyn)) params params_Ts)
        in ({params = (params, params_Ts), ret_ty = rty,variant = variant},ctxt'') end 
 
 
@@ -1001,8 +1002,7 @@ structure Function_Specification_Parser  =
                                ({binding, ret_type, variant_src, locals, 
                                  read_body, pre_src, post_src, params} : funct_spec_sem2)
                                thy =
-       let (* fun read_body ctxt =  Syntax.read_term ctxt (fst body_src) *)
-           val (theory_map, thy') =
+       let val (theory_map, thy') =
              Named_Target.theory_map_result
                (K (fn f => Named_Target.theory_map o f))
                (read_function_spec ( params, ret_type, variant_src)
@@ -1016,9 +1016,11 @@ structure Function_Specification_Parser  =
                 thy
        in  thy' |> theory_map
                      let val sty_old = StateMgt_core.get_state_type_global thy'
-                     in fn params => fn ret_ty =>
-                         define_precond binding sty_old params pre_src
-                      #> define_postcond binding ret_ty sty_old params post_src end
+                         fun parse_contract params ret_ty = 
+                                       (  define_precond binding sty_old params pre_src
+                                        #> define_postcond binding ret_ty sty_old params post_src)
+                     in parse_contract
+                     end
                 |> StateMgt.new_state_record false ((([],binding), SOME ret_type),locals)
                 |> theory_map
                          (fn params => fn ret_ty => fn ctxt => 

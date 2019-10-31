@@ -1386,7 +1386,7 @@ end
 section \<open>Setup of \<^theory_text>\<open>C\<close> commands\<close>
 
 ML \<comment> \<open>\<^theory>\<open>Isabelle_C.C_Command\<close>\<close> \<open>
-val clean_C99 = Attrib.setup_config_bool @{binding Clean_C99} (K false)
+val clean_C99 = Attrib.setup_config_bool @{binding Clean} (K false)
 
 val _ =
   Theory.setup

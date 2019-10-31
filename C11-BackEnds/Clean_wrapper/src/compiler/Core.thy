@@ -1,12 +1,7 @@
 (******************************************************************************
- * Citadelle
+ * Clean_Wrapper
  *
- * Copyright (c) 2011-2019 Université Paris-Saclay, Univ. Paris-Sud, France
- *               2013-2017 IRT SystemX, France
- *               2011-2015 Achim D. Brucker, Germany
- *               2016-2018 The University of Sheffield, UK
- *               2016-2017 Nanyang Technological University, Singapore
- *               2017-2018 Virginia Tech, USA
+ * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
  * All rights reserved.
  *
@@ -39,16 +34,22 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-chapter \<open>Appendix: Compiling C Meta-Model to Pure Meta-Model\<close>
+chapter \<open>Appendix: Compiling C to Clean Terms\<close>
+text\<open>In the following, we define a few term-antiquotations (or cartouches); this means that
+     C fragments were compiled into HOL-terms interpreted in the Clean theory. \<close>
 
 theory Core
   imports Meta_C
           Clean.Clean
 begin
 
-section \<open>Conversion\<close>
+section \<open>Conversion of \<open>AST\<^sub>C\<close> into Isabelle Terms\<close>
 
-ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_syntax.ML\<close>\<close> \<open>
+text\<open>This conversion has several applications: First, it can be used for C cartouches for
+C fragments (see below), and second, it is used to compile entire C functions into
+Clean function specifications. \<close>
+
+ML \<comment>  \<open>c.f. \<^file>\<open>~~/src/Pure/ML/ml_syntax.ML\<close>\<close> \<open>
 structure ML_Syntax' =
 struct
 fun make_pos s (theory_name, cmd) = theory_name ^ Int.toString cmd ^ "_" ^ s
@@ -58,8 +59,8 @@ fun print_binding' pos b = ML_Syntax.make_binding (make_pos (Binding.name_of b) 
 end
 \<close>
 
-ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_antiquotations.ML\<close>\<close>
-   \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/document_antiquotations.ML\<close>\<close> \<open>
+ML \<comment> \<open>c.f. \<^file>\<open>~~/src/Pure/ML/ml_antiquotations.ML\<close>\<close>
+   \<comment> \<open>c.f. \<^file>\<open>~~/src/Pure/Thy/document_antiquotations.ML\<close>\<close> \<open>
 structure ML_Antiquotations' =
 struct
 fun ml_enclose bg en source =
@@ -78,7 +79,7 @@ val _ = Theory.setup
 end
 \<close>
 
-ML \<comment> \<open>\<^file>\<open>../../../../C11-FrontEnd/generated/c_ast.ML\<close>\<close> \<open>
+ML \<comment> \<open>c.f. \<^file>\<open>../../../../C11-FrontEnd/generated/c_ast.ML\<close>\<close> \<open>
 structure T =
 struct
 open C_Ast
@@ -93,7 +94,7 @@ end
 end
 \<close>
 
-ML \<comment> \<open>\<^file>\<open>../../../../Citadelle/src/compiler/Core.thy\<close>\<close> \<open>
+ML \<comment> \<open>c.f. \<^file>\<open>../../../../Citadelle/src/compiler/Core.thy\<close>\<close> \<open>
 structure Clean_Core =
 struct
 open C_Ast
@@ -143,8 +144,10 @@ fun new_state_record pos b rcd_name flds =
       , SML_apply ( b's \<^ML'>\<open>StateMgt.new_state_record'\<close>
                   , [ b's (if b then \<^ML'>\<open>true\<close> else \<^ML'>\<open>false\<close>)
                     , b's (ML_Syntax.print_pair
-                              (ML_Syntax.print_pair (ML_Syntax.print_pair (ML_Syntax.print_list (ML_Syntax.print_pair ML_Syntax.print_string (ML_Syntax.print_option ML_Syntax.print_string)))
-                                                                            (ML_Syntax'.print_binding' pos))
+                              (ML_Syntax.print_pair (ML_Syntax.print_pair (ML_Syntax.print_list 
+                                          (ML_Syntax.print_pair ML_Syntax.print_string 
+                                              (ML_Syntax.print_option ML_Syntax.print_string)))
+                                                     (ML_Syntax'.print_binding' pos))
                                                     (ML_Syntax.print_option ML_Syntax.print_typ))
                               (ML_Syntax.print_list (ML_Syntax'.print_pair3
                                                       ML_Syntax'.print_binding
@@ -173,7 +176,8 @@ fun compile ast env_lang pos =
                            l2
                          else
                            (Binding.make (StateMgt.result_name, Position.none), \<^typ>\<open>int\<close>, NoSyn) :: l2
-                   in (SOME o T.one) (new_state_record pos false (Binding.map_name (fn name => ML_Syntax'.make_pos (#fname function ^ "_" ^ name) pos) local_name) l2)
+                   in (SOME o T.one) (new_state_record pos false (Binding.map_name 
+                        (fn name => ML_Syntax'.make_pos (#fname function ^ "_" ^ name) pos) local_name) l2)
                    end)
        in
        [ (SOME o T.locale)
@@ -192,7 +196,11 @@ end
 end
 \<close>
 
-section \<open>Syntax\<close>
+section \<open> Conversions for Expressions and Statements \<close>
+text\<open>Roughly speaking, the following conversion functions are similar to functions used
+in Isabelle's parse-translations: They take a \<open>C11\<close> or \<open>C99\<close> AST and convert it into 
+Clean terms. To be precise, these are actually pre-terms not necessarily type-correct 
+in the Clean logical context.\<close>
 
 ML \<open>
 structure Conversion_C11 =
@@ -341,8 +349,12 @@ val statement = fn env_lang => fn ctxt =>
 end
 \<close>
 
+subsection \<open>Setup C Anti-Quotations (Cartouches)\<close>
+text\<open>This conversion also includes the construction of the bindings inside the source.
+     @{ML "Clean_Syntax_Lift.scope_var"}.\<close>
 ML \<open>
-val _ = Theory.setup (C_Module.C_Term.map_expression (fn expr => fn _ => fn ctxt => Conversion_C11.expression () ctxt expr))
+val _ = Theory.setup (C_Module.C_Term.map_expression 
+                         (fn expr => fn _ => fn ctxt => Conversion_C11.expression () ctxt expr))
 val _ = Theory.setup
           (C_Module.C_Term.map_statement
             (fn stmt => fn _ => fn ctxt =>
@@ -354,7 +366,9 @@ val _ = Theory.setup
                 stmt))
 \<close>
 
-subsection \<open>Test\<close>
+subsection \<open>Test of C-to-Term Anti-Quotations (Cartouches)\<close>
+
+text\<open>Just to have a global and local state to build expressions and statements from: \<close>
 
 global_vars state
   a :: "nat list"
@@ -371,6 +385,10 @@ local_vars_test swap unit
   j :: nat
   nn :: nat
 
+
+text\<open>In the following, we test a few term-antiquotations (or cartouches); this means that
+     C fragments were compiled into HOL-terms interpreted in the Clean theory. \<close>
+
 term \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r \<open>pivot = a[pivot_idx]\<close>\<close>
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>if (a[j] < a[i]) {}\<close>\<close>
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>pivot = a[pivot_idx];\<close>\<close>
@@ -384,6 +402,9 @@ term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>if (a[j] < a[i]) { pivo
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>for (i = 1; i < nn; i++) { pivot_idx++; }\<close>\<close>
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[pivot_idx] = a[i];\<close> ;-
       \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>pivot_idx++;\<close> ;-
-      \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[i] = a[pivot_idx];\<close>\<close>
+      \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[i] = a[pivot_idx];\<close>\<close> 
+
+text\<open>The latter example shows how anti-quoted C terms can be used as arguements in HOL combinators;
+     in this case from the @{theory "Clean.MonadSE"} library.\<close>
 
 end

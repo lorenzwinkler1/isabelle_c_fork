@@ -100,5 +100,30 @@ text\<open>In the sequel, we will present some aspects of the translation, the h
 and semantic annotation commands giving specific support for Clean.\<close>
 
 
+
+section\<open>Isabelle/C/Clean specific commands\<close>
+
+text\<open>
+\<^enum> \<open>declare [[Clean]]\<close> activates the Clean semantic backend, \ie{} from this point on, 
+  the \<open>AST\<^sub>C\<^sub>1\<^sub>1\<close> is compiled to \<open>AST\<^sub>C\<^sub>9\<^sub>9\<close> and converted to terms in the logical context of the Clean
+  theory. Note that this command is also available as semantic annotation command.
+
+
+\<close>
+
+section\<open>TODO List and Known Shortcomings\<close>
+
+text\<open>
+\<^enum> The connection to the body of the Clean package 
+   @{ML "Function_Specification_Parser.checkNsem_function_spec"} does not work yet.
+  Residues of fake screenshots.
+
+\<^enum>  The order of the imported Modules in the Appendix is arcane.
+
+\<^enum>  The Example Prime.thy is not functional.
+
+
+\<close>
+
 generation_syntax [ deep [in self], shallow ]
 end
