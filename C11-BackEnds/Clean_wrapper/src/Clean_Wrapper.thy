@@ -118,6 +118,7 @@ text\<open>
 \<close>
 
 text\<open>
+\begin{verbatim}
 and 'a cExpression = CComma0 of 'a cExpression list * 'a |
               CAssign0 of cAssignOp * 'a cExpression * 'a cExpression * 'a | 
               CCond0 of 'a cExpression * 'a cExpression optiona * 'a cExpression * 'a |
@@ -157,6 +158,7 @@ and 'a cExpression =
               CLabAddrExpr0 of ident * 'a | 
               CBuiltinExpr0 of 'a cBuiltinThing
 
+\end{verbatim}
 
 \<close>
 
