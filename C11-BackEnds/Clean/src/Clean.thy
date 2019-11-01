@@ -900,7 +900,7 @@ structure Function_Specification_Parser  =
            val (rty, ctxt'') = read_result ret_type ctxt' 
            val variant = Option.map (Syntax.read_term ctxt'')  variant_src
            val paramT_l = (map2 (fn (b, _) => fn T => (b, SOME T, NoSyn)) params params_Ts)
-       in ({params = (params, params_Ts), ret_ty = rty,variant = variant},ctxt'') end 
+       in (((params, params_Ts), rty,variant),ctxt'') end 
 
 
    fun check_absence_old term = 
@@ -1006,7 +1006,7 @@ structure Function_Specification_Parser  =
              Named_Target.theory_map_result
                (K (fn f => Named_Target.theory_map o f))
                (read_function_spec ( params, ret_type, variant_src)
-               #> uncurry (fn {params=(params, Ts),ret_ty,variant = _} =>
+               #> uncurry (fn ((params, Ts),ret_ty,variant) =>
                             pair (fn f =>
                                   Proof_Context.add_fixes (map2 (fn (b, _) => fn T => (b, SOME T, NoSyn)) params Ts)
                                     (* this declares the parameters of a function specification
