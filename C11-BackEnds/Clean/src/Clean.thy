@@ -900,7 +900,7 @@ structure Function_Specification_Parser  =
            val (rty, ctxt'') = read_result ret_type ctxt' 
            val variant = Option.map (Syntax.read_term ctxt'')  variant_src
            val paramT_l = (map2 (fn (b, _) => fn T => (b, SOME T, NoSyn)) params params_Ts)
-       in (((params, params_Ts), rty,variant),ctxt'') end 
+       in (((* (params, params_Ts) *) paramT_l, rty,variant),ctxt'') end 
 
 
    fun check_absence_old term = 
@@ -1006,25 +1006,28 @@ structure Function_Specification_Parser  =
              Named_Target.theory_map_result
                (K (fn f => Named_Target.theory_map o f))
                (read_function_spec ( params, ret_type, variant_src)
-               #> uncurry (fn ((params, Ts),ret_ty,variant) =>
+               #> uncurry (fn (params_Ts,ret_ty,variant) =>
                             pair (fn f =>
-                                  Proof_Context.add_fixes (map2 (fn (b, _) => fn T => (b, SOME T, NoSyn)) params Ts)
+                                  Proof_Context.add_fixes params_Ts
                                     (* this declares the parameters of a function specification
                                        as Free variables (overrides a possible constant declaration)
                                        and assigns the declared type to them *)
-                                  #> uncurry (fn params' => f (@{map 3} (fn b' => fn (b, _) => fn T => (b',(b,T))) params' params Ts) ret_ty))))
+                                  #> uncurry (fn params' => f params_Ts ret_ty))))
                 thy
        in  thy' |> theory_map
                      let val sty_old = StateMgt_core.get_state_type_global thy'
                          fun parse_contract params ret_ty = 
-                                       (  define_precond binding sty_old params pre_src
+                             let val params = map (fn(b,SOME ty,x) => (Binding.name_of b,("",ty))) params
+                             in          (   define_precond binding sty_old params pre_src
                                         #> define_postcond binding ret_ty sty_old params post_src)
+                             end
                      in parse_contract
                      end
                 |> StateMgt.new_state_record false ((([],binding), SOME ret_type),locals)
                 |> theory_map
                          (fn params => fn ret_ty => fn ctxt => 
                           let val sty = StateMgt_core.get_state_type ctxt
+val params = map (fn(b,SOME ty,x) => (Binding.name_of b,("",ty))) params
                               val args_ty = HOLogic.mk_tupleT (map (#2 o #2) params)
                               val mon_se_ty = StateMgt_core.MON_SE_T ret_ty sty
                               val ctxt' =
@@ -1039,6 +1042,7 @@ structure Function_Specification_Parser  =
                 |> theory_map
                          (fn params => fn ret_ty => fn ctxt => 
                           let val sty = StateMgt_core.get_state_type ctxt
+val params = map (fn(b,SOME ty,x) => (Binding.name_of b,("",ty))) params
                               val body = read_body ctxt
                           in  ctxt |> define_body_main isrec binding ret_ty sty params variant_src body
                           end)
