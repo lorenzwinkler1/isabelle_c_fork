@@ -40,17 +40,17 @@
  *           Contributions by Chantal Keller
  *)
 
-session Clean_Main = HOL +
+session Clean = HOL +
   theories
     "src/Clean_Main"
 
-session Clean_examples = Clean_Main +
+session Clean_examples = Clean +
   theories
     "examples/LinearSearch" 
     "examples/Quicksort_concept"
     "examples/SquareRoot_concept"
 
-session Clean = Clean_examples +
+session Clean_document = Clean_examples +
   options [document = pdf, document_output = "output"]
   theories
     "src/Clean_Main"

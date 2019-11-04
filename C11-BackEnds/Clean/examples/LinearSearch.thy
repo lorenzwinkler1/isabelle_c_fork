@@ -46,8 +46,8 @@ well as direct-recursive operations (i.e. C-like functions with side-effects on 
 local variables. \<close>
 
 theory LinearSearch
-  imports Clean_Main.Clean
-          Clean_Main.Hoare_MonadSE
+  imports Clean.Clean
+          Clean.Hoare_MonadSE
 begin
 
 
