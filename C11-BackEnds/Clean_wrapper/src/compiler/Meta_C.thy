@@ -37,8 +37,22 @@
 chapter \<open>Appendix: C11 to C99 Toolkit\<close>
 
 theory Meta_C
-  imports Init
+  imports Clean_Annotation
 begin
+
+text\<open>BIG BUG: At present, the C11 to C99 and Toolkit are not part of Isabelle/C, thy are part of
+\<^dir>\<open>../../../../l4v/src\<close> !!!! This is a hack to simulate a toolkit on C99 by reusing a lot of 
+irrelevant stuff from l4v.
+
+The ultimate goal is just computing \<^verbatim>\<open>(local_rcd, global_rcd, fninfo) \<close>, so
+\<^enum> a table of local variables occurring in \<open>AST\<^sub>9\<^sub>9\<close>
+\<^enum> a table of global variables occurring in \<open>AST\<^sub>9\<^sub>9\<close>
+\<^enum> a table of the parsed functions.
+
+The hack undoes renaming-tricks done internally in AutoCorres no longer visible after the
+C11-C99 translation.
+\<close>
+
 
 section \<open>\<^dir>\<open>../../../../l4v/src\<close>\<close>
 (*

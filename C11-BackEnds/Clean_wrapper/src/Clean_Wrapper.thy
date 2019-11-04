@@ -99,5 +99,103 @@ text\<open>Such semantic annotation commands may yield support for:
 text\<open>In the sequel, we will present some aspects of the translation, the handling of pragmas
 and semantic annotation commands giving specific support for Clean.\<close>
 
+
+(* text\<open> @{theory Clean.Core}\<close> *)
+section\<open>Isabelle/C/Clean specific Commands and Constructions\<close>
+
+text\<open>
+\<^enum> \<open>declare [[Clean]]\<close> activates the Clean semantic backend, \ie{} from this point on, 
+  the \<open>AST\<^sub>C\<^sub>1\<^sub>1\<close> is compiled to \<open>AST\<^sub>C\<^sub>9\<^sub>9\<close> and converted to terms in the logical context of the Clean
+  theory. Note that this command is also available as semantic annotation command.
+
+\<^enum> the C11 term cartouches term \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r \<open>...\<close>\<close> et  \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>...\<close>\<close> (\<^verbatim>\<open>Theory "Core"\<close>).
+
+\<^enum> the annotation commands \<open>pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n\<close>,  \<open>post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n\<close> , and \<open>inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n \<close> (\<^verbatim>\<open>Theory "Core"\<close>). 
+
+\<^enum> and a C code anti-quotation (en lieu of a pre-processing example) (NOT YET DONE). 
+
+
+\<close>
+
+text\<open>
+\begin{verbatim}
+and 'a cExpression = CComma0 of 'a cExpression list * 'a |
+              CAssign0 of cAssignOp * 'a cExpression * 'a cExpression * 'a | 
+              CCond0 of 'a cExpression * 'a cExpression optiona * 'a cExpression * 'a |
+              CBinary0 of cBinaryOp * 'a cExpression * 'a cExpression * 'a |
+              CCast0 of 'a cDeclaration * 'a cExpression * 'a |
+              CUnary0 of cUnaryOp * 'a cExpression * 'a |
+              CSizeofExpr0 of 'a cExpression * 'a |
+              CSizeofType0 of 'a cDeclaration * 'a | 
+              CAlignofExpr0 of 'a cExpression * 'a | 
+              CAlignofType0 of 'a cDeclaration * 'a | 
+              CComplexReal0 of 'a cExpression * 'a | 
+              CComplexImag0 of 'a cExpression * 'a | 
+              CIndex0 of 'a cExpression * 'a cExpression * 'a |
+              CCall0 of 'a cExpression * 'a cExpression list * 'a | 
+              CMember0 of 'a cExpression * ident * bool * 'a | 
+              CVar0 of ident * 'a | CConst0 of 'a cConstant |
+              CCompoundLit0 of 'a cDeclaration * ('a cPartDesignator list * 'a cInitializer) list * 'a |
+              CGenericSelection0 of 'a cExpression * ('a cDeclaration optiona * 'a cExpression) list * 'a |
+              CStatExpr0 of 'a cStatement * 'a |
+              CLabAddrExpr0 of ident * 'a | 
+              CBuiltinExpr0 of 'a cBuiltinThing
+
+reduire a :
+
+and 'a cExpression =
+              CCond0 of 'a cExpression * 'a cExpression optiona * 'a cExpression * 'a |
+              CBinary0 of cBinaryOp * 'a cExpression * 'a cExpression * 'a |
+              CCast0 of 'a cDeclaration * 'a cExpression * 'a |   ?????????  Sone special cases
+              CUnary0 of cUnaryOp * 'a cExpression * 'a |
+              CIndex0 of 'a cExpression * 'a cExpression * 'a |   ???????????
+              CCall0 of 'a cExpression * 'a cExpression list * 'a | 
+              CMember0 of 'a cExpression * ident * bool * 'a | 
+              CVar0 of ident * 'a | CConst0 of 'a cConstant |
+              CCompoundLit0 of 'a cDeclaration * ('a cPartDesignator list * 'a cInitializer) list * 'a |
+              CGenericSelection0 of 'a cExpression * ('a cDeclaration optiona * 'a cExpression) list * 'a |
+              CStatExpr0 of 'a cStatement * 'a |
+              CLabAddrExpr0 of ident * 'a | 
+              CBuiltinExpr0 of 'a cBuiltinThing
+
+\end{verbatim}
+
+\<close>
+
+section\<open>TODO List and Known Shortcomings\<close>
+
+text\<open>
+\<^enum> The connection to the body of the Clean package 
+   @{ML "Function_Specification_Parser.checkNsem_function_spec"} does not work yet.
+  Residues of fake screenshots.
+
+\<^enum>  The order of the imported Modules in the Appendix is arcane.
+
+\<^enum>  The Example Prime.thy is not functional.
+
+\<^enum>  Theory \<^verbatim>\<open>Meta_C\<close> is a problematic hack to provide another form of cenv environment based on C99.
+
+\<close>
+
+
+
+section\<open>TODO List and Known Shortcomings\<close>
+
+text\<open>
+\<^enum> The connection to the body of the Clean package 
+   @{ML "Function_Specification_Parser.checkNsem_function_spec"} does not work yet.
+  Residues of fake screenshots.
+
+\<^enum>  The order of the imported Modules in the Appendix is arcane.
+
+\<^enum>  The Example Prime.thy is not functional.
+
+\<^enum>  Theory \<^verbatim>\<open>Meta_C\<close> is a problematic hack to provide another form of cenv environment based on C99.
+
+
+TODO: Eliminate \<^verbatim>\<open>Meta_C\<close> and any dependance on C99. A support of a fragment of C11 for statements 
+and expr is acceptable. 
+
+\<close>
 generation_syntax [ deep [in self], shallow ]
 end

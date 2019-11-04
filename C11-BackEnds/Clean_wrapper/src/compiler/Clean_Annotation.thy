@@ -34,9 +34,12 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-chapter \<open>Appendix: Isabelle/C/Clean Annotations\<close>
+chapter \<open>Isabelle/C/Clean Annotations\<close>
 
-theory Init
+text\<open>This file contains the basic setup of Isabelle/C/Clean; in particular, it contains
+the definition and declaration of the Clean-specific annotation commands. \<close>
+
+theory Clean_Annotation
   imports Isabelle_C.C_Main
 begin
 

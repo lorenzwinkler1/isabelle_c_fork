@@ -62,10 +62,14 @@ text\<open> This C code contains a function that determines if the given number
  
       This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
 
-
+declare [[Clean]]
 
 C \<open>
-//@ declare [[Clean_C99]]
+
+/*
+\<comment> \<open>It is possible to activate the Clean back-end at the command level or via an annotation command.\<close>
+//@ declare [[Clean]]
+*/
 
 #define SQRT_UINT_MAX 65536
 
@@ -86,7 +90,7 @@ unsigned int is_prime(unsigned int n)
     /* No factors. */
     return 1;
 }\<close>
-find_theorems (100) name:is_prime name:core
+find_theorems (100) name:is_prime name:core   (* this shows that the Clean package does not generate yet the expected theorems *)
 
 
 

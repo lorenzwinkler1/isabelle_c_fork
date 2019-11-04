@@ -825,7 +825,7 @@ ML \<open>
 structure Function_Specification_Parser  = 
   struct
 
-    type funct_spec_src = {    
+    type 'body funct_spec = {    
         binding:  binding,                         (* name *)
         params: (binding*string) list,             (* parameters and their type*)
         ret_type: string,                          (* return type; default unit *)
@@ -833,8 +833,10 @@ structure Function_Specification_Parser  =
         pre_src: string,                           (* precondition src *)
         post_src: string,                          (* postcondition src *)
         variant_src: string option,                (* variant src *)
-        body_src: string * Position.T              (* body src *)
+        body: 'body                                (* body *)
       }
+
+    type funct_spec_src = (string * Position.T (* body src *)) funct_spec
 
     type funct_spec_sem = {    
         params: (binding*typ) list,                (* parameters and their type*)
@@ -844,6 +846,7 @@ structure Function_Specification_Parser  =
         variant: term option                       (* variant  *)
       }
 
+    type funct_spec_sem2 = (Proof.context -> term (* read body *)) funct_spec
 
     val parse_arg_decl = Parse.binding -- (Parse.$$$ "::" |-- Parse.typ)
 
@@ -863,7 +866,7 @@ structure Function_Specification_Parser  =
        -- (Scan.option  ( \<^keyword>\<open>variant\<close> |-- Parse.term))
        -- (Scan.optional( \<^keyword>\<open>local_vars\<close> |-- (Scan.repeat1 Parse.const_binding))([]))
        --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.term)) 
-      ) >> (fn ((((((((binding,params),ret_ty),pre_src),post_src),variant_src),locals)),body_src) => 
+      ) >> (fn ((((((((binding,params),ret_ty),pre_src),post_src),variant_src),locals)),body) => 
         {
           binding = binding, 
           params=params, 
@@ -872,7 +875,7 @@ structure Function_Specification_Parser  =
           post_src=post_src, 
           variant_src=variant_src,
           locals=locals,
-          body_src=body_src} : funct_spec_src
+          body=body} : funct_spec_src
         )
 
    fun read_params params ctxt =
@@ -885,7 +888,7 @@ structure Function_Specification_Parser  =
               val ctxt' = Variable.declare_typ ty ctxt           
           in  (ty, ctxt') end
 
-   fun read_function_spec ({ params, ret_type, variant_src, ...} : funct_spec_src) ctxt =
+   fun read_function_spec (params, ret_type, variant_src) ctxt =
        let val (params_Ts, ctxt') = read_params params ctxt
            val (rty, ctxt'') = read_result ret_type ctxt' 
            val variant = Option.map (Syntax.read_term ctxt'')  variant_src
@@ -985,15 +988,16 @@ structure Function_Specification_Parser  =
        end 
 
 
-   fun checkNsem_function_spec {recursive = false} ({variant_src=SOME _, ...}) _ = 
+   fun checkNsem_function_spec_gen {recursive = false} ({variant_src=SOME _, ...}) _ = 
                                error "No measure required in non-recursive call"
-      |checkNsem_function_spec (isrec as {recursive = _:bool}) 
-                               (args as {binding, ret_type, variant_src, locals, body_src, pre_src, post_src, ...} : funct_spec_src)
+      |checkNsem_function_spec_gen (isrec as {recursive = _:bool}) 
+                               ({binding, ret_type, variant_src, locals, 
+                                 body, pre_src, post_src, params} : funct_spec_sem2)
                                thy =
        let val (theory_map, thy') =
              Named_Target.theory_map_result
                (K (fn f => Named_Target.theory_map o f))
-               (read_function_spec args
+               (read_function_spec (params, ret_type, variant_src)
                #> uncurry (fn {params=(params, Ts),ret_ty,variant = _} =>
                             pair (fn f =>
                                   Proof_Context.add_fixes (map2 (fn (b, _) => fn T => (b, SOME T, NoSyn)) params Ts)
@@ -1004,9 +1008,11 @@ structure Function_Specification_Parser  =
                 thy
        in  thy' |> theory_map
                      let val sty_old = StateMgt_core.get_state_type_global thy'
-                     in fn params => fn ret_ty =>
-                         define_precond binding sty_old params pre_src
-                      #> define_postcond binding ret_ty sty_old params post_src end
+                         fun parse_contract params ret_ty = 
+                                       (  define_precond binding sty_old params pre_src
+                                        #> define_postcond binding ret_ty sty_old params post_src)
+                     in parse_contract
+                     end
                 |> StateMgt.new_state_record false ((([],binding), SOME ret_type),locals)
                 |> theory_map
                          (fn params => fn ret_ty => fn ctxt => 
@@ -1019,17 +1025,32 @@ structure Function_Specification_Parser  =
                                     [(binding, SOME (args_ty --> mon_se_ty), NoSyn)] ctxt |> #2
                                 else
                                   ctxt
-                              val body = Syntax.read_term ctxt' (fst body_src)
+                              val body = body ctxt' 
                           in  ctxt' |> define_body_core binding args_ty sty params body
                           end)
                 |> theory_map
                          (fn params => fn ret_ty => fn ctxt => 
                           let val sty = StateMgt_core.get_state_type ctxt
-                              val body = Syntax.read_term ctxt (fst body_src)
+                              val body = body ctxt
                           in  ctxt |> define_body_main isrec binding ret_ty sty params variant_src body
                           end)
         end
 
+   fun checkNsem_function_spec (isrec as {recursive = _ : bool})
+                               ({binding, ret_type, variant_src, locals, 
+                                 body, pre_src, post_src, params} : funct_spec_src)
+                               thy = 
+       checkNsem_function_spec_gen isrec
+                               ({binding = binding, 
+                                 ret_type = ret_type, 
+                                 variant_src = variant_src, 
+                                 locals = locals, 
+                                 body = fn ctxt => Syntax.read_term ctxt (fst body), 
+                                 pre_src = pre_src, 
+                                 post_src = post_src,
+                                 params = params} : funct_spec_sem2)
+                               thy
+         
   
    val _ =
      Outer_Syntax.command 
