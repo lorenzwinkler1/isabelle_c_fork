@@ -627,15 +627,27 @@ fun eval env start err accept (ants, ants_err) {context, reports_text, error_lin
                   fun subst_directive tok (range1 as (pos1, _)) name (env_dir, env_tree) =
                     case Symtab.lookup env_dir name of
                       NONE => (Right (Left tok), (env_dir, env_tree))
-                    | SOME (data as (_, _, toks)) =>
-                          ( Right (Right (pos1, map (C_Lex.set_range range1) toks))
-                          , ( env_dir
-                            , markup_directive_define
-                                false
-                                (C_Ast.Right ([pos1], SOME data))
-                                [pos1]
-                                name
-                                env_tree))
+                    | SOME (data as (_, _, (exec_toks, exec_antiq))) =>
+                        env_tree
+                        |> markup_directive_define
+                            false
+                            (C_Ast.Right ([pos1], SOME data))
+                            [pos1]
+                            name
+                        |> (case exec_toks of
+                              Left exec_toks =>
+                                C_Env.map_context' (exec_toks (name, range1))
+                                #> apfst
+                                     (fn toks =>
+                                       (toks, Symtab.update (name, ( #1 data
+                                                                   , #2 data
+                                                                   , (Right toks, exec_antiq)))
+                                                            env_dir))
+                            | Right toks => pair (toks, env_dir))
+                        ||> C_Env.map_context (exec_antiq (name, range1))
+                        |-> (fn (toks, env_dir) =>
+                              pair (Right (Right (pos1, map (C_Lex.set_range range1) toks)))
+                              o pair env_dir)
                 in
                  fn Left (tag, antiq, toks, l_antiq) =>
                       fold_map
@@ -659,13 +671,17 @@ fun eval env start err accept (ants, ants_err) {context, reports_text, error_lin
                           (fn dir_tok =>
                             let val name = C_Lex.content_of dir_tok
                                 val pos1 = [C_Lex.pos_of dir_tok]
-                                val data = Symtab.lookup (C_Context0.Directives.get context) name
                             in
-                              apsnd (apsnd (C_Env.map_reports_text (markup_directive_command
-                                                                     (C_Ast.Right (pos1, data))
-                                                                     pos1
-                                                                     name)))
-                              #> (case data of NONE => I | SOME (_, _, (exec, _)) => exec dir #> #2)
+                              fn env_tree as (_, (_, {context = context, ...})) =>
+                              let val data = Symtab.lookup (C_Context0.Directives.get context) name
+                              in
+                              env_tree
+                              |> apsnd (apsnd (C_Env.map_reports_text (markup_directive_command
+                                                                        (C_Ast.Right (pos1, data))
+                                                                        pos1
+                                                                        name)))
+                              |> (case data of NONE => I | SOME (_, _, (exec, _)) => exec dir #> #2)
+                              end
                             end)
                           (C_Lex.directive_cmds dir)
                       #> snd
