@@ -116,6 +116,7 @@ unsigned is_prime_linear(unsigned n)
 \<close>
 
 find_theorems name:"is_prime_linear"
+thm IsPrime_linear_outside.is_prime_global_addresses.is_prime_linear_body_def
 thm is_prime.is_prime_linear'_def
 
 C_export_file  (* This exports the C code into a C file ready to be compiled by gcc. *)
