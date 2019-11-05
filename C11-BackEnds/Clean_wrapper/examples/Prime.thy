@@ -45,25 +45,22 @@
 
 chapter \<open>Example: Prime\<close>
 
-text\<open>This example shows how to use nested C-commands in as cascade syntax. 
-Note that the innermost "n" inside the \<open>\<^C>\<open>n\<close>\<close> in the pre-condition binds to 
-the parameter of the C function across the syntax barriers. Note that
-the exported C code does not necessarily respect the lexical conventions of C
-(a better implementation of the exporter may solve this.).
+text \<open> This example shows how to use nested C commands as cascade syntax. Note that the
+innermost \<open>n\<close> inside the \<open>\<^C>\<open>n\<close>\<close> in the pre-condition
+binds to the parameter of the C function across the syntax barriers.
 
-
+Note that the exported C code contains \<open>prime\<^sub>C\<close>, which does not necessarily
+respect the lexical conventions of C (support for such lexical-extensions is left to the compiler).
 \<close>
 
 theory Prime imports Isabelle_C_Clean.Clean_Wrapper
                   \<comment> \<open>Clean back-end is imported\<close>  
                      "../../../C11-FrontEnd/archive/Clean_backend_old" 
-                      "HOL-Computational_Algebra.Primes" 
-                  
+                     "HOL-Computational_Algebra.Primes" 
 begin                
-                     no_syntax "_C" :: \<open>cartouche_position \<Rightarrow> _\<close> ("\<^C> _")
 
-declare [[Clean=false]] (* temporarily off *)
-
+no_syntax "_C" :: \<open>cartouche_position \<Rightarrow> _\<close> ("\<^C> _")
+declare [[Clean = false]] (* temporarily off *)
 
 C \<open>
 //@ definition \<open>prime\<^sub>H\<^sub>O\<^sub>L (p :: nat) =          \

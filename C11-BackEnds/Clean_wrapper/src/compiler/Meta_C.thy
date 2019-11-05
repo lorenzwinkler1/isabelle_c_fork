@@ -36,9 +36,8 @@
 
 chapter \<open>Appendix: C11 to C99 Toolkit\<close>
 
-
 theory Meta_C
-  imports CleanAnnotationCommandSetup
+  imports Clean_Annotation
 begin
 
 text\<open>BIG BUG: At present, the C11 to C99 and Toolkit are not part of Isabelle/C, thy are part of

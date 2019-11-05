@@ -39,7 +39,7 @@ chapter \<open>Isabelle/C/Clean Annotations\<close>
 text\<open>This file contains the basic setup of Isabelle/C/Clean; in particular, it contains
 the definition and declaration of the Clean-specific annotation commands. \<close>
 
-theory CleanAnnotationCommandSetup
+theory Clean_Annotation
   imports Isabelle_C.C_Main
 begin
 
