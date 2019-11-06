@@ -996,6 +996,7 @@ structure Function_Specification_Parser  =
        in  ctxt |> StateMgt.cmd args_main true 
        end 
 
+val _ = Local_Theory.exit_result_global;
 val _ = Named_Target.theory_map_result;
 val _ = Named_Target.theory_map;
 
@@ -1149,12 +1150,12 @@ struct
 
 fun mk_seq_C C C' = let val t = fastype_of C
                      val t' =  fastype_of C'
-                 in  Const(@{const_name "bind_SE'"}, t --> t' --> t') end;
+                 in  Const(\<^const_name>\<open>bind_SE'\<close>, t --> t' --> t') end;
 
-fun mk_skip_C sty = Const(@{const_name "skip\<^sub>S\<^sub>E"}, StateMgt_core.MON_SE_T HOLogic.unitT sty)
+fun mk_skip_C sty = Const(\<^const_name>\<open>skip\<^sub>S\<^sub>E\<close>, StateMgt_core.MON_SE_T HOLogic.unitT sty)
 
 fun mk_break sty = 
-    Const(@{const_name "if_C"}, StateMgt_core.MON_SE_T HOLogic.unitT sty )
+    Const(\<^const_name>\<open>if_C\<close>, StateMgt_core.MON_SE_T HOLogic.unitT sty )
 
 fun mk_return_C upd rhs =
     let val ty = fastype_of rhs 
@@ -1164,7 +1165,7 @@ fun mk_return_C upd rhs =
         val upd_ty = (HOLogic.listT rty --> HOLogic.listT rty) --> sty --> sty
         val rhs_ty = sty --> rty
         val mty = StateMgt_core.MON_SE_T HOLogic.unitT sty
-    in Const(@{const_name "return\<^sub>C"}, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
+    in Const(\<^const_name>\<open>return\<^sub>C\<close>, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
 
 fun mk_assign_global_C upd rhs =
     let val ty = fastype_of rhs 
@@ -1174,7 +1175,7 @@ fun mk_assign_global_C upd rhs =
         val upd_ty = (rty --> rty) --> sty --> sty
         val rhs_ty = sty --> rty
         val mty = StateMgt_core.MON_SE_T HOLogic.unitT sty
-    in Const(@{const_name "assign_global"}, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
+    in Const(\<^const_name>\<open>assign_global\<close>, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
 
 fun mk_assign_local_C upd rhs =
     let val ty = fastype_of rhs 
@@ -1184,7 +1185,7 @@ fun mk_assign_local_C upd rhs =
         val upd_ty = (HOLogic.listT rty --> HOLogic.listT rty) --> sty --> sty
         val rhs_ty = sty --> rty
         val mty = StateMgt_core.MON_SE_T HOLogic.unitT sty
-    in Const(@{const_name "assign_global"}, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
+    in Const(\<^const_name>\<open>assign_local\<close>, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
 
 fun mk_call_C opn args =
     let val ty = fastype_of opn 
@@ -1195,7 +1196,7 @@ fun mk_call_C opn args =
                          Type("fun", [sty,_]) => sty
                         | _  => error "mk_call_C: illegal type for body 2"
         val args_ty = sty --> argty
-    in Const(@{const_name "call\<^sub>C"}, ty --> args_ty --> mty) $ opn $ args end
+    in Const(\<^const_name>\<open>call\<^sub>C\<close>, ty --> args_ty --> mty) $ opn $ args end
 
 (* missing : a call_assign_local and a call_assign_global. Or define at HOL level ? *)
 
@@ -1204,7 +1205,7 @@ fun mk_if_C c B B' =
         val ty_cond = case ty of 
                          Type("fun", [argty,_]) => argty --> HOLogic.boolT
                         |_ => error "mk_if_C: illegal type for body"
-    in  Const(@{const_name "if_C"}, ty_cond --> ty --> ty --> ty) $ c $ B $ B'
+    in  Const(\<^const_name>\<open>if_C\<close>, ty_cond --> ty --> ty --> ty) $ c $ B $ B'
     end;
 
 fun mk_while_C c B =
@@ -1212,7 +1213,7 @@ fun mk_while_C c B =
         val ty_cond = case ty of 
                          Type("fun", [argty,_]) => argty --> HOLogic.boolT
                         |_ => error "mk_while_C: illegal type for body"
-    in  Const(@{const_name "while_C"}, ty_cond --> ty --> ty) $ c $ B
+    in  Const(\<^const_name>\<open>while_C\<close>, ty_cond --> ty --> ty) $ c $ B
     end;
 
 fun mk_while_anno_C inv f c B =
@@ -1222,7 +1223,7 @@ fun mk_while_anno_C inv f c B =
                          Type("fun", [argty,_]) =>( argty --> HOLogic.boolT,
                                                     argty --> HOLogic.natT)
                         |_ => error "mk_while_anno_C: illegal type for body"
-    in  Const(@{const_name "while_C_A"}, ty_cond --> ty_m --> ty_cond --> ty --> ty) 
+    in  Const(\<^const_name>\<open>while_C_A\<close>, ty_cond --> ty_m --> ty_cond --> ty --> ty) 
         $ inv $ f $ c $ B
     end;
 
@@ -1230,13 +1231,13 @@ fun mk_block_C push body pop =
     let val body_ty = fastype_of body 
         val pop_ty  = fastype_of pop
         val bty = body_ty --> body_ty --> pop_ty --> pop_ty
-    in Const(@{const_name \<open>block\<^sub>C\<close>}, bty) $ push $ body $ pop end  
+    in Const(\<^const_name>\<open>block\<^sub>C\<close>, bty) $ push $ body $ pop end  
 
 end;\<close>
 
-term "a \<leftarrow> M; M' "
 section\<open>Function-calls in Expressions\<close>
-text\<open>The precise semantics of function-calls appearing inside expressions is underspecified in C, 
+
+text\<open>The precise semantics of function-calls appearing inside expressions is underspecified in C,
 which is a notorious problem for compilers and analysis tools. In Clean, it is impossible by 
 construction --- and the type displine --- to have function-calls inside expressions.
 However, there is a somewhat \<^emph>\<open>recommended coding-scheme\<close> for this feature, which leaves this
@@ -1251,13 +1252,16 @@ which makes the evaluation order explicit without introducing
 local variables or any form of explicit trace on the state-space of the Clean program. We assume, 
 however, even in this coding scheme, that \<^verbatim>\<open>f()\<close> and \<^verbatim>\<open>g()\<close> are atomic actions; note that this 
 assumption is not necessarily justified in modern compilers, where actually neither of these
-two (atomic) serializations of \<^verbatim>\<open>f()\<close> and \<^verbatim>\<open>g()\<close> exists in some cases.
+two (atomic) serializations of \<^verbatim>\<open>f()\<close> and \<^verbatim>\<open>g()\<close> may exists.
 
-Note, furthermore, that expressions may not only be right-hand-sides of (local or global) assignments
-or conceptually similar return-statements,  but also as argument of other function calls.  
+Note, furthermore, that expressions may not only be right-hand-sides of (local or global) 
+assignments or conceptually similar return-statements,  but also passed as argument of other 
+function calls, where the same problem arises.  
 \<close>
 
-ML\<open>Variable.add_fixes_binding\<close>
+ML\<open>
+val t = Variable.add_fixes_binding
+\<close>
 end
 
   

@@ -729,7 +729,7 @@ int a = 0;
 \<close>
 
 C \<comment> \<open>Scheduling example\<close> \<open>
-//@+++++   ML  \<open>writeln "2"\<close>
+//@+++++   ML  \<open>writeln "2"\<close>  
 int a = 0;
 //@@       ML\<Down> \<open>writeln "3"\<close>
 //@       #ML  \<open>writeln "1"\<close>
@@ -775,7 +775,7 @@ fun setup_define2 pos = C_Directive.setup_define pos (K o pair)
 
 C \<comment> \<open>General scheme of C antiquotations\<close> \<open>
 /*@
-    #setup \<comment> \<open>Overloading \<open>#define\<close>\<close> \<open>
+    #setup \<comment> \<open>Overloading \<open>#mymacro\<close>\<close> \<open>
       setup_define2
         \<^here>
         (fn (name, (pos1, _)) =>
