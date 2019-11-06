@@ -52,8 +52,8 @@ struct
 fun expression _ ctxt expr = expr |>
   let
     fun warn msg = tap (fn _ => warning ("Syntax error: " ^ msg)) @{term "()"}
-    fun const var = case Proof_Context.read_const {proper = true, strict = false} ctxt var of
-                      Const (c, _) => Syntax.const c
+    fun const var = case try (Proof_Context.read_const {proper = true, strict = false} ctxt) var of
+                      SOME (Const (c, _)) => Syntax.const c
                     | _ => warn "Expecting a constant"
     open C_Ast
     open Term
@@ -77,9 +77,10 @@ structure Conversion_C99 =
 struct
 
 fun warn msg = tap (fn _ => warning ("Syntax error: " ^ msg)) @{term "()"}
-fun const0 ctxt var = case Proof_Context.read_const {proper = true, strict = false} ctxt var of
-                       Const (c, _) => SOME c
-                     | _ => NONE
+fun const0 ctxt var =
+                    case try (Proof_Context.read_const {proper = true, strict = false} ctxt) var of
+                     SOME (Const (c, _)) => SOME c
+                   | _ => NONE
 fun const ctxt var = case const0 ctxt var of
                        SOME c => Syntax.const c
                      | NONE => warn "Expecting a constant"
@@ -109,7 +110,10 @@ fun expr_node env_lang ctxt exp = exp |>
         $ expr exp2
     | ArrayDeref (exp1, exp2) =>
         Syntax.const @{const_name nth} $ expr exp1 $ expr exp2
-    | Constant cst => Syntax.read_term ctxt (cst |> eval_litconst |> #1 |> Int.toString |> (fn s => s ^ " :: nat"))
+    | Constant cst =>
+        (case try (Syntax.read_term ctxt) (cst |> eval_litconst |> #1 |> Int.toString |> (fn s => s ^ " :: nat")) of
+           SOME t => t
+         | NONE => warn "Expecting a number")
     | Var (x, _) => const ctxt x
     | exp => warn ("Case not yet treated for this element: " ^ @{make_string} exp)
   end
