@@ -47,12 +47,34 @@ begin
 section \<open>Conversion to Pure Term\<close>
 
 ML \<open>
+structure Conversion =
+struct
+type t = { read_const : string -> term option
+         , transform_term : term -> term
+         , read_term : string -> term option
+         , app_sigma : int -> term -> term
+         , scope_var : string -> bool option }
+
+val read_const = try o Proof_Context.read_const {proper = true, strict = false}
+
+fun init ctxt =
+  { read_const = read_const ctxt
+  , transform_term = Clean_Syntax_Lift.transform_term' ctxt
+  , read_term = try (Syntax.read_term ctxt)
+  , app_sigma = fn db => fn term => Clean_Syntax_Lift.app_sigma db term ctxt
+  , scope_var = read_const ctxt
+                #> (fn SOME (Const (name, _)) => Clean_Syntax_Lift.scope_var name ctxt
+                     | _ => tap (fn _ => warning "Expecting a constant") NONE) }
+end
+\<close>
+
+ML \<open>
 structure Conversion_C11 =
 struct
-fun expression _ ctxt expr = expr |>
+fun expression (st : Conversion.t) expr = expr |>
   let
     fun warn msg = tap (fn _ => warning ("Syntax error: " ^ msg)) @{term "()"}
-    fun const var = case try (Proof_Context.read_const {proper = true, strict = false} ctxt) var of
+    fun const var = case #read_const st var of
                       SOME (Const (c, _)) => Syntax.const c
                     | _ => warn "Expecting a constant"
     open C_Ast
@@ -64,8 +86,8 @@ fun expression _ ctxt expr = expr |>
    fn CAssign0 (CAssignOp0, var_x, CIndex0 (var_y, var_z, _), _) =>
         Syntax.const @{const_name assign_local}
         $ const (decode var_x ^ "_update")
-        $ Clean_Syntax_Lift.transform_term'
-            ctxt
+        $ #transform_term
+            st
             (Syntax.const @{const_name nth} $ const' var_y $ const' var_z)
     | expr => warn ("Case not yet treated for this element: " ^ @{make_string} expr)
   end
@@ -77,13 +99,9 @@ structure Conversion_C99 =
 struct
 
 fun warn msg = tap (fn _ => warning ("Syntax error: " ^ msg)) @{term "()"}
-fun const0 ctxt var =
-                    case try (Proof_Context.read_const {proper = true, strict = false} ctxt) var of
-                     SOME (Const (c, _)) => SOME c
-                   | _ => NONE
-fun const ctxt var = case const0 ctxt var of
-                       SOME c => Syntax.const c
-                     | NONE => warn "Expecting a constant"
+fun const (st : Conversion.t) var = case #read_const st var of
+                                      SOME (Const (c, _)) => Syntax.const c
+                                    | _ => warn "Expecting a constant"
 fun map_expr f exp =
   let val (res, exp_n) = f (Expr.enode exp)
   in (res, Expr.ewrap (exp_n, Expr.eleft exp, Expr.eright exp)) end
@@ -99,8 +117,8 @@ fun extract_deref acc exp = enode exp |>
     | ArrayDeref (exp1, exp2) => extract_deref (exp2 :: acc) exp1
     | exp => Right exp)
 
-fun expr_node env_lang ctxt exp = exp |>
-  let val expr = expr env_lang ctxt
+fun expr_node st exp = exp |>
+  let val expr = expr st
   in
    fn BinOp (ope, exp1, exp2) =>
         Syntax.const (case ope of Plus => @{const_name plus}
@@ -111,32 +129,32 @@ fun expr_node env_lang ctxt exp = exp |>
     | ArrayDeref (exp1, exp2) =>
         Syntax.const @{const_name nth} $ expr exp1 $ expr exp2
     | Constant cst =>
-        (case try (Syntax.read_term ctxt) (cst |> eval_litconst |> #1 |> Int.toString |> (fn s => s ^ " :: nat")) of
+        (case #read_term st (cst |> eval_litconst |> #1 |> Int.toString |> (fn s => s ^ " :: nat")) of
            SOME t => t
          | NONE => warn "Expecting a number")
-    | Var (x, _) => const ctxt x
+    | Var (x, _) => const st x
     | exp => warn ("Case not yet treated for this element: " ^ @{make_string} exp)
   end
-and expr env_lang ctxt exp = exp |>
-  expr_node env_lang ctxt o enode
+and expr st exp = exp |>
+  expr_node st o enode
 end
 
-fun expr_lift env_lang ctxt =
-  Clean_Syntax_Lift.transform_term' ctxt o expr env_lang ctxt
+fun expr_lift st =
+  #transform_term st o expr st
 
-fun expr_lift' env_lang ctxt db exp =
-  Clean_Syntax_Lift.app_sigma db (expr env_lang ctxt exp) ctxt
+fun expr_lift' st db =
+  #app_sigma st db o expr st
 
 local
 open StmtDecl
 in
-fun statement_node env_lang ctxt stmt = stmt |>
+fun statement_node st stmt = stmt |>
   let
-    val expr = expr env_lang ctxt
-    val expr_lift' = expr_lift' env_lang ctxt
-    val expr_lift = expr_lift env_lang ctxt
-    val statement = statement env_lang ctxt
-    val block_item = block_item env_lang ctxt
+    val expr = expr st
+    val expr_lift' = expr_lift' st
+    val expr_lift = expr_lift st
+    val statement = statement st
+    val block_item = block_item st
     (**)
     val skip = Syntax.const @{const_name skip\<^sub>S\<^sub>E}
   in
@@ -152,7 +170,7 @@ fun statement_node env_lang ctxt stmt = stmt |>
                   val (f, var) =
                       map_var
                         (fn Expr.Var (var, node) =>
-                              ( case env_lang var of
+                              ( case #scope_var st var of
                                   NONE => error ("Expecting to be in the environment: " ^ @{make_string} var)
                                 | SOME true => I
                                 | SOME false => fn var => Syntax.const @{const_name comp} $ var $ Syntax.const @{const_name map_hd}
@@ -180,19 +198,19 @@ fun statement_node env_lang ctxt stmt = stmt |>
     | EmptyStmt => skip
     | stmt => warn ("Case not yet treated for this element: " ^ @{make_string} stmt)
   end
-and statement env_lang ctxt stmt = stmt |>
-  statement_node env_lang ctxt o snode
-and block_item env_lang ctxt bi = bi |>
+and statement st stmt = stmt |>
+  statement_node st o snode
+and block_item st bi = bi |>
   let
-    val statement = statement env_lang ctxt
+    val statement = statement st
   in
    fn BI_Stmt stmt => statement stmt
     | BI_Decl _ => tap (fn _ => warning "Skipping BI_Decl") (Syntax.const @{const_name skip\<^sub>S\<^sub>E})
   end
 end
 
-val statement = fn env_lang => fn ctxt =>
-  statement env_lang ctxt o (IsarPreInstall.of_statement o C_Ast.statement0 ([], C_Ast.Alist []))
+val statement = fn st =>
+  statement st o (IsarPreInstall.of_statement o C_Ast.statement0 ([], C_Ast.Alist []))
 
 end
 \<close>
@@ -346,16 +364,12 @@ end
 section \<open>Syntax\<close>
 
 ML \<open>
-val _ = Theory.setup (C_Module.C_Term.map_expression (fn expr => fn _ => fn ctxt => Conversion_C11.expression () ctxt expr))
+val _ = Theory.setup
+          (C_Module.C_Term.map_expression
+            (fn expr => fn _ => fn ctxt => Conversion_C11.expression (Conversion.init ctxt) expr))
 val _ = Theory.setup
           (C_Module.C_Term.map_statement
-            (fn stmt => fn _ => fn ctxt =>
-              Conversion_C99.statement
-                (Conversion_C99.const0 ctxt
-                  #> (fn SOME name => Clean_Syntax_Lift.scope_var name ctxt
-                       | NONE => tap (fn _ => warning "Expecting a constant") NONE))
-                ctxt
-                stmt))
+            (fn stmt => fn _ => fn ctxt => Conversion_C99.statement (Conversion.init ctxt) stmt))
 \<close>
 
 subsection \<open>Test\<close>
