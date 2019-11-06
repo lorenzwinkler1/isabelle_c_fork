@@ -89,7 +89,7 @@ fun expression (st : Conversion.t) expr = expr |>
         $ #transform_term
             st
             (Syntax.const @{const_name nth} $ const' var_y $ const' var_z)
-    | expr => warn ("Case not yet treated for this element: " ^ @{make_string} expr)
+    | expr => warn ("Case not yet treated for this element: " ^ @{make_string} expr ^ Position.here \<^here>)
   end
 end
 \<close>
@@ -123,7 +123,7 @@ fun expr_node st exp = exp |>
    fn BinOp (ope, exp1, exp2) =>
         Syntax.const (case ope of Plus => @{const_name plus}
                                 | Lt => @{const_name less}
-                                | _ => error ("Case not yet treated for this element: " ^ @{make_string} ope))
+                                | _ => error ("Case not yet treated for this element: " ^ @{make_string} ope ^ Position.here \<^here>))
         $ expr exp1
         $ expr exp2
     | ArrayDeref (exp1, exp2) =>
@@ -133,7 +133,7 @@ fun expr_node st exp = exp |>
            SOME t => t
          | NONE => warn "Expecting a number")
     | Var (x, _) => const st x
-    | exp => warn ("Case not yet treated for this element: " ^ @{make_string} exp)
+    | exp => warn ("Case not yet treated for this element: " ^ @{make_string} exp ^ Position.here \<^here>)
   end
 and expr st exp = exp |>
   expr_node st o enode
@@ -160,7 +160,7 @@ fun statement_node st stmt = stmt |>
   in
    fn Assign (exp1, exp2) =>
        (case extract_deref [] exp1 of
-          Right exp => error ("Case not yet treated for this element: " ^ @{make_string} exp)
+          Right exp => error ("Case not yet treated for this element: " ^ @{make_string} exp ^ Position.here \<^here>)
         | Left (map_var, exp_deref) =>
             Syntax.const @{const_name assign}
             $ Abs
@@ -175,7 +175,7 @@ fun statement_node st stmt = stmt |>
                                 | SOME true => I
                                 | SOME false => fn var => Syntax.const @{const_name comp} $ var $ Syntax.const @{const_name map_hd}
                               , Expr.Var (Clean_Syntax_Lift.assign_update var, node))
-                          | exp => error ("Case not yet treated for this element: " ^ @{make_string} exp))
+                          | exp => error ("Case not yet treated for this element: " ^ @{make_string} exp ^ Position.here \<^here>))
                 in f (expr var)
                 end
                 $ fold_rev (fn exp => fn acc => Syntax.const @{const_name map_nth} $ expr_lift' 0 exp $ acc) exp_deref (Abs ("_", dummyT, expr_lift' 1 exp2))
@@ -189,14 +189,14 @@ fun statement_node st stmt = stmt |>
               Syntax.const @{const_name while_C}
               $ expr_lift exp
               $ statement stmt
-          | stmt => warn ("Case not yet treated for this element: " ^ @{make_string} stmt))
+          | stmt => warn ("Case not yet treated for this element: " ^ @{make_string} stmt ^ Position.here \<^here>))
     | Trap (ContinueT, stmt) => statement stmt
     | IfStmt (exp, stmt1, stmt2) => Syntax.const @{const_name if_C}
                                     $ expr_lift exp
                                     $ statement stmt1
                                     $ statement stmt2
     | EmptyStmt => skip
-    | stmt => warn ("Case not yet treated for this element: " ^ @{make_string} stmt)
+    | stmt => warn ("Case not yet treated for this element: " ^ @{make_string} stmt ^ Position.here \<^here>)
   end
 and statement st stmt = stmt |>
   statement_node st o snode
