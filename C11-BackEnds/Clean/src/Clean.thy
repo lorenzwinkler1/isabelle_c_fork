@@ -836,7 +836,7 @@ structure Function_Specification_Parser  =
         body_src: string * Position.T              (* body src *)
       }
 
-    type funct_spec_sem = {    
+    type funct_spec_sem_old = {    
         params: (binding*typ) list,                (* parameters and their type*)
         ret_ty: typ,                               (* return type *)
         pre: term,                                 (* precondition  *)
@@ -844,13 +844,13 @@ structure Function_Specification_Parser  =
         variant: term option                       (* variant  *)
       }
 
-    type funct_spec_sem2 = {    
+    type funct_spec_sem = {    
         binding:  binding,                         (* name *)
         params: (binding*string) list,             (* parameters and their type*)
         ret_type: string,                          (* return type; default unit *)
         locals: (binding*string*mixfix)list,       (* local variables *)
-        pre_src: string,                           (* precondition src *)
-        post_src: string,                          (* postcondition src *)
+        read_pre: Proof.context -> term,           (* precondition src *)
+        read_post: Proof.context -> term,          (* postcondition src *)
         variant_src: string option,                (* variant src *)
         read_body: Proof.context -> typ -> term    (* body src *)
       }
@@ -919,12 +919,12 @@ structure Function_Specification_Parser  =
                |transform_old0 term = term
        in  Abs("\<sigma>\<^sub>p\<^sub>r\<^sub>e", sty, transform_old0 term) end
    
-   fun define_cond binding f_sty transform_old src_suff check_absence_old params src (ctxt:local_theory) = 
+   fun define_cond binding f_sty transform_old check_absence_old cond_suffix params read_cond (ctxt:local_theory) = 
        let val params' = map (fn(b, ty) => (Binding.name_of b,ty)) params
-           val src' = case transform_old (Syntax.read_term ctxt src) of 
-                        Abs(nn, sty_pre, term) => mk_pat_tupleabs params' (Abs(nn,sty_pre ,term))
+           val src' = case transform_old (read_cond ctxt) of 
+                        Abs(nn, sty_pre, term) => mk_pat_tupleabs params' (Abs(nn,sty_pre,term))
                       | _ => error ("define abstraction for result" ^ Position.here \<^here>)
-           val bdg = Binding.suffix_name src_suff binding
+           val bdg = Binding.suffix_name cond_suffix binding
            val _ = check_absence_old src'
            val bdg_ty = HOLogic.mk_tupleT(map (#2) params) --> f_sty HOLogic.boolT
            val eq =  mk_meta_eq(Free(Binding.name_of bdg, bdg_ty),src')
@@ -932,10 +932,10 @@ structure Function_Specification_Parser  =
        in  StateMgt.cmd args true ctxt end
 
    fun define_precond binding sty =
-     define_cond binding (fn boolT => sty --> boolT) I "_pre" check_absence_old
+     define_cond binding (fn boolT => sty --> boolT) I check_absence_old "_pre" 
 
    fun define_postcond binding rty sty =
-     define_cond binding (fn boolT => sty --> sty --> rty --> boolT) (transform_old sty) "_post" I
+     define_cond binding (fn boolT => sty --> sty --> rty --> boolT) (transform_old sty) I "_post" 
 
    fun define_body_core binding args_ty sty params body =
        let val params' = map (fn(b,ty) => (Binding.name_of b, ty)) params
@@ -1004,7 +1004,7 @@ val _ = Named_Target.theory_map;
                                error "No measure required in non-recursive call"
       |checkNsem_function_spec_gen (isrec as {recursive = _:bool}) 
                                ({binding, ret_type, variant_src, locals, 
-                                 read_body, pre_src, post_src, params} : funct_spec_sem2)
+                                 read_body, read_pre, read_post, params} : funct_spec_sem)
                                thy =
        let fun addfixes ((params_Ts,ret_ty,t_opt), ctxt) = 
                             (fn fg => fn ctxt =>
@@ -1024,8 +1024,8 @@ val _ = Named_Target.theory_map;
        in  thy' |> theory_map
                      let val sty_old = StateMgt_core.get_state_type_global thy'
                          fun parse_contract params ret_ty = 
-                                      (    define_precond binding sty_old params pre_src
-                                        #> define_postcond binding ret_ty sty_old params post_src)
+                                      (    define_precond binding sty_old params read_pre
+                                        #> define_postcond binding ret_ty sty_old params read_post)
                      in parse_contract
                      end
                 |> StateMgt.new_state_record false ((([],binding), SOME ret_type),locals)
@@ -1057,14 +1057,14 @@ val _ = Named_Target.theory_map;
                                   body_src, pre_src, post_src, params} : funct_spec_src)
                                thy = 
        checkNsem_function_spec_gen (isrec) 
-                               ( {binding=binding, 
-                                  ret_type=ret_type, 
-                                  variant_src=variant_src, 
-                                  locals=locals, 
-                                  read_body= fn ctxt => fn btyp => Syntax.read_term ctxt (fst body_src), 
-                                  pre_src=pre_src, 
-                                  post_src=post_src,
-                                  params=params} : funct_spec_sem2)
+                               ( {binding   = binding, 
+                                  ret_type  = ret_type, 
+                                  variant_src =variant_src, 
+                                  locals    = locals, 
+                                  read_body = fn ctxt => fn btyp => Syntax.read_term ctxt (fst body_src), 
+                                  read_pre  = fn ctxt => Syntax.read_term ctxt pre_src, 
+                                  read_post = fn ctxt => Syntax.read_term ctxt post_src,
+                                  params=params} : funct_spec_sem)
                                thy
          
   
@@ -1259,9 +1259,7 @@ assignments or conceptually similar return-statements,  but also passed as argum
 function calls, where the same problem arises.  
 \<close>
 
-ML\<open>
-val t = Variable.add_fixes_binding
-\<close>
+
 end
 
   
