@@ -397,12 +397,12 @@ fun compile ast env_lang pos =
                NONE => ({is_local = K false, is_global = K false}, [], NONE)
              | SOME (l1, l2) =>
                  ( let val name_of = map (fn (b, _, _) => Binding.name_of b)
-                       fun exists' name1 = exists (fn name2 => name1 = name2)
+                       fun exists' l name1 = exists (fn name2 => name1 = name2) l
                        val l1 = name_of l1
                        val l2 = name_of l2
                    in
-                     { is_local = fn name => exists' name l1 orelse exists' name l2
-                     , is_global = fn name => exists' name (map (Binding.name_of o #1) global_flds)}
+                     { is_local = fn name => exists' l1 name orelse exists' l2 name
+                     , is_global = exists' (map (Binding.name_of o #1) global_flds) }
                    end
                  , [(map (fn (b, ty, _) => (bs (Binding.name_of b), of_typ ty)) l1, NONE)]
                  , let val l2 =
