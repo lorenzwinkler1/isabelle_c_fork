@@ -136,6 +136,11 @@ fun expr_node st exp = exp |>
         Syntax.const (case ope of Plus => @{const_name plus}
                                 | Lt => @{const_name less}
                                 | Gt => @{const_abbrev greater}
+                                | LogAnd => @{const_name conj}
+                                | Leq => @{const_name less_eq}
+                                | Times => @{const_name times}
+                                | Equals => @{const_name HOL.eq}
+                                | Modulus => @{const_name modulo}
                                 | _ => error ("Case not yet treated for this element: " ^ @{make_string} ope ^ Position.here \<^here>))
         $ expr exp1
         $ expr exp2
