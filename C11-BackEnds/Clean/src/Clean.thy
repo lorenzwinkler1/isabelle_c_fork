@@ -730,28 +730,37 @@ section\<open>Syntactic Sugar supporting \<open>\<lambda>\<close>-lifting for Gl
 ML \<open>
 structure Clean_Syntax_Lift =
 struct
+  type T = { is_local : string -> bool
+           , is_global : string -> bool }
+
+  val init =
+    Proof_Context.theory_of
+    #> (fn thy =>
+        { is_local = fn name => StateMgt_core.is_local_program_variable name thy
+        , is_global = fn name => StateMgt_core.is_global_program_variable name thy })
+
   local
     fun mk_local_access X = Const (@{const_name "Fun.comp"}, dummyT) 
                             $ Const (@{const_name "List.list.hd"}, dummyT) $ X
   in
-    fun app_sigma db tm ctxt = case tm of
-        Const(name, _) => if StateMgt_core.is_global_program_variable name (Proof_Context.theory_of ctxt) 
+    fun app_sigma0 (st : T) db tm = case tm of
+        Const(name, _) => if #is_global st name 
                           then tm $ (Bound db) (* lambda lifting *)
-                          else if StateMgt_core.is_local_program_variable name (Proof_Context.theory_of ctxt) 
+                          else if #is_local st name 
                                then (mk_local_access tm) $ (Bound db) (* lambda lifting local *)
                                else tm              (* no lifting *)
       | Free _ => tm
       | Var _ => tm
       | Bound n => if n > db then Bound(n + 1) else Bound n 
-      | Abs (x, ty, tm') => Abs(x, ty, app_sigma (db+1) tm' ctxt)
-      | t1 $ t2 => (app_sigma db t1 ctxt) $ (app_sigma db t2 ctxt)
+      | Abs (x, ty, tm') => Abs(x, ty, app_sigma0 st (db+1) tm')
+      | t1 $ t2 => (app_sigma0 st db t1) $ (app_sigma0 st db t2)
 
-    fun scope_var name =
-      Proof_Context.theory_of
-      #> (fn thy =>
-            if StateMgt_core.is_global_program_variable name thy then SOME true
-            else if StateMgt_core.is_local_program_variable name thy then SOME false
-            else NONE)
+    fun app_sigma db tm = init #> (fn st => app_sigma0 st db tm)
+
+    fun scope_var st name =
+      if #is_global st name then SOME true
+      else if #is_local st name then SOME false
+      else NONE
 
     fun assign_update var = var ^ Record.updateN
 
@@ -769,12 +778,12 @@ struct
             $ abs t2
        | _ => abs tm
 
-    fun transform_term ctxt sty =
+    fun transform_term st sty =
       transform_term0
-        (fn tm => Abs ("\<sigma>", sty, app_sigma 0 tm ctxt))
-        (fn name => scope_var name ctxt)
+        (fn tm => Abs ("\<sigma>", sty, app_sigma0 st 0 tm))
+        (scope_var st)
 
-    fun transform_term' ctxt = transform_term ctxt dummyT
+    fun transform_term' st = transform_term st dummyT
 
     fun string_tr ctxt content args =
       let fun err () = raise TERM ("string_tr", args)
@@ -784,7 +793,7 @@ struct
             (case Term_Position.decode_position p of
               SOME (pos, _) => Symbol_Pos.implode (content (s, pos))
                             |> Syntax.parse_term ctxt
-                            |> transform_term ctxt (StateMgt_core.get_state_type ctxt)
+                            |> transform_term (init ctxt) (StateMgt_core.get_state_type ctxt)
                             |> Syntax.check_term ctxt
             | NONE => err ())
         | _ => err ())

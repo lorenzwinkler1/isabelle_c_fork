@@ -49,7 +49,7 @@ section \<open>Conversion to Pure Term\<close>
 ML \<open>
 structure Conversion =
 struct
-type t = { read_const : string -> term option
+type T = { read_const : string -> term option
          , transform_term : term -> term
          , read_term : string -> term option
          , app_sigma : int -> term -> term
@@ -58,20 +58,22 @@ type t = { read_const : string -> term option
 val read_const = try o Proof_Context.read_const {proper = true, strict = false}
 
 fun init ctxt =
-  { read_const = read_const ctxt
-  , transform_term = Clean_Syntax_Lift.transform_term' ctxt
-  , read_term = try (Syntax.read_term ctxt)
-  , app_sigma = fn db => fn term => Clean_Syntax_Lift.app_sigma db term ctxt
-  , scope_var = read_const ctxt
-                #> (fn SOME (Const (name, _)) => Clean_Syntax_Lift.scope_var name ctxt
-                     | _ => tap (fn _ => warning "Expecting a constant") NONE) }
+  Clean_Syntax_Lift.init ctxt
+  |> (fn st =>
+      { read_const = read_const ctxt
+      , transform_term = Clean_Syntax_Lift.transform_term' st
+      , read_term = try (Syntax.read_term ctxt)
+      , app_sigma = Clean_Syntax_Lift.app_sigma0 st
+      , scope_var = read_const ctxt
+                    #> (fn SOME (Const (name, _)) => Clean_Syntax_Lift.scope_var st name
+                         | _ => tap (fn _ => warning "Expecting a constant") NONE) })
 end
 \<close>
 
 ML \<open>
 structure Conversion_C11 =
 struct
-fun expression (st : Conversion.t) expr = expr |>
+fun expression (st : Conversion.T) expr = expr |>
   let
     fun warn msg = tap (fn _ => warning ("Syntax error: " ^ msg)) @{term "()"}
     fun const var = case #read_const st var of
@@ -99,7 +101,7 @@ structure Conversion_C99 =
 struct
 
 fun warn msg = tap (fn _ => warning ("Syntax error: " ^ msg)) @{term "()"}
-fun const (st : Conversion.t) var = case #read_const st var of
+fun const (st : Conversion.T) var = case #read_const st var of
                                       SOME (Const (c, _)) => Syntax.const c
                                     | _ => warn "Expecting a constant"
 fun map_expr f exp =
