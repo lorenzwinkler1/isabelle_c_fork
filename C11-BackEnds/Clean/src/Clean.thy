@@ -825,28 +825,35 @@ ML \<open>
 structure Function_Specification_Parser  = 
   struct
 
-    type 'body funct_spec = {    
-        binding:  binding,                         (* name *)
-        params: (binding*string) list,             (* parameters and their type*)
-        ret_type: string,                          (* return type; default unit *)
-        locals: (binding*string*mixfix)list,       (* local variables *)
-        pre_src: string,                           (* precondition src *)
-        post_src: string,                          (* postcondition src *)
-        variant_src: string option,                (* variant src *)
-        body: 'body                                (* body *)
+    type funct_spec_src = {    
+        binding:  binding,                              (* name *)
+        params: (binding*string) list,                  (* parameters and their type*)
+        ret_type: string,                               (* return type; default unit *)
+        locals: (binding*string*mixfix)list,            (* local variables *)
+        pre_src: string,                                (* precondition src *)
+        post_src: string,                               (* postcondition src *)
+        variant_src: string option,                     (* variant src *)
+        body_src: string * Position.T                   (* body src *)
+      }                                               
+                                                      
+    type funct_spec_sem_old = {                       
+        params: (binding*typ) list,                     (* parameters and their type*)
+        ret_ty: typ,                                    (* return type *)
+        pre: term,                                      (* precondition  *)
+        post: term,                                     (* postcondition  *)
+        variant: term option                            (* variant  *)
       }
-
-    type funct_spec_src = (string * Position.T (* body src *)) funct_spec
 
     type funct_spec_sem = {    
-        params: (binding*typ) list,                (* parameters and their type*)
-        ret_ty: typ,                               (* return type *)
-        pre: term,                                 (* precondition  *)
-        post: term,                                (* postcondition  *)
-        variant: term option                       (* variant  *)
+        binding:  binding,                              (* name *)
+        params: (binding*string) list,                  (* parameters and their type*)
+        ret_type: string,                               (* return type; default unit *)
+        locals: (binding*string*mixfix)list,            (* local variables *)
+        read_pre: Proof.context -> term,                (* precondition src *)
+        read_post: Proof.context -> term,               (* postcondition src *)
+        read_variant_opt: (Proof.context->term) option, (* variant src *)
+        read_body: Proof.context -> typ -> term         (* body src *)
       }
-
-    type funct_spec_sem2 = (Proof.context -> term (* read body *)) funct_spec
 
     val parse_arg_decl = Parse.binding -- (Parse.$$$ "::" |-- Parse.typ)
 
@@ -863,10 +870,10 @@ structure Function_Specification_Parser  =
        -- parse_returns_clause
        --| \<^keyword>\<open>pre\<close>             -- Parse.term 
        --| \<^keyword>\<open>post\<close>            -- Parse.term 
-       -- (Scan.option  ( \<^keyword>\<open>variant\<close> |-- Parse.term))
+       -- (Scan.option  ( \<^keyword>\<open>variant\<close>    |-- Parse.term))
        -- (Scan.optional( \<^keyword>\<open>local_vars\<close> |-- (Scan.repeat1 Parse.const_binding))([]))
        --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.term)) 
-      ) >> (fn ((((((((binding,params),ret_ty),pre_src),post_src),variant_src),locals)),body) => 
+      ) >> (fn ((((((((binding,params),ret_ty),pre_src),post_src),variant_src),locals)),body_src) => 
         {
           binding = binding, 
           params=params, 
@@ -875,7 +882,7 @@ structure Function_Specification_Parser  =
           post_src=post_src, 
           variant_src=variant_src,
           locals=locals,
-          body=body} : funct_spec_src
+          body_src=body_src} : funct_spec_src
         )
 
    fun read_params params ctxt =
@@ -888,11 +895,14 @@ structure Function_Specification_Parser  =
               val ctxt' = Variable.declare_typ ty ctxt           
           in  (ty, ctxt') end
 
-   fun read_function_spec (params, ret_type, variant_src) ctxt =
+   fun read_function_spec ( params, ret_type, read_variant_opt)  ctxt =
        let val (params_Ts, ctxt') = read_params params ctxt
            val (rty, ctxt'') = read_result ret_type ctxt' 
-           val variant = Option.map (Syntax.read_term ctxt'')  variant_src
-       in ({params = (params, params_Ts), ret_ty = rty,variant = variant},ctxt'') end 
+           val variant = case read_variant_opt of 
+                               NONE => NONE
+                              |SOME f => SOME(f ctxt'')
+           val paramT_l = (map2 (fn (b, _) => fn T => (b, T)) params params_Ts)
+       in ((paramT_l, rty, variant),ctxt'') end 
 
 
    fun check_absence_old term = 
@@ -911,56 +921,57 @@ structure Function_Specification_Parser  =
                |transform_old0 term = term
        in  Abs("\<sigma>\<^sub>p\<^sub>r\<^sub>e", sty, transform_old0 term) end
    
-   fun define_cond binding f_sty transform_old src_suff check_absence_old params src ctxt = 
-       let val src' = case transform_old (Syntax.read_term ctxt src) of 
-                        Abs(nn, sty_pre, term) => mk_pat_tupleabs (map (apsnd #2) params) (Abs(nn,sty_pre(* sty root ! !*),term))
+   fun define_cond binding f_sty transform_old check_absence_old cond_suffix params read_cond (ctxt:local_theory) = 
+       let val params' = map (fn(b, ty) => (Binding.name_of b,ty)) params
+           val src' = case transform_old (read_cond ctxt) of 
+                        Abs(nn, sty_pre, term) => mk_pat_tupleabs params' (Abs(nn,sty_pre,term))
                       | _ => error ("define abstraction for result" ^ Position.here \<^here>)
-           val bdg = Binding.suffix_name src_suff binding
+           val bdg = Binding.suffix_name cond_suffix binding
            val _ = check_absence_old src'
-           val eq =  mk_meta_eq(Free(Binding.name_of bdg, HOLogic.mk_tupleT(map (#2 o #2) params) --> f_sty HOLogic.boolT),src')
+           val bdg_ty = HOLogic.mk_tupleT(map (#2) params) --> f_sty HOLogic.boolT
+           val eq =  mk_meta_eq(Free(Binding.name_of bdg, bdg_ty),src')
            val args = (SOME(bdg,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
        in  StateMgt.cmd args true ctxt end
 
    fun define_precond binding sty =
-     define_cond binding (fn boolT => sty --> boolT) I "_pre" check_absence_old
+       define_cond binding (fn boolT => sty --> boolT) I check_absence_old "_pre" 
 
    fun define_postcond binding rty sty =
-     define_cond binding (fn boolT => sty --> sty --> rty --> boolT) (transform_old sty) "_post" I
+       define_cond binding (fn boolT => sty --> sty --> rty --> boolT) (transform_old sty) I "_post" 
 
    fun define_body_core binding args_ty sty params body =
-       let val bdg_core = Binding.suffix_name "_core" binding
+       let val params' = map (fn(b,ty) => (Binding.name_of b, ty)) params
+           val bdg_core = Binding.suffix_name "_core" binding
            val bdg_core_name = Binding.name_of bdg_core
 
            val umty = args_ty --> StateMgt.MON_SE_T @{typ "unit"} sty
 
-           val eq = mk_meta_eq(Free (bdg_core_name, umty),mk_pat_tupleabs(map(apsnd #2)params) body)
+           val eq = mk_meta_eq(Free (bdg_core_name, umty),mk_pat_tupleabs params' body)
            val args_core =(SOME (bdg_core, SOME umty, NoSyn), (Binding.empty_atts, eq), [], [])
 
        in StateMgt.cmd args_core true
        end 
  
-   fun define_body_main {recursive = x:bool} binding rty sty params variant_src _ ctxt = 
+   fun define_body_main {recursive = x:bool} binding rty sty params read_variant_opt _ ctxt = 
        let val push_name = StateMgt.mk_push_name (StateMgt.mk_local_state_name binding)
            val pop_name = StateMgt.mk_pop_name (StateMgt.mk_local_state_name binding)
            val bdg_core = Binding.suffix_name "_core" binding
            val bdg_core_name = Binding.name_of bdg_core
            val bdg_rec_name = Binding.name_of(Binding.suffix_name "_rec" binding)
            val bdg_ord_name = Binding.name_of(Binding.suffix_name "_order" binding)
-
-           val args_ty = HOLogic.mk_tupleT (map (#2 o #2) params)
-           val params' = map (apsnd #2) params
+           val args_ty = HOLogic.mk_tupleT (map snd params)
            val rmty = StateMgt_core.MON_SE_T rty sty 
-
            val umty = StateMgt.MON_SE_T @{typ "unit"} sty
            val argsProdT = HOLogic.mk_prodT(args_ty,args_ty)
            val argsRelSet = HOLogic.mk_setT argsProdT
-           val measure_term = case variant_src of
+           val params' = map (fn(b, ty) => (Binding.name_of b,ty)) params
+           val measure_term = case read_variant_opt  of
                                  NONE => Free(bdg_ord_name,args_ty --> HOLogic.natT)
-                               | SOME str => (Syntax.read_term ctxt str |> mk_pat_tupleabs params')
+                               | SOME f => ((f ctxt) |> mk_pat_tupleabs params')
            val measure =  Const(@{const_name "Wellfounded.measure"}, (args_ty --> HOLogic.natT)
                                                                      --> argsRelSet )
                           $ measure_term
-           val lhs_main = if x andalso is_none variant_src
+           val lhs_main = if x andalso is_none (read_variant_opt )
                           then Free(Binding.name_of binding, (args_ty --> HOLogic.natT)
                                                                        --> args_ty --> rmty) $
                                          Free(bdg_ord_name, args_ty --> HOLogic.natT)
@@ -987,68 +998,96 @@ structure Function_Specification_Parser  =
        in  ctxt |> StateMgt.cmd args_main true 
        end 
 
+val _ = Local_Theory.exit_result_global;
+val _ = Named_Target.theory_map_result;
+val _ = Named_Target.theory_map;
 
-   fun checkNsem_function_spec_gen {recursive = false} ({variant_src=SOME _, ...}) _ = 
+
+  
+ 
+(* This code is in large parts so messy because the extensible record package (used inside
+   StateMgt.new_state_record) is only available as transformation on global contexts, 
+   which cuts the local context calculations into two halves. The second halves is cut 
+   again into two halves because the definition of the core apparently does not take effect
+   before defining the block - structure when not separated (this problem can perhaps be overcome 
+   somehow))
+   
+   Precondition: the terms of the read-functions are full typed in the respective
+                 local contexts.
+   *)
+  fun checkNsem_function_spec_gen {recursive = false} ({read_variant_opt=SOME _, ...}) _ =
                                error "No measure required in non-recursive call"
       |checkNsem_function_spec_gen (isrec as {recursive = _:bool}) 
-                               ({binding, ret_type, variant_src, locals, 
-                                 body, pre_src, post_src, params} : funct_spec_sem2)
+                               ({binding, ret_type, read_variant_opt, locals, 
+                                 read_body, read_pre, read_post, params} : funct_spec_sem)
                                thy =
-       let val (theory_map, thy') =
-             Named_Target.theory_map_result
-               (K (fn f => Named_Target.theory_map o f))
-               (read_function_spec (params, ret_type, variant_src)
-               #> uncurry (fn {params=(params, Ts),ret_ty,variant = _} =>
-                            pair (fn f =>
-                                  Proof_Context.add_fixes (map2 (fn (b, _) => fn T => (b, SOME T, NoSyn)) params Ts)
+       let fun addfixes ((params_Ts,ret_ty,t_opt), ctxt) = 
+                            (fn fg => fn ctxt =>
+                                   ctxt
+                                  |> Proof_Context.add_fixes (map (fn (s,ty)=>(s,SOME ty,NoSyn)) params_Ts)
                                     (* this declares the parameters of a function specification
                                        as Free variables (overrides a possible constant declaration)
                                        and assigns the declared type to them *)
-                                  #> uncurry (fn params' => f (@{map 3} (fn b' => fn (b, _) => fn T => (b',(b,T))) params' params Ts) ret_ty))))
-                thy
+                                  |> (fn (X, ctxt) => fg params_Ts ret_ty ctxt)
+                            , ctxt)
+           val (theory_map, thy') = Named_Target.theory_map_result
+                                    (K (fn f => Named_Target.theory_map o f))
+                                    (   read_function_spec (params, ret_type, read_variant_opt)
+                                     #> addfixes
+                                    )
+                                    (thy)
        in  thy' |> theory_map
                      let val sty_old = StateMgt_core.get_state_type_global thy'
                          fun parse_contract params ret_ty = 
-                                       (  define_precond binding sty_old params pre_src
-                                        #> define_postcond binding ret_ty sty_old params post_src)
+                                      (    define_precond binding sty_old params read_pre
+                                        #> define_postcond binding ret_ty sty_old params read_post)
                      in parse_contract
                      end
                 |> StateMgt.new_state_record false ((([],binding), SOME ret_type),locals)
                 |> theory_map
                          (fn params => fn ret_ty => fn ctxt => 
                           let val sty = StateMgt_core.get_state_type ctxt
-                              val args_ty = HOLogic.mk_tupleT (map (#2 o #2) params)
+                              val args_ty = HOLogic.mk_tupleT (map snd params)
                               val mon_se_ty = StateMgt_core.MON_SE_T ret_ty sty
+                              val body = read_body ctxt mon_se_ty
                               val ctxt' =
                                 if #recursive isrec then
                                   Proof_Context.add_fixes 
                                     [(binding, SOME (args_ty --> mon_se_ty), NoSyn)] ctxt |> #2
                                 else
                                   ctxt
-                              val body = body ctxt' 
+                              val body = read_body  ctxt' mon_se_ty
                           in  ctxt' |> define_body_core binding args_ty sty params body
-                          end)
+                          end) (* separation nasty, but nec. in order to make the body definition 
+                                  take effect. No other reason. *)
+                                  
                 |> theory_map
                          (fn params => fn ret_ty => fn ctxt => 
                           let val sty = StateMgt_core.get_state_type ctxt
-                              val body = body ctxt
-                          in  ctxt |> define_body_main isrec binding ret_ty sty params variant_src body
+                              val mon_se_ty = StateMgt_core.MON_SE_T ret_ty sty
+                              val body = read_body ctxt mon_se_ty
+                          in  ctxt |> define_body_main isrec binding ret_ty sty 
+                                                       params read_variant_opt body
                           end)
         end
 
-   fun checkNsem_function_spec (isrec as {recursive = _ : bool})
-                               ({binding, ret_type, variant_src, locals, 
-                                 body, pre_src, post_src, params} : funct_spec_src)
+   fun checkNsem_function_spec (isrec as {recursive = _:bool}) 
+                               ( {binding, ret_type, variant_src, locals, 
+                                  body_src, pre_src, post_src, params} : funct_spec_src)
                                thy = 
-       checkNsem_function_spec_gen isrec
-                               ({binding = binding, 
-                                 ret_type = ret_type, 
-                                 variant_src = variant_src, 
-                                 locals = locals, 
-                                 body = fn ctxt => Syntax.read_term ctxt (fst body), 
-                                 pre_src = pre_src, 
-                                 post_src = post_src,
-                                 params = params} : funct_spec_sem2)
+       checkNsem_function_spec_gen (isrec) 
+                               ( {binding   = binding, 
+                                  params    = params, 
+                                  ret_type  = ret_type, 
+                                  read_variant_opt = (case variant_src of 
+                                                       NONE => NONE
+                                                     | SOME t=> SOME(fn ctxt 
+                                                                     => Syntax.read_term ctxt t)), 
+                                  locals    = locals, 
+                                  read_body = fn ctxt => fn expected_type 
+                                                         => Syntax.read_term ctxt (fst body_src), 
+                                  read_pre  = fn ctxt => Syntax.read_term ctxt pre_src, 
+                                  read_post = fn ctxt => Syntax.read_term ctxt post_src} : funct_spec_sem)
                                thy
          
   
@@ -1134,12 +1173,12 @@ struct
 
 fun mk_seq_C C C' = let val t = fastype_of C
                      val t' =  fastype_of C'
-                 in  Const(@{const_name "bind_SE'"}, t --> t' --> t') end;
+                 in  Const(\<^const_name>\<open>bind_SE'\<close>, t --> t' --> t') end;
 
-fun mk_skip_C sty = Const(@{const_name "skip\<^sub>S\<^sub>E"}, StateMgt_core.MON_SE_T HOLogic.unitT sty)
+fun mk_skip_C sty = Const(\<^const_name>\<open>skip\<^sub>S\<^sub>E\<close>, StateMgt_core.MON_SE_T HOLogic.unitT sty)
 
 fun mk_break sty = 
-    Const(@{const_name "if_C"}, StateMgt_core.MON_SE_T HOLogic.unitT sty )
+    Const(\<^const_name>\<open>if_C\<close>, StateMgt_core.MON_SE_T HOLogic.unitT sty )
 
 fun mk_return_C upd rhs =
     let val ty = fastype_of rhs 
@@ -1149,7 +1188,7 @@ fun mk_return_C upd rhs =
         val upd_ty = (HOLogic.listT rty --> HOLogic.listT rty) --> sty --> sty
         val rhs_ty = sty --> rty
         val mty = StateMgt_core.MON_SE_T HOLogic.unitT sty
-    in Const(@{const_name "return\<^sub>C"}, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
+    in Const(\<^const_name>\<open>return\<^sub>C\<close>, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
 
 fun mk_assign_global_C upd rhs =
     let val ty = fastype_of rhs 
@@ -1159,7 +1198,7 @@ fun mk_assign_global_C upd rhs =
         val upd_ty = (rty --> rty) --> sty --> sty
         val rhs_ty = sty --> rty
         val mty = StateMgt_core.MON_SE_T HOLogic.unitT sty
-    in Const(@{const_name "assign_global"}, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
+    in Const(\<^const_name>\<open>assign_global\<close>, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
 
 fun mk_assign_local_C upd rhs =
     let val ty = fastype_of rhs 
@@ -1169,7 +1208,7 @@ fun mk_assign_local_C upd rhs =
         val upd_ty = (HOLogic.listT rty --> HOLogic.listT rty) --> sty --> sty
         val rhs_ty = sty --> rty
         val mty = StateMgt_core.MON_SE_T HOLogic.unitT sty
-    in Const(@{const_name "assign_global"}, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
+    in Const(\<^const_name>\<open>assign_local\<close>, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
 
 fun mk_call_C opn args =
     let val ty = fastype_of opn 
@@ -1180,7 +1219,7 @@ fun mk_call_C opn args =
                          Type("fun", [sty,_]) => sty
                         | _  => error "mk_call_C: illegal type for body 2"
         val args_ty = sty --> argty
-    in Const(@{const_name "call\<^sub>C"}, ty --> args_ty --> mty) $ opn $ args end
+    in Const(\<^const_name>\<open>call\<^sub>C\<close>, ty --> args_ty --> mty) $ opn $ args end
 
 (* missing : a call_assign_local and a call_assign_global. Or define at HOL level ? *)
 
@@ -1189,7 +1228,7 @@ fun mk_if_C c B B' =
         val ty_cond = case ty of 
                          Type("fun", [argty,_]) => argty --> HOLogic.boolT
                         |_ => error "mk_if_C: illegal type for body"
-    in  Const(@{const_name "if_C"}, ty_cond --> ty --> ty --> ty) $ c $ B $ B'
+    in  Const(\<^const_name>\<open>if_C\<close>, ty_cond --> ty --> ty --> ty) $ c $ B $ B'
     end;
 
 fun mk_while_C c B =
@@ -1197,7 +1236,7 @@ fun mk_while_C c B =
         val ty_cond = case ty of 
                          Type("fun", [argty,_]) => argty --> HOLogic.boolT
                         |_ => error "mk_while_C: illegal type for body"
-    in  Const(@{const_name "while_C"}, ty_cond --> ty --> ty) $ c $ B
+    in  Const(\<^const_name>\<open>while_C\<close>, ty_cond --> ty --> ty) $ c $ B
     end;
 
 fun mk_while_anno_C inv f c B =
@@ -1207,7 +1246,7 @@ fun mk_while_anno_C inv f c B =
                          Type("fun", [argty,_]) =>( argty --> HOLogic.boolT,
                                                     argty --> HOLogic.natT)
                         |_ => error "mk_while_anno_C: illegal type for body"
-    in  Const(@{const_name "while_C_A"}, ty_cond --> ty_m --> ty_cond --> ty --> ty) 
+    in  Const(\<^const_name>\<open>while_C_A\<close>, ty_cond --> ty_m --> ty_cond --> ty --> ty) 
         $ inv $ f $ c $ B
     end;
 
@@ -1215,13 +1254,13 @@ fun mk_block_C push body pop =
     let val body_ty = fastype_of body 
         val pop_ty  = fastype_of pop
         val bty = body_ty --> body_ty --> pop_ty --> pop_ty
-    in Const(@{const_name \<open>block\<^sub>C\<close>}, bty) $ push $ body $ pop end  
+    in Const(\<^const_name>\<open>block\<^sub>C\<close>, bty) $ push $ body $ pop end  
 
 end;\<close>
 
-term "a \<leftarrow> M; M' "
 section\<open>Function-calls in Expressions\<close>
-text\<open>The precise semantics of function-calls appearing inside expressions is underspecified in C, 
+
+text\<open>The precise semantics of function-calls appearing inside expressions is underspecified in C,
 which is a notorious problem for compilers and analysis tools. In Clean, it is impossible by 
 construction --- and the type displine --- to have function-calls inside expressions.
 However, there is a somewhat \<^emph>\<open>recommended coding-scheme\<close> for this feature, which leaves this
@@ -1236,10 +1275,11 @@ which makes the evaluation order explicit without introducing
 local variables or any form of explicit trace on the state-space of the Clean program. We assume, 
 however, even in this coding scheme, that \<^verbatim>\<open>f()\<close> and \<^verbatim>\<open>g()\<close> are atomic actions; note that this 
 assumption is not necessarily justified in modern compilers, where actually neither of these
-two (atomic) serializations of \<^verbatim>\<open>f()\<close> and \<^verbatim>\<open>g()\<close> exists in some cases.
+two (atomic) serializations of \<^verbatim>\<open>f()\<close> and \<^verbatim>\<open>g()\<close> may exists.
 
-Note, furthermore, that expressions may not only be right-hand-sides of (local or global) assignments
-or conceptually similar return-statements,  but also as argument of other function calls.  
+Note, furthermore, that expressions may not only be right-hand-sides of (local or global) 
+assignments or conceptually similar return-statements,  but also passed as argument of other 
+function calls, where the same problem arises.  
 \<close>
 
 
