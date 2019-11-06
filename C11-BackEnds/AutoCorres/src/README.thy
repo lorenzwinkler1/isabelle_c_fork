@@ -34,6 +34,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+chapter \<open>Appendix: Structure\<close>
+
 theory README imports Main begin text \<open>
 NOTE: For packaging reasons, the source code for AutoCorres is contained in
 \<^dir>\<open>../../../l4v\<close>, which is a minimally changed version of Data61's AutoCorres.

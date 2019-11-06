@@ -35,7 +35,7 @@
  ******************************************************************************)
 
 theory Prime
-  imports Isabelle_C_AutoCorres.Backend
+  imports Isabelle_C_AutoCorres.AutoCorres_Wrapper
 begin
 C \<open>
 

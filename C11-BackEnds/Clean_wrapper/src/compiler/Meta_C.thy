@@ -34,9 +34,25 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+chapter \<open>Appendix: C11 to C99 Toolkit\<close>
+
 theory Meta_C
-  imports Init
+  imports Clean_Annotation
 begin
+
+text\<open>BIG BUG: At present, the C11 to C99 and Toolkit are not part of Isabelle/C, thy are part of
+\<^dir>\<open>../../../../l4v/src\<close> !!!! This is a hack to simulate a toolkit on C99 by reusing a lot of 
+irrelevant stuff from l4v.
+
+The ultimate goal is just computing \<^verbatim>\<open>(local_rcd, global_rcd, fninfo) \<close>, so
+\<^enum> a table of local variables occurring in \<open>AST\<^sub>9\<^sub>9\<close>
+\<^enum> a table of global variables occurring in \<open>AST\<^sub>9\<^sub>9\<close>
+\<^enum> a table of the parsed functions.
+
+The hack undoes renaming-tricks done internally in AutoCorres no longer visible after the
+C11-C99 translation.
+\<close>
+
 
 section \<open>\<^dir>\<open>../../../../l4v/src\<close>\<close>
 (*
@@ -50,7 +66,8 @@ section \<open>\<^dir>\<open>../../../../l4v/src\<close>\<close>
  * @TAG(NICTA_BSD)
  *)
 
-subsection \<open>\<^file>\<open>~~/src/HOL/Word/Word.thy\<close>\<close>
+subsection \<open>\<^file>\<open>$ISABELLE_HOME/src/HOL/Word/Word.thy\<close>\<close> \<comment> \<open>\<^file>\<open>~~/src/HOL/Word/Word.thy\<close>\<close> (* \<comment>
+ \<open>FIXME LaTeX: writing \<^dir>\<open>~~\<close> instead of \<^dir>\<open>$ISABELLE_HOME\<close> does not work inside \<^theory_text>\<open>section\<close>-like commands.\<close> *)
 
 datatype 'a word = W
 
@@ -61,7 +78,8 @@ begin
 datatype 'a signed = S
 end
 
-subsection \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/Simpl/Vcg.thy\<close>\<close>
+subsection \<open>\<close> \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/Simpl/Vcg.thy\<close>\<close> (* \<comment>
+ \<open>FIXME LaTeX: writing \<open>-\<close> does not work inside \<^theory_text>\<open>section\<close>-like commands.\<close> *)
 
 ML \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/Simpl/hoare.ML\<close>\<close> \<open>
 structure Hoare = struct
@@ -80,7 +98,8 @@ datatype 'a bodykind = BodyTyp of 'a | BodyTerm of 'a
 end
 \<close>
 
-subsection \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/umm_heap/$L4V_ARCH/ArchArraysMemInstance.thy\<close>\<close>
+subsection \<open>\<close> \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/umm_heap/$L4V_ARCH/ArchArraysMemInstance.thy\<close>\<close> (* \<comment>
+ \<open>FIXME LaTeX: writing \<open>-\<close> does not work inside \<^theory_text>\<open>section\<close>-like commands.\<close> *)
 
 (* introduce hackish handling of 8192 type by making a copy of the type
    under a constructor, and then manually showing that it is an instance of
@@ -94,7 +113,8 @@ ML \<open>
   end
 \<close>
 
-subsection \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/CProof.thy\<close>\<close>
+subsection \<open>\<close> \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/CProof.thy\<close>\<close> (* \<comment>
+ \<open>FIXME LaTeX: writing \<open>-\<close> does not work inside \<^theory_text>\<open>section\<close>-like commands.\<close> *)
 
 ML_file "../../../../l4v/src/tools/c-parser/General.ML"
 \<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/openUnsynch.ML\<close>\<close>
@@ -117,7 +137,8 @@ ML_file "../../../../l4v/src/tools/c-parser/Absyn.ML"
 \<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/Absyn-Serial.ML\<close>\<close>
 ML_file "../../../../l4v/src/tools/c-parser/name_generation.ML"
 
-subsection \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/CTranslation.thy\<close>\<close>
+subsection \<open>\<close> \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/CTranslation.thy\<close>\<close> (* \<comment>
+ \<open>FIXME LaTeX: writing \<open>-\<close> does not work inside \<^theory_text>\<open>section\<close>-like commands.\<close> *)
 
 \<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/tools/mlyacc/mlyacclib/MLY_base-sig.ML\<close>\<close>
 \<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/tools/mlyacc/mlyacclib/MLY_join.ML\<close>\<close>

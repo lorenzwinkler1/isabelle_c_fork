@@ -368,16 +368,11 @@ int b = 7 / (3) * 50
 subsection \<open>Continuation Calculus with the C Environment: Presentation with Outer Commands\<close>
 
 ML\<open>
-local
-fun command dir f_cmd =
-  C_Inner_Syntax.command0 
-    (fn src => fn context => f_cmd (C_Stack.Data_Lang.get' context |> #2) src context)
-    C_Parse.C_source
-    dir
-in
-val _ = Theory.setup (   command C_Inner_Syntax.bottom_up C' ("C'", \<^here>)
-                      #> command C_Env.Top_down C' ("C'\<Down>", \<^here>))
-end
+val _ = Theory.setup
+          (C_Inner_Syntax.command0 
+            (fn src => fn context => C' (C_Stack.Data_Lang.get' context |> #2) src context)
+            C_Parse.C_source
+            ("C'", \<^here>, \<^here>, \<^here>))
 \<close>
 
 C \<comment> \<open>Nesting C code without propagating the C environment\<close> \<open>
@@ -650,8 +645,7 @@ val _ =
      #> C_Inner_Syntax.command0
           (C_Inner_Toplevel.keep'' o C_Inner_Isar_Cmd.print_term)
           (C_Token.syntax' (Scan.succeed [] -- Parse.term))
-          C_Inner_Syntax.bottom_up
-          ("term\<^sub>o\<^sub>u\<^sub>t\<^sub>e\<^sub>r", \<^here>))
+          ("term\<^sub>o\<^sub>u\<^sub>t\<^sub>e\<^sub>r", \<^here>, \<^here>, \<^here>))
 end
 \<close>
 
@@ -704,6 +698,124 @@ int c = 0;
 int e = a + b + c + d;
 }\<close>
 
+section \<open>Calculation in Directives\<close>
+
+subsection \<open>Annotation Command Classification\<close>
+
+C \<comment> \<open>Lexing category vs. parsing category\<close> \<open>
+int a = 0;
+
+// \<comment> \<open>Category 2: only parsing\<close>
+
+//@   \<approx>setup  \<open>K (K (K I))\<close> (* evaluation at parsing *)
+//@@  \<approx>setup\<Down> \<open>K (K (K I))\<close> (* evaluation at parsing *)
+
+//@   highlight             (* evaluation at parsing *)
+//@@  highlight\<Down>            (* evaluation at parsing *)
+
+// \<comment> \<open>Category 3: with lexing\<close>
+
+//@  #setup  I              (* evaluation at lexing (and directives resolving) *)
+//@   setup  I              (* evaluation at parsing *)
+//@@  setup\<Down> I              (* evaluation at parsing *)
+
+//@  #ML     I              (* evaluation at lexing (and directives resolving) *)
+//@   ML     I              (* evaluation at parsing *)
+//@@  ML\<Down>    I              (* evaluation at parsing *)
+
+//@  #C     \<open>\<close>              (* evaluation at lexing (and directives resolving) *)
+//@   C     \<open>\<close>              (* evaluation at parsing *)
+//@@  C\<Down>    \<open>\<close>              (* evaluation at parsing *)
+\<close>
+
+C \<comment> \<open>Scheduling example\<close> \<open>
+//@+++++   ML  \<open>writeln "2"\<close>
+int a = 0;
+//@@       ML\<Down> \<open>writeln "3"\<close>
+//@       #ML  \<open>writeln "1"\<close>
+\<close>
+
+C \<comment> \<open>Scheduling example\<close> \<open>
+//*  lemma True  by simp
+//* #lemma True #by simp
+//* #lemma True  by simp
+//*  lemma True #by simp
+\<close>
+
+C \<comment> \<open>Scheduling example\<close> \<open> /*@
+lemma \<open>1 = one\<close>
+      \<open>2 = two\<close>
+      \<open>two + one = three\<close>
+by auto
+
+#definition [simp]: \<open>three = 3\<close>
+#definition [simp]: \<open>two   = 2\<close>
+#definition [simp]: \<open>one   = 1\<close>
+*/ \<close>
+
+subsection \<open>Generalizing ML Antiquotations with C Directives\<close>
+
+ML \<open>
+structure Directive_setup_define = Generic_Data
+  (type T = int
+   val empty = 0
+   val extend = K empty
+   val merge = K empty)
+
+fun setup_define1 pos f =
+  C_Directive.setup_define
+    pos
+    (fn toks => fn (name, (pos1, _)) =>
+      tap (fn _ => writeln ("Executing " ^ name ^ Position.here pos1 ^ " (only once)"))
+      #> pair (f toks))
+    (K I)
+
+fun setup_define2 pos = C_Directive.setup_define pos (K o pair)
+\<close>
+
+C \<comment> \<open>General scheme of C antiquotations\<close> \<open>
+/*@
+    #setup \<comment> \<open>Overloading \<open>#define\<close>\<close> \<open>
+      setup_define2
+        \<^here>
+        (fn (name, (pos1, _)) =>
+          op ` Directive_setup_define.get
+          #>> (case name of "f3" => curry op * 152263 | _ => curry op + 1)
+          #>  tap (fn (nb, _) =>
+                    tracing ("Executing antiquotation " ^ name ^ Position.here pos1
+                             ^ " (number = " ^ Int.toString nb ^ ")"))
+          #>  uncurry Directive_setup_define.put)
+    \<close>
+*/
+#define f1
+#define f2 int a = 0;
+#define f3
+        f1
+        f2
+        f1
+        f3
+
+//@ #setup \<comment> \<open>Resetting \<open>#define\<close>\<close> \<open>setup_define2 \<^here> (K I)\<close>
+        f3
+#define f3
+        f3
+\<close>
+
+C \<comment> \<open>Dynamic token computing in \<open>#define\<close>\<close> \<open>
+
+//@ #setup \<open>setup_define1 \<^here> (K [])\<close>
+#define f int a = 0;
+        f f f f
+
+//@ #setup \<open>setup_define1 \<^here> (fn toks => toks @ toks)\<close>
+#define f int b = a;
+        f f
+
+//@ #setup \<open>setup_define1 \<^here> I\<close>
+#define f int a = 0;
+        f f
+\<close>
+
 section \<open>Miscellaneous\<close>
 
 C \<comment> \<open>Antiquotations acting on a parsed-subtree\<close> \<open>
@@ -747,32 +859,6 @@ int main () {
   char * ó\<^url>ò = "ó\<^url>ò";
   printf ("%s", ó\<^url>ò);
 }
-\<close>
-
-section\<open>Exporting C Files to the File-System\<close>
-
-text\<open>From the Isabelle/C side, the task is easy, just type:\<close>
-
-C_export_file
-
-text_raw \<open>
-\begin{figure}
-  \centering
-\includegraphics[width=\textwidth]{figures/C-export-example}
-  \caption{Making the File Browser Pointing to the Virtual File System}
-  \label{fig:file-bro}
-\end{figure}
-\<close>
-
-text\<open>... which does the trick and generates a file \<^verbatim>\<open>C1.c\<close>. But hold
-on --- where is it?  Well, Isabelle/C uses since version Isabelle2019 a virtual
-file-system. Exporting from it to the real file-system requires a few mouse-clicks (unfortunately).
-
-So activating the command \<^theory_text>\<open>C_export_file\<close> leads to the output
-\<^verbatim>\<open>See theory exports "C/64/C1.c"\<close> (see \autoref{fig:file-bro}), and clicking on the highlighted
-\<^verbatim>\<open>theory exports\<close> lets Isabelle display a part of the virtual file-system
-(see subwidget left). Activating it in the subwidget lets jEdit open it as an editable file, which
-can be exported via \<^verbatim>\<open>File->Save As->...\<close> into the real file-system.
 \<close>
 
 end

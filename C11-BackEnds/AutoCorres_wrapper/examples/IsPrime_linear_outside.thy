@@ -43,14 +43,14 @@
  * @TAG(NICTA_BSD)
  *)
 
-chapter\<open>Linear Prime Sample Proof\<close>
+chapter \<open>Example: Linear Prime Sample Proof\<close>
 
 text\<open>This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
 annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
 
 theory IsPrime_linear_outside
 imports
-  Isabelle_C_AutoCorres.Backend
+  Isabelle_C_AutoCorres.AutoCorres_Wrapper
   "HOL-Computational_Algebra.Primes"
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
@@ -116,6 +116,7 @@ unsigned is_prime_linear(unsigned n)
 \<close>
 
 find_theorems name:"is_prime_linear"
+thm IsPrime_linear_outside.is_prime_global_addresses.is_prime_linear_body_def
 thm is_prime.is_prime_linear'_def
 
 C_export_file  (* This exports the C code into a C file ready to be compiled by gcc. *)
@@ -127,6 +128,14 @@ lemma uint_max_factor [simp]: "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
 section\<open>The Correctness Proof of \<^const>\<open>is_prime.is_prime_linear'\<close>\<close>
 text\<open>Note that the proof \<^emph>\<open>injects\<close> the loop invariant at the point where the proof
      treats the loop.\<close>
+
+
+lemma
+"whileLoopE (B n) (C n) = 
+ (\<lambda>x. whileLoopE_inv (B n) (C n) x (is_prime_linear_inv n) (measure' (\<lambda>(r, _). n - r))) "
+  unfolding whileLoopE_inv_def
+  by simp
+
 
 (* imperative "red" style proof *)
 theorem (in is_prime) is_prime_correct:

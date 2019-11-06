@@ -78,6 +78,7 @@ fun clean_name "\<dots>" = "dots"
   | clean_name "}" = "braceright"
   | clean_name s = s |> translate (fn "_" => "-"
                                     | "\<hyphen>" => "-"
+                                    | "#" => "symbol-hash"
                                     | "\<approx>" => "symbol-lower-approx"
                                     | "\<Down>" => "symbol-upper-down"
                                     | c => c);
@@ -232,17 +233,17 @@ subsection \<open>Inner Annotation Commands\<close>
 
 text \<open>
   \<^rail>\<open>
-    (@@{annotation ML_file} | @@{annotation "ML_file\<Down>"} |
-      @@{annotation C_file} | @@{annotation "C_file\<Down>"}) @{syntax name} ';'?
+    (@@{annotation "#ML_file"} | @@{annotation ML_file} | @@{annotation "ML_file\<Down>"} |
+      @@{annotation "#C_file"} | @@{annotation C_file} | @@{annotation "C_file\<Down>"}) @{syntax name} ';'?
     ;
-    (@@{annotation ML} | @@{annotation "ML\<Down>"} |
-      @@{annotation setup} | @@{annotation "setup\<Down>"} |
+    (@@{annotation "#ML"} | @@{annotation ML} | @@{annotation "ML\<Down>"} |
+      @@{annotation "#setup"} | @@{annotation setup} | @@{annotation "setup\<Down>"} |
       @@{annotation "\<approx>setup"} | @@{annotation "\<approx>setup\<Down>"} |
-      @@{annotation C} | @@{annotation "C\<Down>"} |
-      @@{annotation C_export_boot} | @@{annotation "C_export_boot\<Down>"}) @{syntax text}
+      @@{annotation "#C"} | @@{annotation C} | @@{annotation "C\<Down>"} |
+      @@{annotation "#C_export_boot"} | @@{annotation C_export_boot} | @@{annotation "C_export_boot\<Down>"}) @{syntax text}
     ;
-    (@@{annotation C_export_file} | @@{annotation "C_export_file\<Down>"} |
-     @@{annotation highlight})
+    (@@{annotation "#C_export_file"} | @@{annotation C_export_file} | @@{annotation "C_export_file\<Down>"} |
+     @@{annotation highlight} | @@{annotation "highlight\<Down>"})
     ;
   \<close>
 
@@ -267,18 +268,36 @@ text \<open>
 
   \<^descr> \<^C_theory_text>\<open>highlight\<close> changes the background color of the C tokens pointed by the command.
 
+  \<^descr> \<^C_theory_text>\<open>#ML_file\<close>,
+  \<^C_theory_text>\<open>#C_file\<close>, \<^C_theory_text>\<open>#ML\<close>,
+  \<^C_theory_text>\<open>#setup\<close>,
+  \<^C_theory_text>\<open>#C\<close>,
+  \<^C_theory_text>\<open>#C_export_boot\<close>, and
+  \<^C_theory_text>\<open>#C_export_file\<close>
+  behave similarly as the respective (above inner) commands
+  \<^C_theory_text>\<open>ML_file\<close>,
+  \<^C_theory_text>\<open>C_file\<close>, \<^C_theory_text>\<open>ML\<close>,
+  \<^C_theory_text>\<open>setup\<close>,
+  \<^C_theory_text>\<open>C\<close>,
+  \<^C_theory_text>\<open>C_export_boot\<close>, and
+  \<^C_theory_text>\<open>C_export_file\<close>
+  except that their evaluations happen as earliest as possible.
+
   \<^descr> \<^C_theory_text>\<open>ML_file\<Down>\<close>,
   \<^C_theory_text>\<open>C_file\<Down>\<close>, \<^C_theory_text>\<open>ML\<Down>\<close>,
   \<^C_theory_text>\<open>setup\<Down>\<close>,
   \<^C_theory_text>\<open>\<approx>setup\<Down>\<close>, \<^C_theory_text>\<open>C\<Down>\<close>,
-  \<^C_theory_text>\<open>C_export_boot\<Down>\<close>, and
-  \<^C_theory_text>\<open>C_export_file\<Down>\<close>
+  \<^C_theory_text>\<open>C_export_boot\<Down>\<close>,
+  \<^C_theory_text>\<open>C_export_file\<Down>\<close>, and
+  \<^C_theory_text>\<open>highlight\<Down>\<close>
   behave similarly as the respective (above inner) commands
   \<^C_theory_text>\<open>ML_file\<close>, \<^C_theory_text>\<open>C_file\<close>,
   \<^C_theory_text>\<open>ML\<close>, \<^C_theory_text>\<open>setup\<close>,
   \<^C_theory_text>\<open>\<approx>setup\<close>, \<^C_theory_text>\<open>C\<close>,
-  \<^C_theory_text>\<open>C_export_boot\<close>, and \<^C_theory_text>\<open>C_export_file\<close>
-  except that their evaluations happen later.
+  \<^C_theory_text>\<open>C_export_boot\<close>,
+  \<^C_theory_text>\<open>C_export_file\<close>, and
+  \<^C_theory_text>\<open>highlight\<close>
+  except that their evaluations happen as latest as possible.
 \<close>
 
 subsection \<open>Inner Directive Commands\<close>
@@ -317,6 +336,15 @@ content downloaded from \<^url>\<open>https://gitlri.lri.fr/ftuong/isabelle_c\<c
 brackets ``\<^verbatim>\<open>\<open>\<close>\<close>'', now depicted as
 ``\<open>\<open>\<close>\<close>'' for readability reasons. \<close>
 
+text_raw \<open>
+\begin{figure}
+  \centering
+\includegraphics[width=\textwidth]{figures/C-export-example}
+  \caption{Making the File Browser Pointing to the Virtual File System}
+  \label{fig:file-bro}
+\end{figure}
+\<close>
+
 text \<open> Additionally, Isabelle/C comes with several functionalities that can be alternatively
 explored:
 \<^item> To write theorems and proofs along with C code, the special C comment
@@ -341,19 +369,20 @@ it suffices to replace:
 Once done, one can press a CTRL-like key while hovering the mouse over the file name, then followed
 by a click on it to open a new window loading that file. 
 
-\<^item> After a
-\<^verbatim>\<open>C\<close> \<^theory_text>\<open>\<open> /* C */ \<close>\<close> command, one has either
-the possibility to keep the content as such in the theory file, or use
+\<^item> After a \<^verbatim>\<open>C\<close> \<^theory_text>\<open>\<open> /* C */ \<close>\<close>
+command, one has either the possibility to keep the content as such in the theory file, or use
 \<^verbatim>\<open>C_export_file\<close> to export all previous C content into a ``real'' C file.
 
-Note that since Isabelle2019, Isabelle uses a virtual file-system. This has the consequence, 
-that some extra operations are needed to export a file generated into the virtual file-system 
-of Isabelle into the ``real'' file-system. First, the \<^verbatim>\<open>C_export_file\<close> command needs to be 
-activated leading to a message in the output window. 
-By clicking on \<open>theory exports\<close> in this message, Isabelle opens a \<open>File Browser\<close>
-showing the content of the virtual file-system in the left window. Selecting and opening a generated file 
-in the latter lets jEdit display it in a new buffer, which gives the possibility to export this file
-via \<open>File\<rightarrow>Save As\<close> into the real file-system.\<close>
+Note that since Isabelle2019, Isabelle uses a virtual file-system. This has the consequence, that
+some extra operations are needed to export a file generated into the virtual file-system of Isabelle
+into the ``real'' file-system. First, the \<^verbatim>\<open>C_export_file\<close> command needs to
+be activated, by putting the cursor on the command. This leads to the following message in the
+output window: \<^verbatim>\<open>See theory exports "C/*/*.c"\<close> (see
+\autoref{fig:file-bro}). By clicking on \<open>theory exports\<close> in
+this message, Isabelle opens a \<open>File Browser\<close> showing the content of the virtual
+file-system in the left window. Selecting and opening a generated file in the latter lets jEdit
+display it in a new buffer, which gives the possibility to export this file via ``\<open>File
+\<rightarrow> Save As\<dots>\<close>'' into the real file-system. \<close>
 
 section \<open>Case Study: Mapping on the Parsed AST\<close>
 
@@ -789,5 +818,24 @@ it can be a good recommendation to try out the parsing with all possible parsers
 any cases, a failure in one or several activated parsers might not be necessarily harmful: it might
 also indicate that a wrong parser has been selected, or a semantic back-end not yet supporting
 aspects of the C code being parsed. \<close>
+
+subsection \<open>Exporting C Files to the File-System\<close>
+
+text \<open> From the Isabelle/C side, the task is easy, just type:\<close>
+
+C_export_file
+
+text \<open> ... which does the trick and generates a file
+\<^verbatim>\<open>C_Appendices.c\<close>. But hold on --- where is it? Well, Isabelle/C uses since
+version Isabelle2019 a virtual file-system. Exporting from it to the real file-system requires a few
+mouse-clicks (unfortunately).
+
+So activating the command \<^theory_text>\<open>C_export_file\<close> leads to the output
+\<^verbatim>\<open>See theory exports "C/*/C_Appendices.c"\<close> (see
+\autoref{fig:file-bro}), and clicking on the highlighted
+\<^verbatim>\<open>theory exports\<close> lets Isabelle display a part of the virtual file-system
+(see subwidget left). Activating it in the subwidget lets jEdit open it as an editable file, which
+can be exported via ``\<open>File \<rightarrow> Save As\<dots>\<close>'' into the real
+file-system. \<close>
 
 end

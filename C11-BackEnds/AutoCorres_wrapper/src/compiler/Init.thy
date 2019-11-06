@@ -34,6 +34,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+chapter \<open>Appendix: Isabelle/C/AutoCorres Annotations\<close>
+
 theory Init
   imports "HOL-Eisbach.Eisbach"
           Isabelle_C.C_Main

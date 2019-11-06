@@ -39,6 +39,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+chapter \<open>Appendix: Citadelle's Meta Interface\<close>
+
 theory Generator_dynamic_sequential
   imports Core
           "../../../../Citadelle/src/compiler_generic/isabelle_home/src/Tools/Code/Isabelle_code_runtime"
@@ -1384,7 +1386,7 @@ end
 section \<open>Setup of \<^theory_text>\<open>C\<close> commands\<close>
 
 ML \<comment> \<open>\<^theory>\<open>Isabelle_C.C_Command\<close>\<close> \<open>
-val clean_C99 = Attrib.setup_config_bool @{binding Clean_C99} (K false)
+val clean_C99 = Attrib.setup_config_bool @{binding Clean} (K false)
 
 val _ =
   Theory.setup

@@ -1,5 +1,5 @@
 (******************************************************************************
- * Isabelle/C
+ * Clean
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
@@ -34,7 +34,33 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-theory Backend
-  imports AutoCorres.AutoCorres
-begin
-end
+session Isabelle_C_Clean = Isabelle_C +
+  options [document = pdf, document_output = "output/document/1"]
+  sessions
+    Clean
+  theories
+    "src/Clean_Wrapper"
+  document_files
+    "root.tex"
+    "root.bib"
+
+session Isabelle_C_Clean_examples = Isabelle_C_Clean +
+  options [document = pdf, document_output = "output/document/2"]
+  sessions
+    "HOL-Computational_Algebra"
+  theories
+    "examples/IsPrime_sqrt_outside"
+    "examples/Prime"
+    "examples/Quicksort2"
+    "examples/Quicksort"
+  document_files
+    "figures/A-C-Source7.png"
+    "root.tex"
+    "root.bib"
+
+session Isabelle_C_Clean_document = Isabelle_C_Clean_examples +
+  options [document = pdf, document_output = "output"]
+  document_files
+    "figures/A-C-Source7.png"
+    "root.tex"
+    "root.bib"

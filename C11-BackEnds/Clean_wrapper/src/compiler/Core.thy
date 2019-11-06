@@ -1,12 +1,7 @@
 (******************************************************************************
- * Citadelle
+ * Clean_Wrapper
  *
- * Copyright (c) 2011-2019 Université Paris-Saclay, Univ. Paris-Sud, France
- *               2013-2017 IRT SystemX, France
- *               2011-2015 Achim D. Brucker, Germany
- *               2016-2018 The University of Sheffield, UK
- *               2016-2017 Nanyang Technological University, Singapore
- *               2017-2018 Virginia Tech, USA
+ * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
  * All rights reserved.
  *
@@ -39,12 +34,27 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
+chapter \<open>Compiling C to Clean Terms\<close>
+
+text \<open> In the following, we define a few term-antiquotations (or cartouches); this means that
+C fragments are compiled into HOL-terms interpreted in the Clean theory.\<close>
+
 theory Core
   imports Meta_C
           Clean.Clean
 begin
 
-section \<open>Conversion to Pure Term\<close>
+section \<open>Conversion of \<open>AST\<^sub>C\<close> into Isabelle Terms\<close>
+
+text\<open>This conversion has several applications: First, it can be used for C cartouches for
+C fragments (see below), and second, it is used to compile entire C functions into
+Clean function specifications. \<close>
+
+subsection \<open> Conversions for Expressions and Statements \<close>
+text\<open>Roughly speaking, the following conversion functions are similar to functions used
+in Isabelle's \<^theory_text>\<open>parse_translation\<close>: They take a \<open>C11\<close> or \<open>C99\<close> AST and convert it into 
+Clean terms. To be precise, these are actually pre-terms not necessarily type-correct 
+in the Clean logical context.\<close>
 
 ML \<open>
 structure Conversion =
@@ -219,7 +229,7 @@ val statement = fn st =>
 end
 \<close>
 
-section \<open>Conversion to Meta Isabelle\<close>
+subsection \<open>\<close>
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_syntax.ML\<close>\<close> \<open>
 structure ML_Syntax' =
@@ -440,7 +450,10 @@ end
 end
 \<close>
 
-section \<open>Syntax\<close>
+subsection \<open>Setup of C Antiquotations (Cartouches)\<close>
+
+text\<open>This conversion also includes the construction of the bindings inside the source.
+     \<^ML>\<open>Clean_Syntax_Lift.scope_var\<close>.\<close>
 
 ML \<open>
 val _ = Theory.setup
@@ -451,7 +464,9 @@ val _ = Theory.setup
             (fn stmt => fn _ => fn ctxt => Conversion_C99.statement (Conversion.init ctxt) stmt))
 \<close>
 
-subsection \<open>Test\<close>
+subsection \<open>Test of C-to-Term Antiquotations (Cartouches)\<close>
+
+text\<open>Just to have a global and local state to build expressions and statements from: \<close>
 
 global_vars state
   a :: "nat list"
@@ -468,6 +483,10 @@ local_vars_test swap unit
   j :: nat
   nn :: nat
 
+
+text\<open>In the following, we test a few term-antiquotations (or cartouches); this means that
+     C fragments are compiled into HOL-terms interpreted in the Clean theory. \<close>
+
 term \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r \<open>pivot = a[pivot_idx]\<close>\<close>
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>if (a[j] < a[i]) {}\<close>\<close>
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>pivot = a[pivot_idx];\<close>\<close>
@@ -482,5 +501,8 @@ term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>for (i = 1; i < nn; i++
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[pivot_idx] = a[i];\<close> ;-
       \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>pivot_idx++;\<close> ;-
       \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[i] = a[pivot_idx];\<close>\<close>
+
+text\<open>The latter example shows how antiquoted C terms can be used as arguments in HOL combinators;
+     in this case from the @{theory "Clean.MonadSE"} library.\<close>
 
 end

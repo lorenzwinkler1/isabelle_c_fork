@@ -33,53 +33,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(*
- * Copyright 2014, NICTA
- *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- *)
 
-chapter \<open>Example: Quicksort (version 2)\<close>
+chapter\<open>The Isabelle/C/AutoCorres Demonstrator\<close>
 
-theory Quicksort2
-  imports Isabelle_C_Clean.Clean_Wrapper
+theory AutoCorres_Wrapper
+  imports AutoCorres.AutoCorres
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
-
-C \<open>
-//@ declare [[Clean]]
-
-#define MAXSIZE 100
-
-unsigned int A[MAXSIZE];
-
-void swap (unsigned long i, unsigned long j) {
-  unsigned long tmp = A[i]; A[i] = A[j]; A[j] = tmp;
-}
-
-unsigned long partition (unsigned long lo, unsigned long hi) { 
-  unsigned long pivot = A[hi];
-  unsigned long i = lo;
-  for (unsigned long j = lo; j < hi; j++) { 
-     if (A[j] < pivot) { swap(i, j); i++; }
-     swap(i, j);
-  }
-  return i;
-}
-
-void quicksort (unsigned long lo, unsigned long hi) {
-    if( lo < hi) {
-        unsigned long p = partition(lo, hi);
-        quicksort(lo, p - 1);
-        quicksort(p + 1, hi);
-     }
-}
-\<close>
-
-find_theorems (100) name:quick name:"inv"
-
 end
