@@ -125,6 +125,7 @@ fun expr_node st exp = exp |>
    fn BinOp (ope, exp1, exp2) =>
         Syntax.const (case ope of Plus => @{const_name plus}
                                 | Lt => @{const_name less}
+                                | Gt => @{const_abbrev greater}
                                 | _ => error ("Case not yet treated for this element: " ^ @{make_string} ope ^ Position.here \<^here>))
         $ expr exp1
         $ expr exp2
@@ -211,6 +212,7 @@ and block_item st bi = bi |>
   end
 end
 
+val statement0 = statement
 val statement = fn st =>
   statement st o (IsarPreInstall.of_statement o C_Ast.statement0 ([], C_Ast.Alist []))
 
@@ -249,6 +251,43 @@ val _ = Theory.setup
 end
 \<close>
 
+ML\<open>
+structure From = struct
+local
+structure META = C_Ast
+in
+ val string = META.SS_base o META.ST
+ val binding = string o Binding.name_of
+ val nat = Code_Numeral.natural_of_integer
+ val internal_oid = META.Oid o nat
+ val option = Option.map
+ val list = List.map
+ fun pair f1 f2 (x, y) = (f1 x, f2 y)
+ fun pair3 f1 f2 f3 (x, y, z) = (f1 x, f2 y, f3 z)
+
+ structure Pure = struct
+ val indexname = pair string nat
+ val class = string
+ val sort = list class
+
+ fun typ e = (fn
+     Type (s, l) => (META.Typeb o pair string (list typ)) (s, l)
+   | TFree (s, s0) => (META.TFree o pair string sort) (s, s0)
+   | TVar (i, s0) => (META.TVara o pair indexname sort) (i, s0)
+  ) e
+ fun term e = (fn
+     Const (s, t) => (META.Consta o pair string typ) (s, t)
+   | Free (s, t) => (META.Free o pair string typ) (s, t)
+   | Var (i, t) => (META.Var o pair indexname typ) (i, t)
+   | Bound i => (META.Bound o nat) i
+   | Abs (s, ty, t) => (META.Absa o pair3 string typ term) (s, ty, t)
+   | op $ (term1, term2) => (META.Appa o pair term term) (term1, term2)
+  ) e
+ end
+end
+end
+\<close>
+
 ML \<comment> \<open>\<^file>\<open>../../../../C11-FrontEnd/generated/c_ast.ML\<close>\<close> \<open>
 structure T =
 struct
@@ -260,6 +299,15 @@ val setup = Theory_setup o Setup
 fun definition v1 v2 v3 = Theory_definition (Definitiona (Term_rewrite (v1, s v2, v3)))
 val one = META_semi_theories o Theories_one
 val locale = META_semi_theories o Theories_locale
+fun one_term name x =
+  META_all_meta_embedding
+    (META_ctxt
+      ( Floor1
+      , Ocl_ctxt_ext
+          ( []
+          , OclTyObj (OclTyCore_pre (From.string name), [])
+          , [Ctxt_inv (T_inv (false, OclProp_ctxt (NONE, T_pure (From.Pure.term x, NONE))))]
+          , ())))
 end
 end
 \<close>
@@ -334,11 +382,18 @@ fun compile ast env_lang pos =
     |> rev
     |> map
      (fn function =>
-       let val (param, body) =
+       let val (st, param, body) =
              case Symtab.lookup local_tab (#fname function) of
-               NONE => ([], NONE)
+               NONE => ({is_local = K false, is_global = K false}, [], NONE)
              | SOME (l1, l2) =>
-                 ( [(map (fn (b, ty, _) => (bs (Binding.name_of b), of_typ ty)) l1, NONE)]
+                 ( let val name_of = map (fn (b, _, _) => Binding.name_of b)
+                       fun exists' name1 = exists (fn name2 => name1 = name2)
+                       val l1 = name_of l1
+                       val l2 = name_of l2
+                   in
+                     {is_local = fn name => exists' name l2, is_global = fn name => exists' name l1}
+                   end
+                 , [(map (fn (b, ty, _) => (bs (Binding.name_of b), of_typ ty)) l1, NONE)]
                  , let val l2 =
                          if exists (fn (b, _, _) => Binding.name_of b = StateMgt.result_name) l2 then
                            l2
@@ -347,10 +402,32 @@ fun compile ast env_lang pos =
                    in (SOME o T.one) (new_state_record pos false (Binding.map_name (fn name => ML_Syntax'.make_pos (#fname function ^ "_" ^ name) pos) local_name) l2)
                    end)
        in
-       [ (SOME o T.locale)
-           ( Semi_locale_ext (s (ML_Syntax'.make_pos (#fname function) pos), param, ())
-           , [])
-       , body ]
+         [ (SOME o T.locale)
+             ( Semi_locale_ext (s (ML_Syntax'.make_pos (#fname function) pos), param, ())
+             , [])
+         , case #body function of
+             SOME (HoarePackage.BodyTerm ast) =>
+              SOME
+                (T.one_term
+                  (ML_Syntax'.make_pos (#fname function) pos)
+                  (case ast of
+                     StmtDecl.FnDefn (_, _, _, body) =>
+                      (Conversion_C99.statement0
+                        let
+                         val read_const = SOME o Syntax.const
+                        in
+                          { read_const = read_const
+                          , transform_term = Clean_Syntax_Lift.transform_term' st
+                          , read_term = try (Syntax.read_term @{context})
+                          , app_sigma = Clean_Syntax_Lift.app_sigma0 st
+                          , scope_var = read_const
+                                        #> (fn SOME (Term.Const (name, _)) => Clean_Syntax_Lift.scope_var st name
+                                             | _ => tap (fn _ => warning "Expecting a constant") NONE) }
+                        end
+                        (StmtDecl.swrap (StmtDecl.Block (RegionExtras.node body), RegionExtras.left body, RegionExtras.right body)))
+                   | _ => error ("Expecting a function" ^ Position.here \<^here>)))
+           | _ => NONE
+         , body ]
        end)
     |> flat
     |> cons (case global_flds of
