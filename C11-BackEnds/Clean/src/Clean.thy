@@ -826,33 +826,33 @@ structure Function_Specification_Parser  =
   struct
 
     type funct_spec_src = {    
-        binding:  binding,                         (* name *)
-        params: (binding*string) list,             (* parameters and their type*)
-        ret_type: string,                          (* return type; default unit *)
-        locals: (binding*string*mixfix)list,       (* local variables *)
-        pre_src: string,                           (* precondition src *)
-        post_src: string,                          (* postcondition src *)
-        variant_src: string option,                (* variant src *)
-        body_src: string * Position.T              (* body src *)
-      }
-
-    type funct_spec_sem_old = {    
-        params: (binding*typ) list,                (* parameters and their type*)
-        ret_ty: typ,                               (* return type *)
-        pre: term,                                 (* precondition  *)
-        post: term,                                (* postcondition  *)
-        variant: term option                       (* variant  *)
+        binding:  binding,                              (* name *)
+        params: (binding*string) list,                  (* parameters and their type*)
+        ret_type: string,                               (* return type; default unit *)
+        locals: (binding*string*mixfix)list,            (* local variables *)
+        pre_src: string,                                (* precondition src *)
+        post_src: string,                               (* postcondition src *)
+        variant_src: string option,                     (* variant src *)
+        body_src: string * Position.T                   (* body src *)
+      }                                               
+                                                      
+    type funct_spec_sem_old = {                       
+        params: (binding*typ) list,                     (* parameters and their type*)
+        ret_ty: typ,                                    (* return type *)
+        pre: term,                                      (* precondition  *)
+        post: term,                                     (* postcondition  *)
+        variant: term option                            (* variant  *)
       }
 
     type funct_spec_sem = {    
-        binding:  binding,                         (* name *)
-        params: (binding*string) list,             (* parameters and their type*)
-        ret_type: string,                          (* return type; default unit *)
-        locals: (binding*string*mixfix)list,       (* local variables *)
-        read_pre: Proof.context -> term,           (* precondition src *)
-        read_post: Proof.context -> term,          (* postcondition src *)
-        variant_src: string option,                (* variant src *)
-        read_body: Proof.context -> typ -> term    (* body src *)
+        binding:  binding,                              (* name *)
+        params: (binding*string) list,                  (* parameters and their type*)
+        ret_type: string,                               (* return type; default unit *)
+        locals: (binding*string*mixfix)list,            (* local variables *)
+        read_pre: Proof.context -> term,                (* precondition src *)
+        read_post: Proof.context -> term,               (* postcondition src *)
+        read_variant_opt: (Proof.context->term) option, (* variant src *)
+        read_body: Proof.context -> typ -> term         (* body src *)
       }
 
     val parse_arg_decl = Parse.binding -- (Parse.$$$ "::" |-- Parse.typ)
@@ -895,12 +895,14 @@ structure Function_Specification_Parser  =
               val ctxt' = Variable.declare_typ ty ctxt           
           in  (ty, ctxt') end
 
-   fun read_function_spec ( params, ret_type, variant_src)  ctxt =
+   fun read_function_spec ( params, ret_type, read_variant_opt)  ctxt =
        let val (params_Ts, ctxt') = read_params params ctxt
            val (rty, ctxt'') = read_result ret_type ctxt' 
-           val variant = Option.map (Syntax.read_term ctxt'')  variant_src
+           val variant = case read_variant_opt of 
+                               NONE => NONE
+                              |SOME f => SOME(f ctxt'')
            val paramT_l = (map2 (fn (b, _) => fn T => (b, T)) params params_Ts)
-       in ((paramT_l, rty,variant),ctxt'') end 
+       in ((paramT_l, rty, variant),ctxt'') end 
 
 
    fun check_absence_old term = 
@@ -932,10 +934,10 @@ structure Function_Specification_Parser  =
        in  StateMgt.cmd args true ctxt end
 
    fun define_precond binding sty =
-     define_cond binding (fn boolT => sty --> boolT) I check_absence_old "_pre" 
+       define_cond binding (fn boolT => sty --> boolT) I check_absence_old "_pre" 
 
    fun define_postcond binding rty sty =
-     define_cond binding (fn boolT => sty --> sty --> rty --> boolT) (transform_old sty) I "_post" 
+       define_cond binding (fn boolT => sty --> sty --> rty --> boolT) (transform_old sty) I "_post" 
 
    fun define_body_core binding args_ty sty params body =
        let val params' = map (fn(b,ty) => (Binding.name_of b, ty)) params
@@ -950,7 +952,7 @@ structure Function_Specification_Parser  =
        in StateMgt.cmd args_core true
        end 
  
-   fun define_body_main {recursive = x:bool} binding rty sty params variant_src _ ctxt = 
+   fun define_body_main {recursive = x:bool} binding rty sty params read_variant_opt _ ctxt = 
        let val push_name = StateMgt.mk_push_name (StateMgt.mk_local_state_name binding)
            val pop_name = StateMgt.mk_pop_name (StateMgt.mk_local_state_name binding)
            val bdg_core = Binding.suffix_name "_core" binding
@@ -963,13 +965,13 @@ structure Function_Specification_Parser  =
            val argsProdT = HOLogic.mk_prodT(args_ty,args_ty)
            val argsRelSet = HOLogic.mk_setT argsProdT
            val params' = map (fn(b, ty) => (Binding.name_of b,ty)) params
-           val measure_term = case variant_src of
+           val measure_term = case read_variant_opt  of
                                  NONE => Free(bdg_ord_name,args_ty --> HOLogic.natT)
-                               | SOME str => (Syntax.read_term ctxt str |> mk_pat_tupleabs params')
+                               | SOME f => ((f ctxt) |> mk_pat_tupleabs params')
            val measure =  Const(@{const_name "Wellfounded.measure"}, (args_ty --> HOLogic.natT)
                                                                      --> argsRelSet )
                           $ measure_term
-           val lhs_main = if x andalso is_none variant_src
+           val lhs_main = if x andalso is_none (read_variant_opt )
                           then Free(Binding.name_of binding, (args_ty --> HOLogic.natT)
                                                                        --> args_ty --> rmty) $
                                          Free(bdg_ord_name, args_ty --> HOLogic.natT)
@@ -1000,10 +1002,23 @@ val _ = Local_Theory.exit_result_global;
 val _ = Named_Target.theory_map_result;
 val _ = Named_Target.theory_map;
 
-   fun checkNsem_function_spec_gen {recursive = false} ({variant_src=SOME _, ...}) _ = 
+
+  
+ 
+(* This code is in large parts so messy because the extensible record package (used inside
+   StateMgt.new_state_record) is only available as transformation on global contexts, 
+   which cuts the local context calculations into two halves. The second halves is cut 
+   again into two halves because the definition of the core apparently does not take effect
+   before defining the block - structure when not separated (this problem can perhaps be overcome 
+   somehow))
+   
+   Precondition: the terms of the read-functions are full typed in the respective
+                 local contexts.
+   *)
+  fun checkNsem_function_spec_gen {recursive = false} ({read_variant_opt=SOME _, ...}) _ =
                                error "No measure required in non-recursive call"
       |checkNsem_function_spec_gen (isrec as {recursive = _:bool}) 
-                               ({binding, ret_type, variant_src, locals, 
+                               ({binding, ret_type, read_variant_opt, locals, 
                                  read_body, read_pre, read_post, params} : funct_spec_sem)
                                thy =
        let fun addfixes ((params_Ts,ret_ty,t_opt), ctxt) = 
@@ -1017,7 +1032,7 @@ val _ = Named_Target.theory_map;
                             , ctxt)
            val (theory_map, thy') = Named_Target.theory_map_result
                                     (K (fn f => Named_Target.theory_map o f))
-                                    (   read_function_spec (params, ret_type, variant_src)
+                                    (   read_function_spec (params, ret_type, read_variant_opt)
                                      #> addfixes
                                     )
                                     (thy)
@@ -1034,6 +1049,7 @@ val _ = Named_Target.theory_map;
                           let val sty = StateMgt_core.get_state_type ctxt
                               val args_ty = HOLogic.mk_tupleT (map snd params)
                               val mon_se_ty = StateMgt_core.MON_SE_T ret_ty sty
+                              val body = read_body ctxt mon_se_ty
                               val ctxt' =
                                 if #recursive isrec then
                                   Proof_Context.add_fixes 
@@ -1042,13 +1058,16 @@ val _ = Named_Target.theory_map;
                                   ctxt
                               val body = read_body  ctxt' mon_se_ty
                           in  ctxt' |> define_body_core binding args_ty sty params body
-                          end)
+                          end) (* separation nasty, but nec. in order to make the body definition 
+                                  take effect. No other reason. *)
+                                  
                 |> theory_map
                          (fn params => fn ret_ty => fn ctxt => 
                           let val sty = StateMgt_core.get_state_type ctxt
                               val mon_se_ty = StateMgt_core.MON_SE_T ret_ty sty
                               val body = read_body ctxt mon_se_ty
-                          in  ctxt |> define_body_main isrec binding ret_ty sty params variant_src body
+                          in  ctxt |> define_body_main isrec binding ret_ty sty 
+                                                       params read_variant_opt body
                           end)
         end
 
@@ -1058,13 +1077,17 @@ val _ = Named_Target.theory_map;
                                thy = 
        checkNsem_function_spec_gen (isrec) 
                                ( {binding   = binding, 
+                                  params    = params, 
                                   ret_type  = ret_type, 
-                                  variant_src =variant_src, 
+                                  read_variant_opt = (case variant_src of 
+                                                       NONE => NONE
+                                                     | SOME t=> SOME(fn ctxt 
+                                                                     => Syntax.read_term ctxt t)), 
                                   locals    = locals, 
-                                  read_body = fn ctxt => fn btyp => Syntax.read_term ctxt (fst body_src), 
+                                  read_body = fn ctxt => fn expected_type 
+                                                         => Syntax.read_term ctxt (fst body_src), 
                                   read_pre  = fn ctxt => Syntax.read_term ctxt pre_src, 
-                                  read_post = fn ctxt => Syntax.read_term ctxt post_src,
-                                  params=params} : funct_spec_sem)
+                                  read_post = fn ctxt => Syntax.read_term ctxt post_src} : funct_spec_sem)
                                thy
          
   
