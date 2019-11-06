@@ -870,7 +870,7 @@ structure Function_Specification_Parser  =
        -- parse_returns_clause
        --| \<^keyword>\<open>pre\<close>             -- Parse.term 
        --| \<^keyword>\<open>post\<close>            -- Parse.term 
-       -- (Scan.option  ( \<^keyword>\<open>variant\<close> |-- Parse.term))
+       -- (Scan.option  ( \<^keyword>\<open>variant\<close>    |-- Parse.term))
        -- (Scan.optional( \<^keyword>\<open>local_vars\<close> |-- (Scan.repeat1 Parse.const_binding))([]))
        --| \<^keyword>\<open>defines\<close>         -- (Parse.position (Parse.term)) 
       ) >> (fn ((((((((binding,params),ret_ty),pre_src),post_src),variant_src),locals)),body_src) => 
@@ -899,7 +899,7 @@ structure Function_Specification_Parser  =
        let val (params_Ts, ctxt') = read_params params ctxt
            val (rty, ctxt'') = read_result ret_type ctxt' 
            val variant = Option.map (Syntax.read_term ctxt'')  variant_src
-           val paramT_l = (map2 (fn (b, _) => fn T => (b, SOME T, NoSyn)) params params_Ts)
+           val paramT_l = (map2 (fn (b, _) => fn T => (b, T)) params params_Ts)
        in ((paramT_l, rty,variant),ctxt'') end 
 
 
@@ -920,13 +920,13 @@ structure Function_Specification_Parser  =
        in  Abs("\<sigma>\<^sub>p\<^sub>r\<^sub>e", sty, transform_old0 term) end
    
    fun define_cond binding f_sty transform_old src_suff check_absence_old params src (ctxt:local_theory) = 
-       let val params' = map (fn(b,SOME ty,_) => (Binding.name_of b,ty)) params
+       let val params' = map (fn(b, ty) => (Binding.name_of b,ty)) params
            val src' = case transform_old (Syntax.read_term ctxt src) of 
                         Abs(nn, sty_pre, term) => mk_pat_tupleabs params' (Abs(nn,sty_pre ,term))
                       | _ => error ("define abstraction for result" ^ Position.here \<^here>)
            val bdg = Binding.suffix_name src_suff binding
            val _ = check_absence_old src'
-           val bdg_ty = HOLogic.mk_tupleT(map (the o #2) params) --> f_sty HOLogic.boolT
+           val bdg_ty = HOLogic.mk_tupleT(map (#2) params) --> f_sty HOLogic.boolT
            val eq =  mk_meta_eq(Free(Binding.name_of bdg, bdg_ty),src')
            val args = (SOME(bdg,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
        in  StateMgt.cmd args true ctxt end
@@ -938,7 +938,7 @@ structure Function_Specification_Parser  =
      define_cond binding (fn boolT => sty --> sty --> rty --> boolT) (transform_old sty) "_post" I
 
    fun define_body_core binding args_ty sty params body =
-       let val params' = map (fn(b,SOME ty,_) => (Binding.name_of b, ty)) params
+       let val params' = map (fn(b,ty) => (Binding.name_of b, ty)) params
            val bdg_core = Binding.suffix_name "_core" binding
            val bdg_core_name = Binding.name_of bdg_core
 
@@ -957,12 +957,12 @@ structure Function_Specification_Parser  =
            val bdg_core_name = Binding.name_of bdg_core
            val bdg_rec_name = Binding.name_of(Binding.suffix_name "_rec" binding)
            val bdg_ord_name = Binding.name_of(Binding.suffix_name "_order" binding)
-           val args_ty = HOLogic.mk_tupleT (map (fn(_,SOME ty,_) => ty) params)
+           val args_ty = HOLogic.mk_tupleT (map snd params)
            val rmty = StateMgt_core.MON_SE_T rty sty 
            val umty = StateMgt.MON_SE_T @{typ "unit"} sty
            val argsProdT = HOLogic.mk_prodT(args_ty,args_ty)
            val argsRelSet = HOLogic.mk_setT argsProdT
-           val params' = map (fn(b,SOME ty,_) => (Binding.name_of b,ty)) params
+           val params' = map (fn(b, ty) => (Binding.name_of b,ty)) params
            val measure_term = case variant_src of
                                  NONE => Free(bdg_ord_name,args_ty --> HOLogic.natT)
                                | SOME str => (Syntax.read_term ctxt str |> mk_pat_tupleabs params')
@@ -1009,7 +1009,7 @@ val _ = Named_Target.theory_map;
        let fun addfixes ((params_Ts,ret_ty,t_opt), ctxt) = 
                             (fn fg => fn ctxt =>
                                    ctxt
-                                  |> Proof_Context.add_fixes params_Ts
+                                  |> Proof_Context.add_fixes (map (fn (s,ty)=>(s,SOME ty,NoSyn)) params_Ts)
                                     (* this declares the parameters of a function specification
                                        as Free variables (overrides a possible constant declaration)
                                        and assigns the declared type to them *)
@@ -1032,7 +1032,7 @@ val _ = Named_Target.theory_map;
                 |> theory_map
                          (fn params => fn ret_ty => fn ctxt => 
                           let val sty = StateMgt_core.get_state_type ctxt
-                              val args_ty = HOLogic.mk_tupleT (map (fn(_,SOME ty,_)=>ty) params)
+                              val args_ty = HOLogic.mk_tupleT (map snd params)
                               val mon_se_ty = StateMgt_core.MON_SE_T ret_ty sty
                               val ctxt' =
                                 if #recursive isrec then
