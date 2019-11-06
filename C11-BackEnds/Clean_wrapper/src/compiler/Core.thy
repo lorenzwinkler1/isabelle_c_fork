@@ -401,7 +401,8 @@ fun compile ast env_lang pos =
                        val l1 = name_of l1
                        val l2 = name_of l2
                    in
-                     {is_local = fn name => exists' name l2, is_global = fn name => exists' name l1}
+                     { is_local = fn name => exists' name l1 orelse exists' name l2
+                     , is_global = fn name => exists' name (map (Binding.name_of o #1) global_flds)}
                    end
                  , [(map (fn (b, ty, _) => (bs (Binding.name_of b), of_typ ty)) l1, NONE)]
                  , let val l2 =
