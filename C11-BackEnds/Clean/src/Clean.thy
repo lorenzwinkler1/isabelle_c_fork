@@ -274,11 +274,14 @@ variable \<open>result_value\<close> (see below in the Clean-package generation)
 \<^term>\<open>return_status\<close>. Note that a \<^term>\<open>return\<close> may appear after a \<^term>\<open>break\<close> and should have no effect
 in this case.\<close>
 
+definition return\<^sub>C0
+  where   "return\<^sub>C0 A = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>) 
+                             else (A ;- set_return_status) \<sigma>)"
+
 definition return\<^sub>C :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
                       \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
                       \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
-  where   "return\<^sub>C upd rhs =(\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>) 
-                                 else (assign_local upd rhs ;- set_return_status) \<sigma>)" 
+  where   "return\<^sub>C upd rhs = return\<^sub>C0 (assign_local upd rhs)"
 
 subsection\<open>Example for a Local Variable Space\<close>
 text\<open>Consider the usual operation \<open>swap\<close> defined in some free-style syntax as follows:

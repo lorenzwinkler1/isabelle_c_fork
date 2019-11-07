@@ -175,13 +175,9 @@ fun statement_node st stmt = stmt |>
     val block_item = block_item st
     (**)
     val skip = Syntax.const @{const_name skip\<^sub>S\<^sub>E}
-  in
-   fn Assign (exp1, exp2) =>
-       (case extract_deref [] exp1 of
-          Right exp => error ("Case not yet treated for this element: " ^ @{make_string} exp ^ Position.here \<^here>)
-        | Left (map_var, exp_deref) =>
-            Syntax.const @{const_name assign}
-            $ Abs
+    fun assign_abs map_var exp_deref exp2 =
+        Syntax.const @{const_name assign}
+          $ Abs
               ( "\<sigma>"
               , dummyT
               , let
@@ -197,7 +193,12 @@ fun statement_node st stmt = stmt |>
                 in f (expr var)
                 end
                 $ fold_rev (fn exp => fn acc => Syntax.const @{const_name map_nth} $ expr_lift' 0 exp $ acc) exp_deref (Abs ("_", dummyT, expr_lift' 1 exp2))
-                $ Bound 0))
+                $ Bound 0)
+  in
+   fn Assign (exp1, exp2) =>
+       (case extract_deref [] exp1 of
+          Right exp => error ("Case not yet treated for this element: " ^ @{make_string} exp ^ Position.here \<^here>)
+        | Left (map_var, exp_deref) => assign_abs map_var exp_deref exp2)
     | Block block => block |>
         (fn [] => skip
           | b :: bs =>
@@ -214,6 +215,8 @@ fun statement_node st stmt = stmt |>
                                     $ statement stmt1
                                     $ statement stmt2
     | EmptyStmt => skip
+    | Return (SOME exp) => Syntax.const @{const_name return\<^sub>C0}
+                           $ assign_abs (fn f => map_expr f (Expr.ebogwrap (Expr.Var (StateMgt.result_name, Unsynchronized.ref NONE)))) [] exp
     | stmt => warn ("Case not yet treated for this element: " ^ @{make_string} stmt ^ Position.here \<^here>)
   end
 and statement st stmt = stmt |>
@@ -479,7 +482,7 @@ global_vars state
   aa :: "nat list list"
   aaa :: "nat list list list"
 
-local_vars_test swap unit
+local_vars_test swap nat
   a\<^sub>l :: "nat list"
   aa\<^sub>l :: "nat list list"
   aaa\<^sub>l :: "nat list list list"
@@ -507,6 +510,8 @@ term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>for (i = 1; i < nn; i++
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[pivot_idx] = a[i];\<close> ;-
       \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>pivot_idx++;\<close> ;-
       \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[i] = a[pivot_idx];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>return 0;\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>return a[i];\<close>\<close>
 
 text\<open>The latter example shows how antiquoted C terms can be used as arguments in HOL combinators;
      in this case from the @{theory "Clean.MonadSE"} library.\<close>
