@@ -126,7 +126,7 @@ local
 open Expr
 in
 fun extract_deref acc exp = enode exp |>
-  (fn Var _ => Left (fn f => map_expr f exp, acc)
+  (fn Var (var, _) => Left (fn f => map_expr f exp, acc, var)
     | ArrayDeref (exp1, exp2) => extract_deref (exp2 :: acc) exp1
     | exp => Right exp)
 
@@ -142,6 +142,7 @@ fun expr_node st exp = exp |>
                                 | Times => @{const_name times}
                                 | Equals => @{const_name HOL.eq}
                                 | Modulus => @{const_name modulo}
+                                | Minus => @{const_name minus}
                                 | _ => error ("Case not yet treated for this element: " ^ @{make_string} ope ^ Position.here \<^here>))
         $ expr exp1
         $ expr exp2
@@ -176,7 +177,7 @@ fun statement_node st stmt = stmt |>
     val block_item = block_item st
     (**)
     val skip = Syntax.const @{const_name skip\<^sub>S\<^sub>E}
-    fun assign_abs map_var exp_deref exp2 =
+    fun assign_abs0 map_var exp_deref exp2 =
         Syntax.const @{const_name assign}
           $ Abs
               ( "\<sigma>"
@@ -193,13 +194,14 @@ fun statement_node st stmt = stmt |>
                           | exp => error ("Case not yet treated for this element: " ^ @{make_string} exp ^ Position.here \<^here>))
                 in f (expr var)
                 end
-                $ fold_rev (fn exp => fn acc => Syntax.const @{const_name map_nth} $ expr_lift' 0 exp $ acc) exp_deref (Abs ("_", dummyT, expr_lift' 1 exp2))
+                $ fold_rev (fn exp => fn acc => Syntax.const @{const_name map_nth} $ expr_lift' 0 exp $ acc) exp_deref (Abs ("_", dummyT, exp2))
                 $ Bound 0)
+    fun assign_abs map_var exp_deref = assign_abs0 map_var exp_deref o expr_lift' 1
   in
    fn Assign (exp1, exp2) =>
        (case extract_deref [] exp1 of
           Right exp => error ("Case not yet treated for this element: " ^ @{make_string} exp ^ Position.here \<^here>)
-        | Left (map_var, exp_deref) => assign_abs map_var exp_deref exp2)
+        | Left (map_var, exp_deref, _) => assign_abs map_var exp_deref exp2)
     | Block block => block |>
         (fn [] => skip
           | b :: bs =>
@@ -218,6 +220,31 @@ fun statement_node st stmt = stmt |>
     | EmptyStmt => skip
     | Return (SOME exp) => Syntax.const @{const_name return\<^sub>C0}
                            $ assign_abs (fn f => map_expr f (Expr.ebogwrap (Expr.Var (StateMgt.result_name, Unsynchronized.ref NONE)))) [] exp
+    | AssignFnCall (o_exp, exp, l_exp) =>
+       (Syntax.const @{const_name call\<^sub>C}
+        $ expr exp
+        $ (case rev l_exp of
+             exp :: exps =>
+              Abs
+                ( "\<sigma>"
+                , dummyT
+                , let val expr_lift = expr_lift' 0
+                  in fold (fn exp => fn acc => Syntax.const @{const_name Pair} $ expr_lift exp $ acc) exps (expr_lift exp)
+                  end)
+           | _ => Conversion.warn ("Case not yet treated for this element: " ^ @{make_string} l_exp ^ Position.here \<^here>)))
+       |> (case o_exp of
+              NONE => I
+            | SOME exp1 => 
+             (fn exp2 =>
+              case extract_deref [] exp1 of
+                Right exp => error ("Case not yet treated for this element: " ^ @{make_string} exp ^ Position.here \<^here>)
+              | Left (map_var, exp_deref, exp2_name) =>
+                  Syntax.const @{const_name bind_SE}
+                  $ exp2
+                  $ Abs
+                      ( exp2_name
+                      , dummyT
+                      , assign_abs0 map_var exp_deref (Bound 2))))
     | stmt => Conversion.warn ("Case not yet treated for this element: " ^ @{make_string} stmt ^ Position.here \<^here>)
   end
 and statement st stmt = stmt |>
@@ -513,6 +540,7 @@ term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[pivot_idx] = a[i];\<c
       \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[i] = a[pivot_idx];\<close>\<close>
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>return 0;\<close>\<close>
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>return a[i];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>f(a[i],y);\<close>\<close>
 
 text\<open>The latter example shows how antiquoted C terms can be used as arguments in HOL combinators;
      in this case from the @{theory "Clean.MonadSE"} library.\<close>
