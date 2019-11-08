@@ -77,6 +77,14 @@ fun init ctxt =
       , scope_var = read_const ctxt
                     #> (fn SOME (Const (name, _)) => Clean_Syntax_Lift.scope_var st name
                          | _ => tap (fn _ => warning "Expecting a constant") NONE) })
+
+fun warn0 msg = tap (fn _ => warning ("Syntax error: " ^ msg))
+
+fun warn msg = warn0 msg @{term "()"}
+
+fun const (st : T) var = case #read_const st var of
+                           SOME (Const (c, _)) => Syntax.const c
+                         | var' => warn0 ("Expecting a constant: " ^ @{make_string} (var, var') ^ ", returning a free variable" ^ Position.here \<^here>) (Syntax.free var)
 end
 \<close>
 
@@ -85,14 +93,11 @@ structure Conversion_C11 =
 struct
 fun expression (st : Conversion.T) expr = expr |>
   let
-    fun warn msg = tap (fn _ => warning ("Syntax error: " ^ msg)) @{term "()"}
-    fun const var = case #read_const st var of
-                      SOME (Const (c, _)) => Syntax.const c
-                    | _ => warn "Expecting a constant"
     open C_Ast
     open Term
     val decode = fn CVar0 (Ident0 (_, x, _), _) => C_Grammar_Rule_Lib.ident_decode x
                   | _ => error "Expecting a variable"
+    val const = Conversion.const st
     val const' = const o decode
   in
    fn CAssign0 (CAssignOp0, var_x, CIndex0 (var_y, var_z, _), _) =>
@@ -101,7 +106,7 @@ fun expression (st : Conversion.T) expr = expr |>
         $ #transform_term
             st
             (Syntax.const @{const_name nth} $ const' var_y $ const' var_z)
-    | expr => warn ("Case not yet treated for this element: " ^ @{make_string} expr ^ Position.here \<^here>)
+    | expr => Conversion.warn ("Case not yet treated for this element: " ^ @{make_string} expr ^ Position.here \<^here>)
   end
 end
 \<close>
@@ -110,10 +115,6 @@ ML \<open>
 structure Conversion_C99 =
 struct
 
-fun warn msg = tap (fn _ => warning ("Syntax error: " ^ msg)) @{term "()"}
-fun const (st : Conversion.T) var = case #read_const st var of
-                                      SOME (Const (c, _)) => Syntax.const c
-                                    | _ => warn "Expecting a constant"
 fun map_expr f exp =
   let val (res, exp_n) = f (Expr.enode exp)
   in (res, Expr.ewrap (exp_n, Expr.eleft exp, Expr.eright exp)) end
@@ -149,9 +150,9 @@ fun expr_node st exp = exp |>
     | Constant cst =>
         (case #read_term st (cst |> eval_litconst |> #1 |> Int.toString |> (fn s => s ^ " :: nat")) of
            SOME t => t
-         | NONE => warn "Expecting a number")
-    | Var (x, _) => const st x
-    | exp => warn ("Case not yet treated for this element: " ^ @{make_string} exp ^ Position.here \<^here>)
+         | NONE => Conversion.warn "Expecting a number")
+    | Var (x, _) => Conversion.const st x
+    | exp => Conversion.warn ("Case not yet treated for this element: " ^ @{make_string} exp ^ Position.here \<^here>)
   end
 and expr st exp = exp |>
   expr_node st o enode
@@ -208,7 +209,7 @@ fun statement_node st stmt = stmt |>
               Syntax.const @{const_name while_C}
               $ expr_lift exp
               $ statement stmt
-          | stmt => warn ("Case not yet treated for this element: " ^ @{make_string} stmt ^ Position.here \<^here>))
+          | stmt => Conversion.warn ("Case not yet treated for this element: " ^ @{make_string} stmt ^ Position.here \<^here>))
     | Trap (ContinueT, stmt) => statement stmt
     | IfStmt (exp, stmt1, stmt2) => Syntax.const @{const_name if_C}
                                     $ expr_lift exp
@@ -217,7 +218,7 @@ fun statement_node st stmt = stmt |>
     | EmptyStmt => skip
     | Return (SOME exp) => Syntax.const @{const_name return\<^sub>C0}
                            $ assign_abs (fn f => map_expr f (Expr.ebogwrap (Expr.Var (StateMgt.result_name, Unsynchronized.ref NONE)))) [] exp
-    | stmt => warn ("Case not yet treated for this element: " ^ @{make_string} stmt ^ Position.here \<^here>)
+    | stmt => Conversion.warn ("Case not yet treated for this element: " ^ @{make_string} stmt ^ Position.here \<^here>)
   end
 and statement st stmt = stmt |>
   statement_node st o snode
@@ -226,7 +227,7 @@ and block_item st bi = bi |>
     val statement = statement st
   in
    fn BI_Stmt stmt => statement stmt
-    | BI_Decl _ => tap (fn _ => warning "Skipping BI_Decl") (Syntax.const @{const_name skip\<^sub>S\<^sub>E})
+    | BI_Decl _ => Conversion.warn0 ("Skipping BI_Decl" ^ Position.here \<^here>) (Syntax.const @{const_name skip\<^sub>S\<^sub>E})
   end
 end
 
