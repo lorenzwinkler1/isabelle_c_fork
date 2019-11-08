@@ -506,41 +506,41 @@ subsection \<open>Test of C-to-Term Antiquotations (Cartouches)\<close>
 text\<open>Just to have a global and local state to build expressions and statements from: \<close>
 
 global_vars state
-  a :: "nat list"
-  aa :: "nat list list"
-  aaa :: "nat list list list"
+  a\<^sub>g :: "nat list"
+  aa\<^sub>g :: "nat list list"
+  aaa\<^sub>g :: "nat list list list"
 
 local_vars_test swap nat
   a\<^sub>l :: "nat list"
   aa\<^sub>l :: "nat list list"
   aaa\<^sub>l :: "nat list list list"
-  pivot :: nat
-  pivot_idx :: nat
-  i :: nat
-  j :: nat
-  nn :: nat
+  pivot\<^sub>l :: nat
+  pivot_idx\<^sub>l :: nat
+  i\<^sub>l :: nat
+  j\<^sub>l :: nat
+  nn\<^sub>l :: nat
 
 
 text\<open>In the following, we test a few term-antiquotations (or cartouches); this means that
      C fragments are compiled into HOL-terms interpreted in the Clean theory. \<close>
 
-term \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r \<open>pivot = a[pivot_idx]\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>if (a[j] < a[i]) {}\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>pivot = a[pivot_idx];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[pivot_idx] = a[i];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aa[j][pivot_idx] = a[i];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aaa[nn][j][pivot_idx] = a[i];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a\<^sub>l[pivot_idx] = a[i];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aa\<^sub>l[j][pivot_idx] = a[i];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aaa\<^sub>l[nn][j][pivot_idx] = a[i];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>if (a[j] < a[i]) { pivot_idx++; }\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>for (i = 1; i < nn; i++) { pivot_idx++; }\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[pivot_idx] = a[i];\<close> ;-
-      \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>pivot_idx++;\<close> ;-
-      \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[i] = a[pivot_idx];\<close>\<close>
+term \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r \<open>pivot\<^sub>l = a\<^sub>g[pivot_idx\<^sub>l]\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>if (a\<^sub>g[j\<^sub>l] < a\<^sub>g[i\<^sub>l]) {}\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>pivot\<^sub>l = a\<^sub>g[pivot_idx\<^sub>l];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a\<^sub>g[pivot_idx\<^sub>l] = a\<^sub>g[i\<^sub>l];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aa\<^sub>g[j\<^sub>l][pivot_idx\<^sub>l] = a\<^sub>g[i\<^sub>l];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aaa\<^sub>g[nn\<^sub>l][j\<^sub>l][pivot_idx\<^sub>l] = a\<^sub>g[i\<^sub>l];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a\<^sub>l[pivot_idx\<^sub>l] = a\<^sub>g[i\<^sub>l];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aa\<^sub>l[j\<^sub>l][pivot_idx\<^sub>l] = a\<^sub>g[i\<^sub>l];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aaa\<^sub>l[nn\<^sub>l][j\<^sub>l][pivot_idx\<^sub>l] = a\<^sub>g[i\<^sub>l];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>if (a\<^sub>g[j\<^sub>l] < a\<^sub>g[i\<^sub>l]) { pivot_idx\<^sub>l++; }\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>for (i\<^sub>l = 1; i\<^sub>l < nn\<^sub>l; i\<^sub>l++) { pivot_idx\<^sub>l++; }\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a\<^sub>g[pivot_idx\<^sub>l] = a\<^sub>g[i\<^sub>l];\<close> ;-
+      \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>pivot_idx\<^sub>l++;\<close> ;-
+      \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a\<^sub>g[i\<^sub>l] = a\<^sub>g[pivot_idx\<^sub>l];\<close>\<close>
 term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>return 0;\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>return a[i];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>f(a[i],y);\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>return a\<^sub>g[i\<^sub>l];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>f(a\<^sub>g[i\<^sub>l],y);\<close>\<close>
 
 text\<open>The latter example shows how antiquoted C terms can be used as arguments in HOL combinators;
      in this case from the @{theory "Clean.MonadSE"} library.\<close>
