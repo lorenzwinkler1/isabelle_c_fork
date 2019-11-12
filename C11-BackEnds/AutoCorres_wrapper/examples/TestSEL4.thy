@@ -46,8 +46,7 @@
 chapter \<open>Example: seL4\<close>
 
 theory TestSEL4
-imports
-  Isabelle_C_AutoCorres.AutoCorres_Wrapper
+  imports CParser.CTranslation
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/TestSEL4.thy\<close>\<close>
 
