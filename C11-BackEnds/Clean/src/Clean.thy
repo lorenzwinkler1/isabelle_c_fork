@@ -276,7 +276,7 @@ in this case.\<close>
 
 definition return\<^sub>C0
   where   "return\<^sub>C0 A = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>) 
-                             else (A ;- set_return_status) \<sigma>)"
+                                            else (A ;- set_return_status) \<sigma>)"
 
 definition return\<^sub>C :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
                       \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
