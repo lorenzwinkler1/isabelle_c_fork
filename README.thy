@@ -76,6 +76,11 @@ text \<open> A first installation step is:
 text \<open> which should work out of the box.
 \<close>
 
+text \<open> Alternatively, the full build of the \<^emph>\<open>developer repository\<close> of
+Isabelle/C is performed with:
+\<^item> \<^verbatim>\<open>isabelle build -b -v -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>Isabelle_C_all Isabelle_C_Advance_examples Clean_document Isabelle_C_AutoCorres_document Isabelle_C_Clean_document Isabelle_C_README Isabelle_C_archive\<close>
+\<close>
+
 text \<open> The following C examples or entry-points of documentation can be executed:
 
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^file>\<open>C11-FrontEnd/examples/C0.thy\<close>
