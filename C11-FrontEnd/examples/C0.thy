@@ -40,6 +40,8 @@ theory C0
   imports Isabelle_C.C_Main
 begin
 
+text\<open>dfgdfg\<close>
+
 declare[[C_lexer_trace]]
 
 section \<open>Regular C Code\<close>
