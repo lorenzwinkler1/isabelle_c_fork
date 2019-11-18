@@ -39,6 +39,11 @@ text ‹ A first installation step is:
 text ‹ which should work out of the box.
 ›
 
+text ‹ Alternatively, the full build of the ∗‹developer repository› of
+Isabelle/C is performed with:
+▪ ▩‹isabelle build -b -v -d› 🗀‹.› ▩‹Isabelle_C_all Isabelle_C_Advance_examples Clean_document Isabelle_C_AutoCorres_document Isabelle_C_Clean_document Isabelle_C_README Isabelle_C_archive›
+›
+
 text ‹ The following C examples or entry-points of documentation can be executed:
 
 ▪ ▩‹isabelle jedit -d› 🗀‹.› 🗏‹C11-FrontEnd/examples/C0.thy›

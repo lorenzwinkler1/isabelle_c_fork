@@ -79,7 +79,8 @@ lemma assign_local_skip:
 
 lemma return_skip:
 "\<lbrace>\<lambda>\<sigma>.  exec_stop \<sigma> \<and> P \<sigma> \<rbrace> return\<^sub>C upd rhs \<lbrace>\<lambda>r \<sigma>. exec_stop \<sigma> \<and> P \<sigma> \<rbrace>"
-  unfolding hoare\<^sub>3_def return\<^sub>C_def unit_SE_def assign_local_def assign_def bind_SE'_def bind_SE_def
+  unfolding hoare\<^sub>3_def return\<^sub>C_def return\<^sub>C0_def unit_SE_def assign_local_def assign_def
+            bind_SE'_def bind_SE_def
   by auto
 
 lemma assign_clean_skip:
@@ -139,7 +140,7 @@ lemma return_assign:
   shows "\<lbrace>\<lambda> \<sigma>. \<not> exec_stop \<sigma> \<and> P ((upd \<circ> map_hd) (\<lambda>_. rhs \<sigma>) (\<sigma> \<lparr> return_status := True \<rparr>))\<rbrace> 
           return\<^sub>C upd rhs
          \<lbrace>\<lambda>r \<sigma>. P \<sigma> \<and> return_status \<sigma> \<rbrace>"
-  unfolding return\<^sub>C_def hoare\<^sub>3_def skip\<^sub>S\<^sub>E_def unit_SE_def assign_local_def assign_def 
+  unfolding return\<^sub>C_def return\<^sub>C0_def hoare\<^sub>3_def skip\<^sub>S\<^sub>E_def unit_SE_def assign_local_def assign_def 
             set_return_status_def bind_SE'_def bind_SE_def 
 proof (auto)
   fix \<sigma> :: "'b control_state_scheme"

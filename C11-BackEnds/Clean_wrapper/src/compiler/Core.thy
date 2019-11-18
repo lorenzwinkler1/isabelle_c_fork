@@ -77,6 +77,14 @@ fun init ctxt =
       , scope_var = read_const ctxt
                     #> (fn SOME (Const (name, _)) => Clean_Syntax_Lift.scope_var st name
                          | _ => tap (fn _ => warning "Expecting a constant") NONE) })
+
+fun warn0 msg = tap (fn _ => warning ("Syntax error: " ^ msg))
+
+fun warn msg = warn0 msg @{term "()"}
+
+fun const (st : T) var = case #read_const st var of
+                           SOME (Const (c, _)) => Syntax.const c
+                         | var' => warn0 ("Expecting a constant: " ^ @{make_string} (var, var') ^ ", returning a free variable" ^ Position.here \<^here>) (Syntax.free var)
 end
 \<close>
 
@@ -85,14 +93,11 @@ structure Conversion_C11 =
 struct
 fun expression (st : Conversion.T) expr = expr |>
   let
-    fun warn msg = tap (fn _ => warning ("Syntax error: " ^ msg)) @{term "()"}
-    fun const var = case #read_const st var of
-                      SOME (Const (c, _)) => Syntax.const c
-                    | _ => warn "Expecting a constant"
     open C_Ast
     open Term
     val decode = fn CVar0 (Ident0 (_, x, _), _) => C_Grammar_Rule_Lib.ident_decode x
                   | _ => error "Expecting a variable"
+    val const = Conversion.const st
     val const' = const o decode
   in
    fn CAssign0 (CAssignOp0, var_x, CIndex0 (var_y, var_z, _), _) =>
@@ -101,7 +106,7 @@ fun expression (st : Conversion.T) expr = expr |>
         $ #transform_term
             st
             (Syntax.const @{const_name nth} $ const' var_y $ const' var_z)
-    | expr => warn ("Case not yet treated for this element: " ^ @{make_string} expr ^ Position.here \<^here>)
+    | expr => Conversion.warn ("Case not yet treated for this element: " ^ @{make_string} expr ^ Position.here \<^here>)
   end
 end
 \<close>
@@ -110,10 +115,6 @@ ML \<open>
 structure Conversion_C99 =
 struct
 
-fun warn msg = tap (fn _ => warning ("Syntax error: " ^ msg)) @{term "()"}
-fun const (st : Conversion.T) var = case #read_const st var of
-                                      SOME (Const (c, _)) => Syntax.const c
-                                    | _ => warn "Expecting a constant"
 fun map_expr f exp =
   let val (res, exp_n) = f (Expr.enode exp)
   in (res, Expr.ewrap (exp_n, Expr.eleft exp, Expr.eright exp)) end
@@ -125,7 +126,7 @@ local
 open Expr
 in
 fun extract_deref acc exp = enode exp |>
-  (fn Var _ => Left (fn f => map_expr f exp, acc)
+  (fn Var (var, _) => Left (fn f => map_expr f exp, acc, var)
     | ArrayDeref (exp1, exp2) => extract_deref (exp2 :: acc) exp1
     | exp => Right exp)
 
@@ -141,6 +142,7 @@ fun expr_node st exp = exp |>
                                 | Times => @{const_name times}
                                 | Equals => @{const_name HOL.eq}
                                 | Modulus => @{const_name modulo}
+                                | Minus => @{const_name minus}
                                 | _ => error ("Case not yet treated for this element: " ^ @{make_string} ope ^ Position.here \<^here>))
         $ expr exp1
         $ expr exp2
@@ -149,9 +151,9 @@ fun expr_node st exp = exp |>
     | Constant cst =>
         (case #read_term st (cst |> eval_litconst |> #1 |> Int.toString |> (fn s => s ^ " :: nat")) of
            SOME t => t
-         | NONE => warn "Expecting a number")
-    | Var (x, _) => const st x
-    | exp => warn ("Case not yet treated for this element: " ^ @{make_string} exp ^ Position.here \<^here>)
+         | NONE => Conversion.warn "Expecting a number")
+    | Var (x, _) => Conversion.const st x
+    | exp => Conversion.warn ("Case not yet treated for this element: " ^ @{make_string} exp ^ Position.here \<^here>)
   end
 and expr st exp = exp |>
   expr_node st o enode
@@ -175,13 +177,9 @@ fun statement_node st stmt = stmt |>
     val block_item = block_item st
     (**)
     val skip = Syntax.const @{const_name skip\<^sub>S\<^sub>E}
-  in
-   fn Assign (exp1, exp2) =>
-       (case extract_deref [] exp1 of
-          Right exp => error ("Case not yet treated for this element: " ^ @{make_string} exp ^ Position.here \<^here>)
-        | Left (map_var, exp_deref) =>
-            Syntax.const @{const_name assign}
-            $ Abs
+    fun assign_abs0 map_var exp_deref exp2 =
+        Syntax.const @{const_name assign}
+          $ Abs
               ( "\<sigma>"
               , dummyT
               , let
@@ -196,8 +194,14 @@ fun statement_node st stmt = stmt |>
                           | exp => error ("Case not yet treated for this element: " ^ @{make_string} exp ^ Position.here \<^here>))
                 in f (expr var)
                 end
-                $ fold_rev (fn exp => fn acc => Syntax.const @{const_name map_nth} $ expr_lift' 0 exp $ acc) exp_deref (Abs ("_", dummyT, expr_lift' 1 exp2))
-                $ Bound 0))
+                $ fold_rev (fn exp => fn acc => Syntax.const @{const_name map_nth} $ expr_lift' 0 exp $ acc) exp_deref (Abs ("_", dummyT, exp2))
+                $ Bound 0)
+    fun assign_abs map_var exp_deref = assign_abs0 map_var exp_deref o expr_lift' 1
+  in
+   fn Assign (exp1, exp2) =>
+       (case extract_deref [] exp1 of
+          Right exp => error ("Case not yet treated for this element: " ^ @{make_string} exp ^ Position.here \<^here>)
+        | Left (map_var, exp_deref, _) => assign_abs map_var exp_deref exp2)
     | Block block => block |>
         (fn [] => skip
           | b :: bs =>
@@ -207,14 +211,41 @@ fun statement_node st stmt = stmt |>
               Syntax.const @{const_name while_C}
               $ expr_lift exp
               $ statement stmt
-          | stmt => warn ("Case not yet treated for this element: " ^ @{make_string} stmt ^ Position.here \<^here>))
+          | stmt => Conversion.warn ("Case not yet treated for this element: " ^ @{make_string} stmt ^ Position.here \<^here>))
     | Trap (ContinueT, stmt) => statement stmt
     | IfStmt (exp, stmt1, stmt2) => Syntax.const @{const_name if_C}
                                     $ expr_lift exp
                                     $ statement stmt1
                                     $ statement stmt2
     | EmptyStmt => skip
-    | stmt => warn ("Case not yet treated for this element: " ^ @{make_string} stmt ^ Position.here \<^here>)
+    | Return (SOME exp) => Syntax.const @{const_name return\<^sub>C0}
+                           $ assign_abs (fn f => map_expr f (Expr.ebogwrap (Expr.Var (StateMgt.result_name, Unsynchronized.ref NONE)))) [] exp
+    | AssignFnCall (o_exp, exp, l_exp) =>
+       (Syntax.const @{const_name call\<^sub>C}
+        $ expr exp
+        $ (case rev l_exp of
+             exp :: exps =>
+              Abs
+                ( "\<sigma>"
+                , dummyT
+                , let val expr_lift = expr_lift' 0
+                  in fold (fn exp => fn acc => Syntax.const @{const_name Pair} $ expr_lift exp $ acc) exps (expr_lift exp)
+                  end)
+           | _ => Conversion.warn ("Case not yet treated for this element: " ^ @{make_string} l_exp ^ Position.here \<^here>)))
+       |> (case o_exp of
+              NONE => I
+            | SOME exp1 => 
+             (fn exp2 =>
+              case extract_deref [] exp1 of
+                Right exp => error ("Case not yet treated for this element: " ^ @{make_string} exp ^ Position.here \<^here>)
+              | Left (map_var, exp_deref, exp2_name) =>
+                  Syntax.const @{const_name bind_SE}
+                  $ exp2
+                  $ Abs
+                      ( exp2_name
+                      , dummyT
+                      , assign_abs0 map_var exp_deref (Bound 2))))
+    | stmt => Conversion.warn ("Case not yet treated for this element: " ^ @{make_string} stmt ^ Position.here \<^here>)
   end
 and statement st stmt = stmt |>
   statement_node st o snode
@@ -223,7 +254,7 @@ and block_item st bi = bi |>
     val statement = statement st
   in
    fn BI_Stmt stmt => statement stmt
-    | BI_Decl _ => tap (fn _ => warning "Skipping BI_Decl") (Syntax.const @{const_name skip\<^sub>S\<^sub>E})
+    | BI_Decl _ => Conversion.warn0 ("Skipping BI_Decl" ^ Position.here \<^here>) (Syntax.const @{const_name skip\<^sub>S\<^sub>E})
   end
 end
 
@@ -475,38 +506,41 @@ subsection \<open>Test of C-to-Term Antiquotations (Cartouches)\<close>
 text\<open>Just to have a global and local state to build expressions and statements from: \<close>
 
 global_vars state
-  a :: "nat list"
-  aa :: "nat list list"
-  aaa :: "nat list list list"
+  a\<^sub>g :: "nat list"
+  aa\<^sub>g :: "nat list list"
+  aaa\<^sub>g :: "nat list list list"
 
-local_vars_test swap unit
+local_vars_test swap nat
   a\<^sub>l :: "nat list"
   aa\<^sub>l :: "nat list list"
   aaa\<^sub>l :: "nat list list list"
-  pivot :: nat
-  pivot_idx :: nat
-  i :: nat
-  j :: nat
-  nn :: nat
+  pivot\<^sub>l :: nat
+  pivot_idx\<^sub>l :: nat
+  i\<^sub>l :: nat
+  j\<^sub>l :: nat
+  nn\<^sub>l :: nat
 
 
 text\<open>In the following, we test a few term-antiquotations (or cartouches); this means that
      C fragments are compiled into HOL-terms interpreted in the Clean theory. \<close>
 
-term \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r \<open>pivot = a[pivot_idx]\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>if (a[j] < a[i]) {}\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>pivot = a[pivot_idx];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[pivot_idx] = a[i];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aa[j][pivot_idx] = a[i];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aaa[nn][j][pivot_idx] = a[i];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a\<^sub>l[pivot_idx] = a[i];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aa\<^sub>l[j][pivot_idx] = a[i];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aaa\<^sub>l[nn][j][pivot_idx] = a[i];\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>if (a[j] < a[i]) { pivot_idx++; }\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>for (i = 1; i < nn; i++) { pivot_idx++; }\<close>\<close>
-term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[pivot_idx] = a[i];\<close> ;-
-      \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>pivot_idx++;\<close> ;-
-      \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a[i] = a[pivot_idx];\<close>\<close>
+term \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r \<open>pivot\<^sub>l = a\<^sub>g[pivot_idx\<^sub>l]\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>if (a\<^sub>g[j\<^sub>l] < a\<^sub>g[i\<^sub>l]) {}\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>pivot\<^sub>l = a\<^sub>g[pivot_idx\<^sub>l];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a\<^sub>g[pivot_idx\<^sub>l] = a\<^sub>g[i\<^sub>l];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aa\<^sub>g[j\<^sub>l][pivot_idx\<^sub>l] = a\<^sub>g[i\<^sub>l];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aaa\<^sub>g[nn\<^sub>l][j\<^sub>l][pivot_idx\<^sub>l] = a\<^sub>g[i\<^sub>l];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a\<^sub>l[pivot_idx\<^sub>l] = a\<^sub>g[i\<^sub>l];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aa\<^sub>l[j\<^sub>l][pivot_idx\<^sub>l] = a\<^sub>g[i\<^sub>l];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>aaa\<^sub>l[nn\<^sub>l][j\<^sub>l][pivot_idx\<^sub>l] = a\<^sub>g[i\<^sub>l];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>if (a\<^sub>g[j\<^sub>l] < a\<^sub>g[i\<^sub>l]) { pivot_idx\<^sub>l++; }\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>for (i\<^sub>l = 1; i\<^sub>l < nn\<^sub>l; i\<^sub>l++) { pivot_idx\<^sub>l++; }\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a\<^sub>g[pivot_idx\<^sub>l] = a\<^sub>g[i\<^sub>l];\<close> ;-
+      \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>pivot_idx\<^sub>l++;\<close> ;-
+      \<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>a\<^sub>g[i\<^sub>l] = a\<^sub>g[pivot_idx\<^sub>l];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>return 0;\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>return a\<^sub>g[i\<^sub>l];\<close>\<close>
+term \<open>\<^C>\<^sub>s\<^sub>t\<^sub>m\<^sub>t \<open>f(a\<^sub>g[i\<^sub>l],y);\<close>\<close>
 
 text\<open>The latter example shows how antiquoted C terms can be used as arguments in HOL combinators;
      in this case from the @{theory "Clean.MonadSE"} library.\<close>

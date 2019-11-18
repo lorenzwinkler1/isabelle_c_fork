@@ -288,7 +288,7 @@ lemma return_cancel1_idem [simp] :
  "( return\<^sub>C X E ;- assign_global X E' ;- M) = ( return\<^sub>C X E ;- M)"
   apply(rule ext, rename_tac "\<sigma>")  
   unfolding unset_break_status_def bind_SE'_def bind_SE_def
-            assign_def return\<^sub>C_def assign_global_def assign_local_def
+            assign_def return\<^sub>C_def return\<^sub>C0_def assign_global_def assign_local_def
   apply(case_tac "exec_stop \<sigma>")
   apply auto
   by (simp add: exec_stop_def set_return_status_def)
@@ -297,7 +297,7 @@ lemma return_cancel2_idem [simp] :
  "( return\<^sub>C X E ;- assign_local X E' ;- M) = ( return\<^sub>C X E ;- M)"
     apply(rule ext, rename_tac "\<sigma>")  
   unfolding unset_break_status_def bind_SE'_def bind_SE_def
-            assign_def return\<^sub>C_def assign_global_def assign_local_def
+            assign_def return\<^sub>C_def return\<^sub>C0_def assign_global_def assign_local_def
   apply(case_tac "exec_stop \<sigma>")
    apply auto
   by (simp add: exec_stop_def set_return_status_def)
