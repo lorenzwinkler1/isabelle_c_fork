@@ -51,7 +51,7 @@ begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
 
 C \<open>
-//@ declare [[Clean]]
+//@ declare [[Clean=true]]
 
 #define MAXSIZE 100
 
