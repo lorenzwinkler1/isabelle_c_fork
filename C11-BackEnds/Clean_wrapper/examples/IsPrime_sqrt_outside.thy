@@ -43,7 +43,7 @@
  * @TAG(NICTA_BSD)
  *)
 
-chapter \<open>Example: A Sqrt Prime Sample Proof\<close>
+chapter \<open>Example: A Sqrt Prime Sample Proof in "Code in Proof-style"\<close>
 
 text\<open>This example is used to demonstrate Isabelle/C/Clean in a version that keeps
 annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
