@@ -41,7 +41,7 @@ theory Meta_C
 begin
 
 text\<open>BIG BUG: At present, the C11 to C99 and Toolkit are not part of Isabelle/C, thy are part of
-\<^dir>\<open>../../../../l4v/src\<close> !!!! This is a hack to simulate a toolkit on C99 by reusing a lot of 
+\<^dir>\<open>../../../../src_ext/l4v/src\<close> !!!! This is a hack to simulate a toolkit on C99 by reusing a lot of 
 irrelevant stuff from l4v.
 
 The ultimate goal is just computing \<^verbatim>\<open>(local_rcd, global_rcd, fninfo) \<close>, so
@@ -54,7 +54,7 @@ C11-C99 translation.
 \<close>
 
 
-section \<open>\<^dir>\<open>../../../../l4v/src\<close>\<close>
+section \<open>\<^dir>\<open>../../../../src_ext/l4v/src\<close>\<close>
 (*
  * Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  * Copyright 2014, NICTA
@@ -71,17 +71,17 @@ subsection \<open>\<^file>\<open>$ISABELLE_HOME/src/HOL/Word/Word.thy\<close>\<c
 
 datatype 'a word = W
 
-subsection \<open>\<^file>\<open>../../../../l4v/src/lib/Word_Lib/Signed_Words.thy\<close>\<close>
+subsection \<open>\<^file>\<open>../../../../src_ext/l4v/src/lib/Word_Lib/Signed_Words.thy\<close>\<close>
 
 locale Signed_Words
 begin
 datatype 'a signed = S
 end
 
-subsection \<open>\<close> \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/Simpl/Vcg.thy\<close>\<close> (* \<comment>
+subsection \<open>\<close> \<comment> \<open>\<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/Simpl/Vcg.thy\<close>\<close> (* \<comment>
  \<open>FIXME LaTeX: writing \<open>-\<close> does not work inside \<^theory_text>\<open>section\<close>-like commands.\<close> *)
 
-ML \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/Simpl/hoare.ML\<close>\<close> \<open>
+ML \<comment> \<open>\<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/Simpl/hoare.ML\<close>\<close> \<open>
 structure Hoare = struct
 
 val specL = "_spec";
@@ -98,7 +98,7 @@ datatype 'a bodykind = BodyTyp of 'a | BodyTerm of 'a
 end
 \<close>
 
-subsection \<open>\<close> \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/umm_heap/$L4V_ARCH/ArchArraysMemInstance.thy\<close>\<close> (* \<comment>
+subsection \<open>\<close> \<comment> \<open>\<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/umm_heap/$L4V_ARCH/ArchArraysMemInstance.thy\<close>\<close> (* \<comment>
  \<open>FIXME LaTeX: writing \<open>-\<close> does not work inside \<^theory_text>\<open>section\<close>-like commands.\<close> *)
 
 (* introduce hackish handling of 8192 type by making a copy of the type
@@ -113,46 +113,46 @@ ML \<open>
   end
 \<close>
 
-subsection \<open>\<close> \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/CProof.thy\<close>\<close> (* \<comment>
+subsection \<open>\<close> \<comment> \<open>\<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/CProof.thy\<close>\<close> (* \<comment>
  \<open>FIXME LaTeX: writing \<open>-\<close> does not work inside \<^theory_text>\<open>section\<close>-like commands.\<close> *)
 
-ML_file "../../../../l4v/src/tools/c-parser/General.ML"
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/openUnsynch.ML\<close>\<close>
-ML_file "../../../../l4v/src/tools/c-parser/SourcePos.ML"
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/SourceFile.ML\<close>\<close>
-ML_file "../../../../l4v/src/tools/c-parser/Region.ML"
-ML_file "../../../../l4v/src/tools/c-parser/Binaryset.ML"
-ML_file "../../../../l4v/src/tools/c-parser/Feedback.ML"
-ML_file "../../../../l4v/src/tools/c-parser/basics.ML"
-ML_file "../../../../l4v/src/tools/c-parser/MString.ML"
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/General.ML"
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/openUnsynch.ML\<close>\<close>
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/SourcePos.ML"
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/SourceFile.ML\<close>\<close>
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/Region.ML"
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/Binaryset.ML"
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/Feedback.ML"
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/basics.ML"
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/MString.ML"
 
-ML_file "../../../../l4v/src/tools/c-parser/TargetNumbers-sig.ML"
-ML_file "../../../../l4v/src/tools/c-parser/umm_heap/$L4V_ARCH/TargetNumbers.ML"
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/TargetNumbers-sig.ML"
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/umm_heap/$L4V_ARCH/TargetNumbers.ML"
 
-ML_file "../../../../l4v/src/tools/c-parser/RegionExtras.ML"
-ML_file "../../../../l4v/src/tools/c-parser/Absyn-CType.ML"
-ML_file "../../../../l4v/src/tools/c-parser/Absyn-Expr.ML"
-ML_file "../../../../l4v/src/tools/c-parser/Absyn-StmtDecl.ML"
-ML_file "../../../../l4v/src/tools/c-parser/Absyn.ML"
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/Absyn-Serial.ML\<close>\<close>
-ML_file "../../../../l4v/src/tools/c-parser/name_generation.ML"
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/RegionExtras.ML"
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/Absyn-CType.ML"
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/Absyn-Expr.ML"
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/Absyn-StmtDecl.ML"
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/Absyn.ML"
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/Absyn-Serial.ML\<close>\<close>
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/name_generation.ML"
 
-subsection \<open>\<close> \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/CTranslation.thy\<close>\<close> (* \<comment>
+subsection \<open>\<close> \<comment> \<open>\<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/CTranslation.thy\<close>\<close> (* \<comment>
  \<open>FIXME LaTeX: writing \<open>-\<close> does not work inside \<^theory_text>\<open>section\<close>-like commands.\<close> *)
 
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/tools/mlyacc/mlyacclib/MLY_base-sig.ML\<close>\<close>
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/tools/mlyacc/mlyacclib/MLY_join.ML\<close>\<close>
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/tools/mlyacc/mlyacclib/MLY_lrtable.ML\<close>\<close>
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/tools/mlyacc/mlyacclib/MLY_stream.ML\<close>\<close>
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/tools/mlyacc/mlyacclib/MLY_parser2.ML\<close>\<close>
-ML_file "../../../../l4v/src/tools/c-parser/FunctionalRecordUpdate.ML"
-ML_file "../../../../l4v/src/tools/c-parser/topo_sort.ML"
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/tools/mlyacc/mlyacclib/MLY_base-sig.ML\<close>\<close>
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/tools/mlyacc/mlyacclib/MLY_join.ML\<close>\<close>
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/tools/mlyacc/mlyacclib/MLY_lrtable.ML\<close>\<close>
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/tools/mlyacc/mlyacclib/MLY_stream.ML\<close>\<close>
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/tools/mlyacc/mlyacclib/MLY_parser2.ML\<close>\<close>
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/FunctionalRecordUpdate.ML"
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/topo_sort.ML"
 ML_file "toolkit/isa_termstypes.ML"
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/generated/tools/c-parser/StrictC.grm.sig\<close>\<close>
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/generated/tools/c-parser/StrictC.grm.sml\<close>\<close>
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/generated/tools/c-parser/StrictC.lex.sml\<close>\<close>
-ML_file "../../../../l4v/src/tools/c-parser/isar_pre_install.ML"
-ML \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/StrictCParser.ML\<close>\<close> \<open>
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/generated/tools/c-parser/StrictC.grm.sig\<close>\<close>
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/generated/tools/c-parser/StrictC.grm.sml\<close>\<close>
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/generated/tools/c-parser/StrictC.lex.sml\<close>\<close>
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/isar_pre_install.ML"
+ML \<comment> \<open>\<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/StrictCParser.ML\<close>\<close> \<open>
 structure StrictCParser =
 struct
 fun parse ast (env_lang : C_Env.env_lang) =
@@ -164,15 +164,15 @@ fun parse ast (env_lang : C_Env.env_lang) =
   |> IsarPreInstall.of_c_ast
 end
 \<close>
-ML_file "../../../../l4v/src/tools/c-parser/complit.ML"
-ML \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/hp_termstypes.ML\<close>\<close> \<open>
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/complit.ML"
+ML \<comment> \<open>\<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/hp_termstypes.ML\<close>\<close> \<open>
 structure HP_TermsTypes =
 struct
 val c_exntype_ty = \<^typ>\<open>bool\<close>
 end
 \<close>
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/termstypes-sig.ML\<close>\<close>
-ML \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/termstypes.ML\<close>\<close> \<open>
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/termstypes-sig.ML\<close>\<close>
+ML \<comment> \<open>\<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/termstypes.ML\<close>\<close> \<open>
 structure TermsTypes = struct
 open IsabelleTermsTypes open HP_TermsTypes
 val mk_ptr_ty = I 
@@ -180,27 +180,27 @@ val symbol_table = Free ("symbol_table", \<^typ>\<open>string => string word\<cl
 end
 structure IntInfo = struct fun ity2wty _ = \<^typ>\<open>int\<close> end
 \<close>
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/UMM_termstypes.ML\<close>\<close>
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/recursive_records/recursive_record_pp.ML\<close>\<close>
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/recursive_records/recursive_record_package.ML\<close>\<close>
-ML_file "../../../../l4v/src/tools/c-parser/expression_typing.ML"
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/UMM_Proofs.ML\<close>\<close>
-ML_file "../../../../l4v/src/tools/c-parser/program_analysis.ML"
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/heapstatetype.ML\<close>\<close>
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/MemoryModelExtras-sig.ML\<close>\<close>
-ML \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/MemoryModelExtras.ML\<close>\<close> \<open>
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/UMM_termstypes.ML\<close>\<close>
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/recursive_records/recursive_record_pp.ML\<close>\<close>
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/recursive_records/recursive_record_package.ML\<close>\<close>
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/expression_typing.ML"
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/UMM_Proofs.ML\<close>\<close>
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/program_analysis.ML"
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/heapstatetype.ML\<close>\<close>
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/MemoryModelExtras-sig.ML\<close>\<close>
+ML \<comment> \<open>\<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/MemoryModelExtras.ML\<close>\<close> \<open>
 structure MemoryModelExtras =
 struct
 val extended_heap_ty = \<^typ>\<open>bool\<close>
 end
 \<close>
 ML_file "toolkit/calculate_state.ML"
-ML_file "../../../../l4v/src/tools/c-parser/syntax_transforms.ML"
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/expression_translation.ML\<close>\<close>
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/modifies_proofs.ML\<close>\<close>
+ML_file "../../../../src_ext/l4v/src/tools/c-parser/syntax_transforms.ML"
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/expression_translation.ML\<close>\<close>
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/modifies_proofs.ML\<close>\<close>
 ML_file "toolkit/HPInter.ML"
-\<comment> \<open>Not loaded: \<^file>\<open>../../../../l4v/src/tools/c-parser/stmt_translation.ML\<close>\<close>
-ML \<comment> \<open>\<^file>\<open>../../../../l4v/src/tools/c-parser/isar_install.ML\<close>\<close> \<open>
+\<comment> \<open>Not loaded: \<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/stmt_translation.ML\<close>\<close>
+ML \<comment> \<open>\<^file>\<open>../../../../src_ext/l4v/src/tools/c-parser/isar_install.ML\<close>\<close> \<open>
 structure IsarInstall =
 struct
 

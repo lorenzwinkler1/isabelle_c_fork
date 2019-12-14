@@ -50,7 +50,7 @@ imports
   Isabelle_C_AutoCorres.AutoCorres_Wrapper
   "HOL-Library.Multiset"
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
+\<comment> \<open>Derived from: \<^file>\<open>../../../src_ext/l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
 
 
 section\<open>The Quicksort Algorithm in Isabelle/C \<close>

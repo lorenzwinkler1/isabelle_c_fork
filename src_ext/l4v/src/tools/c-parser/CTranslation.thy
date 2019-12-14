@@ -19,7 +19,7 @@ imports
   "ModifiesProofs"
   "Lib.MLUtils"
   "HOL-Eisbach.Eisbach"
-  "../../../../C11-BackEnds/AutoCorres_wrapper/src/compiler/Init"
+  "../../../../../C11-BackEnds/AutoCorres_wrapper/src/compiler/Init"
 keywords
   "cond_sorry_modifies_proofs" :: thy_decl (* not 'thy_load' because the input file may not exist *)
 and
