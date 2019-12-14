@@ -43,55 +43,74 @@
  * @TAG(NICTA_BSD)
  *)
 
-chapter \<open>Example: A Sqrt Prime Sample Proof in "Code in Proof-style"\<close>
+chapter \<open>Example: Quicksort (version 1)\<close>
 
-text\<open>This example is used to demonstrate Isabelle/C/Clean in a version that keeps
-annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
-
-theory IsPrime_sqrt_outside
+theory Quicksort
   imports Isabelle_C_Clean.Clean_Wrapper
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../src_ext/l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
-
-section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
-
-text\<open> This C code contains a function that determines if the given number 
-      @{term n} is prime.
-
-      It returns 0 if @{term n}  is composite, or non-zero if @{term n}  is prime.
- 
-      This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
-
-declare [[Clean]]
+\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/Quicksort.thy\<close>\<close>
 
 C \<open>
-
-/*
-\<comment> \<open>It is possible to activate the Clean back-end at the command level or via an annotation command.\<close>
 //@ declare [[Clean]]
-*/
 
-#define SQRT_UINT_MAX 65536
+#ifdef TEST
+#include <stdio.h>
+#include <stdlib.h>
+#endif
 
-unsigned int is_prime(unsigned int n)
+// unsigned int b[100];
+
+unsigned long partition(unsigned int *a, unsigned long n)
 {
-    /* Numbers less than 2 are not primes. */
-    if (n < 2)
-        return 0;
+   // assume n != 0
 
-    /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX), whichever comes first. */
-    /* Find the first non-trivial factor of 'n' less than sqrt(n). */
+   unsigned long pivot_idx = 0;
 
-    for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++) {
-        if (n % i == 0)
-            return 0; 
-    }
+   for (unsigned long i = 1; i < n; i++) {
+      if (a[i] < a[pivot_idx]) {
+         unsigned int pivot = a[pivot_idx];
+         a[pivot_idx] = a[i];
+         pivot_idx++;
+         a[i] = a[pivot_idx];
+         a[pivot_idx] = pivot;
+      }
+   }
 
-    /* No factors. */
-    return 1;
-}\<close>
-find_theorems (100) name:is_prime name:core   (* this shows that the Clean package does not generate yet the expected theorems *)
+   return pivot_idx;
+}
 
+void quicksort(unsigned int *a, unsigned long n)
+{
+   if (n > 1) {
+      unsigned long pivot_idx = partition(a, n);
+      quicksort(a, pivot_idx);
+      quicksort(a + pivot_idx + 1, n - pivot_idx - 1);
+   }
+}
 
+#ifdef TEST
+
+int main(void)
+{
+   unsigned int sz;
+   scanf("%u", &sz);
+   unsigned int *a = malloc(sz * sizeof(unsigned int));
+   for (unsigned int i = 0; i < sz; i++) {
+      scanf("%u", a+i);
+   }
+
+   quicksort(a, sz);
+
+   for (unsigned int i = 0; i < sz; i++) {
+      if (i) putchar(' ');
+      printf("%u", a[i]);
+   }
+   printf("\n");
+
+   return 0;
+}
+
+#endif
+\<close>
 
 end

@@ -1,6 +1,8 @@
 (******************************************************************************
- * Isabelle/C
- *
+ * Isabelle/C/Clean
+ * 
+ * Authors: F. Tuong, B. Wolff
+ * 
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
  * All rights reserved.
@@ -33,65 +35,53 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(*
- * Copyright 2014, NICTA
- *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- *)
 
-chapter \<open>Example: A Sqrt Prime Sample Proof in "Code in Proof-style"\<close>
 
-text\<open>This example is used to demonstrate Isabelle/C/Clean in a version that keeps
-annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
+chapter \<open>Example: Triangle Type \<close>
+text\<open>
+   A classic example from test generation literature
+   which contains no loops or arrays
+   but is interesting for its simple example of an oracle.
+   This implementation does not handle negative inputs correctly 
 
-theory IsPrime_sqrt_outside
+   Determines the type of a triangle given its three edges i,j,k 
+   \<^enum>   4 = Not a triangle        
+   \<^enum>   3 = Equilateral triangle 
+   \<^enum>   2 = Isosceles triangle   
+   \<^enum>   1 = Any other triangle 
+\<close>
+
+theory PCTritype
   imports Isabelle_C_Clean.Clean_Wrapper
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../src_ext/l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
-
-section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
-
-text\<open> This C code contains a function that determines if the given number 
-      @{term n} is prime.
-
-      It returns 0 if @{term n}  is composite, or non-zero if @{term n}  is prime.
- 
-      This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
-
-declare [[Clean]]
+\<comment> \<open>Derived from: \<^url>\<open>http://pathcrawler-online.com:8080\<close>\<close>
 
 C \<open>
-
-/*
-\<comment> \<open>It is possible to activate the Clean back-end at the command level or via an annotation command.\<close>
 //@ declare [[Clean]]
-*/
 
-#define SQRT_UINT_MAX 65536
-
-unsigned int is_prime(unsigned int n)
-{
-    /* Numbers less than 2 are not primes. */
-    if (n < 2)
-        return 0;
-
-    /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX), whichever comes first. */
-    /* Find the first non-trivial factor of 'n' less than sqrt(n). */
-
-    for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++) {
-        if (n % i == 0)
-            return 0; 
+int tritype(int i, int j, int k){
+  int type_code;
+  if ((i == 0) || (j == 0) || (k == 0)) type_code = 4;     /* line 14 */
+  else {
+    type_code = 0;
+    if (i == j) type_code = type_code + 1;                 /* line 17 */
+    if (i == k) type_code = type_code + 2;                 /* line 18 */
+    if (j == k) type_code = type_code + 3;                 /* line 19 */
+    if (type_code == 0){                                   /* line 20 */
+      if ((i+j <= k) || (j+k <= i) || (i+k <= j))          /* line 21 */
+	type_code = 4;
+      else
+	type_code = 1;
+      }
+    else if (type_code > 3) type_code = 3;                 /* line 26 */
+    else if ((type_code == 1) && (i+j > k)) type_code = 2; /* line 27 */
+    else if ((type_code == 2) && (i+k > j)) type_code = 2; /* line 28 */
+    else if ((type_code == 3) && (j+k > i)) type_code = 2; /* line 29 */
+    else type_code = 4;
     }
-
-    /* No factors. */
-    return 1;
-}\<close>
-find_theorems (100) name:is_prime name:core   (* this shows that the Clean package does not generate yet the expected theorems *)
-
-
+  return type_code;
+}
+           
+\<close>
 
 end

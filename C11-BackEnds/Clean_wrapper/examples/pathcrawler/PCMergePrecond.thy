@@ -1,7 +1,9 @@
 (******************************************************************************
- * Isabelle/C
+ * Isabelle/C/Clean
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ *
+ * Authors : F. Tuong, B. Wolff
  *
  * All rights reserved.
  *
@@ -33,65 +35,78 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(*
- * Copyright 2014, NICTA
- *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- *)
 
-chapter \<open>Example: A Sqrt Prime Sample Proof in "Code in Proof-style"\<close>
+chapter \<open>Example: Mergesort.  \<close>
 
-text\<open>This example is used to demonstrate Isabelle/C/Clean in a version that keeps
-annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
-
-theory IsPrime_sqrt_outside
+theory PCMergePrecond
   imports Isabelle_C_Clean.Clean_Wrapper
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../src_ext/l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
-
-section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
-
-text\<open> This C code contains a function that determines if the given number 
-      @{term n} is prime.
-
-      It returns 0 if @{term n}  is composite, or non-zero if @{term n}  is prime.
- 
-      This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
+\<comment> \<open>Derived from: \<^url>\<open>http://pathcrawler-online.com:8080\<close>\<close>
 
 declare [[Clean]]
 
+text\<open>Merge of two given ordered arrays  t1 and t2 of length l1 and l2 resp.
+   into a ordered array t3
+
+   This example is like Merge but gives an example of a precondition 
+   coded in C  
+\<close>
+
 C \<open>
 
-/*
-\<comment> \<open>It is possible to activate the Clean back-end at the command level or via an annotation command.\<close>
-//@ declare [[Clean]]
-*/
+    void Merge (int t1[], int t2[], int t3[], int l1, int l2) {
 
-#define SQRT_UINT_MAX 65536
-
-unsigned int is_prime(unsigned int n)
-{
-    /* Numbers less than 2 are not primes. */
-    if (n < 2)
-        return 0;
-
-    /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX), whichever comes first. */
-    /* Find the first non-trivial factor of 'n' less than sqrt(n). */
-
-    for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++) {
-        if (n % i == 0)
-            return 0; 
+      int i = 0;
+      int j = 0;
+      int k = 0;
+    
+      while (i < l1 && j < l2) {     /* line 21 */
+        if (t1[i] < t2[j]) {     /* line 22 */
+          t3[k] = t1[i];
+          i++;
+          }
+        else {
+          t3[k] = t2[j];
+          j++;
+        }
+        k++;
+      }
+      while (i < l1) {     /* line 32 */
+        t3[k] = t1[i];
+        i++;
+        k++;
+      }
+      while (j < l2) {     /* line 37 */
+        t3[k] = t2[j];
+        j++;
+        k++;
+      }
     }
 
-    /* No factors. */
-    return 1;
-}\<close>
-find_theorems (100) name:is_prime name:core   (* this shows that the Clean package does not generate yet the expected theorems *)
-
-
+/* C precondition of function Merge
+   This must have the name of the tested function suffixed with _precond
+   and have the same number of arguments with the same types.
+   It must return 1 if the parameter values satisfy the precondition and 0 if not */
+int Merge_precond(int t1[], int t2[], int t3[], int l1, int l2) {
+  if (l1 > pathcrawler_dimension(t1)
+      || l2 > pathcrawler_dimension(t2)
+      || l1+l2 > pathcrawler_dimension(t3)) {
+    return 0;
+  }
+  int i;
+  for (i=1; i < l1; i++) {
+    if (t1[i-1] > t1[i]) {
+      return 0;
+    }
+  }
+  for (i=1; i < l2; i++) {
+    if (t2[i-1] > t2[i]) {
+      return 0;
+    }
+  }
+  return 1;
+}
+           
+\<close>
 
 end

@@ -1,7 +1,9 @@
 (******************************************************************************
- * Isabelle/C
+ * Isabelle/C/Clean
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ *
+ * Authors : F. Tuong, B. Wolff
  *
  * All rights reserved.
  *
@@ -33,65 +35,44 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(*
- * Copyright 2014, NICTA
- *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- *)
 
-chapter \<open>Example: A Sqrt Prime Sample Proof in "Code in Proof-style"\<close>
+chapter \<open>Example: Bubblesort.  \<close>
 
-text\<open>This example is used to demonstrate Isabelle/C/Clean in a version that keeps
-annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
-
-theory IsPrime_sqrt_outside
+theory PCBsort
   imports Isabelle_C_Clean.Clean_Wrapper
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../src_ext/l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
-
-section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
-
-text\<open> This C code contains a function that determines if the given number 
-      @{term n} is prime.
-
-      It returns 0 if @{term n}  is composite, or non-zero if @{term n}  is prime.
- 
-      This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
+\<comment> \<open>Derived from: \<^url>\<open>http://pathcrawler-online.com:8080\<close>\<close>
 
 declare [[Clean]]
 
+text\<open>Bubble sort of a given array 'table' of  a given length 'l' in descending order.
+
+   This example is interesting because of its
+   \<^enum> variable dimension input array
+   \<^enum> loop with a variable number of iterations,
+     which is limited by limiting the array dimension
+   \<^enum> oracle which does not sort but checks the result is ordered  \<close>
+
 C \<open>
 
-/*
-\<comment> \<open>It is possible to activate the Clean back-end at the command level or via an annotation command.\<close>
-//@ declare [[Clean]]
-*/
-
-#define SQRT_UINT_MAX 65536
-
-unsigned int is_prime(unsigned int n)
-{
-    /* Numbers less than 2 are not primes. */
-    if (n < 2)
-        return 0;
-
-    /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX), whichever comes first. */
-    /* Find the first non-trivial factor of 'n' less than sqrt(n). */
-
-    for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++) {
-        if (n % i == 0)
-            return 0; 
+    void bsort (int * table, int l) 
+    {
+      int i, temp, nb;
+      char fini;
+      fini = 0;
+      nb = 0;
+      while ( !fini && (nb < l-1)){      /* line 16 */
+        fini = 1;
+        for (i=0 ; i<l-1 ; i++)          /* line 18 */
+          if (table[i] < table[i+1]){    /* line 19 */
+           	fini = 0;
+           	temp = table[i];
+           	table[i] = table[i + 1];
+           	table[i + 1] = temp;
+           }
+       nb++;
+      }
     }
-
-    /* No factors. */
-    return 1;
-}\<close>
-find_theorems (100) name:is_prime name:core   (* this shows that the Clean package does not generate yet the expected theorems *)
-
-
+\<close>
 
 end

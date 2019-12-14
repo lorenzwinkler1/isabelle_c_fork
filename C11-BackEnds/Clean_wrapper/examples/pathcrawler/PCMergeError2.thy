@@ -1,7 +1,9 @@
 (******************************************************************************
- * Isabelle/C
+ * Isabelle/C/Clean
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ *
+ * Authors : F. Tuong, B. Wolff
  *
  * All rights reserved.
  *
@@ -33,65 +35,59 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(*
- * Copyright 2014, NICTA
- *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- *)
 
-chapter \<open>Example: A Sqrt Prime Sample Proof in "Code in Proof-style"\<close>
+chapter \<open>Example: Mergesort.  \<close>
 
-text\<open>This example is used to demonstrate Isabelle/C/Clean in a version that keeps
-annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
-
-theory IsPrime_sqrt_outside
+theory PCMergeError2
   imports Isabelle_C_Clean.Clean_Wrapper
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../src_ext/l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
-
-section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
-
-text\<open> This C code contains a function that determines if the given number 
-      @{term n} is prime.
-
-      It returns 0 if @{term n}  is composite, or non-zero if @{term n}  is prime.
- 
-      This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
+\<comment> \<open>Derived from: \<^url>\<open>http://pathcrawler-online.com:8080\<close>\<close>
 
 declare [[Clean]]
 
+text\<open>Merge of two given ordered arrays t1 and t2 of length l1 and l2 resp.
+   into a ordered array t3
+
+   This example is the same as Merge except that it contains an error at line 35
+   which means that the index of t3 is not incremented
+   and the same element of t3 is overwritten.
+   This causes some test-cases to give a "failure" verdict.
+   By examining the outputs of these test-cases,
+   the user will see that not all elements of t3 are written
+   (an error that cannot be directly detected by the oracle).
+   This information can be used to locate the bug. \<close>
+
 C \<open>
 
-/*
-\<comment> \<open>It is possible to activate the Clean back-end at the command level or via an annotation command.\<close>
-//@ declare [[Clean]]
-*/
+void Merge (int t1[], int t2[], int t3[], int l1, int l2) {
 
-#define SQRT_UINT_MAX 65536
+        int i = 0;
+        int j = 0;
+        int k = 0;
+       
+        while (i < l1 && j < l2) {     /* line 21 */
+          if (t1[i] < t2[j]) {     /* line 22 */
+            t3[k] = t1[i];
+            i++;
+            }
+          else {
+            t3[k] = t2[j];
+            j++;
+            }
+          k++;
+          }
+        while (i < l1) {     /* line 32 */
+          t3[k] = t1[i];
+          i++;
+          /* error : missing instruction k++; here */
+          }
+        while (j < l2) {     /* line 37 */
+          t3[k] = t2[j];
+          j++;
+          k++;
+          }
+}      
 
-unsigned int is_prime(unsigned int n)
-{
-    /* Numbers less than 2 are not primes. */
-    if (n < 2)
-        return 0;
-
-    /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX), whichever comes first. */
-    /* Find the first non-trivial factor of 'n' less than sqrt(n). */
-
-    for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++) {
-        if (n % i == 0)
-            return 0; 
-    }
-
-    /* No factors. */
-    return 1;
-}\<close>
-find_theorems (100) name:is_prime name:core   (* this shows that the Clean package does not generate yet the expected theorems *)
-
-
+\<close>
 
 end

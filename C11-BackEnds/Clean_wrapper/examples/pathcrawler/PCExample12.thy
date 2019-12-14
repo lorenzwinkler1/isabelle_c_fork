@@ -1,7 +1,9 @@
 (******************************************************************************
- * Isabelle/C
+ * Isabelle/C/Clean
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ *
+ * Authors : F. Tuong, B. Wolff
  *
  * All rights reserved.
  *
@@ -33,65 +35,87 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(*
- * Copyright 2014, NICTA
- *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- *)
 
-chapter \<open>Example: A Sqrt Prime Sample Proof in "Code in Proof-style"\<close>
+chapter \<open>Example: Access to uninitialized variables.  \<close>
 
-text\<open>This example is used to demonstrate Isabelle/C/Clean in a version that keeps
-annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
-
-theory IsPrime_sqrt_outside
+theory PCExample12
   imports Isabelle_C_Clean.Clean_Wrapper
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../src_ext/l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
-
-section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
-
-text\<open> This C code contains a function that determines if the given number 
-      @{term n} is prime.
-
-      It returns 0 if @{term n}  is composite, or non-zero if @{term n}  is prime.
- 
-      This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
+\<comment> \<open>Derived from: \<^url>\<open>http://pathcrawler-online.com:8080\<close>\<close>
 
 declare [[Clean]]
 
+text\<open> Should return 1 if x is an element of ordered array A \<close>
+
 C \<open>
-
-/*
-\<comment> \<open>It is possible to activate the Clean back-end at the command level or via an annotation command.\<close>
-//@ declare [[Clean]]
-*/
-
-#define SQRT_UINT_MAX 65536
-
-unsigned int is_prime(unsigned int n)
+int Bsearch( int A[8], int x) 
 {
-    /* Numbers less than 2 are not primes. */
-    if (n < 2)
-        return 0;
+  int low, high, mid, found ;
+  
+  low = 1 ;
+  high = 7 ;
+  found = 0 ;
+  while( high > low )                    // line 09
+    { mid = (low + high) / 2 ;
+    
+      if( x == A[mid] )                  // line 12
+         found = 1;
 
-    /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX), whichever comes first. */
-    /* Find the first non-trivial factor of 'n' less than sqrt(n). */
+      if( x > A[mid] )                   // line 15
+        low = mid + 1 ;
+      else
+        high = mid - 1;
+    }  
+  mid = (low + high) / 2 ;
 
-    for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++) {
-        if (n % i == 0)
-            return 0; 
+  if( ( found != 1)  && ( x == A[mid]) ) // line 22
+    found = 1; 
+  
+  return found ;
+}
+
+
+int spec_Bsearch(
+  int *Pre_A, int *A, 
+  int Pre_x, int x, 
+  int result_implementation)
+{
+  int i;
+  int present = 0;
+  int modif = 8;
+  
+  for(i=0; i<8; i++)                     // line 38
+    {
+      if(A[i] != Pre_A[i])               // line 40
+        modif = i;
+      if(Pre_A[i] == Pre_x)              // line 42
+	present = 1;
     }
+  if(present==0 && present != result_implementation) {
+    return 0; } /* implementation wrongly found x in A */
+  else {
+    if(present==1 && present != result_implementation) {
+      return 0; } /* implementation wrongly said x was not in A */
+    else {
+      if(modif < 8) {                    // line 51
+	return 0; } /* implementation modified A */
+      else return 1;
+    }
+  }
+  return 0;
+}
 
-    /* No factors. */
-    return 1;
-}\<close>
-find_theorems (100) name:is_prime name:core   (* this shows that the Clean package does not generate yet the expected theorems *)
 
+int CompareBsearchSpec(int A[8], int x) // tested function
+{
+  int *Pre_A = (int *)malloc(8 * sizeof(int));
+  int i;
+  for (i = 0; i < 8; i++)                // line 64
+    Pre_A[i] = A[i];
+  int result_implementation=Bsearch(A,x);
+  return(spec_Bsearch(Pre_A,A,x,x,result_implementation));
+}
 
+\<close>
 
 end
