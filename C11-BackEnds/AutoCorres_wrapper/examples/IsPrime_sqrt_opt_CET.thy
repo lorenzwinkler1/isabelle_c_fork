@@ -1,5 +1,5 @@
 (******************************************************************************
- * Isabelle/C
+ * Isabelle/C/AutoCorres
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
  *
@@ -33,7 +33,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(*
+(* For the original C-source:
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -45,10 +45,20 @@
 
 chapter \<open>Example: A Sqrt Prime Sample Proof\<close>
 
-text\<open>This example is used to demonstrate Isabelle/C/Autocorres in a version that keeps
-annotations completely \<^emph>\<open>outside\<close> the C source. \<close>
+text\<open>This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
+the theory development of the background theory as well as the program annotations completely 
+\<^emph>\<open>outside\<close> the C source. This particular development style that keeps the program
+separate from its theory we call CET (\<^emph>\<open>Code embedded-in Theory\<close>). It has the 
+advantage that developers of development and verification teams can be separated,
+as is required by many certification standards.
+Note that the opposite style that we call TEC (\<^emph>\<open>Theory embedded-in Code\<close>) is also 
+supported by Isabelle/C. In TEC style, Programs become a kind of ``proof-carrying (high-level) code''.
+Exports of the C-sources will contain their theory (not only their annotations) as comments
+\<^emph>\<open>inside\<close> which might be also useful in certification as well as advanced  
+``proof-carrying code'' securization schemes of server platforms.  \<close>
 
-theory IsPrime_sqrt_opt_outside
+
+theory IsPrime_sqrt_opt_CET
 imports
   Isabelle_C_AutoCorres.AutoCorres_Wrapper
   "HOL-Computational_Algebra.Primes"

@@ -49,7 +49,8 @@ local variables. \<close>
 
 theory Quicksort_concept
   imports Clean.Clean
-          Clean.Hoare_MonadSE
+          Clean.Hoare_Clean
+          Clean.Clean_Symbex
 begin
 
 section\<open>The Quicksort Example\<close>
@@ -107,8 +108,34 @@ text\<open>... which is reflected in Clean's state-management table:\<close>
 ML\<open> val Type("Quicksort_concept.global_state_state_scheme",t) 
         = StateMgt_core.get_state_type_global @{theory};
     StateMgt_core.get_state_field_tab_global @{theory}\<close>
+
+
 text\<open>Note that the state-management uses long-names for complete disambiguation.\<close>
 
+
+subsubsection\<open>A Simulation of Synthesis of Typed Assignment-Rules\<close>
+definition A\<^sub>L where "A\<^sub>L \<equiv> create\<^sub>L global_state_state.A global_state_state.A_update"
+
+lemma  A\<^sub>L_control_indep : "(break_status\<^sub>L \<bowtie> A\<^sub>L \<and> return_status\<^sub>L \<bowtie> A\<^sub>L)"
+  unfolding A\<^sub>L_def break_status\<^sub>L_def return_status\<^sub>L_def create\<^sub>L_def upd2put_def
+  by (simp add: lens_indep_def)
+
+lemma A\<^sub>L_strong_indep : "\<sharp>! A\<^sub>L"
+  unfolding strong_control_independence_def
+  using A\<^sub>L_control_indep by blast
+
+
+text\<open>Specialized Assignment Rule for Global Variable \<open>A\<close>.
+Note that this specialized rule of @{thm assign_global} does not
+need any further side-conditions referring to independence from the control.
+Consequently, backward inference in an \<open>wp\<close>-calculus will just maintain
+the invariant @{term \<open>\<not> exec_stop \<sigma>\<close>}.\<close>
+lemma assign_global_A:
+     "\<lbrace>\<lambda>\<sigma>. \<triangleright> \<sigma> \<and>  P (\<sigma>\<lparr>A := rhs \<sigma>\<rparr>)\<rbrace>  A_update :==\<^sub>G rhs \<lbrace>\<lambda>r \<sigma>. \<triangleright> \<sigma> \<and> P \<sigma> \<rbrace>"
+     apply(rule assign_global)
+     apply(rule strong_vs_weak_upd [of global_state_state.A global_state_state.A_update])
+     apply (metis A\<^sub>L_def A\<^sub>L_strong_indep)
+     by(rule ext, rule ext, auto)
 
 section \<open>Encoding swap in Clean\<close>
 
@@ -127,13 +154,20 @@ defines      " \<open> tmp := A ! i\<close>  ;-
                \<open> A := list_update A i (A ! j)\<close> ;- 
                \<open> A := list_update A j tmp\<close> " 
 
-text\<open>The body --- heavily using the \<open>\<lambda>\<close>-lifting cartouche --- corresponds to the low level 
-term: \<close>
+value "\<lparr>break_status = False, return_status = False, A = [1,2,3], 
+       tmp = [], result_value = [], \<dots> = X\<rparr>"
+
+value "swap (0,1) \<lparr>break_status = False, return_status = False, A = [1,2,3], 
+                   tmp = [],
+                   result_value = [],\<dots> = X\<rparr>"  
+
+text\<open>The body --- heavily using the \<open>\<lambda>\<close>-lifting cartouche --- corresponds to the 
+     low level term: \<close>
 
 text\<open> @{cartouche [display=true]
 \<open>\<open>defines " ((assign_local tmp_update (\<lambda>\<sigma>. (A \<sigma>) ! i ))   ;-
-            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
-            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>))))"\<close>\<close>}\<close>
+             (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
+             (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>))))"\<close>\<close>}\<close>
 
 text\<open>The effect of this statement is generation of the following definitions in the logical context:\<close>
 term "(i, j)" \<comment> \<open>check that \<^term>\<open>i\<close> and \<^term>\<open>j\<close> are pointing to the constants defined before treating \<^theory_text>\<open>function_spec\<close>\<close>
@@ -163,7 +197,8 @@ of the implicit definition of the return-type as @{typ "unit"}\<close>
 
 text\<open>We simulate the effect of the local variable space declaration by the following command
      factoring out the functionality into the command \<open>local_vars_test\<close> \<close>
-(*
+
+
 local_vars_test swap' "unit"
    tmp :: "int"
 
@@ -212,6 +247,48 @@ definition swap_opt :: "nat \<times> nat \<Rightarrow>  (unit,'a global_state_st
                            (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) (tmp)))))" 
 text\<open>In case that all local variables are single-assigned in swap, the entire local var definition
    could be ommitted.\<close>
+
+text\<open>A more pretty-printed term representation is:\<close>
+term\<open>  swap_opt = (\<lambda>(i, j).
+               tmp \<leftarrow> (yield\<^sub>C (\<lambda>\<sigma>. A \<sigma> ! i));
+               (A_update :==\<^sub>G (\<lambda>\<sigma>. (A \<sigma>)[i := A \<sigma> ! j]) ;- 
+                A_update :==\<^sub>G (\<lambda>\<sigma>. (A \<sigma>)[j := tmp])))\<close>
+
+
+subsubsection\<open>A Simulation of Synthesis of Typed Assignment-Rules\<close>
+
+definition tmp\<^sub>L where "tmp\<^sub>L \<equiv> create\<^sub>L local_swap'_state.tmp local_swap'_state.tmp_update"
+lemma  tmp\<^sub>L_control_indep : "(break_status\<^sub>L \<bowtie> tmp\<^sub>L \<and> return_status\<^sub>L \<bowtie> tmp\<^sub>L)"
+  unfolding tmp\<^sub>L_def break_status\<^sub>L_def return_status\<^sub>L_def create\<^sub>L_def upd2put_def
+  by (simp add: lens_indep_def)
+
+lemma tmp\<^sub>L_strong_indep : "\<sharp>! tmp\<^sub>L"
+  unfolding strong_control_independence_def
+  using tmp\<^sub>L_control_indep by blast
+
+text\<open>Specialized Assignment Rule for Global Variable \<open>A\<close>.
+Note that this specialized rule of @{thm assign_global} does not
+need any further side-conditions referring to independence from the control.
+Consequently, backward inference in an \<open>wp\<close>-calculus will just maintain
+the invariant @{term \<open>\<triangleright> \<sigma>\<close>}.\<close>
+
+term "create\<^sub>L (upd \<circ> upd_hd)"
+term "upd \<circ> upd_hd"
+
+
+lemma "X \<bowtie> create\<^sub>L gett upd  \<Longrightarrow> X \<bowtie> create\<^sub>L (hd \<circ> gett ) (upd \<circ> upd_hd)"
+  unfolding create\<^sub>L_def o_def Lens_Laws.lens_indep_def
+  apply auto
+  sorry
+
+lemma assign_local_tmp:
+   "\<lbrace>\<lambda>\<sigma>. \<triangleright> \<sigma> \<and> P ((tmp_update \<circ> upd_hd) (\<lambda>_. rhs \<sigma>) \<sigma>)\<rbrace>  local_swap'_state.tmp_update :==\<^sub>L rhs \<lbrace>\<lambda>r \<sigma>. \<triangleright> \<sigma> \<and> P \<sigma> \<rbrace>"
+  apply(rule assign_local)
+  sorry
+(*
+  apply(rule strong_vs_weak_upd [of global_state_state.A global_state_state.A_update])
+  apply (metis A\<^sub>L_def A\<^sub>L_strong_indep)
+  by(rule ext, rule ext, auto)
 *)
 
 section \<open>Encoding \<^verbatim>\<open>partition\<close> in Clean\<close>
@@ -272,9 +349,12 @@ ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
 
 subsection \<open>A Similation of \<^verbatim>\<open>partition\<close> in elementary specification constructs:\<close>
 
+subsubsection \<open>Contract-Elements\<close>
 definition "partition'_pre \<equiv> \<lambda>(lo, hi) \<sigma>. lo < length (A \<sigma>) \<and> hi < length (A \<sigma>)"
 definition "partition'_post \<equiv> \<lambda>(lo, hi) \<sigma>\<^sub>p\<^sub>r\<^sub>e \<sigma> res. length (A \<sigma>) = length (A \<sigma>\<^sub>p\<^sub>r\<^sub>e) \<and> res = 3"
 
+
+subsubsection\<open>Memory-Model\<close>
 text\<open>Recall: list-lifting is automatic in \<open>local_vars_test\<close>:\<close>
 
 local_vars_test  partition' "nat"
@@ -305,6 +385,11 @@ definition pop_local_partition_state' :: "(nat,'a local_partition_state_scheme) 
                          local_partition_state.result_value := 
                                                         tl(local_partition_state.result_value \<sigma>) \<rparr>)"
 
+subsubsection\<open>Memory-Model\<close>
+text\<open>Independence of Control-Block:\<close>
+
+
+subsubsection\<open>Monadic Representation of the Body\<close>
 
 definition partition'_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_partition'_state_scheme) MON\<^sub>S\<^sub>E"
   where   "partition'_core  \<equiv> \<lambda>(lo,hi).

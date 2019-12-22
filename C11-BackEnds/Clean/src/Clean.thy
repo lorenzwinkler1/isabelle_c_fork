@@ -42,7 +42,7 @@
 chapter \<open>The Clean Language\<close>
 
 theory Clean
-  imports Symbex_MonadSE
+  imports Lens_Laws Symbex_MonadSE
   keywords "global_vars" "local_vars_test" :: thy_decl 
      and "returns" "pre" "post" "local_vars" "variant" 
      and "function_spec" :: thy_decl
@@ -136,6 +136,11 @@ spaces in Clean. It contains just the information of the current control-flow: a
 record  control_state = 
             break_status  :: bool
             return_status :: bool
+find_theorems (60) name:control_state
+
+ML\<open>
+val t = @{term "\<sigma> \<lparr> break_status := False \<rparr>"}
+\<close>
 
 (* break quits innermost while or for, return quits an entire execution sequence. *)  
 definition break :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"
@@ -154,6 +159,19 @@ definition unset_return_status :: "(unit, ('\<sigma>_ext) control_state_ext) MON
 definition exec_stop :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool"
   where   "exec_stop = (\<lambda> \<sigma>. break_status \<sigma> \<or> return_status \<sigma> )"
 
+(*
+abbreviation not_equal :: "['a, 'a] \<Rightarrow> bool"  (infix "\<noteq>" 50)
+  where "x \<noteq> y \<equiv> \<not> (x = y)"
+
+syntax "_normal_execution" :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool" ("\<triangleright>(_)" [100]0)
+translations "\<triangleright> \<sigma>" \<rightleftharpoons> "(\<not> exec_stop \<sigma>)" 
+*)
+abbreviation normal_execution :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool" 
+  where "(normal_execution s) \<equiv> (\<not> exec_stop s)"
+notation normal_execution ("\<triangleright>")
+
+
+
 lemma exec_stop1[simp] : "break_status \<sigma> \<Longrightarrow> exec_stop \<sigma>" 
   unfolding exec_stop_def by simp
 
@@ -167,6 +185,25 @@ text\<open> On the basis of the control-state, assignments, conditionals and loo
 text\<open>For Reasoning over Clean programs, we need the notion of independance of an
      update from the control-block: \<close>
 
+find_theorems  "control_state.break_status_update"
+
+definition upd2put :: "(('d \<Rightarrow> 'b) \<Rightarrow> 'a \<Rightarrow> 'c) \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> 'c"
+  where "upd2put f = (\<lambda>\<sigma>. \<lambda> b. f (\<lambda>_. b) \<sigma>)"
+
+definition create\<^sub>L where "create\<^sub>L getv upd = \<lparr>lens_get = getv,lens_put = upd2put upd\<rparr>"
+
+definition break_status\<^sub>L 
+  where "break_status\<^sub>L = create\<^sub>L control_state.break_status control_state.break_status_update"
+
+definition return_status\<^sub>L 
+  where "return_status\<^sub>L = create\<^sub>L control_state.return_status control_state.return_status_update"
+
+lemma "break_status\<^sub>L \<bowtie> return_status\<^sub>L "
+  by (simp add: break_status\<^sub>L_def lens_indepI return_status\<^sub>L_def upd2put_def create\<^sub>L_def)
+
+definition strong_control_independence  ("\<sharp>!")
+  where "\<sharp>! L = (break_status\<^sub>L \<bowtie> L \<and> return_status\<^sub>L \<bowtie> L)"
+
 
 definition control_independence ::
                  "(('b\<Rightarrow>'b)\<Rightarrow>'a control_state_scheme \<Rightarrow> 'a control_state_scheme) \<Rightarrow> bool"    ("\<sharp>")
@@ -175,6 +212,16 @@ definition control_independence ::
                                  \<and> upd T (\<sigma>\<lparr> return_status := b \<rparr>) = (upd T \<sigma>)\<lparr> return_status := b \<rparr>
                                  \<and> upd T (\<sigma>\<lparr> break_status := b \<rparr>) = (upd T \<sigma>)\<lparr> break_status := b \<rparr>) "
 
+lemma strong_vs_weak_ci : "\<sharp>! L \<Longrightarrow> \<sharp> (\<lambda>f. \<lambda>\<sigma>. lens_put L \<sigma> (f (lens_get L \<sigma>)))"
+  unfolding strong_control_independence_def control_independence_def
+  by (simp add: break_status\<^sub>L_def lens_indep_def return_status\<^sub>L_def upd2put_def create\<^sub>L_def)
+
+
+lemma strong_vs_weak_upd : "\<sharp>! (create\<^sub>L getv upd) \<Longrightarrow>
+       (\<lambda>f \<sigma>. upd (\<lambda>_. f (getv \<sigma>)) \<sigma>) = upd \<Longrightarrow> 
+       \<sharp> (upd) "
+  unfolding create\<^sub>L_def upd2put_def
+  by(drule strong_vs_weak_ci, auto)
 
 
 lemma exec_stop_vs_control_independence [simp]:
@@ -236,7 +283,7 @@ definition assign :: "(('\<sigma>_ext) control_state_scheme  \<Rightarrow>
 
 definition  assign_global :: "(('a  \<Rightarrow> 'a ) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
                               \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
-                              \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
+                              \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E" (infix ":==\<^sub>G" 100)
   where    "assign_global upd rhs = assign(\<lambda>\<sigma>. ((upd) (\<lambda>_. rhs \<sigma>)) \<sigma>)"
 
 text\<open>An update of the variable \<open>A\<close> based on the state of the previous example is done 
@@ -249,24 +296,27 @@ automated generation of specific push- and pop operations used to model the effe
 entering or leaving a function block (to be discussed later).\<close>
 
 
-fun      map_hd :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a list \<Rightarrow> 'a list" 
-  where "map_hd f [] = []"
-      | "map_hd f (a#S) = f a # S"
+fun      upd_hd :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a list \<Rightarrow> 'a list" 
+  where "upd_hd f [] = []"
+      | "upd_hd f (a#S) = f a # S"
 
-lemma tl_map_hd [simp] :"tl (map_hd f S) = tl S"  by (metis list.sel(3) map_hd.elims) 
+lemma tl_map_hd [simp] :"tl (upd_hd f S) = tl S" 
+  by (metis list.sel(3) upd_hd.elims)
 
-definition "map_nth = (\<lambda>i f l. list_update l i (f (l ! i)))"
+definition "hd\<^sub>L = create\<^sub>L hd upd_hd"   (* partial lenses needed  ?*)
+
+definition "map_nth i = (\<lambda>f l. list_update l i (f (l ! i)))"
 
 definition  assign_local :: "(('a list \<Rightarrow> 'a list) 
                                  \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
                              \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
-                             \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
-  where    "assign_local upd rhs = assign(\<lambda>\<sigma>. ((upd o map_hd) (%_. rhs \<sigma>)) \<sigma>)"
+                             \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"  (infix ":==\<^sub>L" 100)
+  where    "assign_local upd rhs = assign(\<lambda>\<sigma>. ((upd o upd_hd) (%_. rhs \<sigma>)) \<sigma>)"
 
 
 text\<open>Semantically, the difference between \<^emph>\<open>global\<close> and \<^emph>\<open>local\<close> is rather unimpressive as the 
      following lemma shows. However, the distinction matters for the pretty-printing setup of Clean.\<close>
-lemma "assign_local upd rhs = assign_global (upd o map_hd) rhs "
+lemma "(upd :==\<^sub>L rhs) = ((upd \<circ> upd_hd) :==\<^sub>G rhs)"
       unfolding assign_local_def assign_global_def by simp
 
 text\<open>The \<open>return\<close> command in C-like languages is represented basically by an assignment to a local
@@ -827,12 +877,13 @@ The reader interested in details is referred to the \<^file>\<open>../examples/Q
 accompanying this distribution.
 \<close>
 
+
+text\<open>In order to support the \<^verbatim>\<open>old\<close>-notation known from JML and similar annotation languages,
+we introduce the following definition:\<close>
 definition old :: "'a \<Rightarrow> 'a" where "old x = x"
 
-
-ML\<open> 
-\<close>
-
+text\<open>The core module of the parser and operation specification construct is implemented in the
+following module:\<close>
 ML \<open> 
 structure Function_Specification_Parser  = 
   struct

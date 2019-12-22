@@ -48,12 +48,12 @@ text\<open>  As they are equalities, they can also
 be used as program optimization rules. \<close>
 
 lemma non_exec_assign  : 
-assumes "\<not> exec_stop \<sigma>"
+assumes "\<triangleright> \<sigma>"
 shows "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign f; M)) = ((f \<sigma>) \<Turnstile>  M)"
 by (simp add: assign_def assms exec_bind_SE_success)
 
 lemma non_exec_assign'  : 
-assumes "\<not> exec_stop \<sigma>"
+assumes "\<triangleright> \<sigma>"
 shows "(\<sigma> \<Turnstile> (assign f;- M)) = ((f \<sigma>) \<Turnstile>  M)"
 by (simp add: assign_def assms exec_bind_SE_success bind_SE'_def)
 
@@ -70,12 +70,12 @@ by (simp add: assign_def assms exec_bind_SE_success bind_SE'_def)
 subsection\<open>Assign Execution Rules.  \<close>
 
 lemma non_exec_assign_global  : 
-assumes "\<not> exec_stop \<sigma>"
+assumes "\<triangleright> \<sigma>"
 shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign_global upd rhs; M)) = ((upd (\<lambda>_. rhs \<sigma>) \<sigma>) \<Turnstile>  M)"
 by(simp add: assign_global_def non_exec_assign assms)
 
 lemma non_exec_assign_global'  : 
-assumes "\<not> exec_stop \<sigma>"
+assumes "\<triangleright> \<sigma>"
 shows   "(\<sigma> \<Turnstile> (assign_global upd rhs;- M)) = ((upd (\<lambda>_. rhs \<sigma>) \<sigma>) \<Turnstile>  M)"
   by (metis (full_types) assms bind_SE'_def non_exec_assign_global)
 
@@ -91,12 +91,12 @@ shows   "(\<sigma> \<Turnstile> (assign_global upd rhs;- M)) = ( \<sigma> \<Turn
   by (simp add: assign_global_def assign_def assms exec_bind_SE_success bind_SE'_def)
 
 lemma non_exec_assign_local  : 
-assumes "\<not> exec_stop \<sigma>"
+assumes "\<triangleright> \<sigma>"
 shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign_local upd rhs; M)) = ((upd (map_hd (\<lambda>_. rhs \<sigma>)) \<sigma>) \<Turnstile>  M)"
   by(simp add: assign_local_def non_exec_assign assms)
 
 lemma non_exec_assign_local'  : 
-assumes "\<not> exec_stop \<sigma>"
+assumes "\<triangleright> \<sigma>"
 shows   "(\<sigma> \<Turnstile> (assign_local upd rhs;- M)) = ((upd (map_hd (\<lambda>_. rhs \<sigma>)) \<sigma>) \<Turnstile>  M)"
   by (metis assms bind_SE'_def non_exec_assign_local)
 
@@ -179,44 +179,44 @@ shows   "(\<sigma> \<Turnstile> (call_2\<^sub>C M A\<^sub>1 A\<^sub>2;- M')) = (
 subsection\<open>Basic Call Symbolic Execution Rules.  \<close>
 
 lemma non_exec_call_0  : 
-assumes "\<not> exec_stop \<sigma>"
+assumes "\<triangleright> \<sigma>"
 shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> call_0\<^sub>C M; M')) = (\<sigma> \<Turnstile> M;- M')"
   by (simp add: assms bind_SE'_def bind_SE_def call_0\<^sub>C_def valid_SE_def)
 
 lemma non_exec_call_0'  : 
-assumes "\<not> exec_stop \<sigma>"
+assumes "\<triangleright> \<sigma>"
 shows   "(\<sigma> \<Turnstile> call_0\<^sub>C M;- M') = (\<sigma> \<Turnstile> M;- M')"
   by (simp add: assms bind_SE'_def non_exec_call_0)
 
 lemma non_exec_call_1  : 
-assumes "\<not> exec_stop \<sigma>"
+assumes "\<triangleright> \<sigma>"
 shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> (call_1\<^sub>C M A\<^sub>1); M' x)) = (\<sigma> \<Turnstile> (x \<leftarrow> M (A\<^sub>1 \<sigma>); M' x))"
   by (simp add: assms bind_SE'_def call\<^sub>C_def bind_SE_def call_1\<^sub>C_def valid_SE_def)
 
 lemma non_exec_call_1'  : 
-assumes "\<not> exec_stop \<sigma>"
+assumes "\<triangleright> \<sigma>"
 shows   "(\<sigma> \<Turnstile> call_1\<^sub>C M A\<^sub>1;- M') = (\<sigma> \<Turnstile>  M (A\<^sub>1 \<sigma>);- M')"
   by (simp add: assms bind_SE'_def non_exec_call_1)
 
 
 lemma non_exec_call  : 
-assumes "\<not> exec_stop \<sigma>"
+assumes "\<triangleright> \<sigma>"
 shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> (call\<^sub>C M A\<^sub>1); M' x)) = (\<sigma> \<Turnstile> (x \<leftarrow> M (A\<^sub>1 \<sigma>); M' x))"
   by (simp add: assms call\<^sub>C_def bind_SE'_def bind_SE_def call_1\<^sub>C_def valid_SE_def)
 
 lemma non_exec_call'  : 
-assumes "\<not> exec_stop \<sigma>"
+assumes "\<triangleright> \<sigma>"
 shows   "(\<sigma> \<Turnstile> call\<^sub>C M A\<^sub>1;- M') = (\<sigma> \<Turnstile>  M (A\<^sub>1 \<sigma>);- M')"
   by (simp add: assms bind_SE'_def non_exec_call)
 
 
 lemma non_exec_call_2  : 
-assumes "\<not> exec_stop \<sigma>"
+assumes "\<triangleright> \<sigma>"
 shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> (call_2\<^sub>C M A\<^sub>1 A\<^sub>2); M')) = (\<sigma> \<Turnstile> M (A\<^sub>1 \<sigma>) (A\<^sub>2 \<sigma>);- M')"
   by (simp add: assms bind_SE'_def bind_SE_def call_2\<^sub>C_def valid_SE_def)
 
 lemma non_exec_call_2'  : 
-assumes "\<not> exec_stop \<sigma>"
+assumes "\<triangleright> \<sigma>"
 shows   "(\<sigma> \<Turnstile> call_2\<^sub>C M A\<^sub>1 A\<^sub>2;- M') = (\<sigma> \<Turnstile>  M (A\<^sub>1 \<sigma>) (A\<^sub>2 \<sigma>);- M')"
   by (simp add: assms bind_SE'_def non_exec_call_2)
 
@@ -224,14 +224,14 @@ shows   "(\<sigma> \<Turnstile> call_2\<^sub>C M A\<^sub>1 A\<^sub>2;- M') = (\<
 subsection\<open>Conditional.  \<close>
 
 lemma exec_If\<^sub>C_If\<^sub>S\<^sub>E  : 
-assumes "\<not> exec_stop \<sigma>"
+assumes "\<triangleright> \<sigma>"
 shows  " ((if\<^sub>C P then B\<^sub>1 else B\<^sub>2 fi))\<sigma> = ((if\<^sub>S\<^sub>E P then B\<^sub>1 else B\<^sub>2 fi)) \<sigma> "
   unfolding if_SE_def MonadSE.if_SE_def Symbex_MonadSE.valid_SE_def MonadSE.bind_SE'_def
   by (simp add: assms bind_SE_def if_C_def)
     
     
 lemma valid_exec_If\<^sub>C  : 
-assumes "\<not> exec_stop \<sigma>"
+assumes "\<triangleright> \<sigma>"
 shows  "(\<sigma> \<Turnstile> (if\<^sub>C P then B\<^sub>1 else B\<^sub>2 fi);-M) = (\<sigma> \<Turnstile> (if\<^sub>S\<^sub>E P then B\<^sub>1 else B\<^sub>2 fi);-M)"
   by (meson assms exec_If\<^sub>C_If\<^sub>S\<^sub>E valid_bind'_cong)
 
@@ -285,7 +285,7 @@ lemma unset_break_idem [simp] :
   apply(rule ext)  unfolding unset_break_status_def bind_SE'_def bind_SE_def by auto
 
 lemma return_cancel1_idem [simp] : 
- "( return\<^sub>C X E ;- assign_global X E' ;- M) = ( return\<^sub>C X E ;- M)"
+ "( return\<^sub>C X E ;- X :==\<^sub>G E' ;- M) = ( return\<^sub>C X E ;- M)"
   apply(rule ext, rename_tac "\<sigma>")  
   unfolding unset_break_status_def bind_SE'_def bind_SE_def
             assign_def return\<^sub>C_def return\<^sub>C0_def assign_global_def assign_local_def
@@ -294,7 +294,7 @@ lemma return_cancel1_idem [simp] :
   by (simp add: exec_stop_def set_return_status_def)
     
 lemma return_cancel2_idem [simp] : 
- "( return\<^sub>C X E ;- assign_local X E' ;- M) = ( return\<^sub>C X E ;- M)"
+ "( return\<^sub>C X E ;- X :==\<^sub>L E' ;- M) = ( return\<^sub>C X E ;- M)"
     apply(rule ext, rename_tac "\<sigma>")  
   unfolding unset_break_status_def bind_SE'_def bind_SE_def
             assign_def return\<^sub>C_def return\<^sub>C0_def assign_global_def assign_local_def

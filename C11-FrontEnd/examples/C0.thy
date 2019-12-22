@@ -46,6 +46,7 @@ declare[[C_lexer_trace]]
 
 section \<open>Regular C Code\<close>
 
+subsection\<open>Comments, Keywords and Pragmas\<close>
 C \<comment> \<open>Nesting of comments following the example suite of
       \<^url>\<open>https://gcc.gnu.org/onlinedocs/cpp/Initial-processing.html\<close>\<close> \<open>
 /* inside /* inside */ int a = "outside";
@@ -106,6 +107,8 @@ C \<comment> \<open>Directive: macro\<close> \<open>
 #endif
 \<close>
 
+subsection\<open>PIDE Latency on Multiple Bindings\<close>
+
 C \<comment> \<open>Example of obfuscated code \<^url>\<open>https://en.wikipedia.org/wiki/International_Obfuscated_C_Code_Contest\<close>\<close> \<open>
 #define _ -F<00||--F-OO--;
 int F=00,OO=00;main(){F_OO();printf("%1.3f\n",4.*-F/OO/OO);}F_OO()
@@ -128,6 +131,14 @@ _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_
             _-_-_-_
 }
 \<close>
+
+text\<open>Select inside the ball, experience the latency. 
+A special keyboard combination (on Apple: Cmd/Shift/Enter) lets jedit / PIDE
+enter in a mode where the selected bound occurrences were replaced by the
+keybord input simultaneously.
+\<close>
+
+subsection\<open>Lexing and Parsing Obfuscated Sources\<close>
 
 C \<comment> \<open>Example of obfuscated code \<^url>\<open>https://www.ioccc.org/2018/endoh1/prog.c\<close>\<close> \<open>
         #define/*__Int3rn^ti[]n/l_()I3fusc^t3|]_C_C<>I7E_C[]nt3st__*/L/*__MMXVIII__*/for
@@ -158,6 +169,8 @@ W+M(j/2/2,+06)*2+w*014      +00+M(00+      000+j,002      +00)]=000      +00+k)k
     j?j-31:31-j),Z=c[t[c]<z?E(Z),k<(1<<12)-2?t[c]=++k,T:T:t];E(Z);E(257);L(G++;k=G-r>X?X:G-r
         ,C(k),k;)L(;k--;C(*r++/*---#$%&04689@ABDOPQRabdegopq---*/));}C(53+6);return(z);}
 \<close>
+
+text\<open>Another lexer-stress test: an obfuscated C source.\<close>
 
 section \<open>Experiments with \<^dir>\<open>../../parser_menhir\<close>\<close>
 
