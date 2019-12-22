@@ -134,17 +134,17 @@ text \<open>
 For the case of \<^dir>\<open>C11-BackEnds/AutoCorres_wrapper\<close>, we were used to see a
 sub-window \<open>Bad session structure\<close> appearing just after starting Isabelle. This is
 because the back-end normally requires to execute some initialization script (for example using
-\<^file>\<open>l4v/src/run_tests\<close>) to generate specific Isabelle theory files. Instead, as
-possible workaround, we have introduced by hand in \<^dir>\<open>l4v/src\<close> several symbolic
-links pointing to the missing files, making the sub-window not supposed to appear
-anymore. Nevertheless, if this ever happens again, the sub-window can be ignored by clicking on
-\<open>OK\<close>.
+\<^file>\<open>src_ext/l4v/src/run_tests\<close>) to generate specific Isabelle theory
+files. Instead, as possible workaround, we have introduced by hand in
+\<^dir>\<open>src_ext/l4v/src\<close> several symbolic links pointing to the missing files, making
+the sub-window not supposed to appear anymore. Nevertheless, if this ever happens again, the
+sub-window can be ignored by clicking on \<open>OK\<close>.
 
-Additionally, \<^file>\<open>l4v/src/run_tests\<close> can be executed in
-\<^dir>\<open>l4v/src\<close>, and interrupted once the success of \<open>CBaseRefine\<close>
-obtained. Then, to test the interactive version of AutoCorres, it would suffice to run the following
-command:
-\<^item> \<^verbatim>\<open>isabelle build -d\<close> \<^dir>\<open>l4v/src\<close> \<^verbatim>\<open>-b -v AutoCorresSEL4\<close>
+Additionally, \<^file>\<open>src_ext/l4v/src/run_tests\<close> can be executed in
+\<^dir>\<open>src_ext/l4v/src\<close>, and interrupted once the success of
+\<open>CBaseRefine\<close> obtained. Then, to test the interactive version of AutoCorres, it would
+suffice to run the following command:
+\<^item> \<^verbatim>\<open>isabelle build -d\<close> \<^dir>\<open>src_ext/l4v/src\<close> \<^verbatim>\<open>-b -v AutoCorresSEL4\<close>
 \<close>
 
 text \<open>

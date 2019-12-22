@@ -92,12 +92,12 @@ shows   "(\<sigma> \<Turnstile> (assign_global upd rhs;- M)) = ( \<sigma> \<Turn
 
 lemma non_exec_assign_local  : 
 assumes "\<triangleright> \<sigma>"
-shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign_local upd rhs; M)) = ((upd (map_hd (\<lambda>_. rhs \<sigma>)) \<sigma>) \<Turnstile>  M)"
+shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> assign_local upd rhs; M)) = ((upd (upd_hd (\<lambda>_. rhs \<sigma>)) \<sigma>) \<Turnstile>  M)"
   by(simp add: assign_local_def non_exec_assign assms)
 
 lemma non_exec_assign_local'  : 
 assumes "\<triangleright> \<sigma>"
-shows   "(\<sigma> \<Turnstile> (assign_local upd rhs;- M)) = ((upd (map_hd (\<lambda>_. rhs \<sigma>)) \<sigma>) \<Turnstile>  M)"
+shows   "(\<sigma> \<Turnstile> (assign_local upd rhs;- M)) = ((upd (upd_hd (\<lambda>_. rhs \<sigma>)) \<sigma>) \<Turnstile>  M)"
   by (metis assms bind_SE'_def non_exec_assign_local)
 
 lemmas non_exec_assign_localD'= non_exec_assign[THEN iffD1]

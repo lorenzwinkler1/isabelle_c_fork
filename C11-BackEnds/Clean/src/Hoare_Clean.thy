@@ -128,23 +128,23 @@ lemma assign_global:
 find_theorems "\<sharp> _ "
 
 lemma assign_local:
-  assumes * : "\<sharp> (upd \<circ> map_hd)"
-  shows       "\<lbrace>\<lambda>\<sigma>. \<triangleright> \<sigma> \<and> P ((upd \<circ> map_hd) (\<lambda>_. rhs \<sigma>) \<sigma>) \<rbrace> upd :==\<^sub>L rhs  \<lbrace>\<lambda>r \<sigma>. \<triangleright> \<sigma> \<and> P \<sigma> \<rbrace>"
+  assumes * : "\<sharp> (upd \<circ> upd_hd)"
+  shows       "\<lbrace>\<lambda>\<sigma>. \<triangleright> \<sigma> \<and> P ((upd \<circ> upd_hd) (\<lambda>_. rhs \<sigma>) \<sigma>) \<rbrace> upd :==\<^sub>L rhs  \<lbrace>\<lambda>r \<sigma>. \<triangleright> \<sigma> \<and> P \<sigma> \<rbrace>"
   unfolding    hoare\<^sub>3_def skip\<^sub>S\<^sub>E_def unit_SE_def assign_local_def  assign_def
   using assms exec_stop_vs_control_independence by fastforce
 
 lemma return_assign:
-  assumes * : "\<sharp> (upd \<circ> map_hd)"
-  shows       "\<lbrace>\<lambda> \<sigma>. \<triangleright> \<sigma> \<and> P ((upd \<circ> map_hd) (\<lambda>_. rhs \<sigma>) (\<sigma> \<lparr> return_status := True \<rparr>))\<rbrace> 
+  assumes * : "\<sharp> (upd \<circ> upd_hd)"
+  shows       "\<lbrace>\<lambda> \<sigma>. \<triangleright> \<sigma> \<and> P ((upd \<circ> upd_hd) (\<lambda>_. rhs \<sigma>) (\<sigma> \<lparr> return_status := True \<rparr>))\<rbrace> 
                return\<^sub>C upd rhs
                \<lbrace>\<lambda>r \<sigma>. P \<sigma> \<and> return_status \<sigma> \<rbrace>"
   unfolding return\<^sub>C_def return\<^sub>C0_def hoare\<^sub>3_def skip\<^sub>S\<^sub>E_def unit_SE_def assign_local_def assign_def 
             set_return_status_def bind_SE'_def bind_SE_def 
 proof (auto)
   fix \<sigma> :: "'b control_state_scheme"
-    assume a1: "P (upd (map_hd (\<lambda>_. rhs \<sigma>)) (\<sigma>\<lparr>return_status := True\<rparr>))"
+    assume a1: "P (upd (upd_hd (\<lambda>_. rhs \<sigma>)) (\<sigma>\<lparr>return_status := True\<rparr>))"
     assume "\<triangleright> \<sigma>"
-    show "P (upd (map_hd (\<lambda>_. rhs \<sigma>)) \<sigma>\<lparr>return_status := True\<rparr>)"
+    show "P (upd (upd_hd (\<lambda>_. rhs \<sigma>)) \<sigma>\<lparr>return_status := True\<rparr>)"
       using a1 assms exec_stop_vs_control_independence' by fastforce
   qed
   (* do we need independence of rhs ? Not really. 'Normal' programs would never
@@ -252,8 +252,3 @@ text\<open>Consequence and Sequence rules where inherited from the underlying Ho
 
 
 end
-
-
-
-
-
