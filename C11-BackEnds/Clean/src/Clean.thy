@@ -136,7 +136,6 @@ spaces in Clean. It contains just the information of the current control-flow: a
 record  control_state = 
             break_status  :: bool
             return_status :: bool
-find_theorems (60) name:control_state
 
 ML\<open>
 val t = @{term "\<sigma> \<lparr> break_status := False \<rparr>"}
@@ -187,10 +186,31 @@ text\<open>For Reasoning over Clean programs, we need the notion of independance
 
 find_theorems  "control_state.break_status_update"
 
-definition upd2put :: "(('d \<Rightarrow> 'b) \<Rightarrow> 'a \<Rightarrow> 'c) \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> 'c"
-  where "upd2put f = (\<lambda>\<sigma>. \<lambda> b. f (\<lambda>_. b) \<sigma>)"
 
-definition create\<^sub>L where "create\<^sub>L getv upd = \<lparr>lens_get = getv,lens_put = upd2put upd\<rparr>"
+fun      upd_hd :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a list \<Rightarrow> 'a list" 
+  where "upd_hd f [] = []"
+      | "upd_hd f (a#S) = f a # S"
+
+lemma tl_map_hd [simp] :"tl (upd_hd f S) = tl S" 
+  by (metis list.sel(3) upd_hd.elims)
+
+
+definition upd2put :: "(('d \<Rightarrow> 'b) \<Rightarrow> 'a \<Rightarrow> 'c) \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> 'c"
+  where   "upd2put f = (\<lambda>\<sigma>. \<lambda> b. f (\<lambda>_. b) \<sigma>)"
+
+definition create\<^sub>L 
+  where "create\<^sub>L getv updv = \<lparr>lens_get = getv,lens_put = upd2put updv\<rparr>"
+
+definition "hd\<^sub>L = create\<^sub>L hd upd_hd"   (* partial lenses needed  ?*)
+
+definition "map_nth i = (\<lambda>f l. list_update l i (f (l ! i)))"
+
+lemma indep_list_lift : 
+     "X \<bowtie> create\<^sub>L getv updv 
+      \<Longrightarrow> (\<lambda>f \<sigma>. updv (\<lambda>_. f (getv \<sigma>)) \<sigma>) = updv 
+      \<Longrightarrow> X \<bowtie> create\<^sub>L (hd \<circ> getv ) (updv \<circ> upd_hd)"
+  unfolding create\<^sub>L_def o_def Lens_Laws.lens_indep_def upd2put_def
+  by (auto,metis (no_types)) (metis (no_types))
 
 definition break_status\<^sub>L 
   where "break_status\<^sub>L = create\<^sub>L control_state.break_status control_state.break_status_update"
@@ -216,13 +236,72 @@ lemma strong_vs_weak_ci : "\<sharp>! L \<Longrightarrow> \<sharp> (\<lambda>f. \
   unfolding strong_control_independence_def control_independence_def
   by (simp add: break_status\<^sub>L_def lens_indep_def return_status\<^sub>L_def upd2put_def create\<^sub>L_def)
 
+lemma experimnt :"\<sharp>! (create\<^sub>L getv updv) \<Longrightarrow> (\<lambda>f \<sigma>. updv (\<lambda>_. f (getv \<sigma>)) \<sigma>) = updv"
+  unfolding create\<^sub>L_def strong_control_independence_def 
+            break_status\<^sub>L_def return_status\<^sub>L_def lens_indep_def
+  apply(rule ext, rule ext) 
+  apply auto
+  unfolding upd2put_def
+  (* seems to be independent *)
+  oops
 
-lemma strong_vs_weak_upd : "\<sharp>! (create\<^sub>L getv upd) \<Longrightarrow>
-       (\<lambda>f \<sigma>. upd (\<lambda>_. f (getv \<sigma>)) \<sigma>) = upd \<Longrightarrow> 
-       \<sharp> (upd) "
+lemma strong_vs_weak_upd : 
+  assumes * :  "\<sharp>! (create\<^sub>L getv updv)"    (* getv and upd are constructed as lense *)
+    and  ** :  "(\<lambda>f \<sigma>. updv (\<lambda>_. f (getv \<sigma>)) \<sigma>) = updv" (* getv and upd are involutive *)
+  shows "\<sharp> (updv)"
+  apply(insert * **)
   unfolding create\<^sub>L_def upd2put_def
   by(drule strong_vs_weak_ci, auto)
 
+
+lemma strong_vs_weak_upd_list : 
+  assumes * :  "\<sharp>! (create\<^sub>L (getv:: 'b control_state_scheme \<Rightarrow> 'c list) 
+                            (updv:: ('c list \<Rightarrow> 'c list) \<Rightarrow> 'b control_state_scheme \<Rightarrow> 'b control_state_scheme))"  
+                 (* getv and upd are constructed as lense *)
+    and  ** :  "(\<lambda>f \<sigma>. updv (\<lambda>_. f (getv \<sigma>)) \<sigma>) = updv" (* getv and upd are involutive *)
+  shows        "\<sharp> (updv \<circ> upd_hd)"
+proof - 
+  have *** : "\<sharp>! (create\<^sub>L (hd \<circ> getv ) (updv \<circ> upd_hd))"
+    using * ** by (simp add: indep_list_lift strong_control_independence_def)
+  show "\<sharp> (updv \<circ> upd_hd)"
+    apply(rule strong_vs_weak_upd)
+     apply(rule ***)
+    apply(rule ext, rule ext)
+    sorry
+qed
+thm list.sel(1) list.sel(3) list.simps(3) o_apply upd_hd.elims
+(* this does not seem hopeless:
+  sledgehammer offers two different proofs:
+
+  by (metis "**" list.sel(1) list.sel(3) list.simps(3) o_apply upd_hd.elims)
+
+  and
+
+proof -
+  fix f :: "'c \<Rightarrow> 'c" and \<sigma> :: "'b control_state_scheme"
+{ fix cc :: 'c
+  have "\<forall>f cs. esk1_3 f cs (upd_hd f cs) = (hd cs::'c) \<or> cs = []"
+    by (metis list.sel(1) upd_hd.elims) (* > 1.0 s, timed out *)
+  then have ff1: "\<forall>f cs. (hd cs::'c) # esk2_3 f cs (upd_hd f cs) = cs \<or> cs = []"
+by (metis upd_hd.elims) (* > 1.0 s, timed out *)
+have "\<forall>c cs f. upd_hd f ((c::'c) # cs) = f c # cs"
+  by simp
+  then have ff2: "\<forall>f cs. f (hd cs::'c) # tl cs = upd_hd f cs \<or> cs = []"
+    using ff1 by (metis list.sel(3))
+then have "\<forall>c ca. updv (\<lambda>cs. c # tl (getv ca)) ca = updv (upd_hd (\<lambda>ca. c)) ca \<or> getv ca = []"
+  by (metis (no_types) "**")
+  then have "\<forall>f c. updv (upd_hd (\<lambda>ca. f (hd (getv c)))) c = updv (upd_hd f) c \<or> getv c = []"
+    using ff2 
+    
+    by (metis "**") (* > 1.0 s, timed out *)
+then have "updv (upd_hd (\<lambda>c. f (hd (getv \<sigma>)))) \<sigma> = updv (upd_hd f) \<sigma>"
+by (metis (no_types) "**" list.simps(3) upd_hd.elims)
+then have "(updv \<circ> upd_hd) (\<lambda>c. f ((hd \<circ> getv) \<sigma>)) \<sigma> = (updv \<circ> upd_hd) f \<sigma> \<or> f ((hd \<circ> getv) \<sigma>) = f cc"
+by simp }
+  then show "(updv \<circ> upd_hd) (\<lambda>c. f ((hd \<circ> getv) \<sigma>)) \<sigma> = (updv \<circ> upd_hd) f \<sigma>"
+    by meson
+qed
+*)
 
 lemma exec_stop_vs_control_independence [simp]:
   "\<sharp> upd \<Longrightarrow> exec_stop (upd f \<sigma>) = exec_stop \<sigma>"
@@ -296,17 +375,6 @@ automated generation of specific push- and pop operations used to model the effe
 entering or leaving a function block (to be discussed later).\<close>
 
 
-fun      upd_hd :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a list \<Rightarrow> 'a list" 
-  where "upd_hd f [] = []"
-      | "upd_hd f (a#S) = f a # S"
-
-lemma tl_map_hd [simp] :"tl (upd_hd f S) = tl S" 
-  by (metis list.sel(3) upd_hd.elims)
-
-definition "hd\<^sub>L = create\<^sub>L hd upd_hd"   (* partial lenses needed  ?*)
-
-definition "map_nth i = (\<lambda>f l. list_update l i (f (l ! i)))"
-
 definition  assign_local :: "(('a list \<Rightarrow> 'a list) 
                                  \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
                              \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
@@ -330,8 +398,9 @@ definition return\<^sub>C0
 
 definition return\<^sub>C :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
                       \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
-                      \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
+                      \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E" ("return\<index>")
   where   "return\<^sub>C upd rhs = return\<^sub>C0 (assign_local upd rhs)"
+
 
 subsection\<open>Example for a Local Variable Space\<close>
 text\<open>Consider the usual operation \<open>swap\<close> defined in some free-style syntax as follows:
@@ -482,7 +551,7 @@ definition swap :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap_state_sc
 subsection\<open>Call Semantics\<close>
 
 text\<open>It is now straight-forward to define the semantics of a generic call --- 
-which is simply a monad execution that is \<^term>\<open>break\<close>-aware and \<^term>\<open>return\<close>-aware.\<close>
+which is simply a monad execution that is \<^term>\<open>break\<close>-aware and \<^term>\<open>return\<^bsub>upd\<^esub>\<close>-aware.\<close>
 
 definition call\<^sub>C :: "( '\<alpha> \<Rightarrow> ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E) \<Rightarrow>
                        ((('\<sigma>_ext) control_state_ext) \<Rightarrow> '\<alpha>) \<Rightarrow>                        

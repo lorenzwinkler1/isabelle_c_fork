@@ -37,7 +37,8 @@
 (*
  * A Hoare Calculus for Clean
  *
- * Authors : Burkhart Wolff
+ * Author : Burkhart Wolff
+ * 
  *)
 
 theory Hoare_Clean
@@ -136,7 +137,7 @@ lemma assign_local:
 lemma return_assign:
   assumes * : "\<sharp> (upd \<circ> upd_hd)"
   shows       "\<lbrace>\<lambda> \<sigma>. \<triangleright> \<sigma> \<and> P ((upd \<circ> upd_hd) (\<lambda>_. rhs \<sigma>) (\<sigma> \<lparr> return_status := True \<rparr>))\<rbrace> 
-               return\<^sub>C upd rhs
+               return\<^bsub>upd\<^esub>(rhs)
                \<lbrace>\<lambda>r \<sigma>. P \<sigma> \<and> return_status \<sigma> \<rbrace>"
   unfolding return\<^sub>C_def return\<^sub>C0_def hoare\<^sub>3_def skip\<^sub>S\<^sub>E_def unit_SE_def assign_local_def assign_def 
             set_return_status_def bind_SE'_def bind_SE_def 
@@ -173,7 +174,7 @@ lemma while_clean_no_break :
   and measure: "\<forall>\<sigma>. \<not> exec_stop \<sigma> \<and> cond \<sigma> \<and> P \<sigma> 
                     \<longrightarrow> M \<sigma> \<noteq> None \<and> f(snd(the(M \<sigma>))) < ((f \<sigma>)::nat) "
                (is "\<forall>\<sigma>. _ \<and> cond \<sigma> \<and> P \<sigma> \<longrightarrow> ?decrease \<sigma>")
-  shows        "\<lbrace>\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> P \<sigma>\<rbrace> 
+  shows        "\<lbrace>\<lambda>\<sigma>. \<triangleright> \<sigma> \<and> P \<sigma>\<rbrace> 
                 while\<^sub>C cond do M od 
                 \<lbrace>\<lambda>_ \<sigma>. (return_status \<sigma> \<or> \<not> cond \<sigma>) \<and> \<not> break_status \<sigma> \<and> P \<sigma>\<rbrace>"
                 (is "\<lbrace>?pre\<rbrace> while\<^sub>C cond do M od \<lbrace>\<lambda>_ \<sigma>. ?post1 \<sigma> \<and> ?post2 \<sigma>\<rbrace>")  
@@ -234,8 +235,8 @@ lemma while_clean':
 shows    "\<lbrace>\<lambda>\<sigma>. \<triangleright> \<sigma> \<and> P \<sigma>\<rbrace>  while\<^sub>C cond do M od  \<lbrace>\<lambda>_ \<sigma>.  \<not> break_status \<sigma> \<and> P \<sigma>\<rbrace>"
   unfolding while_C_def hoare\<^sub>3_def hoare\<^sub>3'_def
   proof (simp add: hoare\<^sub>3_def[symmetric], rule sequence')
-    show "\<lbrace>\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> P \<sigma>\<rbrace> 
-            while\<^sub>S\<^sub>E (\<lambda>\<sigma>. \<not> exec_stop \<sigma> \<and> cond \<sigma>) do M od
+    show "\<lbrace>\<lambda>\<sigma>. \<triangleright> \<sigma> \<and> P \<sigma>\<rbrace> 
+            while\<^sub>S\<^sub>E (\<lambda>\<sigma>. \<triangleright> \<sigma> \<and> cond \<sigma>) do M od
           \<lbrace>\<lambda>_ \<sigma>. P (\<sigma>\<lparr>break_status := False\<rparr>)\<rbrace>"
           apply(rule consequence_unit, rule impI, erule conjunct2)
           apply(rule_tac f = "f" in while)

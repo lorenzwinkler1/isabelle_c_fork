@@ -189,9 +189,9 @@ text\<open>Note that we prime identifiers in order to avoid confusion with the d
 previous section. The pre- and postconditions are just definitions of the following form:\<close>
 
 definition swap'_pre :: " nat \<times> nat \<Rightarrow> 'a global_state_state_scheme \<Rightarrow> bool"
-  where "swap'_pre \<equiv> \<lambda>(i, j) \<sigma>. i < length (A \<sigma>) \<and> j < length (A \<sigma>)"
+  where   "swap'_pre \<equiv> \<lambda>(i, j) \<sigma>. i < length (A \<sigma>) \<and> j < length (A \<sigma>)"
 definition swap'_post :: "'a \<times> 'b \<Rightarrow> 'c global_state_state_scheme \<Rightarrow> 'd global_state_state_scheme \<Rightarrow> unit \<Rightarrow> bool"
-  where "swap'_post \<equiv> \<lambda>(i, j) \<sigma>\<^sub>p\<^sub>r\<^sub>e \<sigma> res. length (A \<sigma>) = length (A \<sigma>\<^sub>p\<^sub>r\<^sub>e) \<and> res = ()"
+  where   "swap'_post \<equiv> \<lambda>(i, j) \<sigma>\<^sub>p\<^sub>r\<^sub>e \<sigma> res. length (A \<sigma>) = length (A \<sigma>\<^sub>p\<^sub>r\<^sub>e) \<and> res = ()"
 text\<open>The somewhat vacuous parameter \<open>res\<close> for the result of the swap-computation is the conseqeuence 
 of the implicit definition of the return-type as @{typ "unit"}\<close>
 
@@ -257,7 +257,9 @@ term\<open>  swap_opt = (\<lambda>(i, j).
 
 subsubsection\<open>A Simulation of Synthesis of Typed Assignment-Rules\<close>
 
-definition tmp\<^sub>L where "tmp\<^sub>L \<equiv> create\<^sub>L local_swap'_state.tmp local_swap'_state.tmp_update"
+definition tmp\<^sub>L 
+  where "tmp\<^sub>L \<equiv> create\<^sub>L local_swap'_state.tmp local_swap'_state.tmp_update"
+
 lemma  tmp\<^sub>L_control_indep : "(break_status\<^sub>L \<bowtie> tmp\<^sub>L \<and> return_status\<^sub>L \<bowtie> tmp\<^sub>L)"
   unfolding tmp\<^sub>L_def break_status\<^sub>L_def return_status\<^sub>L_def create\<^sub>L_def upd2put_def
   by (simp add: lens_indep_def)
@@ -266,30 +268,21 @@ lemma tmp\<^sub>L_strong_indep : "\<sharp>! tmp\<^sub>L"
   unfolding strong_control_independence_def
   using tmp\<^sub>L_control_indep by blast
 
-text\<open>Specialized Assignment Rule for Global Variable \<open>A\<close>.
-Note that this specialized rule of @{thm assign_global} does not
+text\<open>Specialized Assignment Rule for Local Variable \<open>tmp\<close>.
+Note that this specialized rule of @{thm assign_local} does not
 need any further side-conditions referring to independence from the control.
 Consequently, backward inference in an \<open>wp\<close>-calculus will just maintain
 the invariant @{term \<open>\<triangleright> \<sigma>\<close>}.\<close>
 
-term "create\<^sub>L (upd \<circ> upd_hd)"
-term "upd \<circ> upd_hd"
-
-
-lemma "X \<bowtie> create\<^sub>L gett upd  \<Longrightarrow> X \<bowtie> create\<^sub>L (hd \<circ> gett ) (upd \<circ> upd_hd)"
-  unfolding create\<^sub>L_def o_def Lens_Laws.lens_indep_def
-  apply auto
-  sorry
-
 lemma assign_local_tmp:
-   "\<lbrace>\<lambda>\<sigma>. \<triangleright> \<sigma> \<and> P ((tmp_update \<circ> upd_hd) (\<lambda>_. rhs \<sigma>) \<sigma>)\<rbrace>  local_swap'_state.tmp_update :==\<^sub>L rhs \<lbrace>\<lambda>r \<sigma>. \<triangleright> \<sigma> \<and> P \<sigma> \<rbrace>"
-  apply(rule assign_local)
-  sorry
-(*
-  apply(rule strong_vs_weak_upd [of global_state_state.A global_state_state.A_update])
-  apply (metis A\<^sub>L_def A\<^sub>L_strong_indep)
-  by(rule ext, rule ext, auto)
-*)
+   "\<lbrace>\<lambda>\<sigma>. \<triangleright> \<sigma> \<and> P ((tmp_update \<circ> upd_hd) (\<lambda>_. rhs \<sigma>) \<sigma>)\<rbrace>  
+    local_swap'_state.tmp_update :==\<^sub>L rhs 
+    \<lbrace>\<lambda>r \<sigma>. \<triangleright> \<sigma> \<and> P \<sigma> \<rbrace>"
+   apply(rule assign_local)
+   apply(rule strong_vs_weak_upd_list)
+    apply(rule tmp\<^sub>L_strong_indep[simplified tmp\<^sub>L_def])
+   by(rule ext, rule ext, auto)  
+
 
 section \<open>Encoding \<^verbatim>\<open>partition\<close> in Clean\<close>
 

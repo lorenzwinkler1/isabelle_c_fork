@@ -190,34 +190,34 @@ shows   "(\<sigma> \<Turnstile> call_0\<^sub>C M;- M') = (\<sigma> \<Turnstile> 
 
 lemma non_exec_call_1  : 
 assumes "\<triangleright> \<sigma>"
-shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> (call_1\<^sub>C M A\<^sub>1); M' x)) = (\<sigma> \<Turnstile> (x \<leftarrow> M (A\<^sub>1 \<sigma>); M' x))"
+shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> (call_1\<^sub>C M (A\<^sub>1)); M' x)) = (\<sigma> \<Turnstile> (x \<leftarrow> M (A\<^sub>1 \<sigma>); M' x))"
   by (simp add: assms bind_SE'_def call\<^sub>C_def bind_SE_def call_1\<^sub>C_def valid_SE_def)
 
 lemma non_exec_call_1'  : 
 assumes "\<triangleright> \<sigma>"
-shows   "(\<sigma> \<Turnstile> call_1\<^sub>C M A\<^sub>1;- M') = (\<sigma> \<Turnstile>  M (A\<^sub>1 \<sigma>);- M')"
+shows   "(\<sigma> \<Turnstile> call_1\<^sub>C M (A\<^sub>1);- M') = (\<sigma> \<Turnstile>  M (A\<^sub>1 \<sigma>);- M')"
   by (simp add: assms bind_SE'_def non_exec_call_1)
 
-
+(* general case *)
 lemma non_exec_call  : 
 assumes "\<triangleright> \<sigma>"
-shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> (call\<^sub>C M A\<^sub>1); M' x)) = (\<sigma> \<Turnstile> (x \<leftarrow> M (A\<^sub>1 \<sigma>); M' x))"
+shows   "(\<sigma> \<Turnstile> ( x \<leftarrow> (call\<^sub>C M (A\<^sub>1)); M' x)) = (\<sigma> \<Turnstile> (x \<leftarrow> M (A\<^sub>1 \<sigma>); M' x))"
   by (simp add: assms call\<^sub>C_def bind_SE'_def bind_SE_def call_1\<^sub>C_def valid_SE_def)
 
 lemma non_exec_call'  : 
 assumes "\<triangleright> \<sigma>"
-shows   "(\<sigma> \<Turnstile> call\<^sub>C M A\<^sub>1;- M') = (\<sigma> \<Turnstile>  M (A\<^sub>1 \<sigma>);- M')"
+shows   "(\<sigma> \<Turnstile> call\<^sub>C M (A\<^sub>1);- M') = (\<sigma> \<Turnstile>  M (A\<^sub>1 \<sigma>);- M')"
   by (simp add: assms bind_SE'_def non_exec_call)
 
 
 lemma non_exec_call_2  : 
 assumes "\<triangleright> \<sigma>"
-shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> (call_2\<^sub>C M A\<^sub>1 A\<^sub>2); M')) = (\<sigma> \<Turnstile> M (A\<^sub>1 \<sigma>) (A\<^sub>2 \<sigma>);- M')"
+shows   "(\<sigma> \<Turnstile> ( _ \<leftarrow> (call_2\<^sub>C M (A\<^sub>1) (A\<^sub>2)); M')) = (\<sigma> \<Turnstile> M (A\<^sub>1 \<sigma>) (A\<^sub>2 \<sigma>);- M')"
   by (simp add: assms bind_SE'_def bind_SE_def call_2\<^sub>C_def valid_SE_def)
 
 lemma non_exec_call_2'  : 
 assumes "\<triangleright> \<sigma>"
-shows   "(\<sigma> \<Turnstile> call_2\<^sub>C M A\<^sub>1 A\<^sub>2;- M') = (\<sigma> \<Turnstile>  M (A\<^sub>1 \<sigma>) (A\<^sub>2 \<sigma>);- M')"
+shows   "(\<sigma> \<Turnstile> call_2\<^sub>C M (A\<^sub>1) (A\<^sub>2);- M') = (\<sigma> \<Turnstile>  M (A\<^sub>1 \<sigma>) (A\<^sub>2 \<sigma>);- M')"
   by (simp add: assms bind_SE'_def non_exec_call_2)
 
 
@@ -225,21 +225,21 @@ subsection\<open>Conditional.  \<close>
 
 lemma exec_If\<^sub>C_If\<^sub>S\<^sub>E  : 
 assumes "\<triangleright> \<sigma>"
-shows  " ((if\<^sub>C P then B\<^sub>1 else B\<^sub>2 fi))\<sigma> = ((if\<^sub>S\<^sub>E P then B\<^sub>1 else B\<^sub>2 fi)) \<sigma> "
+shows   "((if\<^sub>C P then B\<^sub>1 else B\<^sub>2 fi))\<sigma> = ((if\<^sub>S\<^sub>E P then B\<^sub>1 else B\<^sub>2 fi)) \<sigma> "
   unfolding if_SE_def MonadSE.if_SE_def Symbex_MonadSE.valid_SE_def MonadSE.bind_SE'_def
   by (simp add: assms bind_SE_def if_C_def)
     
     
 lemma valid_exec_If\<^sub>C  : 
 assumes "\<triangleright> \<sigma>"
-shows  "(\<sigma> \<Turnstile> (if\<^sub>C P then B\<^sub>1 else B\<^sub>2 fi);-M) = (\<sigma> \<Turnstile> (if\<^sub>S\<^sub>E P then B\<^sub>1 else B\<^sub>2 fi);-M)"
+shows   "(\<sigma> \<Turnstile> (if\<^sub>C P then B\<^sub>1 else B\<^sub>2 fi);-M) = (\<sigma> \<Turnstile> (if\<^sub>S\<^sub>E P then B\<^sub>1 else B\<^sub>2 fi);-M)"
   by (meson assms exec_If\<^sub>C_If\<^sub>S\<^sub>E valid_bind'_cong)
 
 
       
 lemma exec_If\<^sub>C'  : 
 assumes "exec_stop \<sigma>"
-shows  "(\<sigma> \<Turnstile> (if\<^sub>C P then B\<^sub>1 else B\<^sub>2 fi);-M) = (\<sigma> \<Turnstile> M)"    
+shows   "(\<sigma> \<Turnstile> (if\<^sub>C P then B\<^sub>1 else B\<^sub>2 fi);-M) = (\<sigma> \<Turnstile> M)"    
   unfolding if_SE_def MonadSE.if_SE_def Symbex_MonadSE.valid_SE_def MonadSE.bind_SE'_def bind_SE_def
     by (simp add: assms if_C_def)
     
@@ -252,9 +252,8 @@ shows  "(\<sigma> \<Turnstile> (while\<^sub>C P do B\<^sub>1 od);-M) = (\<sigma>
 
     
     
-lemma if\<^sub>C_cond_cong : "f \<sigma> = g \<sigma> \<Longrightarrow> 
-                           (if\<^sub>C f then c else d fi) \<sigma> = 
-                           (if\<^sub>C g then c else d fi) \<sigma>"
+lemma if\<^sub>C_cond_cong : "f \<sigma> = g \<sigma> \<Longrightarrow> (if\<^sub>C f then c else d fi) \<sigma> = 
+                                     (if\<^sub>C g then c else d fi) \<sigma>"
   unfolding if_C_def
    by simp 
    
@@ -285,7 +284,7 @@ lemma unset_break_idem [simp] :
   apply(rule ext)  unfolding unset_break_status_def bind_SE'_def bind_SE_def by auto
 
 lemma return_cancel1_idem [simp] : 
- "( return\<^sub>C X E ;- X :==\<^sub>G E' ;- M) = ( return\<^sub>C X E ;- M)"
+ "( return\<^bsub>X\<^esub>(E) ;- X :==\<^sub>G E' ;- M) = ( return\<^sub>C X E ;- M)"
   apply(rule ext, rename_tac "\<sigma>")  
   unfolding unset_break_status_def bind_SE'_def bind_SE_def
             assign_def return\<^sub>C_def return\<^sub>C0_def assign_global_def assign_local_def
@@ -294,7 +293,7 @@ lemma return_cancel1_idem [simp] :
   by (simp add: exec_stop_def set_return_status_def)
     
 lemma return_cancel2_idem [simp] : 
- "( return\<^sub>C X E ;- X :==\<^sub>L E' ;- M) = ( return\<^sub>C X E ;- M)"
+ "( return\<^bsub>X\<^esub>(E) ;- X :==\<^sub>L E' ;- M) = ( return\<^sub>C X E ;- M)"
     apply(rule ext, rename_tac "\<sigma>")  
   unfolding unset_break_status_def bind_SE'_def bind_SE_def
             assign_def return\<^sub>C_def return\<^sub>C0_def assign_global_def assign_local_def
