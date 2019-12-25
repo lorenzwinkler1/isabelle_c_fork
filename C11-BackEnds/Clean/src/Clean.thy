@@ -36,13 +36,13 @@
 
 (*
  * Clean --- a basic abstract ("shallow") programming language for test and proof.
- * Burkhart Wolff, Frédéric Tuong and Chantal Keller, LRI, Univ. Paris-Saclay, France
+ * Burkhart Wolff and Frédéric Tuong, LRI, Univ. Paris-Saclay, France
  *)
 
 chapter \<open>The Clean Language\<close>
 
 theory Clean
-  imports Symbex_MonadSE
+  imports Optics Symbex_MonadSE
   keywords "global_vars" "local_vars_test" :: thy_decl 
      and "returns" "pre" "post" "local_vars" "variant" 
      and "function_spec" :: thy_decl
@@ -137,6 +137,9 @@ record  control_state =
             break_status  :: bool
             return_status :: bool
 
+(* ML level representation: *)
+ML\<open> val t = @{term "\<sigma> \<lparr> break_status := False \<rparr>"}\<close>
+
 (* break quits innermost while or for, return quits an entire execution sequence. *)  
 definition break :: "(unit, ('\<sigma>_ext) control_state_ext) MON\<^sub>S\<^sub>E"
   where   "break \<equiv> (\<lambda> \<sigma>. Some((), \<sigma> \<lparr> break_status := True \<rparr>))"
@@ -154,6 +157,19 @@ definition unset_return_status :: "(unit, ('\<sigma>_ext) control_state_ext) MON
 definition exec_stop :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool"
   where   "exec_stop = (\<lambda> \<sigma>. break_status \<sigma> \<or> return_status \<sigma> )"
 
+(*
+abbreviation not_equal :: "['a, 'a] \<Rightarrow> bool"  (infix "\<noteq>" 50)
+  where "x \<noteq> y \<equiv> \<not> (x = y)"
+
+syntax "_normal_execution" :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool" ("\<triangleright>(_)" [100]0)
+translations "\<triangleright> \<sigma>" \<rightleftharpoons> "(\<not> exec_stop \<sigma>)" 
+*)
+abbreviation normal_execution :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool" 
+  where "(normal_execution s) \<equiv> (\<not> exec_stop s)"
+notation normal_execution ("\<triangleright>")
+
+
+
 lemma exec_stop1[simp] : "break_status \<sigma> \<Longrightarrow> exec_stop \<sigma>" 
   unfolding exec_stop_def by simp
 
@@ -168,6 +184,19 @@ text\<open>For Reasoning over Clean programs, we need the notion of independance
      update from the control-block: \<close>
 
 
+definition break_status\<^sub>L 
+  where "break_status\<^sub>L = create\<^sub>L control_state.break_status control_state.break_status_update"
+
+definition return_status\<^sub>L 
+  where "return_status\<^sub>L = create\<^sub>L control_state.return_status control_state.return_status_update"
+
+lemma "break_status\<^sub>L \<bowtie> return_status\<^sub>L "
+  by (simp add: break_status\<^sub>L_def lens_indepI return_status\<^sub>L_def upd2put_def create\<^sub>L_def)
+
+definition strong_control_independence  ("\<sharp>!")
+  where "\<sharp>! L = (break_status\<^sub>L \<bowtie> L \<and> return_status\<^sub>L \<bowtie> L)"
+
+
 definition control_independence ::
                  "(('b\<Rightarrow>'b)\<Rightarrow>'a control_state_scheme \<Rightarrow> 'a control_state_scheme) \<Rightarrow> bool"    ("\<sharp>")
            where "\<sharp> upd \<equiv> (\<forall>\<sigma> T b. break_status (upd T \<sigma>) = break_status \<sigma> 
@@ -175,7 +204,63 @@ definition control_independence ::
                                  \<and> upd T (\<sigma>\<lparr> return_status := b \<rparr>) = (upd T \<sigma>)\<lparr> return_status := b \<rparr>
                                  \<and> upd T (\<sigma>\<lparr> break_status := b \<rparr>) = (upd T \<sigma>)\<lparr> break_status := b \<rparr>) "
 
+lemma strong_vs_weak_ci : "\<sharp>! L \<Longrightarrow> \<sharp> (\<lambda>f. \<lambda>\<sigma>. lens_put L \<sigma> (f (lens_get L \<sigma>)))"
+  unfolding strong_control_independence_def control_independence_def
+  by (simp add: break_status\<^sub>L_def lens_indep_def return_status\<^sub>L_def upd2put_def create\<^sub>L_def)
 
+lemma experimnt :"\<sharp>! (create\<^sub>L getv updv) \<Longrightarrow> (\<lambda>f \<sigma>. updv (\<lambda>_. f (getv \<sigma>)) \<sigma>) = updv"
+  unfolding create\<^sub>L_def strong_control_independence_def 
+            break_status\<^sub>L_def return_status\<^sub>L_def lens_indep_def
+  apply(rule ext, rule ext) 
+  apply auto
+  unfolding upd2put_def
+  (* seems to be independent *)
+  oops
+
+lemma strong_vs_weak_upd : 
+  assumes * :  "\<sharp>! (create\<^sub>L getv updv)"    (* getv and upd are constructed as lense *)
+    and  ** :  "(\<lambda>f \<sigma>. updv (\<lambda>_. f (getv \<sigma>)) \<sigma>) = updv" (* getv and upd are involutive *)
+  shows "\<sharp> (updv)"
+  apply(insert * **)
+  unfolding create\<^sub>L_def upd2put_def
+  by(drule strong_vs_weak_ci, auto)
+
+
+text\<open>This quite tricky proof establishes the face that the special case 
+     \<open>hd(getv \<sigma>) = []\<close> for \<open>getv \<sigma> = []\<close> is finally irrelevant in our setting.\<close>
+lemma strong_vs_weak_upd_list : 
+  assumes * :  "\<sharp>! (create\<^sub>L (getv:: 'b control_state_scheme \<Rightarrow> 'c list) 
+                            (updv:: ('c list \<Rightarrow> 'c list) \<Rightarrow> 'b control_state_scheme \<Rightarrow> 'b control_state_scheme))"  
+                 (* getv and upd are constructed as lense *)
+    and  ** :  "(\<lambda>f \<sigma>. updv (\<lambda>_. f (getv \<sigma>)) \<sigma>) = updv" (* getv and upd are involutive *)
+  shows        "\<sharp> (updv \<circ> upd_hd)"
+proof - 
+  have *** : "\<sharp>! (create\<^sub>L (hd \<circ> getv ) (updv \<circ> upd_hd))"
+       using * ** by (simp add: indep_list_lift strong_control_independence_def)
+  show "\<sharp> (updv \<circ> upd_hd)"
+    apply(rule strong_vs_weak_upd)
+     apply(rule ***)
+    apply(rule ext, rule ext, simp)
+    apply(subst (2) **[symmetric])
+  proof -
+    fix f:: "'c \<Rightarrow> 'c" fix \<sigma> :: "'b control_state_scheme"
+    show "updv (upd_hd (\<lambda>_. f (hd (getv \<sigma>)))) \<sigma> = updv (\<lambda>_. upd_hd f (getv \<sigma>)) \<sigma>"
+      proof (cases "getv \<sigma>")
+        case Nil
+        then show ?thesis           
+          by (simp,metis (no_types) "**" upd_hd.simps(1))
+      next
+        case (Cons a list)
+        then show ?thesis 
+        proof -
+          have "(\<lambda>c. f (hd (getv \<sigma>))) = ((\<lambda>c. f a)::'c \<Rightarrow> 'c)"
+            using local.Cons by auto
+          then show ?thesis
+            by (metis (no_types) "**" local.Cons upd_hd.simps(2))
+        qed
+      qed
+    qed
+qed
 
 lemma exec_stop_vs_control_independence [simp]:
   "\<sharp> upd \<Longrightarrow> exec_stop (upd f \<sigma>) = exec_stop \<sigma>"
@@ -236,7 +321,7 @@ definition assign :: "(('\<sigma>_ext) control_state_scheme  \<Rightarrow>
 
 definition  assign_global :: "(('a  \<Rightarrow> 'a ) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
                               \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
-                              \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
+                              \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E" (infix ":==\<^sub>G" 100)
   where    "assign_global upd rhs = assign(\<lambda>\<sigma>. ((upd) (\<lambda>_. rhs \<sigma>)) \<sigma>)"
 
 text\<open>An update of the variable \<open>A\<close> based on the state of the previous example is done 
@@ -249,24 +334,16 @@ automated generation of specific push- and pop operations used to model the effe
 entering or leaving a function block (to be discussed later).\<close>
 
 
-fun      map_hd :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a list \<Rightarrow> 'a list" 
-  where "map_hd f [] = []"
-      | "map_hd f (a#S) = f a # S"
-
-lemma tl_map_hd [simp] :"tl (map_hd f S) = tl S"  by (metis list.sel(3) map_hd.elims) 
-
-definition "map_nth = (\<lambda>i f l. list_update l i (f (l ! i)))"
-
 definition  assign_local :: "(('a list \<Rightarrow> 'a list) 
                                  \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
                              \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
-                             \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
-  where    "assign_local upd rhs = assign(\<lambda>\<sigma>. ((upd o map_hd) (%_. rhs \<sigma>)) \<sigma>)"
+                             \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"  (infix ":==\<^sub>L" 100)
+  where    "assign_local upd rhs = assign(\<lambda>\<sigma>. ((upd o upd_hd) (%_. rhs \<sigma>)) \<sigma>)"
 
 
 text\<open>Semantically, the difference between \<^emph>\<open>global\<close> and \<^emph>\<open>local\<close> is rather unimpressive as the 
      following lemma shows. However, the distinction matters for the pretty-printing setup of Clean.\<close>
-lemma "assign_local upd rhs = assign_global (upd o map_hd) rhs "
+lemma "(upd :==\<^sub>L rhs) = ((upd \<circ> upd_hd) :==\<^sub>G rhs)"
       unfolding assign_local_def assign_global_def by simp
 
 text\<open>The \<open>return\<close> command in C-like languages is represented basically by an assignment to a local
@@ -280,8 +357,9 @@ definition return\<^sub>C0
 
 definition return\<^sub>C :: "(('a list \<Rightarrow> 'a list) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
                       \<Rightarrow> ('\<sigma>_ext control_state_scheme \<Rightarrow>  'a)
-                      \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E"
+                      \<Rightarrow> (unit,'\<sigma>_ext control_state_scheme) MON\<^sub>S\<^sub>E" ("return\<index>")
   where   "return\<^sub>C upd rhs = return\<^sub>C0 (assign_local upd rhs)"
+
 
 subsection\<open>Example for a Local Variable Space\<close>
 text\<open>Consider the usual operation \<open>swap\<close> defined in some free-style syntax as follows:
@@ -432,7 +510,7 @@ definition swap :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap_state_sc
 subsection\<open>Call Semantics\<close>
 
 text\<open>It is now straight-forward to define the semantics of a generic call --- 
-which is simply a monad execution that is \<^term>\<open>break\<close>-aware and \<^term>\<open>return\<close>-aware.\<close>
+which is simply a monad execution that is \<^term>\<open>break\<close>-aware and \<^term>\<open>return\<^bsub>upd\<^esub>\<close>-aware.\<close>
 
 definition call\<^sub>C :: "( '\<alpha> \<Rightarrow> ('\<rho>, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E) \<Rightarrow>
                        ((('\<sigma>_ext) control_state_ext) \<Rightarrow> '\<alpha>) \<Rightarrow>                        
@@ -827,12 +905,13 @@ The reader interested in details is referred to the \<^file>\<open>../examples/Q
 accompanying this distribution.
 \<close>
 
+
+text\<open>In order to support the \<^verbatim>\<open>old\<close>-notation known from JML and similar annotation languages,
+we introduce the following definition:\<close>
 definition old :: "'a \<Rightarrow> 'a" where "old x = x"
 
-
-ML\<open> 
-\<close>
-
+text\<open>The core module of the parser and operation specification construct is implemented in the
+following module:\<close>
 ML \<open> 
 structure Function_Specification_Parser  = 
   struct

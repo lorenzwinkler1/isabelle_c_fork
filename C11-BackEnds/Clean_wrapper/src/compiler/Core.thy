@@ -189,7 +189,7 @@ fun statement_node st stmt = stmt |>
                               ( case #scope_var st var of
                                   NONE => error ("Expecting to be in the environment: " ^ @{make_string} var)
                                 | SOME true => I
-                                | SOME false => fn var => Syntax.const @{const_name comp} $ var $ Syntax.const @{const_name map_hd}
+                                | SOME false => fn var => Syntax.const @{const_name comp} $ var $ Syntax.const @{const_name upd_hd}
                               , Expr.Var (Clean_Syntax_Lift.assign_update var, node))
                           | exp => error ("Case not yet treated for this element: " ^ @{make_string} exp ^ Position.here \<^here>))
                 in f (expr var)

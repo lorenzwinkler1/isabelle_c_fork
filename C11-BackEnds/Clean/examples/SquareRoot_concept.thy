@@ -147,7 +147,7 @@ declare memory_theory [memory_theory]
 
 lemma non_exec_assign_globalD':
   assumes "\<sharp> upd"
-  shows   "\<sigma> \<Turnstile> assign_global upd rhs ;- M \<Longrightarrow>\<not> exec_stop \<sigma> \<Longrightarrow>  upd (\<lambda>_. rhs \<sigma>) \<sigma> \<Turnstile> M"
+  shows   "\<sigma> \<Turnstile> upd :==\<^sub>G rhs ;- M \<Longrightarrow> \<triangleright> \<sigma> \<Longrightarrow>  upd (\<lambda>_. rhs \<sigma>) \<sigma> \<Turnstile> M"
   apply(drule non_exec_assign_global'[THEN iffD1])
   using assms exec_stop_vs_control_independence apply blast
   by auto

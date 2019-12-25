@@ -197,5 +197,42 @@ TODO: Eliminate \<^verbatim>\<open>Meta_C\<close> and any dependance on C99. A s
 and expr is acceptable. 
 
 \<close>
+
+section \<open>Brouillon\<close>
+text\<open>Theories embedding Code (TeC) vs. Code embedding Theories (CeT)\<close>
+text\<open>
+Proof-Carrying Code and Extended-static checking are well-known, related approaches
+in the literature.
+
+Proof-carrying code was introduced as concept by @{cite qsd}
+(*  
+G. Ne cula and P. Lee in 1996 CMU-CS-FOX-96-03.
+*)
+It is was initially conceived for machine-code, which is annotated with 
+logical formulas referring to the underlying machine model. A verification
+condition generator produces verification conditions, for which proofs in 
+in an LF-like format were provided in an annex of the code. 
+The combined code can be loaded from an untrusted provider and checked on loading 
+time. The execution has then no further overhead. Note, however, that the code 
+size can be essential, depending on the security or functional properties required.
+In practice, such approach is restricted to very basic safety properties such as
+absence of buffer- or arithmetic overflows. The proof-object checker is conceived
+to be light-weighed.
+
+In contrast, extended static checking was conceived at the beginning for code in
+a more abstract programming language. Annotated code is passed to the verification
+condition generator, which builds formulas over a relatively rich logical context
+--- the background theory --- providing rules for more data-structures as well as 
+a memory-model coming with some specification mechanism for framing conditions. 
+The verification condition generator produced proof obligations which were handled 
+by a fairly fat automated theorem prover.
+\<close>
+
+text\<open> Isabelle/C supports two variants of extended static checking which we call
+\<^emph>\<open>Theories embedding Code (TeC)\<close>  or \<^emph>\<open>Code embedding Theories (CeT)\<close> respectively.
+
+
+\<close>
+
 generation_syntax [ deep [in self](*, shallow*) ]
 end
