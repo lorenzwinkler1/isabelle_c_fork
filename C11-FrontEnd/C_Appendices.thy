@@ -373,7 +373,7 @@ by a click on it to open a new window loading that file.
 command, one has either the possibility to keep the content as such in the theory file, or use
 \<^verbatim>\<open>C_export_file\<close> to export all previous C content into a ``real'' C file.
 
-Note that since Isabelle2019, Isabelle uses a virtual file-system. This has the consequence, that
+Note that since Isabelle2019, Isabelle/C uses a virtual file-system. This has the consequence, that
 some extra operations are needed to export a file generated into the virtual file-system of Isabelle
 into the ``real'' file-system. First, the \<^verbatim>\<open>C_export_file\<close> command needs to
 be activated, by putting the cursor on the command. This leads to the following message in the
@@ -796,7 +796,7 @@ make the error disappear at the position the error is indicated can be detailed 
   \<^file>\<open>../C11-BackEnds/AutoCorres_wrapper/examples/TestSEL4.thy\<close> is already provided as
   preprocessed). Another way would be adding a specific new semantic back-end implementing the
   automation of the preprocessing task (as done in
-  \<^file>\<open>../C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_integrated.thy\<close>, where the
+  \<^file>\<open>../C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_TEC.thy\<close>, where the
   back-end explicitly makes a call to \<open>cpp\<close> at run-time).
   
   \<^item> Ultimately, modifying the grammar with new rules cancelling the exception would only work
