@@ -116,15 +116,15 @@ text\<open>Note that the state-management uses long-names for complete disambigu
 
 
 subsubsection\<open>A Simulation of Synthesis of Typed Assignment-Rules\<close>
-definition A\<^sub>L where "A\<^sub>L \<equiv> create\<^sub>L global_state_state.A global_state_state.A_update"
+definition A\<^sub>L' where "A\<^sub>L' \<equiv> create\<^sub>L global_state_state.A global_state_state.A_update"
 
-lemma  A\<^sub>L_control_indep : "(break_status\<^sub>L \<bowtie> A\<^sub>L \<and> return_status\<^sub>L \<bowtie> A\<^sub>L)"
-  unfolding A\<^sub>L_def break_status\<^sub>L_def return_status\<^sub>L_def create\<^sub>L_def upd2put_def
+lemma  A\<^sub>L'_control_indep : "(break_status\<^sub>L \<bowtie> A\<^sub>L' \<and> return_status\<^sub>L \<bowtie> A\<^sub>L')"
+  unfolding A\<^sub>L'_def break_status\<^sub>L_def return_status\<^sub>L_def create\<^sub>L_def upd2put_def
   by (simp add: lens_indep_def)
 
-lemma A\<^sub>L_strong_indep : "\<sharp>! A\<^sub>L"
+lemma A\<^sub>L'_strong_indep : "\<sharp>! A\<^sub>L'"
   unfolding strong_control_independence_def
-  using A\<^sub>L_control_indep by blast
+  using A\<^sub>L'_control_indep by blast
 
 
 text\<open>Specialized Assignment Rule for Global Variable \<open>A\<close>.
@@ -136,7 +136,7 @@ lemma assign_global_A:
      "\<lbrace>\<lambda>\<sigma>. \<triangleright> \<sigma> \<and>  P (\<sigma>\<lparr>A := rhs \<sigma>\<rparr>)\<rbrace>  A_update :==\<^sub>G rhs \<lbrace>\<lambda>r \<sigma>. \<triangleright> \<sigma> \<and> P \<sigma> \<rbrace>"
      apply(rule assign_global)
      apply(rule strong_vs_weak_upd [of global_state_state.A global_state_state.A_update])
-     apply (metis A\<^sub>L_def A\<^sub>L_strong_indep)
+     apply (metis A\<^sub>L'_def A\<^sub>L'_strong_indep)
      by(rule ext, rule ext, auto)
 
 section \<open>Encoding swap in Clean\<close>
@@ -202,7 +202,7 @@ text\<open>We simulate the effect of the local variable space declaration by the
 
 
 local_vars_test swap' "unit"
-   tmp :: "int"
+   tmp' :: "int"
 
 ML\<open>
 val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
@@ -217,7 +217,7 @@ text\<open>Again, we simulate the effect of this command by more elementary \HOL
 (* Thus, the internal functionality in \<open>local_vars\<close> is the construction of the two definitions *)
 definition push_local_swap_state' :: "(unit,'a local_swap'_state_scheme) MON\<^sub>S\<^sub>E"
   where   "push_local_swap_state' \<sigma> = 
-                    Some((),\<sigma>\<lparr>local_swap_state.tmp :=  undefined # local_swap_state.tmp \<sigma> \<rparr>)"
+                    Some((),\<sigma>\<lparr>local_swap_state.tmp' :=  undefined # local_swap_state.tmp' \<sigma> \<rparr>)"
 
 definition pop_local_swap_state' :: "(unit,'a local_swap'_state_scheme) MON\<^sub>S\<^sub>E"
   where   "pop_local_swap_state' \<sigma> = 

@@ -811,8 +811,8 @@ fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res
                       else mk_local_state_name binding
         val raw_parent = SOME(typ_2_string_raw (StateMgt_core.get_state_type_global thy))
         val pos = Binding.pos_of binding
-        fun upd_state_typ thy =
-          StateMgt_core.upd_state_type_global (K (parse_typ_'a (Proof_Context.init_global thy) binding)) thy
+        fun upd_state_typ thy =  StateMgt_core.upd_state_type_global 
+                                  (K (parse_typ_'a (Proof_Context.init_global thy) binding)) thy
         val result_binding = Binding.make(result_name,pos)
         val raw_fields' = case res_ty of 
                             NONE => raw_fields
