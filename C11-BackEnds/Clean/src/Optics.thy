@@ -33,7 +33,7 @@ definition upd2put :: "(('d \<Rightarrow> 'b) \<Rightarrow> 'a \<Rightarrow> 'c)
 definition create\<^sub>L 
   where "create\<^sub>L getv updv = \<lparr>lens_get = getv,lens_put = upd2put updv\<rparr>"
 
-definition "hd\<^sub>L = create\<^sub>L hd upd_hd"   (* partial lenses needed  ?*)
+definition "hd\<^sub>L = create\<^sub>L hd upd_hd"   (* works since no partial lenses needed in Clean*)
 
 definition "map_nth i = (\<lambda>f l. list_update l i (f (l ! i)))"
 

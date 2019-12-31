@@ -104,6 +104,8 @@ declares the global variable \<^verbatim>\<open>A\<close>. This has the followin
 global_vars state
     A :: "int list"
 
+find_theorems create\<^sub>L name:"Quick"
+
 text\<open>... which is reflected in Clean's state-management table:\<close>
 ML\<open> val Type("Quicksort_concept.global_state_state_scheme",t) 
         = StateMgt_core.get_state_type_global @{theory};

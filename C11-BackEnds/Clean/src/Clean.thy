@@ -157,17 +157,10 @@ definition unset_return_status :: "(unit, ('\<sigma>_ext) control_state_ext) MON
 definition exec_stop :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool"
   where   "exec_stop = (\<lambda> \<sigma>. break_status \<sigma> \<or> return_status \<sigma> )"
 
-(*
-abbreviation not_equal :: "['a, 'a] \<Rightarrow> bool"  (infix "\<noteq>" 50)
-  where "x \<noteq> y \<equiv> \<not> (x = y)"
 
-syntax "_normal_execution" :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool" ("\<triangleright>(_)" [100]0)
-translations "\<triangleright> \<sigma>" \<rightleftharpoons> "(\<not> exec_stop \<sigma>)" 
-*)
 abbreviation normal_execution :: "('\<sigma>_ext) control_state_ext \<Rightarrow> bool" 
   where "(normal_execution s) \<equiv> (\<not> exec_stop s)"
 notation normal_execution ("\<triangleright>")
-
 
 
 lemma exec_stop1[simp] : "break_status \<sigma> \<Longrightarrow> exec_stop \<sigma>" 
@@ -186,15 +179,29 @@ text\<open>For Reasoning over Clean programs, we need the notion of independance
 
 definition break_status\<^sub>L 
   where "break_status\<^sub>L = create\<^sub>L control_state.break_status control_state.break_status_update"
+lemma "vwb_lens break_status\<^sub>L"
+  unfolding break_status\<^sub>L_def
+  by (simp add: vwb_lens_def  create\<^sub>L_def wb_lens_def mwb_lens_def 
+                mwb_lens_axioms_def upd2put_def wb_lens_axioms_def weak_lens_def)
+
+
 
 definition return_status\<^sub>L 
   where "return_status\<^sub>L = create\<^sub>L control_state.return_status control_state.return_status_update"
+lemma "vwb_lens return_status\<^sub>L"
+  unfolding return_status\<^sub>L_def
+  by (simp add: vwb_lens_def  create\<^sub>L_def wb_lens_def mwb_lens_def 
+                mwb_lens_axioms_def upd2put_def wb_lens_axioms_def weak_lens_def)
 
-lemma "break_status\<^sub>L \<bowtie> return_status\<^sub>L "
+lemma break_return_indep : "break_status\<^sub>L \<bowtie> return_status\<^sub>L "
   by (simp add: break_status\<^sub>L_def lens_indepI return_status\<^sub>L_def upd2put_def create\<^sub>L_def)
 
 definition strong_control_independence  ("\<sharp>!")
   where "\<sharp>! L = (break_status\<^sub>L \<bowtie> L \<and> return_status\<^sub>L \<bowtie> L)"
+
+lemma "vwb_lens break_status\<^sub>L"
+  unfolding vwb_lens_def break_status\<^sub>L_def create\<^sub>L_def wb_lens_def mwb_lens_def
+  by (simp add: mwb_lens_axioms_def upd2put_def wb_lens_axioms_def weak_lens_def)
 
 
 definition control_independence ::
@@ -208,12 +215,25 @@ lemma strong_vs_weak_ci : "\<sharp>! L \<Longrightarrow> \<sharp> (\<lambda>f. \
   unfolding strong_control_independence_def control_independence_def
   by (simp add: break_status\<^sub>L_def lens_indep_def return_status\<^sub>L_def upd2put_def create\<^sub>L_def)
 
-lemma experimnt :"\<sharp>! (create\<^sub>L getv updv) \<Longrightarrow> (\<lambda>f \<sigma>. updv (\<lambda>_. f (getv \<sigma>)) \<sigma>) = updv"
+lemma expimnt :"\<sharp>! (create\<^sub>L getv updv) \<Longrightarrow> (\<lambda>f \<sigma>. updv (\<lambda>_. f (getv \<sigma>)) \<sigma>) = updv"
   unfolding create\<^sub>L_def strong_control_independence_def 
             break_status\<^sub>L_def return_status\<^sub>L_def lens_indep_def
   apply(rule ext, rule ext) 
   apply auto
   unfolding upd2put_def
+  (* seems to be independent *)
+  oops
+
+lemma expimnt :  
+   "updv = upd2put putv \<Longrightarrow>
+    vwb_lens (create\<^sub>L getv updv) \<Longrightarrow>  (\<lambda>f \<sigma>. updv (\<lambda>_. f (getv \<sigma>)) \<sigma>) = updv"
+  unfolding create\<^sub>L_def strong_control_independence_def lens_indep_def
+            break_status\<^sub>L_def return_status\<^sub>L_def vwb_lens_def
+  apply(rule ext, rule ext) 
+  apply auto
+  unfolding upd2put_def wb_lens_def weak_lens_def wb_lens_axioms_def mwb_lens_def 
+            mwb_lens_axioms_def
+  apply auto
   (* seems to be independent *)
   oops
 
@@ -226,8 +246,9 @@ lemma strong_vs_weak_upd :
   by(drule strong_vs_weak_ci, auto)
 
 
-text\<open>This quite tricky proof establishes the face that the special case 
-     \<open>hd(getv \<sigma>) = []\<close> for \<open>getv \<sigma> = []\<close> is finally irrelevant in our setting.\<close>
+text\<open>This quite tricky proof establishes the fact that the special case 
+     \<open>hd(getv \<sigma>) = []\<close> for \<open>getv \<sigma> = []\<close> is finally irrelevant in our setting.
+     This implies that we don't need the list-lense-construction (so far).\<close>
 lemma strong_vs_weak_upd_list : 
   assumes * :  "\<sharp>! (create\<^sub>L (getv:: 'b control_state_scheme \<Rightarrow> 'c list) 
                             (updv:: ('c list \<Rightarrow> 'c list) \<Rightarrow> 'b control_state_scheme \<Rightarrow> 'b control_state_scheme))"  
@@ -259,13 +280,13 @@ proof -
             by (metis (no_types) "**" local.Cons upd_hd.simps(2))
         qed
       qed
-    qed
+  qed
 qed
+
 
 lemma exec_stop_vs_control_independence [simp]:
   "\<sharp> upd \<Longrightarrow> exec_stop (upd f \<sigma>) = exec_stop \<sigma>"
   unfolding control_independence_def exec_stop_def  by simp
-
 
 lemma exec_stop_vs_control_independence' [simp]:
   "\<sharp> upd \<Longrightarrow> (upd f (\<sigma> \<lparr> return_status := b \<rparr>)) = (upd f \<sigma>)\<lparr> return_status := b \<rparr>"
@@ -313,10 +334,10 @@ form of assignments or expressions accessing the underlying state. \<close>
 
 consts syntax_assign :: "('\<alpha>  \<Rightarrow> int) \<Rightarrow> int \<Rightarrow> term" (infix ":=" 60)
 
-definition assign :: "(('\<sigma>_ext) control_state_scheme  \<Rightarrow> 
+definition  assign :: "(('\<sigma>_ext) control_state_scheme  \<Rightarrow> 
                        ('\<sigma>_ext) control_state_scheme) \<Rightarrow> 
                        (unit,('\<sigma>_ext) control_state_scheme)MON\<^sub>S\<^sub>E"
-  where   "assign f = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>) else Some((), f \<sigma>))"
+  where    "assign f = (\<lambda>\<sigma>. if exec_stop \<sigma> then Some((), \<sigma>) else Some((), f \<sigma>))"
 
 
 definition  assign_global :: "(('a  \<Rightarrow> 'a ) \<Rightarrow> '\<sigma>_ext control_state_scheme \<Rightarrow> '\<sigma>_ext control_state_scheme)
@@ -598,6 +619,8 @@ fun wfrecT order recs =
         val ordTy = HOLogic.mk_setT(HOLogic.mk_prodT (aTy,aTy))
     in Const(\<^const_name>\<open>Wfrec.wfrec\<close>, ordTy --> (funT --> funT) --> funT) $ order $ recs end
 
+fun mk_lens_type from_ty to_ty = Type(@{type_name "lens.lens_ext"},
+                                      [from_ty, to_ty, HOLogic.unitT]);
 
 \<close>
 
@@ -637,7 +660,7 @@ fun  map_to_update sty is_pop thy ((struct_name, attr_name), local_var (Type("fu
        let val tlT = if is_pop then Const(\<^const_name>\<open>List.tl\<close>, ty --> ty)
                      else Const(\<^const_name>\<open>List.Cons\<close>, dest_listTy ty --> ty --> ty)
                           $ mk_undefined (dest_listTy ty)
-           val update_name = Sign.intern_const  thy (struct_name^"."^attr_name^"_update")
+           val update_name = Sign.intern_const thy (struct_name^"."^attr_name^"_update")
        in (Const(update_name, (ty --> ty) --> sty --> sty) $ tlT) $ term end
    | map_to_update _ _ _ ((_, _),_) _ = error("internal error map_to_update")     
 
@@ -714,6 +737,24 @@ fun parse_typ_'a ctxt binding =
      | _ => error ("Unexpected type" ^ Position.here \<^here>)
   end
 
+    fun define_lense sty (attr_name,rty,_) lthy = 
+         let    val name_L = Binding.suffix_name "\<^sub>L" attr_name
+                val name_upd = Binding.suffix_name "_update" attr_name
+                val acc_ty = sty --> rty
+                val upd_ty = (rty --> rty) --> sty --> sty
+                val cr = Const(@{const_name "Optics.create\<^sub>L"}, 
+                               acc_ty --> upd_ty --> mk_lens_type rty sty)
+                val thy = Proof_Context.theory_of lthy
+                val acc_name = Sign.intern_const thy (Binding.name_of attr_name)
+                val upd_name = Sign.intern_const thy (Binding.name_of name_upd)
+                val acc = Const(acc_name, acc_ty)
+                val upd = Const(upd_name, upd_ty)
+                val lens_ty = mk_lens_type rty sty
+                val eq = mk_meta_eq (Free(Binding.name_of name_L, lens_ty), cr $ acc $ upd) 
+
+                val args = (SOME(name_L, SOME lens_ty, NoSyn), (Binding.empty_atts,eq),[],[])
+        in cmd args true lthy  end
+
 fun add_record_cmd0 read_fields overloaded is_global_kind raw_params binding raw_parent raw_fields thy =
   let
     val ctxt = Proof_Context.init_global thy;
@@ -743,10 +784,14 @@ fun add_record_cmd0 read_fields overloaded is_global_kind raw_params binding raw
                                                             
                  end
             else thy
+    fun define_lenses thy = 
+        let val sty = parse_typ_'a (Proof_Context.init_global thy) binding;
+        in  thy |> Named_Target.theory_map (fold (define_lense sty)  fields') end
   in thy |> Record.add_record overloaded (params', binding) parent fields' 
          |> (fn thy =>  List.foldr insert_var (thy) (fields'))
          |> upd_state_typ
          |> define_push_pop 
+         |> define_lenses
   end;
 
 
@@ -1373,6 +1418,12 @@ assignments or conceptually similar return-statements,  but also passed as argum
 function calls, where the same problem arises.  
 \<close>
 
+ML\<open>open Math;
+
+sin (pi/4.0);
+
+
+\<close>
 
 end
 
