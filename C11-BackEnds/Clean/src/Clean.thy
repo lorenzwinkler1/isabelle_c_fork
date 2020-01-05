@@ -678,6 +678,8 @@ fun cmd (decl, spec, prems, params) = #2 oo Specification.definition' decl param
 
 fun mk_push_name binding = Binding.prefix_name "push_" binding
 
+fun mk_lense_name binding = Binding.suffix_name "\<^sub>L" binding
+
 fun push_eq binding  name_op rty sty lthy = 
          let val mty = MON_SE_T rty sty 
              val thy = Proof_Context.theory_of lthy
@@ -738,9 +740,9 @@ fun parse_typ_'a ctxt binding =
   end
 
 fun define_lense binding sty (attr_name,rty,_) lthy = 
-     let    val pref = Binding.name_of binding^"_"
-            val name_L = attr_name |> Binding.prefix_name pref 
-                                   |> Binding.suffix_name "\<^sub>L" 
+     let    val prefix = Binding.name_of binding^"_"
+            val name_L = attr_name |> Binding.prefix_name prefix 
+                                   |> mk_lense_name 
             val name_upd = Binding.suffix_name "_update" attr_name
             val acc_ty = sty --> rty
             val upd_ty = (rty --> rty) --> sty --> sty
