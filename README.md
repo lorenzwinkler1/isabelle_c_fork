@@ -90,24 +90,24 @@ Before using the 🗀‹C11-BackEnds/AutoCorres_wrapper› back-end, the shell v
 
 ▪ ▩‹export L4V_ARCH = ARM› ∗‹‹#› the same effect can be permanently made in 🗏‹$ISABELLE_HOME_USER/etc/settings››
 ▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l CParser› 🗏‹C11-BackEnds/AutoCorres_wrapper/examples/TestSEL4.thy›
-▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l AutoCorres› 🗏‹C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_integrated.thy›
+▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l AutoCorres› 🗏‹C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_TEC.thy›
 ›
 
 text ‹
 For the case of 🗀‹C11-BackEnds/AutoCorres_wrapper›, we were used to see a
 sub-window ‹Bad session structure› appearing just after starting Isabelle. This is
 because the back-end normally requires to execute some initialization script (for example using
-🗏‹l4v/src/run_tests›) to generate specific Isabelle theory files. Instead, as
-possible workaround, we have introduced by hand in 🗀‹l4v/src› several symbolic
-links pointing to the missing files, making the sub-window not supposed to appear
-anymore. Nevertheless, if this ever happens again, the sub-window can be ignored by clicking on
-‹OK›.
+🗏‹src_ext/l4v/src/run_tests›) to generate specific Isabelle theory
+files. Instead, as possible workaround, we have introduced by hand in
+🗀‹src_ext/l4v/src› several symbolic links pointing to the missing files, making
+the sub-window not supposed to appear anymore. Nevertheless, if this ever happens again, the
+sub-window can be ignored by clicking on ‹OK›.
 
-Additionally, 🗏‹l4v/src/run_tests› can be executed in
-🗀‹l4v/src›, and interrupted once the success of ‹CBaseRefine›
-obtained. Then, to test the interactive version of AutoCorres, it would suffice to run the following
-command:
-▪ ▩‹isabelle build -d› 🗀‹l4v/src› ▩‹-b -v AutoCorresSEL4›
+Additionally, 🗏‹src_ext/l4v/src/run_tests› can be executed in
+🗀‹src_ext/l4v/src›, and interrupted once the success of
+‹CBaseRefine› obtained. Then, to test the interactive version of AutoCorres, it would
+suffice to run the following command:
+▪ ▩‹isabelle build -d› 🗀‹src_ext/l4v/src› ▩‹-b -v AutoCorresSEL4›
 ›
 
 text ‹

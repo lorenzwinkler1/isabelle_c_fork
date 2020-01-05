@@ -48,6 +48,7 @@ session Isabelle_C_AutoCorres_examples = Isabelle_C_AutoCorres +
   sessions
     "HOL-Computational_Algebra"
   theories
+    "examples/C0"
     "examples/IsPrime_TEC"
     "examples/IsPrime_linear_CET"
     "examples/IsPrime_sqrt_CET"

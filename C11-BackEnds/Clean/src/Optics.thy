@@ -23,7 +23,7 @@ fun      upd_hd :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a list \<Rightarrow> 'a
   where "upd_hd f [] = []"
       | "upd_hd f (a#S) = f a # S"
 
-lemma tl_map_hd [simp] :"tl (upd_hd f S) = tl S" 
+lemma [simp] :"tl (upd_hd f S) = tl S" 
   by (metis list.sel(3) upd_hd.elims)
 
 

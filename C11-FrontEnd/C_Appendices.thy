@@ -38,7 +38,7 @@ chapter \<open>Annexes\<close>
 
 theory C_Appendices
   imports Isabelle_C_examples.C1
-          "~~/src/Doc/Isar_Ref/Base"
+          Isar_Ref.Base
 begin
 
 (*<*)
@@ -367,13 +367,13 @@ it suffices to replace:
 \end{tabular}
 
 Once done, one can press a CTRL-like key while hovering the mouse over the file name, then followed
-by a click on it to open a new window loading that file. 
+by a click on it to open a new window loading that file.
 
 \<^item> After a \<^verbatim>\<open>C\<close> \<^theory_text>\<open>\<open> /* C */ \<close>\<close>
 command, one has either the possibility to keep the content as such in the theory file, or use
 \<^verbatim>\<open>C_export_file\<close> to export all previous C content into a ``real'' C file.
 
-Note that since Isabelle2019, Isabelle uses a virtual file-system. This has the consequence, that
+Note that since Isabelle2019, Isabelle/C uses a virtual file-system. This has the consequence, that
 some extra operations are needed to export a file generated into the virtual file-system of Isabelle
 into the ``real'' file-system. First, the \<^verbatim>\<open>C_export_file\<close> command needs to
 be activated, by putting the cursor on the command. This leads to the following message in the
@@ -624,7 +624,7 @@ is parsed, it might be helpful to proceed as in \<^theory>\<open>Isabelle_C_exam
 \<^theory_text>\<open>declare[[C_parser_trace]]\<close>. Then, the output window will display the
 sequence of Shift Reduce actions associated to the \<^theory_text>\<open>C\<close> command of
 interest.
-\<close> 
+\<close>
 
 section \<open>Known Limitations, Troubleshooting\<close>
 subsection \<open>The Document Model of the Isabelle/PIDE (applying for Isabelle 2019)\<close>
@@ -648,7 +648,7 @@ a \<^theory_text>\<open>C\<open> .. \<close>\<close> command whenever modified.\
 
 subsubsection \<open>Embedding a language in Isabelle/PIDE\<close>
 
-text \<open> 
+text \<open>
 To clarify why the way a language being embedded in Isabelle is influencing the interaction between
 a future parser of the language with the Isabelle's document model, we recall the two ``different''
 ways of embedding a language in Isabelle/PIDE.
@@ -781,7 +781,7 @@ make the error disappear at the position the error is indicated can be detailed 
   \<^item> Modifying the C code in input would be a first solution whenever we suspect something is
   making it erroneous (and when we have a reason to believe that the grammar is behaving as it
   should).
-  
+
   \<^item> However, we could still get the above error in front of an input where one is usually
   expecting to see not causing a failure. In particular, there are several C features (such as C
   directives) explicitly left for semantic back-ends (pre-) processing, so in general not fully
@@ -796,9 +796,9 @@ make the error disappear at the position the error is indicated can be detailed 
   \<^file>\<open>../C11-BackEnds/AutoCorres_wrapper/examples/TestSEL4.thy\<close> is already provided as
   preprocessed). Another way would be adding a specific new semantic back-end implementing the
   automation of the preprocessing task (as done in
-  \<^file>\<open>../C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_integrated.thy\<close>, where the
+  \<^file>\<open>../C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_TEC.thy\<close>, where the
   back-end explicitly makes a call to \<open>cpp\<close> at run-time).
-  
+
   \<^item> Ultimately, modifying the grammar with new rules cancelling the exception would only work
   if the problem really relies on the grammar, as it was mentioned for the acceptance state.
   \<close>

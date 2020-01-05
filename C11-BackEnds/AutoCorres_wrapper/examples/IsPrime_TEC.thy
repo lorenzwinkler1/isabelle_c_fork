@@ -70,7 +70,7 @@ imports
   Isabelle_C_AutoCorres.AutoCorres_Wrapper
   "HOL-Computational_Algebra.Primes"
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
+\<comment> \<open>Derived from: \<^file>\<open>../../../src_ext/l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
 C \<open>
    //  Setup of AutoCorres for semantically representing this C element.
