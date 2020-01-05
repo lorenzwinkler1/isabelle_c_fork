@@ -737,23 +737,24 @@ fun parse_typ_'a ctxt binding =
      | _ => error ("Unexpected type" ^ Position.here \<^here>)
   end
 
-    fun define_lense sty (attr_name,rty,_) lthy = 
-         let    val name_L = Binding.suffix_name "\<^sub>L" attr_name
-                val name_upd = Binding.suffix_name "_update" attr_name
-                val acc_ty = sty --> rty
-                val upd_ty = (rty --> rty) --> sty --> sty
-                val cr = Const(@{const_name "Optics.create\<^sub>L"}, 
-                               acc_ty --> upd_ty --> mk_lens_type rty sty)
-                val thy = Proof_Context.theory_of lthy
-                val acc_name = Sign.intern_const thy (Binding.name_of attr_name)
-                val upd_name = Sign.intern_const thy (Binding.name_of name_upd)
-                val acc = Const(acc_name, acc_ty)
-                val upd = Const(upd_name, upd_ty)
-                val lens_ty = mk_lens_type rty sty
-                val eq = mk_meta_eq (Free(Binding.name_of name_L, lens_ty), cr $ acc $ upd) 
-
-                val args = (SOME(name_L, SOME lens_ty, NoSyn), (Binding.empty_atts,eq),[],[])
-        in cmd args true lthy  end
+fun define_lense binding sty (attr_name,rty,_) lthy = 
+     let    val pref = Binding.name_of binding^"_"
+            val name_L = attr_name |> Binding.prefix_name pref 
+                                   |> Binding.suffix_name "\<^sub>L" 
+            val name_upd = Binding.suffix_name "_update" attr_name
+            val acc_ty = sty --> rty
+            val upd_ty = (rty --> rty) --> sty --> sty
+            val cr = Const(@{const_name "Optics.create\<^sub>L"}, 
+                           acc_ty --> upd_ty --> mk_lens_type rty sty)
+            val thy = Proof_Context.theory_of lthy
+            val acc_name = Sign.intern_const thy (Binding.name_of attr_name)
+            val upd_name = Sign.intern_const thy (Binding.name_of name_upd)
+            val acc = Const(acc_name, acc_ty)
+            val upd = Const(upd_name, upd_ty)
+            val lens_ty = mk_lens_type rty sty
+            val eq = mk_meta_eq (Free(Binding.name_of name_L, lens_ty), cr $ acc $ upd) 
+            val args = (SOME(name_L, SOME lens_ty, NoSyn), (Binding.empty_atts,eq),[],[])
+    in cmd args true lthy  end
 
 fun add_record_cmd0 read_fields overloaded is_global_kind raw_params binding raw_parent raw_fields thy =
   let
@@ -786,7 +787,7 @@ fun add_record_cmd0 read_fields overloaded is_global_kind raw_params binding raw
             else thy
     fun define_lenses thy = 
         let val sty = parse_typ_'a (Proof_Context.init_global thy) binding;
-        in  thy |> Named_Target.theory_map (fold (define_lense sty)  fields') end
+        in  thy |> Named_Target.theory_map (fold (define_lense binding sty)  fields') end
   in thy |> Record.add_record overloaded (params', binding) parent fields' 
          |> (fn thy =>  List.foldr insert_var (thy) (fields'))
          |> upd_state_typ

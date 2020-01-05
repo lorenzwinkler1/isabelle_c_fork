@@ -202,7 +202,7 @@ text\<open>We simulate the effect of the local variable space declaration by the
 
 
 local_vars_test swap' "unit"
-   tmp' :: "int"
+   tmp :: "int"
 
 ML\<open>
 val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
@@ -217,7 +217,7 @@ text\<open>Again, we simulate the effect of this command by more elementary \HOL
 (* Thus, the internal functionality in \<open>local_vars\<close> is the construction of the two definitions *)
 definition push_local_swap_state' :: "(unit,'a local_swap'_state_scheme) MON\<^sub>S\<^sub>E"
   where   "push_local_swap_state' \<sigma> = 
-                    Some((),\<sigma>\<lparr>local_swap_state.tmp' :=  undefined # local_swap_state.tmp' \<sigma> \<rparr>)"
+                    Some((),\<sigma>\<lparr>local_swap'_state.tmp :=  undefined # local_swap'_state.tmp \<sigma> \<rparr>)"
 
 definition pop_local_swap_state' :: "(unit,'a local_swap'_state_scheme) MON\<^sub>S\<^sub>E"
   where   "pop_local_swap_state' \<sigma> = 
