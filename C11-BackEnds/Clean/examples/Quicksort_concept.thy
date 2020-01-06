@@ -204,6 +204,8 @@ text\<open>We simulate the effect of the local variable space declaration by the
 local_vars_test swap' "unit"
    tmp :: "int"
 
+text\<open>The immediate effect of this command on the internal Clean State Management
+can be made explicit as follows: \<close>
 ML\<open>
 val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
 val tab = StateMgt_core.get_state_field_tab_global @{theory};
@@ -228,7 +230,8 @@ definition pop_local_swap_state' :: "(unit,'a local_swap'_state_scheme) MON\<^su
 
 
 definition swap'_core :: "nat \<times> nat \<Rightarrow>  (unit,'a local_swap'_state_scheme) MON\<^sub>S\<^sub>E"
-    where "swap'_core  \<equiv> (\<lambda>(i,j). ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
+  where "swap'_core  \<equiv> (\<lambda>(i,j). 
+                            ((assign_local tmp_update (\<lambda>\<sigma>. A \<sigma> ! i ))   ;-
                             (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (i) (A \<sigma> ! j))) ;- 
                             (assign_global A_update (\<lambda>\<sigma>. list_update (A \<sigma>) (j) ((hd o tmp) \<sigma>)))))" 
 
