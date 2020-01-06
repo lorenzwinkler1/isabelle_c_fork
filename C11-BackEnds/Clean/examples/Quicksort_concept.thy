@@ -521,9 +521,9 @@ text\<open>The coupling between the pre- and the post-condition state is done by
      can also be used to express framing conditions; i.e. parts of the state which are
      independent and/or not affected by the computations to be verified. \<close>
 lemma quicksort_correct : 
-  "\<lbrace>\<lambda>\<sigma>.   \<not>exec_stop \<sigma> \<and> quicksort_pre (lo, hi)(\<sigma>) \<and> \<sigma> = \<sigma>\<^sub>p\<^sub>r\<^sub>e \<rbrace> 
+  "\<lbrace>\<lambda>\<sigma>.   \<triangleright> \<sigma> \<and> quicksort_pre (lo, hi)(\<sigma>) \<and> \<sigma> = \<sigma>\<^sub>p\<^sub>r\<^sub>e \<rbrace> 
      quicksort (lo, hi) 
-   \<lbrace>\<lambda>r \<sigma>. \<not>exec_stop \<sigma> \<and> quicksort_post(lo, hi)(\<sigma>\<^sub>p\<^sub>r\<^sub>e)(\<sigma>)(r) \<rbrace>"
+   \<lbrace>\<lambda>r \<sigma>. \<triangleright> \<sigma> \<and> quicksort_post(lo, hi)(\<sigma>\<^sub>p\<^sub>r\<^sub>e)(\<sigma>)(r) \<rbrace>"
    oops
 
 

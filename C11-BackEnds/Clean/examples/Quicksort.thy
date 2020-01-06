@@ -35,7 +35,7 @@
  ******************************************************************************)
 
 (*
- * Quicksort Concept 
+ * Quicksort : all at a glance. 
  *
  * Authors : Burkhart Wolff, Frédéric Tuong
  *)
@@ -105,14 +105,14 @@ local_vars   pivot  :: int
              i      :: nat
              j      :: nat
 defines      " \<open>pivot := A ! hi \<close>  ;- \<open>i := lo \<close> ;- \<open>j := lo \<close> ;-
-               (while\<^sub>C \<open>j \<le> hi - 1 \<close> 
-                do (if\<^sub>C \<open>A ! j < pivot\<close>  
-                    then  call\<^sub>C swap \<open>(i , j) \<close>  ;-
-                          \<open>i := i + 1 \<close>
-                    else skip\<^sub>S\<^sub>E 
-                    fi) ;-
+               while\<^sub>C \<open>j \<le> hi - 1 \<close> 
+                do if\<^sub>C \<open>A ! j < pivot\<close>  
+                     then  call\<^sub>C swap \<open>(i , j) \<close>  ;-
+                           \<open>i := i + 1 \<close>
+                     else skip\<^sub>S\<^sub>E 
+                   fi ;-
                     \<open>j := j + 1 \<close> 
-                od) ;-
+                od;-
                 call\<^sub>C swap \<open>(i, j)\<close>  ;-
                 return\<^bsub>local_partition_state.result_value_update\<^esub> \<open>i\<close>" 
 
@@ -137,11 +137,12 @@ thm quicksort_def
 thm quicksort_pre_def
 thm quicksort_post_def
 
+section\<open>Possible Application Sketch\<close>
 
 lemma quicksort_correct : 
-  "\<lbrace>\<lambda>\<sigma>.   \<not>exec_stop \<sigma> \<and> quicksort_pre (lo, hi)(\<sigma>) \<and> \<sigma> = \<sigma>\<^sub>p\<^sub>r\<^sub>e \<rbrace> 
+  "\<lbrace>\<lambda>\<sigma>.   \<triangleright> \<sigma> \<and> quicksort_pre (lo, hi)(\<sigma>) \<and> \<sigma> = \<sigma>\<^sub>p\<^sub>r\<^sub>e \<rbrace> 
      quicksort (lo, hi) 
-   \<lbrace>\<lambda>r \<sigma>. \<not>exec_stop \<sigma> \<and> quicksort_post(lo, hi)(\<sigma>\<^sub>p\<^sub>r\<^sub>e)(\<sigma>)(r) \<rbrace>"
+   \<lbrace>\<lambda>r \<sigma>. \<triangleright> \<sigma> \<and> quicksort_post(lo, hi)(\<sigma>\<^sub>p\<^sub>r\<^sub>e)(\<sigma>)(r) \<rbrace>"
    oops
 
 
