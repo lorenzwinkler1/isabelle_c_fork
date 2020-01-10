@@ -225,8 +225,7 @@ lemma expimnt :"\<sharp>! (create\<^sub>L getv updv) \<Longrightarrow> (\<lambda
   oops
 
 lemma expimnt :  
-   "updv = upd2put putv \<Longrightarrow>
-    vwb_lens (create\<^sub>L getv updv) \<Longrightarrow>  (\<lambda>f \<sigma>. updv (\<lambda>_. f (getv \<sigma>)) \<sigma>) = updv"
+   "vwb_lens (create\<^sub>L getv updv) \<Longrightarrow>  (\<lambda>f \<sigma>. updv (\<lambda>_. f (getv \<sigma>)) \<sigma>) = updv"
   unfolding create\<^sub>L_def strong_control_independence_def lens_indep_def
             break_status\<^sub>L_def return_status\<^sub>L_def vwb_lens_def
   apply(rule ext, rule ext) 
@@ -1421,12 +1420,6 @@ assignments or conceptually similar return-statements,  but also passed as argum
 function calls, where the same problem arises.  
 \<close>
 
-ML\<open>open Math;
-
-sin (pi/4.0);
-
-
-\<close>
 
 end
 

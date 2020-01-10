@@ -107,8 +107,8 @@ local_vars   pivot  :: int
 defines      " \<open>pivot := A ! hi \<close>  ;- \<open>i := lo \<close> ;- \<open>j := lo \<close> ;-
                while\<^sub>C \<open>j \<le> hi - 1 \<close> 
                 do if\<^sub>C \<open>A ! j < pivot\<close>  
-                     then  call\<^sub>C swap \<open>(i , j) \<close>  ;-
-                           \<open>i := i + 1 \<close>
+                     then call\<^sub>C swap \<open>(i , j) \<close>  ;-
+                          \<open>i := i + 1 \<close>
                      else skip\<^sub>S\<^sub>E 
                    fi ;-
                     \<open>j := j + 1 \<close> 

@@ -260,31 +260,31 @@ lemma if\<^sub>C_cond_cong : "f \<sigma> = g \<sigma> \<Longrightarrow> (if\<^su
  
 subsection\<open>Break - Rules.  \<close>
 
-lemma break_assign_skip [simp]: "break ;- assign f = break"
+lemma break_assign_skip [simp]: "(break ;- assign f) = break"
   apply(rule ext)
   unfolding break_def assign_def exec_stop_def bind_SE'_def   bind_SE_def
   by auto
 
 
 
-lemma break_if_skip [simp]: "break ;- (if\<^sub>C b then c else d fi) = break"
+lemma break_if_skip [simp]: "(break ;- if\<^sub>C b then c else d fi) = break"
   apply(rule ext)
   unfolding break_def assign_def exec_stop_def if_C_def bind_SE'_def   bind_SE_def
   by auto
     
                        
-lemma break_while_skip [simp]: "break ;- (while\<^sub>C b do c od) = break"
+lemma break_while_skip [simp]: "(break ;- while\<^sub>C b do c od) = break"
   apply(rule ext)
   unfolding while_C_def skip\<^sub>S\<^sub>E_def unit_SE_def bind_SE'_def bind_SE_def break_def exec_stop_def
   by simp
 
     
 lemma unset_break_idem [simp] : 
- "( unset_break_status ;- unset_break_status ;- M) = (unset_break_status ;- M)"
+ "(unset_break_status ;- unset_break_status ;- M) = (unset_break_status ;- M)"
   apply(rule ext)  unfolding unset_break_status_def bind_SE'_def bind_SE_def by auto
 
 lemma return_cancel1_idem [simp] : 
- "( return\<^bsub>X\<^esub>(E) ;- X :==\<^sub>G E' ;- M) = ( return\<^sub>C X E ;- M)"
+ "(return\<^bsub>X\<^esub>(E) ;- X :==\<^sub>G E' ;- M) = ( return\<^sub>C X E ;- M)"
   apply(rule ext, rename_tac "\<sigma>")  
   unfolding unset_break_status_def bind_SE'_def bind_SE_def
             assign_def return\<^sub>C_def return\<^sub>C0_def assign_global_def assign_local_def
