@@ -35,33 +35,51 @@
  ******************************************************************************)
 
 (*
- * Clean --- a basic abstract ("shallow") programming language for test and proof.
+ * IsPrime-Test 
+ *
  * Authors : Burkhart Wolff, Frédéric Tuong
- *           Contributions by Chantal Keller
  *)
 
-session Clean = HOL +
-  theories
-    "src/Clean_Main"
+chapter \<open> Clean Semantics : Another Clean Example\<close>
 
-session Clean_examples = Clean +
-  sessions
-    "HOL-Computational_Algebra"
-  theories
-    "examples/IsPrime"
-    "examples/LinearSearch" 
-    "examples/Quicksort"
-    "examples/Quicksort_concept"
-    "examples/SquareRoot_concept"
 
-session Clean_document = Clean_examples +
-  options [document = pdf, document_output = "output"]
-  theories
-    "src/Clean_Main"
-    "examples/LinearSearch"
-    "examples/Quicksort_concept"
-    "examples/SquareRoot_concept"
-  document_files
-    "root.tex"
-    "root.bib"
-    "lstisadof.sty"
+theory IsPrime
+  imports Clean.Clean
+          Clean.Hoare_Clean
+          Clean.Clean_Symbex
+          "HOL-Computational_Algebra.Primes"
+begin
+
+section\<open>The Primality-Test Example at a Glance\<close>
+
+definition "SQRT_UINT_MAX = (65536::nat)"
+
+
+function_spec isPrime(n :: nat) returns bool
+pre "\<open>True\<close>" 
+post"\<open>\<lambda>res. res \<longleftrightarrow> prime n \<close>"
+local_vars   i :: nat
+defines " if\<^sub>C \<open>n < 2\<close>  
+            then return\<^bsub>local_isPrime_state.result_value_update\<^esub> \<open>False\<close>
+            else skip\<^sub>S\<^sub>E 
+          fi ;-
+          \<open>i := 2\<close> ;- 
+          while\<^sub>C \<open>i < SQRT_UINT_MAX \<and> i*i \<le> n  \<close> 
+            do if\<^sub>C \<open>n mod i = 0\<close>  
+                  then return\<^bsub>local_isPrime_state.result_value_update\<^esub> \<open>False\<close>
+                  else skip\<^sub>S\<^sub>E 
+                fi ;-
+                \<open>i := i + 1 \<close> 
+            od ;-
+         return\<^bsub>local_isPrime_state.result_value_update\<^esub> \<open>True\<close>"
+
+
+lemma isPrime_correct : 
+  "\<lbrace>\<lambda>\<sigma>.   \<triangleright> \<sigma> \<and> isPrime_pre (n)(\<sigma>) \<and> \<sigma> = \<sigma>\<^sub>p\<^sub>r\<^sub>e \<rbrace> 
+     quicksort (lo, hi) 
+   \<lbrace>\<lambda>r \<sigma>. \<triangleright> \<sigma> \<and> isPrime_post(n) (\<sigma>\<^sub>p\<^sub>r\<^sub>e)(\<sigma>)(r) \<rbrace>"
+   oops
+
+
+
+end

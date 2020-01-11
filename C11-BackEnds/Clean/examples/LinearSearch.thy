@@ -61,15 +61,14 @@ global_vars state
 function_spec linearsearch (x::int, n::int) returns int
 pre          "\<open> 0 \<le> n \<and> n < int(length t) \<and> sorted t\<close>"    
 post         "\<open>\<lambda>res::int. res = bool2int (\<exists> i \<in> {0 ..< length t}. t!i = x) \<close>" 
-local_vars   i      :: int
-defines      " ( \<open>i := 0 \<close> ;-
-               (while\<^sub>C \<open>i < n \<close> 
-                do (if\<^sub>C \<open>t ! (nat i) < x\<close>  
-                    then  \<open>i := i + 1 \<close>
-                    else return\<^sub>C result_value_update \<open>bool2int(t!(nat i) = x)\<close> 
-                    fi) 
-                od) 
-               ) " 
+local_vars   i  :: int
+defines      " \<open>i := 0 \<close> ;-
+               while\<^sub>C \<open>i < n \<close> 
+                 do if\<^sub>C \<open>t ! (nat i) < x\<close>  
+                      then  \<open>i := i + 1 \<close>
+                      else return\<^sub>C result_value_update \<open>bool2int(t!(nat i) = x)\<close> 
+                    fi 
+                 od " 
 
 (*
 C\<open>

@@ -147,7 +147,7 @@ proof (auto)
     assume "\<triangleright> \<sigma>"
     show "P (upd (upd_hd (\<lambda>_. rhs \<sigma>)) \<sigma>\<lparr>return_status := True\<rparr>)"
       using a1 assms exec_stop_vs_control_independence' by fastforce
-  qed
+qed
   (* do we need independence of rhs ? Not really. 'Normal' programs would never
      be control-state dependent, and 'artificial' ones would still be correct ...*)
 
