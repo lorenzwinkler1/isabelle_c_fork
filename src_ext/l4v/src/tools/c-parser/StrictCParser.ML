@@ -71,7 +71,10 @@ fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (input : inp
             val lexarg = StrictCLex.UserDeclarations.new_state fname
             val lexer = StrictCParser.makeLexer istream lexarg
             val pos = #source lexarg
-          in invoke error_lookahead pos lexer |>> pair fname end))
+          in (invoke error_lookahead pos lexer
+                handle StrictCParser.ParseError => ([], !Feedback.numErrors))
+             |>> pair fname
+          end))
       |>> (fn (fname, v) => Synchronized.change_result last_parsed (K (v, (fname, v))))
       |> curry swap thy
 

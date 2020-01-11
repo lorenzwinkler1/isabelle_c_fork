@@ -55,7 +55,7 @@ fun setup_feedback extra_output_filename = let
         NONE => (fn _ => fn f => f)
       | SOME _ => (fn pfx => fn f => fn s => (trace_extra (pfx ^ s); f s))
   in
-    Feedback.errorf := add_extra "ERROR: " (ignore o error);
+    Feedback.errorf := add_extra "ERROR: " (writeln o Markup.markup (Markup.bad ()));
     Feedback.warnf := add_extra "" warning;
     Feedback.informf := add_extra "" (Output.tracing o Feedback.timestamp)
   end
