@@ -373,6 +373,13 @@ let
                  SOME lthy => lthy
                | NONE => error ("autocorres: no such locale: " ^ locale_name)
 
+in
+  (* Exit context. *)
+  Named_Target.exit
+(if is_none (ProgramInfo.get_prog_info_gamma_defined lthy)
+ then lthy
+ else
+let
   (* Fetch program information from the C-parser output. *)
   val prog_info = ProgramInfo.get_prog_info lthy filename
   val all_simpl_info = FunctionInfo.init_function_info lthy filename
@@ -769,9 +776,7 @@ let
             (Symtab.map_default (filename, Symtab.empty)
                (fn old_traces => Utils.symtab_merge_with snd (old_traces, traces))));
 
-in
-  (* Exit context. *)
-  Named_Target.exit lthy
+in lthy end)
 end
 
 end
