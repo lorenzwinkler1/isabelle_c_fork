@@ -135,6 +135,12 @@ fun demangle_name (prog_info: prog_info) m =
             |> the_default m
         end
 
+val get_prog_info_gamma = "\<Gamma>"
+
+fun get_prog_info_gamma_defined ctxt =
+  Type_Infer_Context.const_type ctxt
+                                (Consts.intern (Proof_Context.consts_of ctxt) get_prog_info_gamma)
+
 (*
  * Extract details from the c-parser about the given program.
  *)
@@ -151,9 +157,11 @@ fun get_prog_info ctxt filename : prog_info =
     (* Get the gamma variable, mapping function numbers to function bodies in
      * SIMPL. *)
     val gamma =
-      (Const (Consts.intern (Proof_Context.consts_of ctxt) "\<Gamma>", dummyT)
-       |> Syntax.check_term ctxt)
-      handle TERM _ => error "autocorres: could not find any functions -- \<Gamma> is not defined."
+      case get_prog_info_gamma_defined ctxt of
+        NONE => error "autocorres: could not find any functions -- \<Gamma> is not defined."
+      | SOME _ => 
+         Const (Consts.intern (Proof_Context.consts_of ctxt) get_prog_info_gamma, dummyT)
+         |> Syntax.check_term ctxt
 
     (*
      * Return a Const term of the local-variable getters/setters for the given
