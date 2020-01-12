@@ -152,14 +152,14 @@ lemma prime_dvd:
 
 section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
 
+declare [[AutoCorres]]
+
 text\<open> This C code contains a function that determines if the given number 
       @{term n} is prime.
 
       It returns 0 if @{term n}  is composite, or non-zero if @{term n}  is prime.
  
       This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
-
-
 
 C \<open>
 //  Setup of AutoCorres for semantically representing this C element.
