@@ -72,6 +72,8 @@ imports
 begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../src_ext/l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
+declare [[AutoCorres]]
+
 C \<open>
    //  Setup of AutoCorres for semantically representing this C element.
    //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime_linear is_prime ]

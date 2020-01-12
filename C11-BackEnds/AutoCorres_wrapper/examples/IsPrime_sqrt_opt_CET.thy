@@ -177,7 +177,7 @@ text\<open> This C code contains a function that determines if the given number
  
       This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
 
-
+declare [[AutoCorres]]
 
 C \<open>
 //  Setup of AutoCorres for semantically representing this C element.

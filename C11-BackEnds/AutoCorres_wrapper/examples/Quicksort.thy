@@ -60,6 +60,9 @@ section\<open>The Quicksort Algorithm in Isabelle/C \<close>
    The subsequent proof works nevertheless, since it only refers to the definitions
    resulting from the core functions.
  *)
+
+declare [[AutoCorres]]
+
 C \<open>
 //@ install_autocorres quicksort
 

@@ -208,24 +208,28 @@ fun command f name =
         (fn (src, range) =>
           C_Env.Lexing (range, f src))))
 val cmd = ("install_autocorres", \<^here>)
+val autocorres = Attrib.setup_config_bool @{binding AutoCorres} (K false)
 in
 val _ =
   Theory.setup
     (command
       (fn (name, (opt, input)) => fn _ => fn context =>
-        let val input =
-              case input of ((((((((SOME false, _), _), _), _), _), _), _), _) => input
-                          | ((((((((NONE,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),files),statetylist_opt) =>
-                              tap (fn _ => tracing "Disabling the second C11 parsing layer to avoid a double reporting of the source")
-                                  ((((((((SOME false,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),files),statetylist_opt)
-                          | _ => tap (fn _ => warning "Potential double reporting of the source (by the outer C11 parser, and inner C11 one)") input
-        in
-          Context.map_theory (C_Annotation.delete_command cmd
-                              #> IsarInstall.install_C_file (IsarInstall.make_install_C (C_Scan.Right (name, hd (C_Module.Data_In_Source.get context)))
-                                                                                        input)
-                              #-> AutoCorres.do_autocorres opt)
-                             context
-        end)
+        if Config.get (Context.proof_of context) autocorres then
+          let val input =
+                case input of ((((((((SOME false, _), _), _), _), _), _), _), _) => input
+                            | ((((((((NONE,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),files),statetylist_opt) =>
+                                tap (fn _ => tracing "Disabling the second C11 parsing layer to avoid a double reporting of the source")
+                                    ((((((((SOME false,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),files),statetylist_opt)
+                            | _ => tap (fn _ => warning "Potential double reporting of the source (by the outer C11 parser, and inner C11 one)") input
+          in
+            Context.map_theory (C_Annotation.delete_command cmd
+                                #> IsarInstall.install_C_file (IsarInstall.make_install_C (C_Scan.Right (name, hd (C_Module.Data_In_Source.get context)))
+                                                                                          input)
+                                #-> AutoCorres.do_autocorres opt)
+                               context
+          end
+        else
+          context)
       cmd)
 end
 \<close>

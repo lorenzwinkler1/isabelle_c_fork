@@ -102,7 +102,9 @@ definition [simp]: "is_prime_linear_inv n i s \<equiv> (1 < i \<and> 1 < n \<and
 
 
 section\<open>The Gory C Code --- pure without annotations\<close>
-text\<open>... except just one : the invocation of AutoCorres.\<close>
+text\<open>the invocation of AutoCorres:\<close>
+
+declare [[AutoCorres]]
 
 C \<open>
 //  Setup of AutoCorres for semantically representing this C element.

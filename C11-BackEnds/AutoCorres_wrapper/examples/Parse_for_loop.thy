@@ -57,6 +57,8 @@ imports
   "HOL-Computational_Algebra.Primes"
 begin
 
+declare [[AutoCorres]]
+
 C\<open>
 /*
  * Copyright 2014, NICTA
