@@ -57,7 +57,11 @@ imports
   "HOL-Computational_Algebra.Primes"
 begin
 
+text \<open>The invocation of AutoCorres:\<close>
 declare [[AutoCorres]]
+
+text \<open>Setup of AutoCorres for semantically representing this C element:\<close>
+declare_autocorres parse_for_loop [ ts_rules = nondet, unsigned_word_abs = f g h f2 ]
 
 C\<open>
 /*
@@ -69,10 +73,6 @@ C\<open>
  *
  * @TAG(NICTA_BSD)
  */
-
-//  Setup of AutoCorres for parsing and semantically representing this C element.
-//@  install_autocorres parse_for_loop [ ts_rules = nondet, unsigned_word_abs = f g h f2 ]
-
 
 /* It also tests
    - post-increment and decrement (which are common for loops)

@@ -102,14 +102,14 @@ definition [simp]: "is_prime_linear_inv n i s \<equiv> (1 < i \<and> 1 < n \<and
 
 
 section\<open>The Gory C Code --- pure without annotations\<close>
-text\<open>the invocation of AutoCorres:\<close>
 
+text \<open>The invocation of AutoCorres:\<close>
 declare [[AutoCorres]]
 
-C \<open>
-//  Setup of AutoCorres for semantically representing this C element.
-//@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime_linear  ]
+text \<open>Setup of AutoCorres for semantically representing this C element:\<close>
+declare_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime_linear ]
 
+C \<open>
 #define SQRT_UINT_MAX 65536
 
 unsigned is_prime_linear(unsigned n)

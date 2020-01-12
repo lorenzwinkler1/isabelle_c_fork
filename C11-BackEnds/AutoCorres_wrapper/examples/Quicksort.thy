@@ -55,17 +55,16 @@ begin
 
 section\<open>The Quicksort Algorithm in Isabelle/C \<close>
 
+declare [[AutoCorres]]
+declare_autocorres quicksort
+
 (* Note that the current configuration of Isabelle_C/AutoCorres does not take 
    conditional directives into account, and that \<^item>\<open>TEST\<close> is unset anyway.
    The subsequent proof works nevertheless, since it only refers to the definitions
    resulting from the core functions.
  *)
 
-declare [[AutoCorres]]
-
 C \<open>
-//@ install_autocorres quicksort
-
 #ifdef TEST
 #include <stdio.h>
 #include <stdlib.h>

@@ -35,6 +35,7 @@ imports
            "autocorres'"
            "install_autocorres_file" :: thy_load % "ML"
   and      "install_autocorres" :: thy_decl % "ML"
+  and      "declare_autocorres" :: thy_decl
 begin
 
 (* Remove various rules from the default simpset that don't really help. *)
@@ -200,6 +201,22 @@ val _ =
 \<close>
 
 ML \<open>
+datatype declare_autocorres =
+    Decl_param of (binding * (AutoCorres.autocorres_options * unit IsarInstall.install_C0))
+  | Decl_none
+  | Decl_inner
+
+structure Data_autocorres =
+  Generic_Data
+    (struct
+      type T = declare_autocorres
+      val empty = Decl_none
+      val extend = I
+      val merge = fn (x, Decl_none) => x
+                   | (x, Decl_inner) => x
+                   | (_, x) => x
+     end)
+
 local
 fun command f name =
   C_Annotation.command' name ""
@@ -207,30 +224,64 @@ fun command f name =
       (C_Parse.range (C_Parse.binding -- (AutoCorres.Parser_Inner.autocorres_parser'' (Scan.succeed ()))) >>
         (fn (src, range) =>
           C_Env.Lexing (range, f src))))
+
 val cmd = ("install_autocorres", \<^here>)
+
 val autocorres = Attrib.setup_config_bool @{binding AutoCorres} (K false)
+
+fun exec_autocorres (name, (opt, input)) context =
+  Context.map_theory
+    (C_Annotation.delete_command cmd
+     #> IsarInstall.install_C_file
+          (IsarInstall.make_install_C
+            (C_Scan.Right (name, hd (C_Module.Data_In_Source.get context)))
+            (case input of ((((((((SOME false, _), _), _), _), _), _), _), _) => input
+             | ((((((((NONE,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),files),statetylist_opt) =>
+                 tap (fn _ => tracing "Disabling the second C11 parsing layer to avoid a double reporting of the source")
+                     ((((((((SOME false,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),files),statetylist_opt)
+             | _ => tap (fn _ => warning "Potential double reporting of the source (by the outer C11 parser, and inner C11 one)") input))
+     #-> AutoCorres.do_autocorres opt)
+    context
+
+fun warn_no_autocorres () =
+  warning ("AutoCorres is not activated" ^ Position.here (Config.pos_of autocorres))
+
 in
+
+val () =
+  Outer_Syntax.command @{command_keyword declare_autocorres} "declare AutoCorres arguments provided to C"
+    (Parse.binding -- (AutoCorres.Parser_Outer.autocorres_parser'' (Scan.succeed ()))
+      >> (Toplevel.generic_theory o
+           (fn data =>
+             tap (fn context =>
+                   if Config.get (Context.proof_of context) autocorres
+                   then ()
+                   else warn_no_autocorres ())
+             #>
+             Data_autocorres.map (K (Decl_param data)))))
+
 val _ =
   Theory.setup
     (command
-      (fn (name, (opt, input)) => fn _ => fn context =>
-        if Config.get (Context.proof_of context) autocorres then
-          let val input =
-                case input of ((((((((SOME false, _), _), _), _), _), _), _), _) => input
-                            | ((((((((NONE,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),files),statetylist_opt) =>
-                                tap (fn _ => tracing "Disabling the second C11 parsing layer to avoid a double reporting of the source")
-                                    ((((((((SOME false,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),files),statetylist_opt)
-                            | _ => tap (fn _ => warning "Potential double reporting of the source (by the outer C11 parser, and inner C11 one)") input
-          in
-            Context.map_theory (C_Annotation.delete_command cmd
-                                #> IsarInstall.install_C_file (IsarInstall.make_install_C (C_Scan.Right (name, hd (C_Module.Data_In_Source.get context)))
-                                                                                          input)
-                                #-> AutoCorres.do_autocorres opt)
-                               context
-          end
-        else
-          context)
-      cmd)
+      (fn data => fn _ => fn context =>
+        context
+        |> (if Config.get (Context.proof_of context) autocorres then
+              exec_autocorres data
+              #> Data_autocorres.put Decl_inner
+            else
+              tap (fn _ => warn_no_autocorres ())))
+      cmd
+     #> Context.theory_map
+      (C_Module.Data_Accept.put
+        (fn _ => fn _ => fn context =>
+          if Config.get (Context.proof_of context) autocorres then
+            case Data_autocorres.get context of
+              Decl_none => tap (fn _ => warning let val (name, pos) = @{command_keyword declare_autocorres} in "AutoCorres not yet initialized with " ^ name ^ Position.here pos end) context
+            | Decl_inner => Data_autocorres.put Decl_none context
+            | Decl_param data => exec_autocorres data context
+          else
+            context)))
+
 end
 \<close>
 

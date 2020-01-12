@@ -170,19 +170,20 @@ lemma three_and_divides : "prime (p::nat) \<Longrightarrow> 3 < p \<Longrightarr
 
 section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
 
-text\<open> This C code contains a function that determines if the given number 
+text \<open>The invocation of AutoCorres:\<close>
+declare [[AutoCorres]]
+
+text \<open>Setup of AutoCorres for semantically representing this C element:\<close>
+declare_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime ]
+
+text\<open> This C code contains a function that determines if the given number
       @{term n} is prime.
 
       It returns 0 if @{term n}  is composite, or non-zero if @{term n}  is prime.
  
       This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
 
-declare [[AutoCorres]]
-
 C \<open>
-//  Setup of AutoCorres for semantically representing this C element.
-//@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs =  is_prime ]
-
 #define SQRT_UINT_MAX 65536
 
 unsigned int is_prime(unsigned int n)
