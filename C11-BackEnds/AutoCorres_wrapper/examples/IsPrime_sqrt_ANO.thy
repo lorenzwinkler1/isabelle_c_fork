@@ -61,7 +61,7 @@ Of course, since developments can mix C code and HOL developments in an arbitrar
 these two style have to be thought of as extremes in a continuum. \<close>
 
 
-theory IsPrime_sqrt_CET
+theory IsPrime_sqrt_ANO
 imports
   Isabelle_C_AutoCorres.AutoCorres_Wrapper
   "HOL-Computational_Algebra.Primes"
@@ -90,7 +90,8 @@ algorithmic side.
 
 
 
-definition "partial_prime p (n :: nat) \<equiv>  (1 < p \<and> (\<forall>i \<in> {2 ..< min p n}. \<not> i dvd p))"
+definition
+  "partial_prime p (n :: nat) \<equiv>  (1 < p \<and> (\<forall>i \<in> {2 ..< min p n}. \<not> i dvd p))"
 
 lemma partial_prime_ge [simp]:
      "\<lbrakk> p' \<ge> p \<rbrakk> \<Longrightarrow> partial_prime p p' = prime p"
@@ -121,14 +122,16 @@ lemma partial_prime_Suc [simp]:
 lemma partial_prime_2 [simp]: "(partial_prime a 2) = (a > 1)"
   by (clarsimp simp: partial_prime_def)
 
-lemma not_prime: "\<lbrakk> \<not> prime (a :: nat); a > 1 \<rbrakk> \<Longrightarrow> \<exists>x y. x * y = a \<and> 1 < x \<and> 1 < y \<and> x * x \<le> a"
+lemma not_prime:
+    "\<lbrakk> \<not> prime (a :: nat); a > 1 \<rbrakk> \<Longrightarrow> \<exists>x y. x * y = a \<and> 1 < x \<and> 1 < y \<and> x * x \<le> a"
   apply (clarsimp simp: prime_nat_iff dvd_def)
   apply (case_tac "m > k")
    apply (metis Suc_lessD Suc_lessI less_imp_le_nat mult.commute nat_0_less_mult_iff nat_mult_less_cancel_disj)
   apply fastforce
   done
 
-lemma sqrt_prime: "\<lbrakk> a * a > n; \<forall>x<a. (x dvd n) = (x = Suc 0 \<or> x = n); 1 < n \<rbrakk> \<Longrightarrow> prime n"
+lemma sqrt_prime:
+  "\<lbrakk> a * a > n; \<forall>x<a. (x dvd n) = (x = Suc 0 \<or> x = n); 1 < n \<rbrakk> \<Longrightarrow> prime n"
   apply (rule ccontr)
   apply (drule not_prime)
    apply clarsimp
@@ -137,7 +140,8 @@ lemma sqrt_prime: "\<lbrakk> a * a > n; \<forall>x<a. (x dvd n) = (x = Suc 0 \<o
            mult_eq_self_implies_10 not_less)
   done
 
-lemma partial_prime_sqr: "\<lbrakk> n * n > p \<rbrakk> \<Longrightarrow> partial_prime p n = prime p"
+lemma partial_prime_sqr:
+     "\<lbrakk> n * n > p \<rbrakk> \<Longrightarrow> partial_prime p n = prime p"
   apply (case_tac "n \<ge> p")
    apply clarsimp
   apply (case_tac "partial_prime p n")
@@ -155,38 +159,46 @@ lemma partial_prime_sqr: "\<lbrakk> n * n > p \<rbrakk> \<Longrightarrow> partia
   apply (auto simp: not_le partial_prime_def min_def prime_nat_iff')
   done
 
-
-lemma prime_dvd: "\<lbrakk> prime (p::nat) \<rbrakk> \<Longrightarrow> (r dvd p) = (r = 1 \<or> r = p)"
+lemma prime_dvd:
+    "\<lbrakk> prime (p::nat) \<rbrakk> \<Longrightarrow> (r dvd p) = (r = 1 \<or> r = p)"
   by (fastforce simp: prime_nat_iff)
 
 section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
 
-text \<open>The invocation of AutoCorres:\<close>
+text\<open> This C code contains a function that determines if the given number 
+      @{term n} is prime.
 
-declare [[AutoCorres]]                                                                                 text \<open>Setup of AutoCorres for semantically representing this C element:\<close>
-declare_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime ]
+      It returns 0 if @{term n}  is composite, or non-zero if @{term n}  is prime.
+ 
+      This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
 
-C \<open> 
-    #define SQRT_UINT_MAX 65536
-    
-    unsigned int is_prime(unsigned int n)
-    {
-        /* Numbers less than 2 are not primes. */
-        if (n < 2)
-            return 0;
-    
-        /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX). */
-        /* Find the first non-trivial factor of 'n' less than sqrt(n). */
-    
-        for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++) {
-            if (n % i == 0)
-                return 0; 
-        }
-    
-        /* No factors found. */
-        return 1;
-    }
-  \<close>
+declare [[AutoCorres]]
+(*
+C \<open>
+//  Setup of AutoCorres for semantically representing this C element.
+//@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs =  is_prime ]
+int A;  /* dummy */
+\<close>
+*)
+
+C \<open>  
+     //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime ]
+
+     #define SQRT_UINT_MAX 65536
+ 
+     unsigned int is_prime(unsigned int n){
+         /* Numbers less than 2 are not primes. */
+         if (n < 2)
+             return 0;
+         /** +@ INVARIANT: "\<lbrace> 'i \<le> 'n \<rbrace>"
+             +@ highlight */     
+         for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++) {
+             if (n % i == 0)
+                 return 0; 
+         }
+         return 1;
+     }
+\<close>
 
 section\<open>The Results of the AutoCorres Evaluation\<close>
 
@@ -271,7 +283,7 @@ proof (rule validNF_assume_pre)
     next
       assume  "1 < n" 
       then show ?thesis
-           apply (unfold is_prime'_def dvd_eq_mod_eq_0 [symmetric] SQRT_UINT_MAX_def [symmetric],    insert 1)
+           apply (unfold is_prime'_def dvd_eq_mod_eq_0 [symmetric] SQRT_UINT_MAX_def [symmetric], insert 1)
            text\<open>... and here happens the annotation with the invariant:
                 by instancing @{thm whileLoopE_add_inv}.
                 One can say that the while loop is spiced up with the
@@ -279,7 +291,11 @@ proof (rule validNF_assume_pre)
            apply (subst whileLoopE_add_inv [  where I = "\<lambda>r s. is_prime_inv n r s"
                                               and M = "(\<lambda>(r, s). (Suc n) * (Suc n) - r * r)"])
            apply (wp,auto simp: prime_dvd partial_prime_sqr)
-                                                                                                      using not_less_eq_eq apply force  apply (metis Suc_leI add_Suc mult_Suc mult_Suc_right mult_le_mono)  apply (metis SQRT_UINT_MAX_def mult_Suc_right plus_nat.simps(2) rel_simps(76)  sqr_le_sqr_minus_1 times_nat.simps(2))  apply (simp_all add: SQRT_UINT_MAX_def)  
+               using not_less_eq_eq apply force
+              apply (metis Suc_leI add_Suc mult_Suc mult_Suc_right mult_le_mono)
+             apply (metis SQRT_UINT_MAX_def mult_Suc_right plus_nat.simps(2) rel_simps(76) 
+                          sqr_le_sqr_minus_1 times_nat.simps(2))
+           apply (simp_all add: SQRT_UINT_MAX_def)
            done
     qed
 qed
