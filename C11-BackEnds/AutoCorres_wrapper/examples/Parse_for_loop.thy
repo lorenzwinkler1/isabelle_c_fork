@@ -118,7 +118,10 @@ int f2(int *a)
 
 find_theorems name:"parse_for_loop"
 
-thm parse_for_loop.g'_def[simp]
-thm parse_for_loop_global_addresses.g_body_def  (* The invariant has been transmitted to AutoCorres *)
+text \<open>After executing \<^theory_text>\<open>install_C_file\<close> and before calling \<^theory_text>\<open>autocorres\<close>, we have this theorem generated:\<close>
+thm parse_for_loop_global_addresses.g_body_def \<comment> \<open>Although the invariant is printed in the output, it is not represented in the AST.\<close>
+
+text \<open>After calling \<^theory_text>\<open>autocorres\<close>, we have this theorem generated:\<close>
+thm parse_for_loop.g'_def[simp] \<comment> \<open>AutoCorres automatically infers and generates the necessary guards.\<close>
 
 end
