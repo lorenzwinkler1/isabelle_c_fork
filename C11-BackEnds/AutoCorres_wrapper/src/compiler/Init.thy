@@ -629,13 +629,19 @@ val scan_brack_star = C_Parse.position (C_Parse.$$$ "[") -- C_Parse.star -- C_Pa
                       >> (fn (((s1, pos1), s2), (s3, (_, pos3))) => (s1 ^ s2 ^ s3, Position.range_position (pos1, pos3)))
 val scan_opt_colon = Scan.option (C_Parse.$$$ ":")
 val scan_colon = C_Parse.$$$ ":" >> SOME
+val Precond = Invariant  (* Hack *)
+val Postcond = Invariant (* Hack *)
+
+
 fun command cmd scan0 scan f =
-  C_Annotation.command' cmd "" (K (scan0 -- (scan >> f)
-                                      >> K C_Env.Never))
+       C_Annotation.command' cmd "" (K (scan0 -- (scan >> f) >> K C_Env.Never))
 in
 val _ = Theory.setup ((* 1 '@' *)
                          command ("INVARIANT", \<^here>) scan_colon C_Parse.term Invariant
                       #> command ("INV", \<^here>) scan_colon C_Parse.term Invariant
+                      #> command ("REQUIRES", \<^here>) scan_colon C_Parse.term Precond
+                      #> command ("ENSURES", \<^here>) scan_colon C_Parse.term Postcond
+
 
                       (* '+' until being at the position of the first ident
                         then 2 '@' *)

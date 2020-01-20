@@ -140,7 +140,7 @@ lemma sqrt_prime:
            mult_eq_self_implies_10 not_less)
   done
 
-lemma partial_prime_sqr:
+lemma partial_prime_sqr [simp]:
      "\<lbrakk> n * n > p \<rbrakk> \<Longrightarrow> partial_prime p n = prime p"
   apply (case_tac "n \<ge> p")
    apply clarsimp
@@ -159,7 +159,7 @@ lemma partial_prime_sqr:
   apply (auto simp: not_le partial_prime_def min_def prime_nat_iff')
   done
 
-lemma prime_dvd:
+lemma prime_dvd [simp]:
     "\<lbrakk> prime (p::nat) \<rbrakk> \<Longrightarrow> (r dvd p) = (r = 1 \<or> r = p)"
   by (fastforce simp: prime_nat_iff)
 
@@ -186,15 +186,15 @@ C \<open>
 
      #define SQRT_UINT_MAX 65536
  
-     unsigned int is_prime(unsigned int n){
-         /* Numbers less than 2 are not primes. */
-         if (n < 2)
-             return 0;
-         /** +@ INVARIANT: "\<lbrace> 'i \<le> 'n \<rbrace>"
+     unsigned int is_prime(unsigned int n)
+         /** +@ REQUIRES: "\<lbrace> \<lambda>s. 'n \<le> UINT_MAX \<rbrace>"*/ 
+         /** +@ ENSURES:  "\<lbrace> \<lambda>r s. (r \<noteq> 0) \<longleftrightarrow> prime 'n \<rbrace>" */ 
+     {
+         if (n < 2) return 0;
+         /** +@ INVARIANT: "\<lbrace> is_prime_inv 1 'i 'n \<rbrace>"
              +@ highlight */     
          for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++) {
-             if (n % i == 0)
-                 return 0; 
+             if (n % i == 0) return 0; 
          }
          return 1;
      }
@@ -267,6 +267,22 @@ theorem (in is_prime) is_prime_faster_correct:
   apply (clarsimp simp: SQRT_UINT_MAX_def)
   done
 
+(* we pimp up the logical context such that the final auto constructs the proof "automatically". *)
+
+lemma aux5[simp]:"(2::nat) \<le> SQRT_UINT_MAX" by(simp add: SQRT_UINT_MAX_def)
+lemma aux6[simp]:"(4::nat) \<le> SQRT_UINT_MAX * SQRT_UINT_MAX" by(simp add: SQRT_UINT_MAX_def)
+lemma aux7[simp]: 
+" r < SQRT_UINT_MAX \<Longrightarrow>   Suc (r + (r + r * r)) \<le> SQRT_UINT_MAX * SQRT_UINT_MAX"
+  by (metis Suc_le_eq add_Suc  mult.commute mult_Suc mult_Suc_right not_less sqr_less_mono)          
+lemma aux8[simp]:
+"Suc r < SQRT_UINT_MAX \<Longrightarrow> Suc (r + (r + r * r)) \<le> SQRT_UINT_MAX * SQRT_UINT_MAX - Suc 0" 
+by (metis add_Suc le0 mult.commute mult_Suc mult_Suc_right not_less sqr_le_sqr_minus_1)
+lemma aux9[simp]:
+" r \<le> n \<Longrightarrow>  \<not> r dvd n \<Longrightarrow> Suc r \<le> n"
+  using not_less_eq_eq by force
+
+
+
 
 theorem (in is_prime) is_prime_correct':
     "\<lbrace> \<lambda>\<sigma>. n \<le> UINT_MAX \<rbrace> is_prime' n \<lbrace> \<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
@@ -276,30 +292,22 @@ proof (rule validNF_assume_pre)
   show ?thesis
     proof (insert 2, elim disjE)
       assume  "n=0" 
-      then show ?thesis  by (clarsimp simp:  is_prime'_def, wp, auto)
+      then show ?thesis   unfolding is_prime'_def  by (clarsimp, wp, auto)
     next
       assume  "n=1" 
-      then show ?thesis  by (clarsimp simp:  is_prime'_def, wp, auto) 
+      then show ?thesis   unfolding is_prime'_def  by (clarsimp, wp, auto) 
     next
       assume  "1 < n" 
       then show ?thesis
-           apply (unfold is_prime'_def dvd_eq_mod_eq_0 [symmetric] SQRT_UINT_MAX_def [symmetric], insert 1)
+           unfolding is_prime'_def 
            text\<open>... and here happens the annotation with the invariant:
-                by instancing @{thm whileLoopE_add_inv}.
-                One can say that the while loop is spiced up with the
-                invariant and the measure by a rewrite step. \<close>
+                by instancing @{thm whileLoopE_add_inv}. \<close>
            apply (subst whileLoopE_add_inv [  where I = "\<lambda>r s. is_prime_inv n r s"
                                               and M = "(\<lambda>(r, s). (Suc n) * (Suc n) - r * r)"])
-           apply (wp,auto simp: prime_dvd partial_prime_sqr)
-               using not_less_eq_eq apply force
-              apply (metis Suc_leI add_Suc mult_Suc mult_Suc_right mult_le_mono)
-             apply (metis SQRT_UINT_MAX_def mult_Suc_right plus_nat.simps(2) rel_simps(76) 
-                          sqr_le_sqr_minus_1 times_nat.simps(2))
-           apply (simp_all add: SQRT_UINT_MAX_def)
-           done
+           apply (fold dvd_eq_mod_eq_0  SQRT_UINT_MAX_def)
+           using 1 by (wp, auto)
     qed
 qed
-
 
 
 end
