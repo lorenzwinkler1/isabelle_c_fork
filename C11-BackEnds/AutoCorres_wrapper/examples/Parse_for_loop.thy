@@ -118,10 +118,30 @@ int f2(int *a)
 
 find_theorems name:"parse_for_loop"
 
-text \<open>After executing \<^theory_text>\<open>install_C_file\<close> and before calling \<^theory_text>\<open>autocorres\<close>, we have this theorem generated:\<close>
-thm parse_for_loop_global_addresses.g_body_def \<comment> \<open>Although the invariant is printed in the output, it is not represented in the AST.\<close>
+text \<open> After executing \<^theory_text>\<open>install_C_file\<close> and before calling
+\<^theory_text>\<open>autocorres\<close>, we have this theorem generated: \<close>
+thm parse_for_loop_global_addresses.g_body_def
 
-text \<open>After calling \<^theory_text>\<open>autocorres\<close>, we have this theorem generated:\<close>
-thm parse_for_loop.g'_def[simp] \<comment> \<open>AutoCorres automatically infers and generates the necessary guards.\<close>
+text \<open>its body expands to a term using \<^term>\<open>whileAnno\<close>:\<close>
+lemma
+  assumes "INVARIANT = \<lbrace>0 \<le> \<acute>j \<and> \<acute>j \<le> 0xA\<rbrace>"
+  shows "parse_for_loop_global_addresses.g_body \<equiv>
+        TRY
+          \<acute>j :== SCAST(32 signed \<rightarrow> 32) 0xA;;
+          whileAnno \<lbrace>SCAST(32 signed \<rightarrow> 32) 0 < \<acute>j\<rbrace> INVARIANT undefined
+           (\<acute>c :== UCAST(32 \<rightarrow> 32 signed) (SCAST(32 signed \<rightarrow> 32) \<acute>c + \<acute>j);;
+            \<acute>j :== \<acute>j - SCAST(32 signed \<rightarrow> 32) 1);;
+          creturn global_exn_var_'_update ret__int_'_update c_';;
+          Guard DontReach {} SKIP
+        CATCH SKIP
+        END"
+  by (simp add: assms parse_for_loop_global_addresses.g_body_def)
+
+text \<open> During the initialization phases of \<^theory_text>\<open>autocorres\<close>, the
+invariant information of \<^term>\<open>parse_for_loop_global_addresses.g_body\<close> gets lost
+using @{thm whileAnno_def}: see \<^theory>\<open>AutoCorres.SimplConv\<close> where the unfolding is
+configured with \<^theory_text>\<open>declare whileAnno_def [L1unfold]\<close>. Finally, we obtain
+this theorem generated: \<close>
+thm parse_for_loop.g'_def[simp] \<comment> \<open>AutoCorres only generates the guards.\<close>
 
 end
