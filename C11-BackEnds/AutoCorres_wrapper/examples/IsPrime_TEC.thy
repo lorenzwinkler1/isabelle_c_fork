@@ -73,29 +73,20 @@ begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../src_ext/l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
 C \<open>
-   //  The invocation of AutoCorres:
    //@ #declare [[AutoCorres]]
-
-   //  Setup of AutoCorres for semantically representing this C element:
    //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime_linear is_prime ]
    
    #define SQRT_UINT_MAX 65536
-   /* We prove locally some facts on this C preprocessor macro, which is internally
-      converted into an Isabelle/HOL definition: */
-   /*@
-   lemma uint_max_factor [simp]:
-     "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
-     by (clarsimp simp: UINT_MAX_def SQRT_UINT_MAX_def)
+   /*@ lemma uint_max_factor [simp]: "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
+       by (clarsimp simp: UINT_MAX_def SQRT_UINT_MAX_def)
     */
    
-   
-   /* in the sequel, we give the definitions and theory relevant for the statement of the invariant */
+   /* in the sequel, we derive the background theory: */
    
    /*@
    definition   "partial_prime p (n :: nat) \<equiv>  (1 < p \<and> (\<forall>i \<in> {2 ..< min p n}. \<not> i dvd p))"
    
-   lemma partial_prime_ge [simp]:
-        "\<lbrakk> p' \<ge> p \<rbrakk> \<Longrightarrow> partial_prime p p' = prime p"
+   lemma partial_prime_ge [simp]: "\<lbrakk> p' \<ge> p \<rbrakk> \<Longrightarrow> partial_prime p p' = prime p"
      by (clarsimp simp: partial_prime_def prime_nat_iff' min_def)
    
    lemma divide_self_plus_one [simp]: "(x dvd Suc x) = (x = 1)"

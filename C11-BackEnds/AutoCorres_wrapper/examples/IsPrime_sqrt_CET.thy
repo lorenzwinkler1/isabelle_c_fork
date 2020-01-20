@@ -137,7 +137,7 @@ lemma sqrt_prime: "\<lbrakk> a * a > n; \<forall>x<a. (x dvd n) = (x = Suc 0 \<o
            mult_eq_self_implies_10 not_less)
   done
 
-lemma partial_prime_sqr: "\<lbrakk> n * n > p \<rbrakk> \<Longrightarrow> partial_prime p n = prime p"
+lemma partial_prime_sqr[simp]: "\<lbrakk> n * n > p \<rbrakk> \<Longrightarrow> partial_prime p n = prime p"
   apply (case_tac "n \<ge> p")
    apply clarsimp
   apply (case_tac "partial_prime p n")
@@ -156,7 +156,7 @@ lemma partial_prime_sqr: "\<lbrakk> n * n > p \<rbrakk> \<Longrightarrow> partia
   done
 
 
-lemma prime_dvd: "\<lbrakk> prime (p::nat) \<rbrakk> \<Longrightarrow> (r dvd p) = (r = 1 \<or> r = p)"
+lemma prime_dvd[simp]: "\<lbrakk> prime (p::nat) \<rbrakk> \<Longrightarrow> (r dvd p) = (r = 1 \<or> r = p)"
   by (fastforce simp: prime_nat_iff)
 
 section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
@@ -256,6 +256,21 @@ theorem (in is_prime) is_prime_faster_correct:
   done
 
 
+lemma aux5[simp]:"(2::nat) \<le> SQRT_UINT_MAX" by(simp add: SQRT_UINT_MAX_def)
+lemma aux6[simp]:"(4::nat) \<le> SQRT_UINT_MAX * SQRT_UINT_MAX" by(simp add: SQRT_UINT_MAX_def)
+lemma aux7[simp]: 
+" r < SQRT_UINT_MAX \<Longrightarrow>   Suc (r + (r + r * r)) \<le> SQRT_UINT_MAX * SQRT_UINT_MAX"
+  by (metis Suc_le_eq add_Suc  mult.commute mult_Suc mult_Suc_right not_less sqr_less_mono)          
+lemma aux8[simp]:
+"Suc r < SQRT_UINT_MAX \<Longrightarrow> Suc (r + (r + r * r)) \<le> SQRT_UINT_MAX * SQRT_UINT_MAX - Suc 0" 
+by (metis add_Suc le0 mult.commute mult_Suc mult_Suc_right not_less sqr_le_sqr_minus_1)
+lemma aux9[simp]:
+" r \<le> n \<Longrightarrow>  \<not> r dvd n \<Longrightarrow> Suc r \<le> n"
+  using not_less_eq_eq by force
+
+
+
+
 theorem (in is_prime) is_prime_correct':
     "\<lbrace> \<lambda>\<sigma>. n \<le> UINT_MAX \<rbrace> is_prime' n \<lbrace> \<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
 proof (rule validNF_assume_pre)
@@ -271,16 +286,11 @@ proof (rule validNF_assume_pre)
     next
       assume  "1 < n" 
       then show ?thesis
-           apply (unfold is_prime'_def dvd_eq_mod_eq_0 [symmetric] SQRT_UINT_MAX_def [symmetric],    insert 1)
-           text\<open>... and here happens the annotation with the invariant:
-                by instancing @{thm whileLoopE_add_inv}.
-                One can say that the while loop is spiced up with the
-                invariant and the measure by a rewrite step. \<close>
+           apply (unfold is_prime'_def dvd_eq_mod_eq_0 [symmetric] SQRT_UINT_MAX_def [symmetric])
+           text\<open>... here is the annotation with the invariant by instantiating @{thm whileLoopE_add_inv}. \<close>
            apply (subst whileLoopE_add_inv [  where I = "\<lambda>r s. is_prime_inv n r s"
                                               and M = "(\<lambda>(r, s). (Suc n) * (Suc n) - r * r)"])
-           apply (wp,auto simp: prime_dvd partial_prime_sqr)
-                                                                                                      using not_less_eq_eq apply force  apply (metis Suc_leI add_Suc mult_Suc mult_Suc_right mult_le_mono)  apply (metis SQRT_UINT_MAX_def mult_Suc_right plus_nat.simps(2) rel_simps(76)  sqr_le_sqr_minus_1 times_nat.simps(2))  apply (simp_all add: SQRT_UINT_MAX_def)  
-           done
+           using 1 by (wp, auto)
     qed
 qed
 

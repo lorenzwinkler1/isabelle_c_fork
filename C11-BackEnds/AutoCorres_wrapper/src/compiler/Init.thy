@@ -629,9 +629,11 @@ val scan_brack_star = C_Parse.position (C_Parse.$$$ "[") -- C_Parse.star -- C_Pa
                       >> (fn (((s1, pos1), s2), (s3, (_, pos3))) => (s1 ^ s2 ^ s3, Position.range_position (pos1, pos3)))
 val scan_opt_colon = Scan.option (C_Parse.$$$ ":")
 val scan_colon = C_Parse.$$$ ":" >> SOME
+val Precond = Invariant  (* Hack *)
+val Postcond = Invariant (* Hack *)
+
 fun command cmd scan0 scan f =
-  C_Annotation.command' cmd "" (K (scan0 -- (scan >> f)
-                                      >> K C_Env.Never))
+       C_Annotation.command' cmd "" (K (scan0 -- (scan >> f) >> K C_Env.Never))
 in
 val _ = Theory.setup ((* 1 '@' *)
                          command ("INVARIANT", \<^here>) scan_colon C_Parse.term Invariant
@@ -654,7 +656,11 @@ val _ = Theory.setup ((* 1 '@' *)
 
                       (**)
                       #> command ("CALLS", \<^here>) scan_opt_colon (Scan.repeat scan_ident) Calls
-                      #> command ("OWNED_BY", \<^here>) scan_opt_colon scan_ident Owned_by);
+                      #> command ("OWNED_BY", \<^here>) scan_opt_colon scan_ident Owned_by
+
+                      (* misc. *)
+                      #> command ("REQUIRES", \<^here>) scan_colon C_Parse.term Precond
+                      #> command ("ENSURES", \<^here>) scan_colon C_Parse.term Postcond);
 end
 \<close>
 
