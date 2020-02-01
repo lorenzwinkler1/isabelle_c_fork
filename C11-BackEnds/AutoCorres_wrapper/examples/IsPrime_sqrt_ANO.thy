@@ -185,20 +185,21 @@ setup \<open>C_Module.C_Term.map_expression (fn _ => fn _ => fn _ => @{term "1 :
 
 C \<open>  
      //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime ]
-
+     
      #define SQRT_UINT_MAX 65536
- 
+     
      unsigned int is_prime(unsigned int n)
        //@ +@ REQUIRES \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close> \<le> UINT_MAX\<close>
        //@ +@ ENSURES  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>is_prime(n)\<close> \<noteq> 0 \<longleftrightarrow> prime \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>\<close>
      {
        if (n < 2) return 0;
+     
        for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++)
          //@ definition \<comment> \<open>outer\<close>  is_prime_inv where [simp]: \<open>is_prime_inv n i s \<equiv> (1 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX \<and> i * i \<le> SQRT_UINT_MAX * SQRT_UINT_MAX \<and> partial_prime n i)\<close>
          //@ INVARIANT: \<comment> \<open>inner\<close> \<open>is_prime_inv \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>i\<close>\<close>
          //@ term       \<comment> \<open>outer\<close> \<open>is_prime_inv \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>i\<close>\<close>
        {
-           if (n % i == 0) return 0; 
+         if (n % i == 0) return 0; 
        }
        return 1;
      }
