@@ -288,24 +288,21 @@ theorem (in is_prime) is_prime_correct':
     "\<lbrace> \<lambda>\<sigma>. n \<le> UINT_MAX \<rbrace> is_prime' n \<lbrace> \<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
 proof (rule validNF_assume_pre)
   assume 1 : "n \<le> UINT_MAX"
-  have   2 : "n=0 \<or> n=1 \<or> n > 1" by linarith
+  have   2 : "n = 0 \<or> n = 1 \<or> n > 1" by linarith
   show ?thesis
     proof (insert 2, elim disjE)
-      assume  "n=0" 
-      then show ?thesis   unfolding is_prime'_def  by (clarsimp, wp, auto)
+      assume "n = 0" then show ?thesis   by (clarsimp simp: is_prime'_def, wp, auto)
     next
-      assume  "n=1" 
-      then show ?thesis   unfolding is_prime'_def  by (clarsimp, wp, auto) 
+      assume "n = 1" then show ?thesis   by (clarsimp simp: is_prime'_def, wp, auto)
     next
-      assume  "1 < n" 
-      then show ?thesis
-           unfolding is_prime'_def 
-           text\<open>... and here happens the annotation with the invariant:
-                by instancing @{thm whileLoopE_add_inv}. \<close>
-           apply (subst whileLoopE_add_inv [  where I = "\<lambda>r s. is_prime_inv n r s"
-                                              and M = "(\<lambda>(r, s). (Suc n) * (Suc n) - r * r)"])
-           apply (fold dvd_eq_mod_eq_0  SQRT_UINT_MAX_def)
-           using 1 by (wp, auto)
+      assume "n > 1" then show ?thesis
+        unfolding is_prime'_def 
+        text\<open>... and here happens the annotation with the invariant:
+             by instancing @{thm whileLoopE_add_inv}. \<close>
+        apply (subst whileLoopE_add_inv [where I = "\<lambda>r s. is_prime_inv n r s"
+                                         and M = "(\<lambda>(r, s). (Suc n) * (Suc n) - r * r)"])
+        apply (fold dvd_eq_mod_eq_0  SQRT_UINT_MAX_def)
+        using 1 by (wp, auto)
     qed
 qed
 
