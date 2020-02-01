@@ -181,22 +181,26 @@ int A;  /* dummy */
 \<close>
 *)
 
+setup \<open>C_Module.C_Term.map_expression (fn _ => fn _ => fn _ => @{term "1 :: nat"})\<close>
+
 C \<open>  
      //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime ]
 
      #define SQRT_UINT_MAX 65536
  
      unsigned int is_prime(unsigned int n)
-         /** +@ REQUIRES: "\<lbrace> \<lambda>s. 'n \<le> UINT_MAX \<rbrace>"*/ 
-         /** +@ ENSURES:  "\<lbrace> \<lambda>r s. (r \<noteq> 0) \<longleftrightarrow> prime 'n \<rbrace>" */ 
+       //@ +@ REQUIRES \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close> \<le> UINT_MAX\<close>
+       //@ +@ ENSURES  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>is_prime(n)\<close> \<noteq> 0 \<longleftrightarrow> prime \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>\<close>
      {
-         if (n < 2) return 0;
-         /** +@ INVARIANT: "\<lbrace> is_prime_inv 1 'i 'n \<rbrace>"
-             +@ highlight */     
-         for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++) {
-             if (n % i == 0) return 0; 
-         }
-         return 1;
+       if (n < 2) return 0;
+       for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++)
+         //@ definition \<comment> \<open>outer\<close>  is_prime_inv where [simp]: \<open>is_prime_inv n i s \<equiv> (1 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX \<and> i * i \<le> SQRT_UINT_MAX * SQRT_UINT_MAX \<and> partial_prime n i)\<close>
+         //@ INVARIANT: \<comment> \<open>inner\<close> \<open>is_prime_inv \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>i\<close>\<close>
+         //@ term       \<comment> \<open>outer\<close> \<open>is_prime_inv \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>i\<close>\<close>
+       {
+           if (n % i == 0) return 0; 
+       }
+       return 1;
      }
 \<close>
 
@@ -219,12 +223,7 @@ text\<open>Note that the pre-processor macro has been converted into a definitio
 
 section\<open>Preliminaries of the Proof\<close>
 text\<open>This section contains the auxilliary definitions and lemmas for the 
-     final correctness proof; in particular, the loop invariant is stated here.\<close>
-
-definition is_prime_inv
-  where [simp]: "is_prime_inv n i s \<equiv> (1 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX \<and> 
-                                       i * i \<le> SQRT_UINT_MAX * SQRT_UINT_MAX \<and> 
-                                       partial_prime n i)"
+     final correctness proof; in particular, it uses the loop invariant.\<close>
 
 lemma uint_max_factor [simp]:  "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
   by (clarsimp simp: UINT_MAX_def SQRT_UINT_MAX_def)

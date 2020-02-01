@@ -659,8 +659,8 @@ val _ = Theory.setup ((* 1 '@' *)
                       #> command ("OWNED_BY", \<^here>) scan_opt_colon scan_ident Owned_by
 
                       (* misc. *)
-                      #> command ("REQUIRES", \<^here>) scan_colon C_Parse.term Precond
-                      #> command ("ENSURES", \<^here>) scan_colon C_Parse.term Postcond);
+                      #> command ("REQUIRES", \<^here>) scan_opt_colon C_Parse.term Precond
+                      #> command ("ENSURES", \<^here>) scan_opt_colon C_Parse.term Postcond);
 end
 \<close>
 
