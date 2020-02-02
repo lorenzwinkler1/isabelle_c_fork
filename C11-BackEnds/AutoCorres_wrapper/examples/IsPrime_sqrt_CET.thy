@@ -163,10 +163,19 @@ section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\
 
 text \<open>The invocation of AutoCorres:\<close>
 
-declare [[AutoCorres]]                                                                                 text \<open>Setup of AutoCorres for semantically representing this C element:\<close>
+declare [[AutoCorres]]
+
+text \<open>Setup of AutoCorres for semantically representing this C element:\<close>
 declare_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime ]
 
-C \<open> 
+text\<open> This C code contains a function that determines if the given number
+      @{term n} is prime.
+
+      It returns 0 if @{term n}  is composite, or non-zero if @{term n}  is prime.
+ 
+      This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
+
+C \<open>
     #define SQRT_UINT_MAX 65536
     
     unsigned int is_prime(unsigned int n)
@@ -175,7 +184,7 @@ C \<open>
         if (n < 2)
             return 0;
     
-        /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX). */
+        /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX), whichever comes first. */
         /* Find the first non-trivial factor of 'n' less than sqrt(n). */
     
         for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++) {
@@ -186,7 +195,7 @@ C \<open>
         /* No factors found. */
         return 1;
     }
-  \<close>
+\<close>
 
 section\<open>The Results of the AutoCorres Evaluation\<close>
 
