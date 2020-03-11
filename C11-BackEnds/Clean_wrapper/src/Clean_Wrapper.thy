@@ -204,10 +204,7 @@ text\<open>
 Proof-Carrying Code and Extended-static checking are well-known, related approaches
 in the literature.
 
-Proof-carrying code was introduced as concept by @{cite qsd}
-(*  
-G. Ne cula and P. Lee in 1996 CMU-CS-FOX-96-03.
-*)
+Proof-carrying code was introduced as concept by @{cite NeculaLee1996}
 It is was initially conceived for machine-code, which is annotated with 
 logical formulas referring to the underlying machine model. A verification
 condition generator produces verification conditions, for which proofs in 
