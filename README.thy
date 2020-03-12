@@ -70,18 +70,23 @@ Isabelle/C requires Isabelle2019.
 
 section \<open>Getting started\<close>
 
-text \<open> A first installation step is:
-\<^item> \<^verbatim>\<open>isabelle build -D\<close> \<^dir>\<open>.\<close>
-\<close>
-text \<open> which should work out of the box.
+text \<open>
+A first installation step of Isabelle/C without back-ends is:
+
+\<^item> \<^verbatim>\<open>isabelle build -D\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^verbatim>\<open>-D\<close> \<^dir>\<open>C18-FrontEnd\<close>
+
+which should work out of the box.
 \<close>
 
-text \<open> Alternatively, the full build of the \<^emph>\<open>developer repository\<close> of
-Isabelle/C is performed with:
+text \<open>
+Alternatively, the full build of the \<^emph>\<open>developer repository\<close> of Isabelle/C with
+all back-ends enabled is performed with:
+
 \<^item> \<^verbatim>\<open>isabelle build -b -v -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>Isabelle_C_all Isabelle_C_Advance_examples Clean_document Isabelle_C_AutoCorres_document Isabelle_C_Clean_document Isabelle_C_README Isabelle_C_archive\<close>
 \<close>
 
-text \<open> The following C examples or entry-points of documentation can be executed:
+text \<open>
+The following C examples or entry-points of documentation can be executed:
 
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^file>\<open>C11-FrontEnd/examples/C0.thy\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close>
@@ -114,6 +119,14 @@ back-ends can be copied and tried.
 \<close>
 
 subsection \<open>Isabelle/C/Clean\<close>
+
+text \<open>
+A first installation step of Isabelle/C/Clean is:
+
+\<^item> \<^verbatim>\<open>isabelle build -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-D\<close> \<^dir>\<open>C11-BackEnds/Clean_wrapper\<close>
+
+which should work out of the box.
+\<close>
 
 text \<open>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^file>\<open>C11-BackEnds/Clean_wrapper/examples/Prime.thy\<close>
