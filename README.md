@@ -33,18 +33,23 @@ Isabelle/C requires Isabelle2019.
 
 section ‹Getting started›
 
-text ‹ A first installation step is:
-▪ ▩‹isabelle build -D› 🗀‹.›
-›
-text ‹ which should work out of the box.
+text ‹
+A first installation step of Isabelle/C without back-ends is:
+
+▪ ▩‹isabelle build -D› 🗀‹C11-FrontEnd› ▩‹-D› 🗀‹C18-FrontEnd›
+
+which should work out of the box.
 ›
 
-text ‹ Alternatively, the full build of the ∗‹developer repository› of
-Isabelle/C is performed with:
+text ‹
+Alternatively, the full build of the ∗‹developer repository› of Isabelle/C with
+all back-ends enabled is performed with:
+
 ▪ ▩‹isabelle build -b -v -d› 🗀‹.› ▩‹Isabelle_C_all Isabelle_C_Advance_examples Clean_document Isabelle_C_AutoCorres_document Isabelle_C_Clean_document Isabelle_C_README Isabelle_C_archive›
 ›
 
-text ‹ The following C examples or entry-points of documentation can be executed:
+text ‹
+The following C examples or entry-points of documentation can be executed:
 
 ▪ ▩‹isabelle jedit -d› 🗀‹.› 🗏‹C11-FrontEnd/examples/C0.thy›
 ▪ ▩‹isabelle jedit -d› 🗀‹.› 🗏‹C11-FrontEnd/examples/C2.thy›
@@ -77,6 +82,14 @@ back-ends can be copied and tried.
 ›
 
 subsection ‹Isabelle/C/Clean›
+
+text ‹
+A first installation step of Isabelle/C/Clean is:
+
+▪ ▩‹isabelle build -d› 🗀‹.› ▩‹-D› 🗀‹C11-BackEnds/Clean_wrapper›
+
+which should work out of the box.
+›
 
 text ‹
 ▪ ▩‹isabelle jedit -d› 🗀‹.› 🗏‹C11-BackEnds/Clean_wrapper/examples/Prime.thy›
