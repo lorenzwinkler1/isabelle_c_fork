@@ -218,12 +218,22 @@ structure Data_autocorres =
      end)
 
 local
+
+fun bind scan f ((stack1, (to_delay, stack2)), _) =
+  C_Parse.range scan
+  >> (fn (src, range) =>
+      C_Env.Parsing
+        ( (stack1, stack2)
+        , ( range
+          , C_Inner_Syntax.bottom_up (f src)
+          , Symtab.empty
+          , to_delay)))
+
 fun command f name =
-  C_Annotation.command' name ""
-    (K
-      (C_Parse.range (C_Parse.binding -- (AutoCorres.Parser_Inner.autocorres_parser'' (Scan.succeed ()))) >>
-        (fn (src, range) =>
-          C_Env.Lexing (range, f src))))
+  C_Annotation.command'
+    name
+    ""
+    (bind (C_Parse.binding -- (AutoCorres.Parser_Inner.autocorres_parser'' (Scan.succeed ()))) f)
 
 val cmd = ("install_autocorres", \<^here>)
 
