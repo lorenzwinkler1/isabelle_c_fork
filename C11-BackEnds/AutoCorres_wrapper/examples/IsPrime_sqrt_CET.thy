@@ -305,4 +305,43 @@ qed
 
 
 
+section\<open>A Scheme for an Automated Proof \<close>
+(* step 0 : lifting over parameter *)
+lemma whileLoopE_inv_lift1 : 
+  "whileLoopE (B n) (C n) = (\<lambda>x. whileLoopE_inv (B n) (C n) x (I n) (measure' (M n)))"
+  by (simp add: whileLoopE_inv_def)
+
+(* step 1 : encapsulating inv and mesure for each loop *) 
+definition is_prime_inv\<^sub>1 : "is_prime_inv\<^sub>1 = (\<lambda>n. \<lambda>r s. is_prime_inv n r s)"
+definition mesure\<^sub>1       : "mesure\<^sub>1 = (\<lambda>n. \<lambda>(r, s). (Suc n) * (Suc n) - r * r)"
+
+(* step 2 : specific replacement rule for the loop with the annotated loop *)
+lemmas whileLoopE_invL1 = whileLoopE_inv_lift1 [of _ _ _ "is_prime_inv\<^sub>1" "mesure\<^sub>1",
+                                                simplified is_prime_inv\<^sub>1 mesure\<^sub>1]
+
+declare prime_ge_2_nat[dest] (* misere, preconfig pour le dernier auto. *)
+
+(* configure the general methods "preparation" and annotate loops. *)
+method prep  = (rule validNF_assume_pre, 
+                unfold is_prime.is_prime'_def  
+                dvd_eq_mod_eq_0 [symmetric] SQRT_UINT_MAX_def [symmetric])
+                (* la derniere ligne cache une misere *)
+
+method annotate_loops for n::nat = (subst whileLoopE_invL1[of _ n])
+
+
+(* and now the scheme for automated proof, provided that sufficient
+   background knowledge had been inserted into the prover 'auto'. *)
+
+theorem (in is_prime) is_prime_correct'':
+  "\<lbrace>\<lambda>\<sigma>. n \<le> UINT_MAX \<rbrace> 
+   is_prime' n 
+   \<lbrace>\<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
+   apply (prep  )
+   apply (annotate_loops n)    
+   by    (wp, auto )  
+  
+
 end
+
+

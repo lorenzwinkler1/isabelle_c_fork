@@ -93,6 +93,7 @@ int g(int c)
   for (unsigned int j = 10; 0 < j; j--)
     // This is where the above invariant gets ultimately attached:
     /** INVARIANT: "\<lbrace> 0 <= \<acute>j \<and> \<acute>j <= 10 \<rbrace>" */
+    // INVARIANT2: "\<lambda>(c,j). 0 <= j \<and> j <= 10" */
     {
       c = c + j;
     }
@@ -117,6 +118,15 @@ int f2(int *a)
 \<close>
 
 find_theorems name:"parse_for_loop"
+
+typ "globals myvars "
+typ "('a, 'b)myvars_scheme"
+
+
+definition  g_inv_1 : "g_inv_1 = (\<lbrace>0 \<le> \<acute>j \<and> \<acute>j \<le> 0xA\<rbrace>)"
+definition  g'_inv_1 : "g'_inv_1 = (\<lambda>(c,j). 0 <= j \<and> j <= 10)"
+
+
 
 text \<open> After executing \<^theory_text>\<open>install_C_file\<close> and before calling
 \<^theory_text>\<open>autocorres\<close>, we have this theorem generated: \<close>
@@ -143,5 +153,7 @@ using @{thm whileAnno_def}: see \<^theory>\<open>AutoCorres.SimplConv\<close> wh
 configured with \<^theory_text>\<open>declare whileAnno_def [L1unfold]\<close>. Finally, we obtain
 this theorem generated: \<close>
 thm parse_for_loop.g'_def[simp] \<comment> \<open>AutoCorres only generates the guards.\<close>
+
+thm "whileLoopE_inv_def"
 
 end
