@@ -322,22 +322,29 @@ lemmas whileLoopE_invL1 = whileLoopE_inv_lift1 [of _ _ _ "is_prime_inv\<^sub>1" 
 declare prime_ge_2_nat[dest] (* misere, preconfig pour le dernier auto. *)
 
 (* configure the general methods "preparation" and annotate loops. *)
-method prep  = (rule validNF_assume_pre, 
-                unfold is_prime.is_prime'_def  
-                dvd_eq_mod_eq_0 [symmetric] SQRT_UINT_MAX_def [symmetric])
-                (* la derniere ligne cache une misere *)
+named_theorems c_programs'_defs
+declare is_prime.is_prime'_def[c_programs'_defs]
 
-method annotate_loops for n::nat = (subst whileLoopE_invL1[of _ n])
+named_theorems folds
+declare dvd_eq_mod_eq_0[symmetric,folds]
+declare SQRT_UINT_MAX_def [symmetric,folds]
+
+method prep declares c_programs'_defs folds = 
+               (rule validNF_assume_pre, (* always!*)
+                unfold c_programs'_defs folds)
+
+method annotate_loops for n::nat = (prep, subst whileLoopE_invL1[of _ n])
+                                   (* this must be generalized for several loops *)
 
 
-(* and now the scheme for automated proof, provided that sufficient
+
+(* and now the scheme for an automated proof, provided that sufficient
    background knowledge had been inserted into the prover 'auto'. *)
 
 theorem (in is_prime) is_prime_correct'':
   "\<lbrace>\<lambda>\<sigma>. n \<le> UINT_MAX \<rbrace> 
    is_prime' n 
    \<lbrace>\<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
-   apply (prep  )
    apply (annotate_loops n)    
    by    (wp, auto )  
   
