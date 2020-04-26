@@ -12,8 +12,6 @@ theory Kmalloc
 imports "AutoCorres.AutoCorres"
 begin
 
-external_file "kmalloc.c"
-
 (* No proof here, just testing the parser. *)
 
 consts

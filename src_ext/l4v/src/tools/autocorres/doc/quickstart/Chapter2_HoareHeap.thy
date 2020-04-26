@@ -12,8 +12,6 @@
 theory Chapter2_HoareHeap
 imports "AutoCorres.AutoCorres"
 begin
-
-external_file "mult_by_add.c"
 (*>*)
 
 section  \<open>More Complex Functions with AutoCorres\<close>

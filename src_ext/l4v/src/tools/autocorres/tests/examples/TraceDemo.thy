@@ -17,7 +17,6 @@
 
 theory TraceDemo imports "AutoCorres.AutoCorres" begin
 
-external_file "trace_demo.c"
 install_C_file "trace_demo.c"
 
 autocorres [

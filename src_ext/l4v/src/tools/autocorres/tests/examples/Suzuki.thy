@@ -18,7 +18,6 @@ imports
   "AutoCorres.AutoCorres"
 begin
 
-external_file "suzuki.c"
 install_C_file "suzuki.c"
 autocorres [heap_abs_syntax] "suzuki.c"
 

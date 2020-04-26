@@ -23,8 +23,6 @@ imports
   "AutoCorres.AutoCorres"
 begin
 
-external_file "fib.c"
-
 (*
  * The venerable Fibonacci function.
  *)

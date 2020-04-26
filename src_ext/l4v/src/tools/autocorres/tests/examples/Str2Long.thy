@@ -14,7 +14,6 @@ imports
   "AutoCorres.AutoCorres"
 begin
 
-external_file "str2long.c"
 install_C_file "str2long.c"
 autocorres "str2long.c"
 

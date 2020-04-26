@@ -13,8 +13,6 @@ imports
   "AutoCorres.AutoCorres"
 begin
 
-external_file "simple.c"
-
 (* Parse the input file. *)
 install_C_file "simple.c"
 

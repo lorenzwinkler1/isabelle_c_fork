@@ -12,8 +12,6 @@
 theory Chapter3_HoareHeap
 imports "AutoCorres.AutoCorres"
 begin
-
-external_file "swap.c"
 (*>*)
 
 subsection \<open>\texttt{swap}\<close>
