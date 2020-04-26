@@ -478,9 +478,8 @@ let
             | SOME ts_mono_thm => SOME (fn_name, ts_mono_thm);
   val mono_thms = (if is_recursive then List.mapPartial try_mono_thm (fn_names ~~ new_thms) else [])
                   |> Symtab.make;
-
-  val ts_infos =
-        map (fn ((f, l2_info), (ts_def, ts_corres)) => let
+  val (ts_infos, lthy) =
+        fold (fn ((f, l2_info), (ts_def, ts_corres)) => fn (acc, lthy) => let
               val mono_thm = Symtab.lookup mono_thms f;
               val const = Utils.get_term lthy (make_function_name f);
               val ts_info = l2_info
@@ -489,8 +488,45 @@ let
                     |> FunctionInfo.function_info_upd_corres_thm ts_corres
                     |> FunctionInfo.function_info_upd_const const
                     |> FunctionInfo.function_info_upd_mono_thm mono_thm;
-              in (f, ts_info) end)
+
+              val (invariant, measure) =
+                Inttab.lookup (C_Module'.Data_Annot.get (Context.Proof lthy))
+                              (length (C_Module.Data_In_Source.get (Context.Proof lthy)))
+                |> the_list
+                |> flat
+                |> List.partition #1
+
+              val (_, lthy) =
+                Proof_Context.add_fixes
+                  (map (fn (s, _) => (Binding.make (s, Position.none), NONE, NoSyn)) (#args ts_info))
+                  lthy
+
+              val lthy =
+                if length invariant + length measure > 0 then
+                  Utils.define_lemma
+                    (make_function_name f ^ "_annot")
+                    (ts_def
+                     |> Rule_Insts.of_rule
+                           lthy
+                           (map (fst #> SOME) (#args ts_info), [])
+                           []
+                     |> asm_full_simplify
+                          (clear_simpset
+                            lthy
+                            addsimps
+                            [ @{thm whileLoopE_add_inv}
+                              |> Rule_Insts.where_rule
+                                  lthy
+                                  let fun add (var, pos) = map (apfst (K ((var, 0), pos)))
+                                  in add ("I", \<^here>) invariant @ add ("M", \<^here>) measure end
+                                  [] ]))
+                    lthy
+                  |> #2
+                else
+                  lthy
+              in ((f, ts_info) :: acc, lthy) end)
             ((fn_names ~~ these_l2_infos) ~~ (ts_defs ~~ new_thms))
+            ([], lthy)
 in
   (lthy, Symtab.make ts_infos, #name rule_set')
 end

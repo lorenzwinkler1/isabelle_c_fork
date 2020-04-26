@@ -181,11 +181,12 @@ int A;  /* dummy */
 \<close>
 *)
 
-setup \<open>C_Module.C_Term.map_expression (fn _ => fn _ => fn _ => @{term "1 :: nat"})\<close>
+setup \<open>C_Module.C_Term.map_expression
+        (fn expr => fn _ => fn _ => 
+          case expr of C_Ast.CVar0 (C_Ast.Ident0 (_, x, _), _) =>
+                         Free (C_Grammar_Rule_Lib.ident_decode x, dummyT))\<close>
 
-C \<open>  
-     //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime ]
-     
+C \<open>
      #define SQRT_UINT_MAX 65536
      
      unsigned int is_prime(unsigned int n)
@@ -195,14 +196,16 @@ C \<open>
        if (n < 2) return 0;
      
        for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++)
-         //@ definition \<comment> \<open>outer\<close>  is_prime_inv where [simp]: \<open>is_prime_inv n i s \<equiv> (1 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX \<and> i * i \<le> SQRT_UINT_MAX * SQRT_UINT_MAX \<and> partial_prime n i)\<close>
-         //@ INVARIANT: \<comment> \<open>inner\<close> \<open>is_prime_inv \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>i\<close>\<close>
+         //@ definition \<comment> \<open>outer\<close> is_prime_inv where [simp]: \<open>is_prime_inv n i s \<equiv> (1 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX \<and> i * i \<le> SQRT_UINT_MAX * SQRT_UINT_MAX \<and> partial_prime n i)\<close>
+         //@ invariant  \<comment> \<open>inner\<close> \<open>is_prime_inv \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>\<close>
+         //@ measure    \<comment> \<open>inner\<close> \<open>\<lambda>(r, s). (Suc \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>) * (Suc \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>) - r * r\<close>
          //@ term       \<comment> \<open>outer\<close> \<open>is_prime_inv \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>i\<close>\<close>
        {
          if (n % i == 0) return 0; 
        }
        return 1;
      }
+     //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime ]
 \<close>
 
 section\<open>The Results of the AutoCorres Evaluation\<close>
@@ -257,9 +260,7 @@ theorem (in is_prime) is_prime_faster_correct:
    apply (clarsimp simp: is_prime'_def, wp, simp)[1]
   apply (case_tac "n = 1")
    apply (clarsimp simp: is_prime'_def, wp, simp)[1]
-  apply (unfold is_prime'_def dvd_eq_mod_eq_0 [symmetric] SQRT_UINT_MAX_def [symmetric])
-  apply (subst whileLoopE_add_inv [  where I = "\<lambda>r s. is_prime_inv n r s"
-                                       and M = "(\<lambda>(r, s). (Suc n) * (Suc n) - r * r)"])
+  apply (unfold is_prime'_annot dvd_eq_mod_eq_0 [symmetric] SQRT_UINT_MAX_def [symmetric])
    apply wp
     apply clarsimp
     apply (metis One_nat_def Suc_leI Suc_lessD order_leE prime_dvd leD mult_le_mono n_less_n_mult_m)
@@ -296,11 +297,8 @@ proof (rule validNF_assume_pre)
       assume "n = 1" then show ?thesis   by (clarsimp simp: is_prime'_def, wp, auto)
     next
       assume "n > 1" then show ?thesis
-        unfolding is_prime'_def 
-        text\<open>... and here happens the annotation with the invariant:
-             by instancing @{thm whileLoopE_add_inv}. \<close>
-        apply (subst whileLoopE_add_inv [where I = "\<lambda>r s. is_prime_inv n r s"
-                                         and M = "(\<lambda>(r, s). (Suc n) * (Suc n) - r * r)"])
+        text\<open>... and here happens the unfolding with the annotated (generated) invariant:\<close>
+        unfolding is_prime'_annot 
         apply (fold dvd_eq_mod_eq_0  SQRT_UINT_MAX_def)
         using 1 by (wp, auto)
     qed

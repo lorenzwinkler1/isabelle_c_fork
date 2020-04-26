@@ -75,9 +75,6 @@ begin
 C \<open>
    //  The invocation of AutoCorres:
    //@ #declare [[AutoCorres]]
-
-   //  Setup of AutoCorres for semantically representing this C element:
-   //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime_linear is_prime ]
    
    #define SQRT_UINT_MAX 65536
    /* We prove locally some facts on this C preprocessor macro, which is internally
@@ -146,14 +143,21 @@ C \<open>
            return 0;
    
        /* Find the first non-trivial factor of 'n'. */
-       for (unsigned i = 2; i < n; i++) {
+       for (unsigned i = 2; i < n; i++)
+         //@ invariant \<open>is_prime_linear_inv n\<close>
+         //@ measure   \<open>\<lambda>(r, s). n - r\<close>
+       {
            if (n % i == 0)
                return 0;
        }
    
        /* No factors. */
        return 1;
-   }/*@
+   }
+
+   //  Setup of AutoCorres for semantically representing this C element:
+   //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime_linear is_prime ]
+   /*@
    
    theorem (in is_prime) is_prime_correct:
        "\<lbrace> \<lambda>s. n \<le> UINT_MAX \<rbrace> is_prime_linear' n \<lbrace> \<lambda>r s. (r \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
@@ -162,10 +166,7 @@ C \<open>
       apply (clarsimp simp: is_prime_linear'_def, wp, simp)[1]
      apply (case_tac "n = 1")
       apply (clarsimp simp: is_prime_linear'_def, wp, simp)[1]
-     apply (unfold is_prime_linear'_def)
-     apply (subst whileLoopE_add_inv [
-         where I="\<lambda>r s. is_prime_linear_inv n r s"
-                     and M="(\<lambda>(r, s). n - r)"])
+     apply (unfold is_prime_linear'_annot)
      apply (wp, auto simp: mod_to_dvd [simplified])
      done
    
