@@ -452,7 +452,6 @@ structure Data = Generic_Data
   fun  merge((s1,t1),(s2,t2)) = (Symtab.merge (op =)(s1,s2),merge_control_stateS(t1,t2))
 );
 
-
 val get_data                   = Data.get o Context.Proof;
 val map_data                   = Data.map;
 val get_data_global            = Data.get o Context.Theory;
@@ -1421,7 +1420,6 @@ function calls, where the same problem arises.
 \<close>
 
 
+
 end
 
-  
-  
