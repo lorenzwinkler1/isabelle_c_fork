@@ -16,7 +16,6 @@ theory heap_lift_force_prevent
 imports "AutoCorres.AutoCorres"
 begin
 
-external_file "heap_lift_force_prevent.c"
 install_C_file "heap_lift_force_prevent.c"
 
 autocorres [

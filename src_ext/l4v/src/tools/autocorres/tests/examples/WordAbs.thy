@@ -12,7 +12,6 @@ theory WordAbs
 imports "AutoCorres.AutoCorres"
 begin
 
-external_file "word_abs.c"
 install_C_file "word_abs.c"
 autocorres [unsigned_word_abs = f] "word_abs.c"
 

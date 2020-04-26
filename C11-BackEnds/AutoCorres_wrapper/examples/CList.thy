@@ -1,6 +1,38 @@
-(*
- * @TAG(OTHER_BSD)
- *)
+(******************************************************************************
+ * Isabelle/C/AutoCorres
+ *
+ * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials provided
+ *       with the distribution.
+ *
+ *     * Neither the name of the copyright holders nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ ******************************************************************************)
 (*
  * Copyright (C) 2002 Tobias Nipkow (TUM)
  * Copyright (C) 2013--2014 Japheth Lim (NICTA)
@@ -34,13 +66,77 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *)
+(*
+ * Copyright 2014, NICTA
+ *
+ * This software may be distributed and modified according to the terms of
+ * the BSD 2-Clause license. Note that NO WARRANTY is provided.
+ * See "LICENSE_BSD2.txt" for details.
+ *
+ * @TAG(NICTA_BSD)
+ *)
 
 theory CList imports
-  "AutoCorres.AutoCorres"
+  Isabelle_C_AutoCorres.AutoCorres_Wrapper
 begin
 
-install_C_file "list.c"
-autocorres "list.c"
+declare [[AutoCorres]]
+
+C \<open>
+//@ install_autocorres list
+
+struct node {
+  int data;
+  struct node *next;
+};
+
+struct node *insert(struct node *x, struct node *list) {
+  x->next = list;
+  return x;
+}
+
+struct node *sorted_insert(struct node *x, struct node *list) {
+  struct node *prev = 0, *cur = list;
+  while (cur) {
+    if (cur->data >= x->data) {
+      if (prev) {
+        prev->next = x;
+        x->next = cur;
+        return list;
+      } else {
+        x->next = list;
+        return x;
+      }
+      prev = cur;
+      cur = cur->next;
+    }
+  }
+  x->next = 0;
+  prev->next = x;
+  return list;
+}
+
+struct node *reverse(struct node *list) {
+  struct node *rev = 0;
+  while (list) {
+    struct node *next = list->next;
+    list->next = rev;
+    rev = list;
+    list = next;
+  }
+  return rev;
+}
+
+struct node *revappend(struct node *list, struct node *dest) {
+  while (list) {
+    struct node *next = list->next;
+    list->next = dest;
+    dest = list;
+    list = next;
+  }
+  return dest;
+}
+\<close>
 
 context list begin
 

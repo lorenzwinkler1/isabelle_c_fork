@@ -14,7 +14,6 @@ imports
 begin
 
 (* Parse the input file. *)
-external_file "mult_by_add.c"
 install_C_file "mult_by_add.c"
 
 (* Abstract the input file. *)

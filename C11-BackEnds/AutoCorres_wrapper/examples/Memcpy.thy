@@ -1,3 +1,38 @@
+(******************************************************************************
+ * Isabelle/C/AutoCorres
+ *
+ * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials provided
+ *       with the distribution.
+ *
+ *     * Neither the name of the copyright holders nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ ******************************************************************************)
 (*
  * Copyright 2014, NICTA
  *
@@ -11,7 +46,7 @@
 theory Memcpy
 imports
   "CParser.CTranslation"
-  "AutoCorres.AutoCorres"
+  Isabelle_C_AutoCorres.AutoCorres_Wrapper
 begin
 
 abbreviation "ADDR_MAX \<equiv> UWORD_MAX TYPE(addr_bitsize)"
@@ -44,14 +79,40 @@ lemma ptr_contained:"\<lbrakk> c_guard (x::('a::c_type) ptr); size_of TYPE('a) =
   apply (clarsimp simp: nat_less_iff of_nat_nat)
   done
 
-install_C_file "memcpy.c"
+declare [[AutoCorres]]
+
+C \<open>
+//@ install_autocorres memcpy [no_heap_abs=memcpy memcpy_int]
+
+void *memcpy(void *dest, void *src, unsigned long size) {
+    unsigned long i;
+    char *d = (char*)dest, *s = (char*)src;
+    for (i = 0; i < size; i++) {
+        d[i] = s[i];
+    }
+    return dest;
+}
+
+int *memcpy_int(int *dest, int *src) {
+    return memcpy(dest, src, sizeof(*dest));
+}
+
+struct my_structure {
+    char a;
+    int i;
+    long j;
+};
+
+struct my_structure *memcpy_struct(struct my_structure *dest,
+        struct my_structure *src) {
+    return memcpy(dest, src, sizeof(*dest));
+}
+\<close>
 
 (* FIXME: MOVE *)
 lemma squash_auxupd_id[polish]:
   "modify (t_hrs_'_update (hrs_htd_update id)) = skip"
   by (monad_eq simp: skip_def id_def hrs_htd_update_def)
-
-autocorres [no_heap_abs=memcpy memcpy_int] "memcpy.c"
 
 (* Dereference a pointer *)
 abbreviation "deref s x \<equiv> h_val (hrs_mem (t_hrs_' s)) x"

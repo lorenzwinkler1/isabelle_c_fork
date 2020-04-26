@@ -17,8 +17,6 @@ imports
   "Hoare_Sep_Tactics.Hoare_Sep_Tactics"
 begin
 
-external_file  "alloc_simp.c"
-
 (* Parse the input file. *)
 install_C_file  "alloc_simp.c"
 

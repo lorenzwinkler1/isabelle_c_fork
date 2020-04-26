@@ -1,3 +1,38 @@
+(******************************************************************************
+ * Isabelle/C/AutoCorres
+ *
+ * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *
+ *     * Redistributions in binary form must reproduce the above
+ *       copyright notice, this list of conditions and the following
+ *       disclaimer in the documentation and/or other materials provided
+ *       with the distribution.
+ *
+ *     * Neither the name of the copyright holders nor the names of its
+ *       contributors may be used to endorse or promote products derived
+ *       from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ ******************************************************************************)
 (*
  * Copyright 2014, NICTA
  *
@@ -20,7 +55,7 @@ To do:
 
 theory FibProof
 imports
-  "AutoCorres.AutoCorres"
+  Isabelle_C_AutoCorres.AutoCorres_Wrapper
 begin
 
 (*
@@ -134,10 +169,32 @@ lemma fibo32_rec: "\<lbrakk> a < a + 2; b = a + 1; c = a + 2 \<rbrakk> \<Longrig
   apply (simp add: field_simps)
   done
 
+declare [[AutoCorres]]
 
+C \<open>
+//@ install_autocorres fib [unsigned_word_abs = fib_linear]
 
-(* First we invoke CParser to translate the C code to SIMPL. *)
-install_C_file "fib.c"
+unsigned fib(unsigned n) {
+  if(n == 0) return 0;
+  if(n == 1) return 1;
+  return fib(n-1) + fib(n-2);
+}
+
+unsigned fib_linear(unsigned n) {
+  unsigned a = 0, b = 1;
+  while(n) {
+    unsigned t = b;
+    b += a;
+    a = t;
+    n -= 1;
+  }
+  return a;
+}
+
+void call_fib(void) {
+  fib(42);
+}
+\<close>
 
 
 context fib begin
@@ -201,16 +258,6 @@ lemma fib_simpl_spec: "\<forall>n. \<Gamma>,\<Theta>\<turnstile>\<^sub>t\<lbrace
   apply (subst fibo32.simps[where n = n])
   apply unat_arith
   done
-
-(*
- * We need to temporarily leave the local context to run autocorres.
- * Normally, we would run autocorres immediately after install_C_file.
- *)
-end (* context fib *)
-
-autocorres [unsigned_word_abs = fib_linear] "fib.c"
-
-context fib begin
 
 thm fib_linear'_def
 thm fib'.simps fib'.simps[unfolded fun_app_def, folded One_nat_def]

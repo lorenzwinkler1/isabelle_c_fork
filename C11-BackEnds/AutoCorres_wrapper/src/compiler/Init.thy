@@ -608,6 +608,46 @@ end;
 
 section \<open>User Defined Commands in the Semantic Verification Space\<close>
 
+ML \<comment> \<open>\<^theory>\<open>Isabelle_C.C_Eval\<close>\<close> \<open>
+structure C_Module' =
+struct
+structure Data_Annot = Generic_Data
+  (type T = (bool * string) list Inttab.table
+   val empty = Inttab.empty
+   val extend = K empty
+   val merge = K empty)
+end
+\<close>
+
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/args.ML\<close>\<close>
+(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Title:      Pure/Isar/args.ML
+    Author:     Markus Wenzel, TU Muenchen
+
+Quasi-inner syntax based on outer tokens: concrete argument syntax of
+attributes, methods etc.
+*)
+\<open>
+structure C_Args =
+struct
+
+(** argument scanners **)
+
+(* basic *)
+
+val ident = C_Parse.token
+  (C_Parse.short_ident || C_Parse.long_ident || C_Parse.sym_ident || C_Parse.term_var ||
+    C_Parse.type_ident || C_Parse.type_var || C_Parse.number);
+
+val string = C_Parse.token C_Parse.string;
+
+val cartouche = C_Parse.token C_Parse.cartouche;
+
+val embedded_token = ident || string || cartouche;
+val embedded_inner_syntax = embedded_token >> C_Token.inner_syntax_of;
+end
+\<close>
+
 ML \<comment> \<open>\<^theory>\<open>Isabelle_C.C_Command\<close>\<close> \<open>
 local
 type text_range = Symbol_Pos.text * Position.T
@@ -632,12 +672,35 @@ val scan_colon = C_Parse.$$$ ":" >> SOME
 val Precond = Invariant  (* Hack *)
 val Postcond = Invariant (* Hack *)
 
+fun bind scan f ((stack1, (to_delay, stack2)), _) =
+  C_Parse.range scan
+  >> (fn (src, range) =>
+      C_Env.Parsing
+        ( (stack1, stack2)
+        , ( range
+          , C_Inner_Syntax.bottom_up (f src)
+          , Symtab.empty
+          , to_delay)))
+
 fun command cmd scan0 scan f =
        C_Annotation.command' cmd "" (K (scan0 -- (scan >> f) >> K C_Env.Never))
+
+fun command' cmd scan f =
+       C_Annotation.command' cmd "" (bind scan f)
+
+fun inv_measure b src _ gthy =
+  let val l = length (C_Module.Data_In_Source.get gthy)
+  in C_Module'.Data_Annot.map (Inttab.map_default (l, []) (cons (b, src))) gthy end
+
+val invariant = inv_measure true
+val measure = inv_measure false
+
 in
 val _ = Theory.setup ((* 1 '@' *)
                          command ("INVARIANT", \<^here>) scan_colon C_Parse.term Invariant
                       #> command ("INV", \<^here>) scan_colon C_Parse.term Invariant
+                      #> command' ("invariant", \<^here>) C_Args.embedded_inner_syntax invariant
+                      #> command' ("measure", \<^here>) C_Args.embedded_inner_syntax measure
 
                       (* '+' until being at the position of the first ident
                         then 2 '@' *)
