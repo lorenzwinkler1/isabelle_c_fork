@@ -65,7 +65,7 @@ supported by Isabelle/C. It is characteristic for this style that developers of 
 verification  teams can be separated, as is required by many certification standards.
 \<close>
 
-theory IsPrime_TEC
+theory IsPrime_linear_CCT
 imports
   Isabelle_C_AutoCorres.AutoCorres_Wrapper
   "HOL-Computational_Algebra.Primes"
@@ -77,19 +77,17 @@ C \<open>
    //@ #declare [[AutoCorres]]
    
    #define SQRT_UINT_MAX 65536
-   /* We prove locally some facts on this C preprocessor macro, which is internally
-      converted into an Isabelle/HOL definition: */
+   /* We prove locally some facts on this C preprocessor macro, 
+      which is internally converted into an Isabelle/HOL definition: */
    /*@
    lemma uint_max_factor [simp]:
      "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
      by (clarsimp simp: UINT_MAX_def SQRT_UINT_MAX_def)
-    */
-   
-   
-   /* in the sequel, we give the definitions and theory relevant for the statement of the invariant */
+    */   
    
    /*@
-   definition   "partial_prime p (n :: nat) \<equiv>  (1 < p \<and> (\<forall>i \<in> {2 ..< min p n}. \<not> i dvd p))"
+   definition "partial_prime p (n :: nat) \<equiv>  
+               (1 < p \<and> (\<forall>i \<in> {2 ..< min p n}. \<not> i dvd p))"
    
    lemma partial_prime_ge [simp]:
         "\<lbrakk> p' \<ge> p \<rbrakk> \<Longrightarrow> partial_prime p p' = prime p"
@@ -258,7 +256,7 @@ C \<open>
        /* No factors. */
        return 1;
    }
-   /*@
+   /*@ (* original NICTA proof *)
    
    theorem (in is_prime) is_prime_faster_correct:
      notes times_nat.simps(2) [simp del] mult_Suc_right [simp del]

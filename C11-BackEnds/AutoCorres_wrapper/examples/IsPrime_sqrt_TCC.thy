@@ -61,7 +61,7 @@ Of course, since developments can mix C code and HOL developments in an arbitrar
 these two style have to be thought of as extremes in a continuum. \<close>
 
 
-theory IsPrime_sqrt_CET
+theory IsPrime_sqrt_TCC
 imports
   Isabelle_C_AutoCorres.AutoCorres_Wrapper
   "HOL-Computational_Algebra.Primes"
@@ -245,7 +245,7 @@ section\<open>The Correctness Proof \<close>
 
 text\<open>Note that the proof \<^emph>\<open>injects\<close> the loop invariant at the point where the proof
      treats the loop.\<close>
-
+(* original NICTA proof *)
 theorem (in is_prime) is_prime_faster_correct:
   notes times_nat.simps(2) [simp del] mult_Suc_right [simp del]
   shows "\<lbrace> \<lambda>s. n \<le> UINT_MAX \<rbrace> is_prime' n \<lbrace> \<lambda>r s. (r \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
@@ -280,85 +280,29 @@ lemma aux9[simp]:
 
 
 
-theorem (in is_prime) is_prime_correct':
-    "\<lbrace> \<lambda>\<sigma>. n \<le> UINT_MAX \<rbrace> is_prime' n \<lbrace> \<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
+theorem (in is_prime) is_prime'_correct:
+  "\<lbrace>\<lambda>\<sigma>. n \<le> UINT_MAX\<rbrace> is_prime' n \<lbrace>\<lambda>res \<sigma>.(res \<noteq> 0) \<longleftrightarrow> prime n\<rbrace>!"
 proof (rule validNF_assume_pre)
-  assume 1 : "n \<le> UINT_MAX"
-  have   2 : "n=0 \<or> n=1 \<or> n > 1" by linarith
+  assume *  :  "n \<le> UINT_MAX"
+  have   ** : "n=0 \<or> n=1 \<or> n > 1" by linarith
   show ?thesis
-    proof (insert 2, elim disjE)
-      assume  "n=0" 
-      then show ?thesis  by (clarsimp simp:  is_prime'_def, wp, auto)
+    proof (insert **, elim disjE)
+      assume  "n = 0" 
+      then show ?thesis  by (clarsimp simp: is_prime'_def, wp, auto)
     next
-      assume  "n=1" 
-      then show ?thesis  by (clarsimp simp:  is_prime'_def, wp, auto) 
+      assume  "n = 1" 
+      then show ?thesis  by (clarsimp simp: is_prime'_def, wp, auto) 
     next
       assume  "1 < n" 
       then show ?thesis
-           apply (unfold is_prime'_def dvd_eq_mod_eq_0 [symmetric] SQRT_UINT_MAX_def [symmetric])
-           text\<open>... here is the annotation with the invariant by instantiating @{thm whileLoopE_add_inv}. \<close>
-           apply (subst whileLoopE_add_inv [  where I = "\<lambda>r s. is_prime_inv n r s"
-                                              and M = "(\<lambda>(r, s). (Suc n) * (Suc n) - r * r)"])
-           using 1 by (wp, auto)
+        apply(unfold is_prime'_def,fold dvd_eq_mod_eq_0 SQRT_UINT_MAX_def)
+        text\<open>... annotation with the invariant and the measure by 
+             instantiating @{thm whileLoopE_add_inv}.\<close>
+        apply(subst whileLoopE_add_inv[where I = "is_prime_inv n"
+                                      and M ="\<lambda>(r,s).(Suc n)*(Suc n)-r*r"])
+        using * by (wp, auto)
     qed
 qed
-
-
-(* TODO : REMOVE HERE; WENT TO CAS *)
-section\<open>A Schematic Presentation for the Automated Proof \<close>
-(* step 0 : "lifting over parameter" over the free variables of the correctness statement: *)
-lemma whileLoopE_inv_lift1 : 
-  "whileLoopE (B n) (C n) = (\<lambda>x. whileLoopE_inv (B n) (C n) x (I n) (measure' (M n)))"
-  by (simp add: whileLoopE_inv_def)
-
-(* step 1 : encapsulating inv and mesure for each loop *)
-definition is_prime_requires : "is_prime_requires n \<equiv> \<lambda>\<sigma>. n \<le> UINT_MAX"
-definition is_prime_ensures  : "is_prime_ensures n \<equiv> \<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n"
-
-definition is_prime_inv\<^sub>1     : "is_prime_inv\<^sub>1 n \<equiv> \<lambda>r s. is_prime_inv n r s"
-definition is_prime_mesure\<^sub>1  : "is_prime_mesure\<^sub>1 n \<equiv> \<lambda>(r, s). (Suc n) * (Suc n) - r * r"
-
-(* step 2 : specific replacement rule for the loop with the annotated loop *)
-lemmas whileLoopE_invL1 = whileLoopE_inv_lift1 [of _ _ _ "is_prime_inv\<^sub>1" "is_prime_mesure\<^sub>1",
-                                                simplified is_prime_inv\<^sub>1 is_prime_mesure\<^sub>1]
-
-declare prime_ge_2_nat[dest] (* misère, preconfig pour le dernier auto. *)
-
-(* configure the general methods "preparation" and annotate loops. *)
-named_theorems prog_annotations
-declare is_prime.is_prime'_def[prog_annotations]
-        is_prime_requires [prog_annotations]
-        is_prime_ensures [prog_annotations]
-
-
-named_theorems folds
-declare dvd_eq_mod_eq_0[symmetric,folds]
-declare SQRT_UINT_MAX_def [symmetric,folds]
-
-method prep declares prog_annotations folds = 
-               (rule validNF_assume_pre, (* always!*)
-                unfold prog_annotations folds)
-
-method annotate_loops for n::nat = (prep, subst whileLoopE_invL1[of _ n])
-                                   (* this must be generalized for several loops *)
-
-
-
-(* and now the scheme for an automated proof, provided that sufficient
-   background knowledge had been inserted into the prover 'auto'. *)
-
-theorem is_prime_correct'':
-  "\<lbrace>\<lambda>\<sigma>. n \<le> UINT_MAX \<rbrace> 
-   is_prime.is_prime' n 
-   \<lbrace>\<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
-   apply (annotate_loops n)    
-   by    (wp, auto )  
-  
-(* or also: just another presentation *)
-theorem (in is_prime) is_prime_correct''':
-  "\<lbrace>is_prime_requires n\<rbrace> is_prime' n \<lbrace>is_prime_ensures n\<rbrace>!"
-   apply (annotate_loops n)    
-   by    (wp, auto )  
 
 
 

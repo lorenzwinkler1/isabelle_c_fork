@@ -196,7 +196,7 @@ C \<open>
        if (n < 2) return 0;
      
        for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++)
-         //@ definition \<comment> \<open>outer\<close> is_prime_inv where [simp]: \<open>is_prime_inv n i s \<equiv> (1 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX \<and> i * i \<le> SQRT_UINT_MAX * SQRT_UINT_MAX \<and> partial_prime n i)\<close>
+         //@ definition \<comment> \<open>outer\<close> is_prime_inv where [simp]:   \<open>is_prime_inv n i s \<equiv> (1 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX \<and>  i * i \<le> SQRT_UINT_MAX * SQRT_UINT_MAX \<and> partial_prime n i)\<close>
          //@ invariant  \<comment> \<open>inner\<close> \<open>is_prime_inv \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>\<close>
          //@ measure    \<comment> \<open>inner\<close> \<open>\<lambda>(r, s). (Suc \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>) * (Suc \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>) - r * r\<close>
          //@ term       \<comment> \<open>outer\<close> \<open>is_prime_inv \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>i\<close>\<close>
@@ -205,7 +205,7 @@ C \<open>
        }
        return 1;
      }
-     //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime ]
+     //@ install_autocorres is_prime [ts_rules=nondet, unsigned_word_abs=is_prime]
 \<close>
 
 section\<open>The Results of the AutoCorres Evaluation\<close>
