@@ -312,23 +312,23 @@ lemma whileLoopE_inv_lift1 :
   by (simp add: whileLoopE_inv_def)
 
 (* step 1 : encapsulating inv and mesure for each loop *)
-definition is_prime'_requires : "is_prime'_requires n \<equiv> \<lambda>\<sigma>. n \<le> UINT_MAX"
-definition is_prime'_ensures  : "is_prime'_ensures n \<equiv> \<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n"
+definition is_prime_requires : "is_prime_requires n \<equiv> \<lambda>\<sigma>. n \<le> UINT_MAX"
+definition is_prime_ensures  : "is_prime_ensures n \<equiv> \<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n"
 
-definition is_prime'_inv\<^sub>1     : "is_prime'_inv\<^sub>1 n \<equiv> \<lambda>r s. is_prime_inv n r s"
-definition is_prime'_mesure\<^sub>1  : "is_prime'_mesure\<^sub>1 n \<equiv> \<lambda>(r, s). (Suc n) * (Suc n) - r * r"
+definition is_prime_inv\<^sub>1     : "is_prime_inv\<^sub>1 n \<equiv> \<lambda>r s. is_prime_inv n r s"
+definition is_prime_mesure\<^sub>1  : "is_prime_mesure\<^sub>1 n \<equiv> \<lambda>(r, s). (Suc n) * (Suc n) - r * r"
 
 (* step 2 : specific replacement rule for the loop with the annotated loop *)
-lemmas whileLoopE_invL1 = whileLoopE_inv_lift1 [of _ _ _ "is_prime'_inv\<^sub>1" "is_prime'_mesure\<^sub>1",
-                                                simplified is_prime'_inv\<^sub>1 is_prime'_mesure\<^sub>1]
+lemmas whileLoopE_invL1 = whileLoopE_inv_lift1 [of _ _ _ "is_prime_inv\<^sub>1" "is_prime_mesure\<^sub>1",
+                                                simplified is_prime_inv\<^sub>1 is_prime_mesure\<^sub>1]
 
 declare prime_ge_2_nat[dest] (* misère, preconfig pour le dernier auto. *)
 
 (* configure the general methods "preparation" and annotate loops. *)
 named_theorems prog_annotations
 declare is_prime.is_prime'_def[prog_annotations]
-        is_prime'_requires [prog_annotations]
-        is_prime'_ensures [prog_annotations]
+        is_prime_requires [prog_annotations]
+        is_prime_ensures [prog_annotations]
 
 
 named_theorems folds
