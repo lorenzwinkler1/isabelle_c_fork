@@ -283,7 +283,7 @@ lemma aux9[simp]:
   using not_less_eq_eq by force
 
 
-
+ 
 
 theorem (in is_prime) is_prime_correct':
     "\<lbrace> \<lambda>\<sigma>. n \<le> UINT_MAX \<rbrace> is_prime' n \<lbrace> \<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
@@ -343,7 +343,6 @@ method annotate_loops for n::nat = (prep, subst whileLoopE_invL1[of _ n])
                                    (* this must be generalized for several loops *)
 
 
-
 (* and now the scheme for an automated proof, provided that sufficient
    background knowledge had been inserted into the prover 'auto'. *)
 
@@ -359,6 +358,29 @@ theorem (in is_prime) is_prime_correct''':
   "\<lbrace>is_prime_requires n\<rbrace> is_prime' n \<lbrace>is_prime_ensures n\<rbrace>!"
    apply (annotate_loops n)    
    by    (wp, auto )  
+
+
+(* yet another way with Frederics stuff *)
+
+method vcg = (subst is_prime.is_prime'_annot,prep, wp)
+
+thm is_prime.is_prime'_annot
+
+context is_prime 
+begin
+
+definition [prog_annotations]:"requires = is_prime_requires"
+definition [prog_annotations]:"ensures  = is_prime_ensures"
+
+
+
+theorem is_prime_correct'''': 
+  "\<lbrace>requires n\<rbrace> is_prime' n \<lbrace>ensures n\<rbrace>!" 
+  by(vcg, auto)  
+
+
+
+end
 
 
 end
