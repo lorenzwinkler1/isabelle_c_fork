@@ -305,33 +305,39 @@ qed
 
 
 
-section\<open>A Scheme for an Automated Proof \<close>
-(* step 0 : lifting over parameter *)
+section\<open>A Schematic Presentation for the Automated Proof \<close>
+(* step 0 : "lifting over parameter" over the free variables of the correctness statement: *)
 lemma whileLoopE_inv_lift1 : 
   "whileLoopE (B n) (C n) = (\<lambda>x. whileLoopE_inv (B n) (C n) x (I n) (measure' (M n)))"
   by (simp add: whileLoopE_inv_def)
 
-(* step 1 : encapsulating inv and mesure for each loop *) 
-definition is_prime_inv\<^sub>1 : "is_prime_inv\<^sub>1 = (\<lambda>n. \<lambda>r s. is_prime_inv n r s)"
-definition mesure\<^sub>1       : "mesure\<^sub>1 = (\<lambda>n. \<lambda>(r, s). (Suc n) * (Suc n) - r * r)"
+(* step 1 : encapsulating inv and mesure for each loop *)
+definition is_prime_requires : "is_prime_requires n \<equiv> \<lambda>\<sigma>. n \<le> UINT_MAX"
+definition is_prime_ensures  : "is_prime_ensures n \<equiv> \<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n"
+
+definition is_prime_inv\<^sub>1     : "is_prime_inv\<^sub>1 n \<equiv> \<lambda>r s. is_prime_inv n r s"
+definition is_prime_mesure\<^sub>1  : "is_prime_mesure\<^sub>1 n \<equiv> \<lambda>(r, s). (Suc n) * (Suc n) - r * r"
 
 (* step 2 : specific replacement rule for the loop with the annotated loop *)
-lemmas whileLoopE_invL1 = whileLoopE_inv_lift1 [of _ _ _ "is_prime_inv\<^sub>1" "mesure\<^sub>1",
-                                                simplified is_prime_inv\<^sub>1 mesure\<^sub>1]
+lemmas whileLoopE_invL1 = whileLoopE_inv_lift1 [of _ _ _ "is_prime_inv\<^sub>1" "is_prime_mesure\<^sub>1",
+                                                simplified is_prime_inv\<^sub>1 is_prime_mesure\<^sub>1]
 
-declare prime_ge_2_nat[dest] (* misere, preconfig pour le dernier auto. *)
+declare prime_ge_2_nat[dest] (* misère, preconfig pour le dernier auto. *)
 
 (* configure the general methods "preparation" and annotate loops. *)
-named_theorems c_programs'_defs
-declare is_prime.is_prime'_def[c_programs'_defs]
+named_theorems prog_annotations
+declare is_prime.is_prime'_def[prog_annotations]
+        is_prime_requires [prog_annotations]
+        is_prime_ensures [prog_annotations]
+
 
 named_theorems folds
 declare dvd_eq_mod_eq_0[symmetric,folds]
 declare SQRT_UINT_MAX_def [symmetric,folds]
 
-method prep declares c_programs'_defs folds = 
+method prep declares prog_annotations folds = 
                (rule validNF_assume_pre, (* always!*)
-                unfold c_programs'_defs folds)
+                unfold prog_annotations folds)
 
 method annotate_loops for n::nat = (prep, subst whileLoopE_invL1[of _ n])
                                    (* this must be generalized for several loops *)
@@ -341,14 +347,30 @@ method annotate_loops for n::nat = (prep, subst whileLoopE_invL1[of _ n])
 (* and now the scheme for an automated proof, provided that sufficient
    background knowledge had been inserted into the prover 'auto'. *)
 
-theorem (in is_prime) is_prime_correct'':
+theorem is_prime_correct'':
   "\<lbrace>\<lambda>\<sigma>. n \<le> UINT_MAX \<rbrace> 
-   is_prime' n 
+   is_prime.is_prime' n 
    \<lbrace>\<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
    apply (annotate_loops n)    
    by    (wp, auto )  
   
+(* or also: just another presentation *)
+theorem (in is_prime) is_prime_correct''':
+  "\<lbrace>is_prime_requires n\<rbrace> is_prime' n \<lbrace>is_prime_ensures n\<rbrace>!"
+   apply (annotate_loops n)    
+   by    (wp, auto )  
+
+
 
 end
+
+ 
+
+
+
+
+
+
+
 
 
