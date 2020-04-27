@@ -304,7 +304,7 @@ proof (rule validNF_assume_pre)
 qed
 
 
-
+(* TODO : REMOVE HERE; WENT TO CAS *)
 section\<open>A Schematic Presentation for the Automated Proof \<close>
 (* step 0 : "lifting over parameter" over the free variables of the correctness statement: *)
 lemma whileLoopE_inv_lift1 : 
