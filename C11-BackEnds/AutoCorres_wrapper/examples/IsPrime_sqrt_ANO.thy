@@ -184,19 +184,20 @@ int A;  /* dummy */
 setup \<open>C_Module.C_Term.map_expression
         (fn expr => fn _ => fn _ => 
           case expr of C_Ast.CVar0 (C_Ast.Ident0 (_, x, _), _) =>
-                         Free (C_Grammar_Rule_Lib.ident_decode x, dummyT))\<close>
+                         Free (C_Grammar_Rule_Lib.ident_decode x, dummyT)
+                     | s => Free (\<^make_string> s, dummyT))\<close>
 
 C \<open>
      #define SQRT_UINT_MAX 65536
      
      unsigned int is_prime(unsigned int n)
-       //@ +@ REQUIRES \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close> \<le> UINT_MAX\<close>
-       //@ +@ ENSURES  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>is_prime(n)\<close> \<noteq> 0 \<longleftrightarrow> prime \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>\<close>
+       //@ +@ requires \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close> \<le> UINT_MAX\<close>
+       //@ +@ ensures  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>is_prime(n)\<close> \<noteq> 0 \<longleftrightarrow> prime \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>\<close>
      {
        if (n < 2) return 0;
      
        for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++)
-         //@ definition \<comment> \<open>outer\<close> is_prime_inv where [simp]: \<open>is_prime_inv n i s \<equiv> (1 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX \<and> i * i \<le> SQRT_UINT_MAX * SQRT_UINT_MAX \<and> partial_prime n i)\<close>
+         //@ definition \<comment> \<open>outer\<close>  is_prime_inv where [simp]: \<open>is_prime_inv n i s \<equiv> (1 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX \<and> i * i \<le> SQRT_UINT_MAX * SQRT_UINT_MAX \<and> partial_prime n i)\<close>
          //@ invariant  \<comment> \<open>inner\<close> \<open>is_prime_inv \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>\<close>
          //@ measure    \<comment> \<open>inner\<close> \<open>\<lambda>(r, s). (Suc \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>) * (Suc \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>) - r * r\<close>
          //@ term       \<comment> \<open>outer\<close> \<open>is_prime_inv \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>i\<close>\<close>
