@@ -58,7 +58,7 @@ Exports of the C-sources will contain their theory (not only their annotations) 
 ``proof-carrying code'' securization schemes of server platforms.  \<close>
 
 
-theory IsPrime_sqrt_opt_CET
+theory IsPrime_sqrt_opt_CCT
 imports
   Isabelle_C_AutoCorres.AutoCorres_Wrapper
   "HOL-Computational_Algebra.Primes"

@@ -173,18 +173,15 @@ text\<open> This C code contains a function that determines if the given number
       This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
 
 declare [[AutoCorres]]
-(*
-C \<open>
-//  Setup of AutoCorres for semantically representing this C element.
-//@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs =  is_prime ]
-int A;  /* dummy */
-\<close>
-*)
 
 setup \<open>C_Module.C_Term.map_expression
         (fn expr => fn _ => fn _ => 
           case expr of C_Ast.CVar0 (C_Ast.Ident0 (_, x, _), _) =>
                          Free (C_Grammar_Rule_Lib.ident_decode x, dummyT))\<close>
+
+
+
+
 
 C \<open>
      #define SQRT_UINT_MAX 65536
@@ -196,9 +193,9 @@ C \<open>
        if (n < 2) return 0;
      
        for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++)
-         //@ definition \<comment> \<open>outer\<close> is_prime_inv where [simp]:   \<open>is_prime_inv n i s \<equiv> (1 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX \<and>  i * i \<le> SQRT_UINT_MAX * SQRT_UINT_MAX \<and> partial_prime n i)\<close>
+         //@ definition \<comment> \<open>outer\<close> is_prime_inv where [simp]: \<open>is_prime_inv n i s \<equiv> (1 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX \<and>  i * i \<le> SQRT_UINT_MAX * SQRT_UINT_MAX \<and> partial_prime n i)\<close>
          //@ invariant  \<comment> \<open>inner\<close> \<open>is_prime_inv \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>\<close>
-         //@ measure    \<comment> \<open>inner\<close> \<open>\<lambda>(r, s). (Suc \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>) * (Suc \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>) - r * r\<close>
+         //@ measure    \<comment> \<open>inner\<close> \<open>\<lambda>(r, s). (Suc \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>)*(Suc \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>) - r*r\<close>
          //@ term       \<comment> \<open>outer\<close> \<open>is_prime_inv \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>i\<close>\<close>
        {
          if (n % i == 0) return 0; 
@@ -206,7 +203,7 @@ C \<open>
        return 1;
      }
      //@ install_autocorres is_prime [ts_rules=nondet, unsigned_word_abs=is_prime]
-\<close>
+  \<close>
 
 section\<open>The Results of the AutoCorres Evaluation\<close>
 
