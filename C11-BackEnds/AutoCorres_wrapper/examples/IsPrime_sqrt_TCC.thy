@@ -61,7 +61,7 @@ Of course, since developments can mix C code and HOL developments in an arbitrar
 these two style have to be thought of as extremes in a continuum. \<close>
 
 
-theory IsPrime_sqrt_ANO
+theory IsPrime_sqrt_TCC
 imports
   Isabelle_C_AutoCorres.AutoCorres_Wrapper
   "HOL-Computational_Algebra.Primes"
@@ -90,8 +90,7 @@ algorithmic side.
 
 
 
-definition
-  "partial_prime p (n :: nat) \<equiv>  (1 < p \<and> (\<forall>i \<in> {2 ..< min p n}. \<not> i dvd p))"
+definition "partial_prime p (n :: nat) \<equiv>  (1 < p \<and> (\<forall>i \<in> {2 ..< min p n}. \<not> i dvd p))"
 
 lemma partial_prime_ge [simp]:
      "\<lbrakk> p' \<ge> p \<rbrakk> \<Longrightarrow> partial_prime p p' = prime p"
@@ -122,16 +121,14 @@ lemma partial_prime_Suc [simp]:
 lemma partial_prime_2 [simp]: "(partial_prime a 2) = (a > 1)"
   by (clarsimp simp: partial_prime_def)
 
-lemma not_prime:
-    "\<lbrakk> \<not> prime (a :: nat); a > 1 \<rbrakk> \<Longrightarrow> \<exists>x y. x * y = a \<and> 1 < x \<and> 1 < y \<and> x * x \<le> a"
+lemma not_prime: "\<lbrakk> \<not> prime (a :: nat); a > 1 \<rbrakk> \<Longrightarrow> \<exists>x y. x * y = a \<and> 1 < x \<and> 1 < y \<and> x * x \<le> a"
   apply (clarsimp simp: prime_nat_iff dvd_def)
   apply (case_tac "m > k")
    apply (metis Suc_lessD Suc_lessI less_imp_le_nat mult.commute nat_0_less_mult_iff nat_mult_less_cancel_disj)
   apply fastforce
   done
 
-lemma sqrt_prime:
-  "\<lbrakk> a * a > n; \<forall>x<a. (x dvd n) = (x = Suc 0 \<or> x = n); 1 < n \<rbrakk> \<Longrightarrow> prime n"
+lemma sqrt_prime: "\<lbrakk> a * a > n; \<forall>x<a. (x dvd n) = (x = Suc 0 \<or> x = n); 1 < n \<rbrakk> \<Longrightarrow> prime n"
   apply (rule ccontr)
   apply (drule not_prime)
    apply clarsimp
@@ -140,8 +137,7 @@ lemma sqrt_prime:
            mult_eq_self_implies_10 not_less)
   done
 
-lemma partial_prime_sqr [simp]:
-     "\<lbrakk> n * n > p \<rbrakk> \<Longrightarrow> partial_prime p n = prime p"
+lemma partial_prime_sqr[simp]: "\<lbrakk> n * n > p \<rbrakk> \<Longrightarrow> partial_prime p n = prime p"
   apply (case_tac "n \<ge> p")
    apply clarsimp
   apply (case_tac "partial_prime p n")
@@ -159,54 +155,46 @@ lemma partial_prime_sqr [simp]:
   apply (auto simp: not_le partial_prime_def min_def prime_nat_iff')
   done
 
-lemma prime_dvd [simp]:
-    "\<lbrakk> prime (p::nat) \<rbrakk> \<Longrightarrow> (r dvd p) = (r = 1 \<or> r = p)"
+
+lemma prime_dvd[simp]: "\<lbrakk> prime (p::nat) \<rbrakk> \<Longrightarrow> (r dvd p) = (r = 1 \<or> r = p)"
   by (fastforce simp: prime_nat_iff)
 
 section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
 
-text\<open> This C code contains a function that determines if the given number 
+text \<open>The invocation of AutoCorres:\<close>
+
+declare [[AutoCorres]]
+
+text \<open>Setup of AutoCorres for semantically representing this C element:\<close>
+declare_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime ]
+
+text\<open> This C code contains a function that determines if the given number
       @{term n} is prime.
 
       It returns 0 if @{term n}  is composite, or non-zero if @{term n}  is prime.
  
       This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
 
-declare [[AutoCorres]]
-(*
 C \<open>
-//  Setup of AutoCorres for semantically representing this C element.
-//@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs =  is_prime ]
-int A;  /* dummy */
-\<close>
-*)
-
-setup \<open>C_Module.C_Term.map_expression
-        (fn expr => fn _ => fn _ => 
-          case expr of C_Ast.CVar0 (C_Ast.Ident0 (_, x, _), _) =>
-                         Free (C_Grammar_Rule_Lib.ident_decode x, dummyT)
-                     | s => Free (\<^make_string> s, dummyT))\<close>
-
-C \<open>
-     #define SQRT_UINT_MAX 65536
-     
-     unsigned int is_prime(unsigned int n)
-       //@ +@ requires \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close> \<le> UINT_MAX\<close>
-       //@ +@ ensures  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>is_prime(n)\<close> \<noteq> 0 \<longleftrightarrow> prime \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>\<close>
-     {
-       if (n < 2) return 0;
-     
-       for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++)
-         //@ definition \<comment> \<open>outer\<close>  is_prime_inv where [simp]: \<open>is_prime_inv n i s \<equiv> (1 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX \<and> i * i \<le> SQRT_UINT_MAX * SQRT_UINT_MAX \<and> partial_prime n i)\<close>
-         //@ invariant  \<comment> \<open>inner\<close> \<open>is_prime_inv \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>\<close>
-         //@ measure    \<comment> \<open>inner\<close> \<open>\<lambda>(r, s). (Suc \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>) * (Suc \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close>) - r * r\<close>
-         //@ term       \<comment> \<open>outer\<close> \<open>is_prime_inv \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>n\<close> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>i\<close>\<close>
-       {
-         if (n % i == 0) return 0; 
-       }
-       return 1;
-     }
-     //@ install_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime ]
+    #define SQRT_UINT_MAX 65536
+    
+    unsigned int is_prime(unsigned int n)
+    {
+        /* Numbers less than 2 are not primes. */
+        if (n < 2)
+            return 0;
+    
+        /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX), whichever comes first. */
+        /* Find the first non-trivial factor of 'n' less than sqrt(n). */
+    
+        for (unsigned i = 2; i < SQRT_UINT_MAX && i * i <= n; i++) {
+            if (n % i == 0)
+                return 0; 
+        }
+    
+        /* No factors found. */
+        return 1;
+    }
 \<close>
 
 section\<open>The Results of the AutoCorres Evaluation\<close>
@@ -228,7 +216,12 @@ text\<open>Note that the pre-processor macro has been converted into a definitio
 
 section\<open>Preliminaries of the Proof\<close>
 text\<open>This section contains the auxilliary definitions and lemmas for the 
-     final correctness proof; in particular, it uses the loop invariant.\<close>
+     final correctness proof; in particular, the loop invariant is stated here.\<close>
+
+definition is_prime_inv
+  where [simp]: "is_prime_inv n i s \<equiv> (1 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX \<and> 
+                                       i * i \<le> SQRT_UINT_MAX * SQRT_UINT_MAX \<and> 
+                                       partial_prime n i)"
 
 lemma uint_max_factor [simp]:  "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
   by (clarsimp simp: UINT_MAX_def SQRT_UINT_MAX_def)
@@ -252,7 +245,7 @@ section\<open>The Correctness Proof \<close>
 
 text\<open>Note that the proof \<^emph>\<open>injects\<close> the loop invariant at the point where the proof
      treats the loop.\<close>
-
+(* original NICTA proof *)
 theorem (in is_prime) is_prime_faster_correct:
   notes times_nat.simps(2) [simp del] mult_Suc_right [simp del]
   shows "\<lbrace> \<lambda>s. n \<le> UINT_MAX \<rbrace> is_prime' n \<lbrace> \<lambda>r s. (r \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
@@ -261,7 +254,9 @@ theorem (in is_prime) is_prime_faster_correct:
    apply (clarsimp simp: is_prime'_def, wp, simp)[1]
   apply (case_tac "n = 1")
    apply (clarsimp simp: is_prime'_def, wp, simp)[1]
-  apply (unfold is_prime'_annot dvd_eq_mod_eq_0 [symmetric] SQRT_UINT_MAX_def [symmetric])
+  apply (unfold is_prime'_def dvd_eq_mod_eq_0 [symmetric] SQRT_UINT_MAX_def [symmetric])
+  apply (subst whileLoopE_add_inv [  where I = "\<lambda>r s. is_prime_inv n r s"
+                                       and M = "(\<lambda>(r, s). (Suc n) * (Suc n) - r * r)"])
    apply wp
     apply clarsimp
     apply (metis One_nat_def Suc_leI Suc_lessD order_leE prime_dvd leD mult_le_mono n_less_n_mult_m)
@@ -269,7 +264,6 @@ theorem (in is_prime) is_prime_faster_correct:
   apply (clarsimp simp: SQRT_UINT_MAX_def)
   done
 
-(* we pimp up the logical context such that the final auto constructs the proof "automatically". *)
 
 lemma aux5[simp]:"(2::nat) \<le> SQRT_UINT_MAX" by(simp add: SQRT_UINT_MAX_def)
 lemma aux6[simp]:"(4::nat) \<le> SQRT_UINT_MAX * SQRT_UINT_MAX" by(simp add: SQRT_UINT_MAX_def)
@@ -286,24 +280,41 @@ lemma aux9[simp]:
 
 
 
-theorem (in is_prime) is_prime_correct':
-    "\<lbrace> \<lambda>\<sigma>. n \<le> UINT_MAX \<rbrace> is_prime' n \<lbrace> \<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
+theorem (in is_prime) is_prime'_correct:
+  "\<lbrace>\<lambda>\<sigma>. n \<le> UINT_MAX\<rbrace> is_prime' n \<lbrace>\<lambda>res \<sigma>.(res \<noteq> 0) \<longleftrightarrow> prime n\<rbrace>!"
 proof (rule validNF_assume_pre)
-  assume 1 : "n \<le> UINT_MAX"
-  have   2 : "n = 0 \<or> n = 1 \<or> n > 1" by linarith
+  assume *  : "n \<le> UINT_MAX"
+  have   ** : "n=0 \<or> n=1 \<or> n > 1" by linarith
   show ?thesis
-    proof (insert 2, elim disjE)
-      assume "n = 0" then show ?thesis   by (clarsimp simp: is_prime'_def, wp, auto)
+    proof (insert **, elim disjE)
+      assume  "n = 0" 
+      then show ?thesis  by (clarsimp simp: is_prime'_def, wp, auto)
     next
-      assume "n = 1" then show ?thesis   by (clarsimp simp: is_prime'_def, wp, auto)
+      assume  "n = 1" 
+      then show ?thesis  by (clarsimp simp: is_prime'_def, wp, auto) 
     next
-      assume "n > 1" then show ?thesis
-        text\<open>... and here happens the unfolding with the annotated (generated) invariant:\<close>
-        unfolding is_prime'_annot 
-        apply (fold dvd_eq_mod_eq_0  SQRT_UINT_MAX_def)
-        using 1 by (wp, auto)
+      assume  "1 < n" 
+      then show ?thesis
+        apply(unfold is_prime'_def, fold dvd_eq_mod_eq_0 SQRT_UINT_MAX_def)
+        text\<open>... annotation with the invariant and the measure by 
+             instantiating @{thm whileLoopE_add_inv}.\<close>
+        apply(subst whileLoopE_add_inv [where I = "is_prime_inv n"
+                                        and M = "\<lambda>(r, s).(Suc n) * (Suc n) - r * r"])
+        using * by (wp, auto)
     qed
 qed
 
 
+
 end
+
+ 
+
+
+
+
+
+
+
+
+

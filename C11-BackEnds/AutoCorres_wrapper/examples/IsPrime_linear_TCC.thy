@@ -48,19 +48,19 @@ chapter \<open>Example: Linear Prime Sample Proof\<close>
 text\<open>This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
 the theory development of the background theory as well as the program annotations completely 
 \<^emph>\<open>outside\<close> the C source. This particular development style that keeps the program
-separate from its theory we call CET (\<^emph>\<open>Code embedded-in Theory\<close>). It has the 
+separate from its theory we call TCC (\<^emph>\<open>Theories Carrying Code\<close>). It has the 
 advantage that developers of development and verification teams can be separated,
 as is required by many certification standards.
-Note that the opposite style that we call TEC (\<^emph>\<open>Theory embedded-in Code\<close>) is also 
-supported by Isabelle/C. In TEC style, Programs become a kind of ``proof-carrying (high-level) code''.
-Exports of the C-sources will contain their theory (not only their annotations) as comments
-\<^emph>\<open>inside\<close> which might be also useful in certification as well as advanced  
-``proof-carrying code'' securization schemes of server platforms. 
+Note that the opposite style that we call CCT (\<^emph>\<open>Code-carrying Theories\<close>) is also 
+supported by Isabelle/C. In CCT style, Programs will contain their theory 
+(not only their annotations) as comments \<^emph>\<open>inside\<close> which might be also useful 
+in certification as well as advanced ``proof-carrying code'' securization 
+schemes of server platforms. 
 
 Of course, since developments can mix C code and HOL developments in an arbitrary manner,
 these two style have to be thought of as extremes in a continuum. \<close>
 
-theory IsPrime_linear_CET
+theory IsPrime_linear_TCC
 imports
   Isabelle_C_AutoCorres.AutoCorres_Wrapper
   "HOL-Computational_Algebra.Primes"
