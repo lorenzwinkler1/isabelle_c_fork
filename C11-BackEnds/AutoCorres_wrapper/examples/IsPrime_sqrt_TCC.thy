@@ -283,7 +283,7 @@ lemma aux9[simp]:
 theorem (in is_prime) is_prime'_correct:
   "\<lbrace>\<lambda>\<sigma>. n \<le> UINT_MAX\<rbrace> is_prime' n \<lbrace>\<lambda>res \<sigma>.(res \<noteq> 0) \<longleftrightarrow> prime n\<rbrace>!"
 proof (rule validNF_assume_pre)
-  assume *  :  "n \<le> UINT_MAX"
+  assume *  : "n \<le> UINT_MAX"
   have   ** : "n=0 \<or> n=1 \<or> n > 1" by linarith
   show ?thesis
     proof (insert **, elim disjE)
@@ -295,11 +295,11 @@ proof (rule validNF_assume_pre)
     next
       assume  "1 < n" 
       then show ?thesis
-        apply(unfold is_prime'_def,fold dvd_eq_mod_eq_0 SQRT_UINT_MAX_def)
+        apply(unfold is_prime'_def, fold dvd_eq_mod_eq_0 SQRT_UINT_MAX_def)
         text\<open>... annotation with the invariant and the measure by 
              instantiating @{thm whileLoopE_add_inv}.\<close>
-        apply(subst whileLoopE_add_inv[where I = "is_prime_inv n"
-                                      and M ="\<lambda>(r,s).(Suc n)*(Suc n)-r*r"])
+        apply(subst whileLoopE_add_inv [where I = "is_prime_inv n"
+                                        and M = "\<lambda>(r, s).(Suc n) * (Suc n) - r * r"])
         using * by (wp, auto)
     qed
 qed

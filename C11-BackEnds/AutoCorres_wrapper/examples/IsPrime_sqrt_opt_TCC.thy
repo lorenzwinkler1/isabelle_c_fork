@@ -33,7 +33,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(* For the original C-source:
+(* For the C - example:
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -55,10 +55,13 @@ Note that the opposite style that we call TEC (\<^emph>\<open>Theory embedded-in
 supported by Isabelle/C. In TEC style, Programs become a kind of ``proof-carrying (high-level) code''.
 Exports of the C-sources will contain their theory (not only their annotations) as comments
 \<^emph>\<open>inside\<close> which might be also useful in certification as well as advanced  
-``proof-carrying code'' securization schemes of server platforms.  \<close>
+``proof-carrying code'' securization schemes of server platforms. 
+
+Of course, since developments can mix C code and HOL developments in an arbitrary manner,
+these two style have to be thought of as extremes in a continuum. \<close>
 
 
-theory IsPrime_sqrt_opt_CCT
+theory IsPrime_sqrt_opt_TCC
 imports
   Isabelle_C_AutoCorres.AutoCorres_Wrapper
   "HOL-Computational_Algebra.Primes"
@@ -87,8 +90,7 @@ algorithmic side.
 
 
 
-definition
-  "partial_prime p (n :: nat) \<equiv>  (1 < p \<and> (\<forall>i \<in> {2 ..< min p n}. \<not> i dvd p))"
+definition "partial_prime p (n :: nat) \<equiv>  (1 < p \<and> (\<forall>i \<in> {2 ..< min p n}. \<not> i dvd p))"
 
 lemma partial_prime_ge [simp]:
      "\<lbrakk> p' \<ge> p \<rbrakk> \<Longrightarrow> partial_prime p p' = prime p"
@@ -171,6 +173,7 @@ lemma three_and_divides : "prime (p::nat) \<Longrightarrow> 3 < p \<Longrightarr
 section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
 
 text \<open>The invocation of AutoCorres:\<close>
+
 declare [[AutoCorres]]
 
 text \<open>Setup of AutoCorres for semantically representing this C element:\<close>
@@ -222,6 +225,7 @@ text\<open>The following definitions are key importance: they represent the C pr
 thm is_prime_global_addresses.is_prime_body_def
 thm is_prime.is_prime'_def   
 thm SQRT_UINT_MAX_def
+
 text\<open>Note that the pre-processor macro has been converted into a definition in HOL.\<close>
 
 

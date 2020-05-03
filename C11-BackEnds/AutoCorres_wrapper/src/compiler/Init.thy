@@ -688,6 +688,15 @@ fun command cmd scan0 scan f =
 fun command' cmd scan f =
        C_Annotation.command' cmd "" (bind scan f)
 
+fun command'' cmd _ _ _ =
+  command' cmd
+           (C_Token.syntax' (Parse.token Parse.term))
+           (fn src => fn _ => fn context =>
+             ML_Context.exec
+               (tap (fn _ => Syntax.read_term (Context.proof_of context)
+                                              (Token.inner_syntax_of src)))
+               context)
+
 fun inv_measure b src _ gthy =
   let val l = length (C_Module.Data_In_Source.get gthy)
   in C_Module'.Data_Annot.map (Inttab.map_default (l, []) (cons (b, src))) gthy end
@@ -722,8 +731,8 @@ val _ = Theory.setup ((* 1 '@' *)
                       #> command ("OWNED_BY", \<^here>) scan_opt_colon scan_ident Owned_by
 
                       (* misc. *)
-                      #> command ("REQUIRES", \<^here>) scan_opt_colon C_Parse.term Precond
-                      #> command ("ENSURES", \<^here>) scan_opt_colon C_Parse.term Postcond);
+                      #> command'' ("requires", \<^here>) scan_opt_colon C_Parse.term Precond
+                      #> command'' ("ensures", \<^here>) scan_opt_colon C_Parse.term Postcond);
 end
 \<close>
 

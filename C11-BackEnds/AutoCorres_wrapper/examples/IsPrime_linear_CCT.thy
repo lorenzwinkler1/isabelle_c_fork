@@ -74,16 +74,18 @@ begin
 
 C \<open>
    //  The invocation of AutoCorres:
-   //@ #declare [[AutoCorres]]
+   //@ declare [[AutoCorres]]
    
    #define SQRT_UINT_MAX 65536
-   /* We prove locally some facts on this C preprocessor macro, 
-      which is internally converted into an Isabelle/HOL definition: */
+   /* We prove locally some facts on the above C preprocessor macro, 
+      which was internally converted into an Isabelle/HOL \<^theory_text>\<open>definition\<close>: */
    /*@
-   lemma uint_max_factor [simp]:
-     "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
+   lemma uint_max_factor [simp]: \<open>UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1\<close>
      by (clarsimp simp: UINT_MAX_def SQRT_UINT_MAX_def)
-    */   
+    */
+   
+   
+   /* in the sequel, we give the definitions and theory relevant for the statement of the invariant */
    
    /*@
    definition "partial_prime p (n :: nat) \<equiv>  
@@ -256,7 +258,9 @@ C \<open>
        /* No factors. */
        return 1;
    }
-   /*@ (* original NICTA proof *)
+   /*@
+
+   (* original NICTA proof *)
    
    theorem (in is_prime) is_prime_faster_correct:
      notes times_nat.simps(2) [simp del] mult_Suc_right [simp del]
