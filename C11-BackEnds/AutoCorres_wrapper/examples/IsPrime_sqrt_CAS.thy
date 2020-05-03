@@ -379,5 +379,22 @@ theorem is_prime_correct'''':
 
 end
 
+(* experimental *)
+ML\<open> fun annotate_loops ([], trm) = ([], trm)
+       |annotate_loops ((inv,mes)::S, Const(@{const_name "NonDetMonad.whileLoop"}, ty) $ cond $ body) =
+            let val (S', cond') = annotate_loops (S, cond)
+                val (S'', body') = annotate_loops (S', body)
+                val inv' = inv (* naive typing ! ! !*)
+                val mes' = mes (* naive typing ! ! !*)
+            in  (S'', Const(@{const_name "whileLoop_inv"}, ty) $ cond' $ body' $ inv' $ mes') end
+       |annotate_loops ((inv,mes)::S, Const(@{const_name "NonDetMonad.whileLoopE"}, ty) $ cond $ body) =
+            let val (S', cond') = annotate_loops (S, cond)
+                val (S'', body') = annotate_loops (S', body)
+                val inv' = inv (* naive typing ! ! !*)
+                val mes' = mes (* naive typing ! ! !*)
+            in  (S'',Const(@{const_name "whileLoopE_inv"}, ty) $ cond' $ body' $ inv' $ mes') end 
+\<close>
+
+
 
 end

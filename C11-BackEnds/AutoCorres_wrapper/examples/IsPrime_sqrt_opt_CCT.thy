@@ -200,7 +200,7 @@ unsigned int is_prime(unsigned int n)
     /* Find the first non-trivial factor of 'n' or sqrt(UINT_MAX), whichever comes first. */
     /* Find the first non-trivial factor of 'n' less than sqrt(n). */
 
-    for (unsigned i = 3; i <= SQRT_UINT_MAX - 2 && i * i <= n; i+=2) {
+    for (unsigned i = 3; i < SQRT_UINT_MAX - 1 && i * i <= n; i+=2) {
         if (n % i == 0)
             return 0; 
     }
@@ -230,10 +230,52 @@ text\<open>This section contains the auxilliary definitions and lemmas for the
      final correctness proof; in particular, the loop invariant is stated here.\<close>
 
 definition is_prime_inv
-  where [simp]: "is_prime_inv n i s \<equiv> (8 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX \<and>
-                                         i * i \<le> UINT_MAX + 1\<and>
-                                       \<not> 2 dvd i \<and>  partial_prime n i)"
+  where [simp]: "is_prime_inv n i s \<equiv> (2 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX - 1 \<and>
+                                         i * i \<le> n \<and>
+                                         odd i \<and>  partial_prime n i)"
 
+
+lemma "\<not> 2 dvd i = (i mod 2 = (1::nat))"
+  using odd_iff_mod_2_eq_one by blast
+
+
+lemma inv_preserved0: "is_prime_inv n i s \<Longrightarrow> \<not> i dvd n \<Longrightarrow> partial_prime n (Suc(Suc i))"
+  unfolding  is_prime_inv_def partial_prime_def
+(* sledgehammer finds proofs, reconstructions fail *)
+proof(simp, elim conjE)
+  fix i :: nat
+  assume 1: "odd i"
+  and    2: "i \<le> n"
+  and    3: "2 < i"
+  and    6: "\<forall>i\<in>{2..<min n i}. \<not> i dvd n"
+  and    7 :"\<not> i dvd n"
+  have   *: "even(Suc i)" by(simp add:1)
+  have  **: "\<forall>i\<in>{2..<i}. \<not> i dvd n"  by (simp add: "2" "6")
+  show "\<forall>i\<in>{2..<min n (Suc(Suc i))}. \<not> i dvd n"
+  proof (rule ballI, simp, elim conjE) 
+    fix j :: nat
+    assume 8:"j < (Suc(Suc i))"
+    and 9 :"2 \<le> j"
+    have *** : "j < i \<or> j = i \<or> j = Suc i"  
+      using "8" less_antisym by blast    
+    show "\<not> (j dvd n)" 
+    proof(insert ***, elim disjE)
+      assume "j < i" show "\<not> j dvd n" 
+        by (simp add: "**" "9" \<open>j < i\<close>)
+    next
+      assume "j = i" show "\<not> j dvd n"
+        by (simp add: "7" \<open>j = i\<close>)
+    next
+      assume "j = Suc i" show "\<not> j dvd n"
+        by (metis "*" "**" "3" Suc_1 \<open>j = Suc i\<close> atLeastLessThan_iff dvd_trans less_or_eq_imp_le 
+                  less_trans_Suc one_less_numeral_iff semiring_norm(76))
+    qed
+  qed
+qed
+
+
+
+  
 lemma uint_max_factor [simp]:  "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
   by (clarsimp simp: UINT_MAX_def SQRT_UINT_MAX_def)
 
@@ -269,30 +311,19 @@ lemma sqr_bla :
   "Suc (Suc (Suc (Suc (r + (r + (r + (r + r * r))))))) = Suc(Suc r)*Suc(Suc r)"
   by simp
 
+lemma aux95 : "r * r \<le> SQRT_UINT_MAX * SQRT_UINT_MAX - Suc 0 \<Longrightarrow> r < SQRT_UINT_MAX"
+  by (metis SQRT_UINT_MAX_def rel_simps(76) sqr_le_sqr_minus_1)
+
+lemma aux96 :  "r < SQRT_UINT_MAX - (1::nat) \<Longrightarrow> r \<le> 65534"
+  unfolding SQRT_UINT_MAX_def by simp
+
 section\<open>The Correctness Proof \<close>
 
 text\<open>Note that the proof \<^emph>\<open>injects\<close> the loop invariant at the point where the proof
      treats the loop.\<close>
 
-(*
-theorem (in is_prime) is_prime_faster_correct:
-  notes times_nat.simps(2) [simp del] mult_Suc_right [simp del]
-  shows "\<lbrace> \<lambda>s. n \<le> UINT_MAX \<rbrace> is_prime' n \<lbrace> \<lambda>r s. (r \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
-  apply (rule validNF_assume_pre)
-  apply (case_tac "n = 0")
-   apply (clarsimp simp: is_prime'_def, wp, simp)[1]
-  apply (case_tac "n = 1")
-   apply (clarsimp simp: is_prime'_def, wp, simp)[1]
-  apply (unfold is_prime'_def dvd_eq_mod_eq_0 [symmetric] SQRT_UINT_MAX_def [symmetric])
-  apply (subst whileLoopE_add_inv [  where I = "\<lambda>r s. is_prime_inv n r s"
-                                       and M = "(\<lambda>(r, s). (Suc n) * (Suc n) - r * r)"])
-   apply wp
-    apply clarsimp
-    apply (metis One_nat_def Suc_leI Suc_lessD order_leE prime_dvd leD mult_le_mono n_less_n_mult_m)
-   apply (fastforce elim: order_leE simp: partial_prime_sqr)   
-  apply (clarsimp simp: SQRT_UINT_MAX_def)
-  done
-*)
+ 
+
 
 
 theorem (in is_prime) is_prime_correct':
@@ -345,66 +376,99 @@ proof (rule validNF_assume_pre)
         next
           case False
           then show ?thesis
-           apply (unfold is_prime'_def dvd_eq_mod_eq_0 [symmetric] SQRT_UINT_MAX_def [symmetric], insert 1 * **)
-           text\<open>... and here happens the annotation with the invariant:
-                by instancing @{thm whileLoopE_add_inv}.
-                One can say that the while loop is spiced up with the
-                invariant and the measure by a rewrite step. \<close>
-           apply (subst whileLoopE_add_inv [  where I = "\<lambda>r s. is_prime_inv n r s"
-                                              and M = "(\<lambda>(r, s). (Suc n) * (Suc n) - r * r)"])
-           apply wp
-              apply(clarsimp, intro conjI) 
-           apply (metis "*" Nat.diff_diff_eq bigger_prime diff_diff_cancel diff_self_eq_0 diff_zero dvd_1_left le_square nat_dvd_not_less nat_le_Suc_less not_numeral_le_zero numeral_1_eq_Suc_0 prime_gt_0_nat prime_nat_iff prime_nat_not_dvd prime_product zero_diff zero_less_numeral)
-              apply(clarsimp, intro conjI) 
-           apply (metis "**" All_less_Suc Suc_le_eq dvd_refl even_Suc le_less_Suc_eq less_Suc_eq less_zeroE linorder_neqE_nat nat_mult_dvd_cancel_disj sqr_less_mono)
-           apply(simp add: SQRT_UINT_MAX_def)
-                 apply(subst sqr_bla)
-           apply(subst sqr_le_mono,simp add: SQRT_UINT_MAX_def) 
-                apply auto[1]
-               prefer 3 apply clarsimp
-           apply(erule HOL.impCE')
-           apply (simp add: partial_prime_sqr)
-
-(*
-              apply (wp,auto simp: prime_dvd partial_prime_sqr)
-               apply (metis "**" Ex_less_Suc dvd_refl even_Suc le_Suc_eq le_antisym le_refl le_trans 
-                                 nat_mult_dvd_cancel_disj not_less_eq_eq not_less_zero)
-*)
-(*
-              apply (smt SQRT_UINT_MAX_def Suc_numeral add.commute diff_add_inverse diff_diff_left 
-                         diff_is_0_eq eval_nat_numeral(3) even_numeral le_add_diff_inverse 
-                         nat_le_Suc_less_imp not_le plus_1_eq_Suc semiring_norm(2) semiring_norm(8))
-             prefer 2
-             apply(drule Orderings.linorder_class.leI[THEN Orderings.order_class.le_imp_less_or_eq])
-           apply(safe)
-              apply (simp add: SQRT_UINT_MAX_def) 
-           apply(subst (asm)  IsPrime_sqrt2_outside.partial_prime_sqr)
-                     sledgehammer
-   
-           find_theorems "partial_prime"
-           sledgehammer
-
-              apply (metis Suc_lessD dvdI le_def less_trans_Suc n_less_m_mult_n nat_neq_iff)
-           prefer 4     
-           sledgehammer
-                 apply (metis One_nat_def atLeastLessThan_iff le_neq_implies_less less_trans_Suc 
-                              not_less_eq numeral_2_eq_2 numeral_eqs(3) prime_nat_iff')
-           prefer 6 
-                apply (simp add: prime_nat_iff')
-           prefer 4 
-           apply (simp add: le_def partial_prime_sqr) sledgehammer
-           prefer 4 apply auto
-*)
-(*
-           sledgehammer
-               using not_less_eq_eq apply force
-              apply (metis Suc_leI add_Suc mult_Suc mult_Suc_right mult_le_mono)
-             apply (metis SQRT_UINT_MAX_def mult_Suc_right plus_nat.simps(2) rel_simps(76) 
-                          sqr_le_sqr_minus_1 times_nat.simps(2))
-           apply (simp_all add: SQRT_UINT_MAX_def)
-           sorry
+            apply (unfold is_prime'_def dvd_eq_mod_eq_0 [symmetric] SQRT_UINT_MAX_def [symmetric], 
+                   insert 1 * **)
+            text\<open>... and here happens the annotation with the invariant:
+                 by instancing @{thm whileLoopE_add_inv}.
+                 One can say that the while loop is spiced up with the
+                 invariant and the measure by a rewrite step. \<close>
+            apply (subst whileLoopE_add_inv 
+                         [  where I = "\<lambda>r s. is_prime_inv n r s"
+                            and   M = "\<lambda>(r, s). (Suc n) * (Suc n) - r * r"])
+         proof (wp,clarsimp, intro conjI) (* split proof obligations *)
+           text\<open>prelude-condition: returns false for even n and 3 dvd n respect inv\<close>   
+           assume 2: "\<not> 3 dvd n "
+              and  3: "odd n"
+              and  4: "8 < n"
+           show "\<lbrace>\<lambda>s. is_prime_inv n 3 s\<rbrace> return (even n \<or> 3 dvd n) 
+                 \<lbrace>\<lambda>ret s.  if ret then (0 \<noteq> 0) = prime n
+                           else if n < 9 then (1 \<noteq> 0) = prime n 
+                                else is_prime_inv n 3 s\<rbrace>!"
+             apply(wp) using 1 2 3 4 by auto
+         next
+           text\<open>Invariant initially true\<close>
+           fix s::lifted_globals
+           assume 2: "\<not> 3 dvd n "
+             and  3: "odd n"
+             and  4: "8 < n"
+           show "if n < 2 then (0 \<noteq> 0) = prime n
+                 else if n < 4 then (1 \<noteq> 0) = prime n 
+                      else is_prime_inv n 3 s"
+             using 1 2 3 4 apply(simp del:is_prime_inv_def)
+             unfolding is_prime_inv_def SQRT_UINT_MAX_def UINT_MAX_def
+             apply(simp add: UINT_MAX_def)
+             unfolding partial_prime_def
+             apply auto
+             by(case_tac "i=2", auto) 
+         next
+           text\<open>Case : Exit loop since divisor found\<close>
+           fix r 
+           assume 1 : "2 < r"  and 2 : " r * r \<le> n"
+           show       "r dvd n \<longrightarrow> \<not> prime n"
+             using "1" "2" prime_dvd by auto
+         next
+           text\<open>All sorts of boundary conditions at the end\<close>
+           fix r
+           assume "\<not> 3 dvd n "
+             and "odd n"
+             and "2 < r"
+             and "n \<le> SQRT_UINT_MAX * SQRT_UINT_MAX - Suc 0 "
+             and "r \<le> n"
+             and "r \<le> SQRT_UINT_MAX - Suc 0"
+             and "r < 65535"
+             and "partial_prime n r"
+             and "r * r \<le> n"
+           show "\<not> r dvd n \<longrightarrow>
+                     Suc (Suc r) \<le> n \<and>
+                     Suc (Suc r) \<le> SQRT_UINT_MAX - Suc 0 \<and>
+                     Suc (Suc (Suc (Suc (r + (r + (r + (r + r * r))))))) \<le> n \<and>
+                     (Suc (Suc r) < n \<longrightarrow> \<not> Suc r dvd n) \<and>
+                     n + (n + n * n) - Suc (Suc (Suc (r + (r + (r + (r + r * r))))))
+                     < Suc (n + (n + n * n)) - r * r \<and>
+                     (r < 65533 \<longrightarrow>
+                      Suc (Suc (Suc (Suc (r + (r + (r + (r + r * r)))))))
+                      \<le> SQRT_UINT_MAX * SQRT_UINT_MAX - Suc 0)"
+             apply(auto)
+             apply (metis Suc_lessI \<open>2 < r\<close> \<open>r * r \<le> n\<close> \<open>r \<le> n\<close> dvdI eq_iff gr_implies_not0 le_square mult_eq_self_implies_10 order.order_iff_strict unit_imp_dvd) 
+             sorry
+         next
+           text\<open>Invariant finally established post-condition. Nontrivial.\<close>
+           fix r::nat and s::lifted_globals
+           assume 2: "\<not> 3 dvd n "
+              and  3: "odd n"
+             and  4: "8 < n"
+             and  5: "is_prime_inv n r s "
+             and  6: "\<not> (r < 65535 \<and> r * r \<le> n) "
+           have **: "r * r > n  \<or> r \<ge> 65535 " 
+             using "6" le_def by blast
+           have ***: "partial_prime n r" 
+             using "5" by auto
+           have ****: "partial_prime n 65535 \<Longrightarrow> partial_prime n SQRT_UINT_MAX" sorry
+           have ***** : "Suc 65535 = SQRT_UINT_MAX" unfolding SQRT_UINT_MAX_def by simp
+           show "(1 \<noteq> (0::nat)) = prime n" 
+             apply(simp,insert **, erule disjE)
+             using "5" partial_prime_sqr apply auto[1]
+             apply(insert 1 ***,case_tac "r = 65535", auto)
+             using "****" aux95 nat_le_Suc_less partial_prime_sqr apply auto[1]
+             apply(subst (asm) Nat.le_eq_less_or_eq, auto)
+             apply(subst (asm) Nat.less_eq_Suc_le)
+             apply(subst (asm) *****)
+             by (meson aux95 le_trans not_less partial_prime_sqr)
+         qed
+        qed
+      qed
     qed
- *)
-           oops
+qed
+
 
 end
