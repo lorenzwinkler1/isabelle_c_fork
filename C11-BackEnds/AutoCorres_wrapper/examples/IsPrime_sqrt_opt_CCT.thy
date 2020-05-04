@@ -229,10 +229,11 @@ section\<open>Preliminaries of the Proof\<close>
 text\<open>This section contains the auxilliary definitions and lemmas for the 
      final correctness proof; in particular, the loop invariant is stated here.\<close>
 
+
+
 definition is_prime_inv
-  where [simp]: "is_prime_inv n i s \<equiv> (2 < i \<and> i \<le> n \<and> i \<le> SQRT_UINT_MAX - 1 \<and>
-                                         i * i \<le> n \<and>
-                                         odd i \<and>  partial_prime n i)"
+  where [simp]: "is_prime_inv n i s \<equiv> (2 < i \<and> i \<le> SQRT_UINT_MAX - 1 \<and>
+                                       i * i \<le> n \<and> odd i \<and>  partial_prime n i)"
 
 
 lemma "\<not> 2 dvd i = (i mod 2 = (1::nat))"
@@ -245,12 +246,13 @@ lemma inv_preserved0: "is_prime_inv n i s \<Longrightarrow> \<not> i dvd n \<Lon
 proof(simp, elim conjE)
   fix i :: nat
   assume 1: "odd i"
-  and    2: "i \<le> n"
+  and    2 :"i * i \<le> n"
   and    3: "2 < i"
   and    6: "\<forall>i\<in>{2..<min n i}. \<not> i dvd n"
   and    7 :"\<not> i dvd n"
   have   *: "even(Suc i)" by(simp add:1)
-  have  **: "\<forall>i\<in>{2..<i}. \<not> i dvd n"  by (simp add: "2" "6")
+  have  **: "\<forall>i\<in>{2..<i}. \<not> i dvd n" 
+    by (metis "2" "6" le_square min.bounded_iff nat_min_simps(1))
   show "\<forall>i\<in>{2..<min n (Suc(Suc i))}. \<not> i dvd n"
   proof (rule ballI, simp, elim conjE) 
     fix j :: nat
@@ -427,29 +429,28 @@ proof (rule validNF_assume_pre)
              using "1" "2" prime_dvd by auto
          next
            text\<open>All sorts of boundary conditions at the end\<close>
-           fix r
+           fix r::nat
            assume "\<not> 3 dvd n "
              and "odd n"
              and "2 < r"
              and "n \<le> SQRT_UINT_MAX * SQRT_UINT_MAX - Suc 0 "
-             and "r \<le> n"
              and "r \<le> SQRT_UINT_MAX - Suc 0"
              and "r < 65535"
              and "partial_prime n r"
              and "r * r \<le> n"
+           have ** : "r \<le> n"   
+             using \<open>r * r \<le> n\<close> le_square order.trans by blast
            show "\<not> r dvd n \<longrightarrow>
-                     Suc (Suc r) \<le> n \<and>
-                     Suc (Suc r) \<le> SQRT_UINT_MAX - Suc 0 \<and>
-                     Suc (Suc (Suc (Suc (r + (r + (r + (r + r * r))))))) \<le> n \<and>
-                     (Suc (Suc r) < n \<longrightarrow> \<not> Suc r dvd n) \<and>
-                     n + (n + n * n) - Suc (Suc (Suc (r + (r + (r + (r + r * r))))))
-                     < Suc (n + (n + n * n)) - r * r \<and>
-                     (r < 65533 \<longrightarrow>
-                      Suc (Suc (Suc (Suc (r + (r + (r + (r + r * r)))))))
-                      \<le> SQRT_UINT_MAX * SQRT_UINT_MAX - Suc 0)"
+         Suc (Suc r) \<le> SQRT_UINT_MAX - Suc 0 \<and>
+         Suc (Suc (Suc (Suc (r + (r + (r + (r + r * r))))))) \<le> n \<and>
+         (Suc (Suc r) < n \<longrightarrow> \<not> Suc r dvd n) \<and>
+         n + (n + n * n) - Suc (Suc (Suc (r + (r + (r + (r + r * r))))))
+         < Suc (n + (n + n * n)) - r * r \<and>
+         (r < 65533 \<longrightarrow>
+          Suc (Suc (Suc (Suc (r + (r + (r + (r + r * r)))))))
+          \<le> SQRT_UINT_MAX * SQRT_UINT_MAX - Suc 0)"
              unfolding SQRT_UINT_MAX_def
              apply(auto)
-             apply (metis Suc_lessI \<open>2 < r\<close> \<open>r * r \<le> n\<close> \<open>r \<le> n\<close> dvdI eq_iff gr_implies_not0 le_square mult_eq_self_implies_10 order.order_iff_strict unit_imp_dvd) 
              sorry
          next
            text\<open>Invariant finally established post-condition. Nontrivial.\<close>
