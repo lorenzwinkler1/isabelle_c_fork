@@ -317,6 +317,15 @@ lemma aux95 : "r * r \<le> SQRT_UINT_MAX * SQRT_UINT_MAX - Suc 0 \<Longrightarro
 lemma aux96 :  "r < SQRT_UINT_MAX - (1::nat) \<Longrightarrow> r \<le> 65534"
   unfolding SQRT_UINT_MAX_def by simp
 
+lemma aux97 : "even 65534" by simp
+lemma aux98 : "(13::nat) dvd 65533" by simp
+lemma aux99 : "even 65532" by simp
+lemma aux100 : "(19::nat) dvd 65531" by simp
+lemma aux101 : "even 65530" by simp
+lemma aux102 : "(3::nat) dvd 65529" by simp
+lemma aux104 : "(7::nat) dvd 65527" by simp
+lemma aux106 : "(3::nat) dvd 65523" by simp
+(*  65521 is prime. Largest prime number smaller SQRT_UINT_MAX. *)
 section\<open>The Correctness Proof \<close>
 
 text\<open>Note that the proof \<^emph>\<open>injects\<close> the loop invariant at the point where the proof
@@ -438,6 +447,7 @@ proof (rule validNF_assume_pre)
                      (r < 65533 \<longrightarrow>
                       Suc (Suc (Suc (Suc (r + (r + (r + (r + r * r)))))))
                       \<le> SQRT_UINT_MAX * SQRT_UINT_MAX - Suc 0)"
+             unfolding SQRT_UINT_MAX_def
              apply(auto)
              apply (metis Suc_lessI \<open>2 < r\<close> \<open>r * r \<le> n\<close> \<open>r \<le> n\<close> dvdI eq_iff gr_implies_not0 le_square mult_eq_self_implies_10 order.order_iff_strict unit_imp_dvd) 
              sorry
@@ -453,7 +463,14 @@ proof (rule validNF_assume_pre)
              using "6" le_def by blast
            have ***: "partial_prime n r" 
              using "5" by auto
-           have ****: "partial_prime n 65535 \<Longrightarrow> partial_prime n SQRT_UINT_MAX" sorry
+           have ****: "partial_prime n 65535 \<Longrightarrow> partial_prime n SQRT_UINT_MAX" 
+             apply(rule subst[of "Suc 65535" "SQRT_UINT_MAX"])
+              apply(simp add: SQRT_UINT_MAX_def)
+             apply(subst partial_prime_Suc,simp) 
+             unfolding partial_prime_def  
+             apply auto
+             by (smt "5" "6" False One_nat_def SQRT_UINT_MAX_def Suc_le_mono Suc_numeral dvd_trans 
+                     is_prime_inv_def le_less_Suc_eq nat_le_Suc_less not_less semiring_norm(2) semiring_norm(8) uint_max_factor_min1_dvd3 zero_less_numeral)
            have ***** : "Suc 65535 = SQRT_UINT_MAX" unfolding SQRT_UINT_MAX_def by simp
            show "(1 \<noteq> (0::nat)) = prime n" 
              apply(simp,insert **, erule disjE)
