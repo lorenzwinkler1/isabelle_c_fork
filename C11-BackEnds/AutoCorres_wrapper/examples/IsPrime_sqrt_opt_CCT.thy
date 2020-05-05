@@ -125,26 +125,6 @@ lemma sqrt_prime:
            mult_eq_self_implies_10 not_less)
   done
 
-(*
-lemma partial_prime_sqr:
-     "\<lbrakk> n * n > p \<rbrakk> \<Longrightarrow> partial_prime p n = prime p" 
-  apply (case_tac "n \<ge> p")
-   apply clarsimp
-  apply (case_tac "partial_prime p n")
-   apply clarsimp
-   apply (erule sqrt_prime)
-    apply (clarsimp simp: partial_prime_def)
-    apply (case_tac "x = 0", simp)
-    apply (case_tac "x = 1", simp)
-    apply (frule_tac x=x in bspec)
-     apply (clarsimp simp: min_def)
-    apply clarsimp
-   apply (clarsimp simp: not_le partial_prime_def)
-  apply (case_tac "p = 0", simp)
-  apply (case_tac "p = 1", simp)
-  apply (auto simp: not_le partial_prime_def min_def prime_nat_iff')
-  done
-*)
 
 lemma partial_prime_sqr:
      " n * n > p  \<Longrightarrow> partial_prime p n = prime p" 
