@@ -1,7 +1,7 @@
 (******************************************************************************
  * Isabelle/C/AutoCorres
  *
- * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Copyright (c) 2019-2020 Université Paris-Saclay, Univ. Paris-Sud, France
  *
  * All rights reserved.
  *
@@ -33,29 +33,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(* For the original C-source:
- * Copyright 2014, NICTA
- *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- *)
 
-chapter \<open>Example: A Sqrt Prime Sample Proof\<close>
+chapter \<open>Example: A slightly optimized Sqrt Prime Sample Proof\<close>
 
 text\<open>This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
-the theory development of the background theory as well as the program annotations completely 
+the theory development of the background theory as well as the program spec completely 
 \<^emph>\<open>outside\<close> the C source. This particular development style that keeps the program
-separate from its theory we call CET (\<^emph>\<open>Code embedded-in Theory\<close>). It has the 
+separate from its theory we call TCC (\<^emph>\<open>Theory carrying Code\<close>). It has the 
 advantage that developers of development and verification teams can be separated,
 as is required by many certification standards.
-Note that the opposite style that we call TEC (\<^emph>\<open>Theory embedded-in Code\<close>) is also 
-supported by Isabelle/C. In TEC style, Programs become a kind of ``proof-carrying (high-level) code''.
-Exports of the C-sources will contain their theory (not only their annotations) as comments
-\<^emph>\<open>inside\<close> which might be also useful in certification as well as advanced  
-``proof-carrying code'' securization schemes of server platforms.  \<close>
+Note that the opposite style that we call CCT (\<^emph>\<open>Code cazrrying Theories\<close>) is also 
+supported by Isabelle/C.  \<close>
 
 
 theory IsPrime_sqrt_opt_CCT
@@ -66,6 +54,7 @@ begin
 \<comment> \<open>Derived from: \<^file>\<open>../../../src_ext/l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
 section\<open>The Theory of the \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
+
 text\<open>This section develops basic concepts of the invariant. This bit is presented here \<^emph>\<open>before\<close>
 the actual code, but could also be after or even inside the \<^theory_text>\<open>C\<close> command as comment-annotation of 
 the source.\<close>
@@ -79,13 +68,17 @@ algorithmic side.
 \<^enum> From the algorithmic side: the (small) amount of number theory required by
   this exercise makes it impossible for automated provers to establish the result
   without additional nonlinear axioms, i.e. the background theory is non-trivial.
-  In our example, everything is proven, the TCB of this verification resides
-  only on:
+  In our example, everything is proven, the trust of this verification only relies
+  on:
   \<^item> The logical consistency of HOL and its correct implementation in Isabelle/HOL, and
   \<^item> that the assumptions of AutoCorres wrt. to the underlying C-semantics
-    are valid. \<close>
+    are valid, in an ARM processor model. 
 
+The main optimisation compared to the theory \<^verbatim>\<open>IsPrime_sqrt\<close> is that in a reasonably
+large interval, it suffices to check only for odd divisors smaller the integer
+squareroot of \<open>n\<close>.\<close>
 
+section\<open>Background\<close>
 
 definition
   "partial_prime p (n :: nat) \<equiv>  (1 < p \<and> (\<forall>i \<in> {2 ..< min p n}. \<not> i dvd p))"
@@ -132,7 +125,7 @@ lemma sqrt_prime:
            mult_eq_self_implies_10 not_less)
   done
 
-
+(*
 lemma partial_prime_sqr:
      "\<lbrakk> n * n > p \<rbrakk> \<Longrightarrow> partial_prime p n = prime p" 
   apply (case_tac "n \<ge> p")
@@ -151,6 +144,30 @@ lemma partial_prime_sqr:
   apply (case_tac "p = 1", simp)
   apply (auto simp: not_le partial_prime_def min_def prime_nat_iff')
   done
+*)
+
+lemma partial_prime_sqr:
+     " n * n > p  \<Longrightarrow> partial_prime p n = prime p" 
+proof (cases "n \<ge> p")
+  case True
+  then show "p < n * n \<Longrightarrow> p \<le> n \<Longrightarrow> partial_prime p n = prime p" by clarsimp
+next
+  case False
+  assume 1 : "p < n * n" and 2 : "\<not> p \<le> n"
+  show "partial_prime p n = prime p"
+  proof(cases "partial_prime p n")
+    case True
+    then show ?thesis apply(clarsimp, insert 1)   apply (erule sqrt_prime)
+    apply (clarsimp simp: partial_prime_def)
+     apply (metis False One_nat_def Suc_1 atLeastLessThan_iff dvd_1_left dvd_pos_nat le_def 
+                    less_Suc_eq min.commute min.strict_order_iff not_less_eq)
+      by(metis  One_nat_def   True  partial_prime_def)
+  next
+    case False
+    then show ?thesis apply(clarsimp) 
+      using partial_prime_def prime_nat_iff' by auto
+  qed
+qed
 
 lemma prime_dvd:
     "\<lbrakk> prime (p::nat) \<rbrakk> \<Longrightarrow> (r dvd p) = (r = 1 \<or> r = p)"
@@ -225,17 +242,11 @@ thm SQRT_UINT_MAX_def
 text\<open>Note that the pre-processor macro has been converted into a definition in HOL.\<close>
 
 
-section\<open>Preliminaries of the Proof\<close>
+section\<open>The Specification and Some Corrollaries\<close>
 text\<open>This section contains the auxilliary definitions and lemmas for the 
      final correctness proof; in particular, the loop invariant is stated here.\<close>
 
 
-(*
-definition is_prime_inv
-  where [simp]: "is_prime_inv n i s \<equiv> (2 < i \<and> odd i \<and> 
-                                       i \<le> SQRT_UINT_MAX + 1 \<and> i * i \<le> n \<and>   
-                                       partial_prime n i)"
-*)
 definition is_prime_inv
   where [simp]: "is_prime_inv n i s \<equiv> (2 < i \<and> odd i \<and> 
                                        i \<le> SQRT_UINT_MAX + 1 \<and> i < n \<and>   
@@ -334,13 +345,12 @@ lemma aux102 : "(3::nat) dvd 65529" by simp
 lemma aux104 : "(7::nat) dvd 65527" by simp
 lemma aux106 : "(3::nat) dvd 65523" by simp
 (*  65521 is prime. Largest prime number smaller SQRT_UINT_MAX. *)
+
+
 section\<open>The Correctness Proof \<close>
 
 text\<open>Note that the proof \<^emph>\<open>injects\<close> the loop invariant at the point where the proof
      treats the loop.\<close>
-
- 
-
 
 
 theorem (in is_prime) is_prime_correct':
