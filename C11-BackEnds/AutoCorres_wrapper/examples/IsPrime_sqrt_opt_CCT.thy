@@ -230,10 +230,16 @@ text\<open>This section contains the auxilliary definitions and lemmas for the
      final correctness proof; in particular, the loop invariant is stated here.\<close>
 
 
-
+(*
 definition is_prime_inv
-  where [simp]: "is_prime_inv n i s \<equiv> (2 < i \<and> i \<le> SQRT_UINT_MAX - 1 \<and>
-                                       i * i \<le> n \<and> odd i \<and>  partial_prime n i)"
+  where [simp]: "is_prime_inv n i s \<equiv> (2 < i \<and> odd i \<and> 
+                                       i \<le> SQRT_UINT_MAX + 1 \<and> i * i \<le> n \<and>   
+                                       partial_prime n i)"
+*)
+definition is_prime_inv
+  where [simp]: "is_prime_inv n i s \<equiv> (2 < i \<and> odd i \<and> 
+                                       i \<le> SQRT_UINT_MAX + 1 \<and> i < n \<and>   
+                                       partial_prime n i)"
 
 
 lemma "\<not> 2 dvd i = (i mod 2 = (1::nat))"
@@ -246,13 +252,13 @@ lemma inv_preserved0: "is_prime_inv n i s \<Longrightarrow> \<not> i dvd n \<Lon
 proof(simp, elim conjE)
   fix i :: nat
   assume 1: "odd i"
-  and    2 :"i * i \<le> n"
+  and    2: "i < n"
   and    3: "2 < i"
   and    6: "\<forall>i\<in>{2..<min n i}. \<not> i dvd n"
   and    7 :"\<not> i dvd n"
   have   *: "even(Suc i)" by(simp add:1)
   have  **: "\<forall>i\<in>{2..<i}. \<not> i dvd n" 
-    by (metis "2" "6" le_square min.bounded_iff nat_min_simps(1))
+    by (simp add: "2" "6" order_le_less)
   show "\<forall>i\<in>{2..<min n (Suc(Suc i))}. \<not> i dvd n"
   proof (rule ballI, simp, elim conjE) 
     fix j :: nat
@@ -428,30 +434,48 @@ proof (rule validNF_assume_pre)
            show       "r dvd n \<longrightarrow> \<not> prime n"
              using "1" "2" prime_dvd by auto
          next
-           text\<open>All sorts of boundary conditions at the end\<close>
+           text\<open>All sorts of non-linear boundary conditions at the end\<close>
            fix r::nat
            assume "\<not> 3 dvd n "
              and "odd n"
+             and "odd r"
              and "2 < r"
-             and "n \<le> SQRT_UINT_MAX * SQRT_UINT_MAX - Suc 0 "
-             and "r \<le> SQRT_UINT_MAX - Suc 0"
+             and "n \<le> SQRT_UINT_MAX * SQRT_UINT_MAX - Suc 0"
+             and "r \<le> Suc SQRT_UINT_MAX"
              and "r < 65535"
              and "partial_prime n r"
+             and "r < n"
              and "r * r \<le> n"
-           have ** : "r \<le> n"   
-             using \<open>r * r \<le> n\<close> le_square order.trans by blast
-           show "\<not> r dvd n \<longrightarrow>
-         Suc (Suc r) \<le> SQRT_UINT_MAX - Suc 0 \<and>
-         Suc (Suc (Suc (Suc (r + (r + (r + (r + r * r))))))) \<le> n \<and>
-         (Suc (Suc r) < n \<longrightarrow> \<not> Suc r dvd n) \<and>
-         n + (n + n * n) - Suc (Suc (Suc (r + (r + (r + (r + r * r))))))
-         < Suc (n + (n + n * n)) - r * r \<and>
-         (r < 65533 \<longrightarrow>
-          Suc (Suc (Suc (Suc (r + (r + (r + (r + r * r)))))))
-          \<le> SQRT_UINT_MAX * SQRT_UINT_MAX - Suc 0)"
+           have ** : "r \<le> n" 
+             by (simp add: \<open>r < n\<close> less_or_eq_imp_le)  
+           have *** : "r \<le> 65534" 
+             using \<open>r < 65535\<close> by linarith  
+           have ****: "Suc (Suc (Suc (Suc (r + (r + (r + (r + r * r))))))) = (r+2) * (r+2)"
+             by simp
+           have ***** : "(r + (r + (r + (r + r * r))) \<le> 4294967291) = 
+                         ((r + 2) * (r + 2) \<le> SQRT_UINT_MAX * SQRT_UINT_MAX - Suc 0)"
+             by (simp add: SQRT_UINT_MAX_def)
+           have 66 : "(Suc r) dvd n \<Longrightarrow> even n" 
+             using \<open>odd r\<close> by auto
+           show "\<not> r dvd n \<longrightarrow>  Suc r \<le> SQRT_UINT_MAX \<and>
+                                Suc (Suc r) < n \<and>
+                                (Suc (Suc r) < n \<longrightarrow> \<not> Suc r dvd n) \<and>
+                                n + (n + n * n) - Suc (Suc (Suc (r + (r + (r + (r + r * r))))))
+                                < Suc (n + (n + n * n)) - r * r \<and>
+                 (r < 65533 \<longrightarrow> Suc (Suc (Suc (Suc (r + (r + (r + (r + r * r)))))))
+                                \<le> SQRT_UINT_MAX * SQRT_UINT_MAX - Suc 0)"
              unfolding SQRT_UINT_MAX_def
              apply(auto)
-             sorry
+                 using \<open>r < 65535\<close> apply linarith
+                apply (smt One_nat_def Suc_leI \<open>odd r\<close> \<open>r * r \<le> n\<close> dvdI even_Suc even_mult_iff 
+                           leD le_trans n_less_n_mult_m odd_pos order_le_less unit_imp_dvd)
+               using "66" \<open>odd n\<close> apply blast
+              apply (metis \<open>r < n\<close> diff_Suc_Suc diff_less_mono2 le_def less_Suc_eq mult_Suc_right 
+                           mult_le_mono not_less_eq_eq sqr_bla sqr_less_mono)
+             apply(subst *****)
+             by (smt SQRT_UINT_MAX_def Suc_less_eq Suc_numeral add_2_eq_Suc' less_Suc_eq rel_simps(76) 
+                     semiring_norm(2) semiring_norm(5) semiring_norm(8) sqr_le_sqr_minus_1)
+             
          next
            text\<open>Invariant finally established post-condition. Nontrivial.\<close>
            fix r::nat and s::lifted_globals
@@ -470,8 +494,7 @@ proof (rule validNF_assume_pre)
              apply(subst partial_prime_Suc,simp) 
              unfolding partial_prime_def  
              apply auto
-             by (smt "5" "6" False One_nat_def SQRT_UINT_MAX_def Suc_le_mono Suc_numeral dvd_trans 
-                     is_prime_inv_def le_less_Suc_eq nat_le_Suc_less not_less semiring_norm(2) semiring_norm(8) uint_max_factor_min1_dvd3 zero_less_numeral)
+             using False by fastforce
            have ***** : "Suc 65535 = SQRT_UINT_MAX" unfolding SQRT_UINT_MAX_def by simp
            show "(1 \<noteq> (0::nat)) = prime n" 
              apply(simp,insert **, erule disjE)

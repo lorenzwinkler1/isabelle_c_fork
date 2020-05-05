@@ -132,10 +132,9 @@ lemma sqrt_prime: "\<lbrakk> a * a > n; \<forall>x<a. (x dvd n) = (x = Suc 0 \<o
   apply (rule ccontr)
   apply (drule not_prime)
    apply clarsimp
-  apply (metis dvd_triv_right less_le_trans mult.commute mult_le_cancel2
-           One_nat_def less_eq_nat.simps(1) less_not_refl2
-           mult_eq_self_implies_10 not_less)
-  done
+  by (metis Groups.mult_ac(2) One_nat_def dvd_triv_left le_def le_simps(3) mult_eq_self_implies_10 
+            mult_le_mono order_less_imp_le)
+  
 
 lemma partial_prime_sqr[simp]: "\<lbrakk> n * n > p \<rbrakk> \<Longrightarrow> partial_prime p n = prime p"
   apply (case_tac "n \<ge> p")
