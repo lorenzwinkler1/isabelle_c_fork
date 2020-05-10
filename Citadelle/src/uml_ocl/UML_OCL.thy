@@ -44,11 +44,11 @@
  ******************************************************************************)
 
 theory   UML_OCL
-imports  "UML_Main"
-         "../examples/archive/Monads" (* NOTE: perform lazily the extraction of generation_syntax
-                                         so that dependencies can alternate among theories *)
-         "compiler/Static"
-         "compiler/Generator_dynamic_sequential"
+imports  OCL.UML_Main
+         "../../examples/archive/compiler/Monads" (* NOTE: perform lazily the extraction of generation_syntax
+                                                     so that dependencies can alternate among theories *)
+         "../compiler/Static"
+         "../compiler/Generator_dynamic_sequential"
 begin
 
 no_notation valid_SE (infix "\<Turnstile>" 15)

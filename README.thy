@@ -57,32 +57,32 @@ Isabelle AFP, or represent AFP submissions.
 section \<open>Isabelle/C\<close>
 
 text \<open>
-Isabelle/C contains a C99/C11/C18 front-end support for Isabelle. The front-end is actually 
-composed of two possibly interchangeable parsers (from two different projects):
+Isabelle/C contains a C99/C11/C18 front-end support for Isabelle. The front-end is actually composed
+of two possibly interchangeable parsers (from two different projects):
 
 \<^item> \<^dir>\<open>C11-FrontEnd\<close>: \<^url>\<open>https://hackage.haskell.org/package/language-c\<close>
 \<^item> \<^dir>\<open>C18-FrontEnd\<close>: \<^url>\<open>https://github.com/jhjourdan/C11parser\<close>
 
 At present, the recommended and default version is C11.
 
-Isabelle/C requires currently Isabelle2019 (This is mostly due to the
-restriction that a stable AutoCorres version is not yet available.)..
+Isabelle/C requires Isabelle2019. (This is following the latest version currently supported by
+AutoCorres.)
 \<close>
 
 section \<open>Getting started (for users)\<close>
-text\<open> In the sequel,  with "isabelle" we refer to your local Isabelle2019 installation.
-Change you working directory to the root of your working copy (i.e. to the directory that
-contains this README file.)
 
-\<^enum> Building Isabelle_C : 
-  \<open>isabelle build -d . -b Isabelle_C\<close>
-\<^enum> Building Isabelle_C_AutoCorres : 
-  \<open>export L4V_ARCH = ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be permanently made in \<^file>\<open>$ISABELLE_HOME_USER/etc/settings\<close>\<close>
-  \<open>isabelle build -d . -b Isabelle_C_AutoCorres\<close>
-\<^enum> Running an example: 
-  \<open>isabelle jedit -d . -l Isabelle_C_AutoCorres C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_linear_TCC.thy\<close>
+text \<open>
+In the sequel, with \<^verbatim>\<open>isabelle\<close> we refer to your local Isabelle2019
+installation, and assume your current working directory is at the root of Isabelle/C (i.e. the
+directory that contains this \<^file>\<open>README.md\<close> file).
 
-
+\<^item> Building Isabelle_C : 
+  \<^verbatim>\<open>isabelle build -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-b Isabelle_C\<close>
+\<^item> Building Isabelle_C_AutoCorres : 
+  \<^verbatim>\<open>export L4V_ARCH = ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be permanently made in \<^file>\<open>$ISABELLE_HOME_USER/etc/settings\<close>\<close>
+  \<^verbatim>\<open>isabelle build -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-b Isabelle_C_AutoCorres\<close>
+\<^item> Running an example: 
+  \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C_AutoCorres\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_linear_CCT.thy\<close>
 \<close>
 
 section \<open>Getting started (for developers)\<close>
@@ -157,7 +157,7 @@ Before using the \<^dir>\<open>C11-BackEnds/AutoCorres_wrapper\<close> back-end,
 
 \<^item> \<^verbatim>\<open>export L4V_ARCH = ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be permanently made in \<^file>\<open>$ISABELLE_HOME_USER/etc/settings\<close>\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l CParser\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/TestSEL4.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l AutoCorres\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_linear_TCC.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l AutoCorres\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_linear_CCT.thy\<close>
 \<close>
 
 text \<open>

@@ -38,7 +38,7 @@
 
 theory C_Model_core
   imports "$HASKABELLE_HOME_USER/default/Prelude"
-          FOCL.UML_Main
+          OCL.UML_Main
           Citadelle.Generator_dynamic_concurrent
           Citadelle_C_init.C_Model_init
 begin
@@ -56,7 +56,7 @@ declare [[syntax_ambiguity_warning = false]]
 
 generation_syntax [ deep
                       (THEORY Meta_C_generated)
-                      (IMPORTS ["FOCL.UML_Main", "FOCL.Static", "Citadelle_C_init.C_Model_init"]
+                      (IMPORTS ["OCL.UML_Main", "FOCL.Static", "Citadelle_C_init.C_Model_init"]
                                "Citadelle.Generator_dynamic_concurrent")
                       SECTION
                       SORRY

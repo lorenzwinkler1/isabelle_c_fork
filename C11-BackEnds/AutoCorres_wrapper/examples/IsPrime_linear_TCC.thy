@@ -52,10 +52,10 @@ separate from its theory we call TCC (\<^emph>\<open>Theories Carrying Code\<clo
 advantage that developers of development and verification teams can be separated,
 as is required by many certification standards.
 Note that the opposite style that we call CCT (\<^emph>\<open>Code-carrying Theories\<close>) is also 
-supported by Isabelle/C. In CCT style, Programs will contain their theory 
-(not only their annotations) as comments \<^emph>\<open>inside\<close> which might be also useful 
-in certification as well as advanced ``proof-carrying code'' securization 
-schemes of server platforms. 
+supported by Isabelle/C. In CCT style, Programs become a kind of ``proof-carrying (high-level) code''.
+Exports of the C-sources will contain their theory (not only their annotations) as comments
+\<^emph>\<open>inside\<close> which might be also useful in certification as well as advanced  
+``proof-carrying code'' securization schemes of server platforms. 
 
 Of course, since developments can mix C code and HOL developments in an arbitrary manner,
 these two style have to be thought of as extremes in a continuum. \<close>

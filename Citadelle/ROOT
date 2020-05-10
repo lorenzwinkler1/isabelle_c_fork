@@ -40,15 +40,15 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-session OCL in src = HOL +
+session OCL in "src/uml_main" = HOL +
   description \<open>Featherweight OCL\<close>
   options [document=pdf,document_output=document_generated,
            document_variants="annex-a=annexa,-theory,-afp,-noexample,-proof,-ML:document=afp,-annexa,-noexample:outline=-annexa,-noexample,afp,/proof,/ML",
            show_question_marks = false]
   theories
-    "../src/UML_Main"
-    "../examples/Employee_Model/Analysis/Analysis_OCL"
-    "../examples/Employee_Model/Design/Design_OCL"
+    UML_Main
+    "../../examples/Employee_Model/Analysis/Analysis_OCL"
+    "../../examples/Employee_Model/Design/Design_OCL"
   document_files
     "conclusion.tex"
     "figures/AbstractSimpleChair.pdf"
@@ -67,11 +67,14 @@ session OCL in src = HOL +
     "root.tex"
     "FOCL_Syntax.tex"
 
-session FOCL in src = "HOL-Library" +
+session FOCL in "src/uml_ocl" = "HOL-Library" +
   description \<open>Citadelle (Sequential)\<close>
   options [document=pdf,document_output=document_generated,
            document_variants="document=noexample,-afp,-annexa",
            show_question_marks = false]
+  sessions
+    OCL
+    Isabelle_Meta_Model
   theories
     UML_OCL
   document_files
@@ -92,90 +95,70 @@ session FOCL in src = "HOL-Library" +
     "root.tex"
     "FOCL_Syntax.tex"
 
-session Citadelle in src = FOCL +
+session Citadelle in "src/compiler_citadelle" = FOCL +
   description \<open>Citadelle (Concurrent)\<close>
   theories
-    "compiler/Generator_dynamic_concurrent"
-    "compiler/Generator_dynamic_export_testing"
+    Generator_dynamic_concurrent
+    Generator_dynamic_export_testing
 
-session Citadelle_C_init in src = Citadelle +
+session Citadelle_C_init in "src/compiler_citadelle_c/init" = Citadelle +
   theories
-    "../examples/C_Model_init"
+    C_Model_init
 
-session "Citadelle_C_deep-dirty" in src = Citadelle_C_init +
+session "Citadelle_C_deep-dirty" in "src/compiler_citadelle_c/doc" = Citadelle_C_init +
   options [quick_and_dirty]
   theories
-    "../doc/Meta_C_generated"
+    Meta_C_generated
 
-session "Citadelle_C_shallow-dirty" in src = Citadelle_C_init +
+session "Citadelle_C_shallow-dirty" in "src/compiler_citadelle_c/core" = Citadelle_C_init +
   options [quick_and_dirty]
   theories
-    "../examples/C_Model_core"
+    C_Model_core
 
-session "Citadelle_C_model-dirty" in src = "Citadelle_C_shallow-dirty" +
+session "Citadelle_C_model-dirty" in "src/compiler_citadelle_c/ml" = "Citadelle_C_shallow-dirty" +
   options [quick_and_dirty]
   theories
-    "../examples/C_Model_ml"
+    C_Model_ml
 
 (******************************************************)
 
-session "Max-dirty" in src = "HOL-Library" (* Note: replacing with FOCL will fail! *) +
-  options [quick_and_dirty,document=pdf,document_output=document_generated,
-           document_variants="document=afp,-annexa,-noexample",
-           show_question_marks = false]
+session "Max-dirty" = "HOL-Library" (* Note: replacing with FOCL will fail! *) +
+  options [quick_and_dirty]
   sessions
     OCL
     FOCL
-    Isabelle_Meta_Model
   theories
-    "../src/basic_types/UML_UnlimitedNatural"
+    "src/basic_types_extra/UML_UnlimitedNatural"
 
-    "../examples/empirical_evaluation/Class_model"
+    "examples/empirical_evaluation/Class_model"
 
-    "../src/compiler/Generator_static"
-    "../src/compiler/meta/Printer_init"
+    "src/compiler_misc/Generator_static"
+    "src/compiler_misc/meta/Printer_init"
 
-    "../doc/Employee_AnalysisModel_UMLPart_generated"
-    "../doc/Employee_DesignModel_UMLPart_generated"
+    "doc/Employee_AnalysisModel_UMLPart_generated"
+    "doc/Employee_DesignModel_UMLPart_generated"
 
-    "../examples/Bank_Model"
-    "../examples/Bank_Test_Model"
-    "../examples/Clocks_Lib_Model"
-    (*"../examples/Employee_Model/Analysis_deep"*)
-    "../examples/Employee_Model/Analysis_shallow"
-    (*"../examples/Employee_Model/Design_deep"*)
-    "../examples/Employee_Model/Design_shallow"
-    "../examples/Flight_Model"
-    "../examples/AbstractList"
-    "../examples/LinkedList"
-    (*"../examples/ListRefinement"*)
-    "../examples/archive/Flight_Model_compact"
-    "../examples/archive/Simple_Model"
-    "../examples/archive/Toy_deep"
-    "../examples/archive/Toy_shallow"
+    "examples/uml_ocl/Bank_Model"
+    "examples/uml_ocl/Bank_Test_Model"
+    "examples/uml_ocl/Clocks_Lib_Model"
+    (*"examples/Employee_Model/Analysis_generation/Analysis_deep"*)
+    "examples/Employee_Model/Analysis_generation/Analysis_shallow"
+    (*"examples/Employee_Model/Design_generation/Design_deep"*)
+    "examples/Employee_Model/Design_generation/Design_shallow"
+    "examples/uml_ocl/Flight_Model"
+    "examples/uml_ocl/AbstractList"
+    "examples/uml_ocl/LinkedList"
+    (*"examples/uml_ocl/ListRefinement"*)
+    "examples/archive/uml_ocl/Flight_Model_compact"
+    "examples/archive/uml_ocl/Simple_Model"
+    "examples/archive/uml_ocl/Toy_deep"
+    "examples/archive/uml_ocl/Toy_shallow"
 
-    "../src/compiler/Aux_proof"
-    "../src/compiler/Aux_tactic"
-    "../src/compiler/Aux_text"
-    "../src/compiler/Rail"
+    "src/compiler_misc/Aux_proof"
+    "src/compiler_misc/Aux_tactic"
+    "src/compiler_misc/Aux_text"
+    "src/compiler_misc/Rail"
 
-    "../examples/archive/OCL_core_experiments"
-    "../examples/archive/OCL_lib_Gogolla_challenge_naive"
-    "../examples/archive/OCL_lib_Gogolla_challenge_integer"
-  document_files
-    "conclusion.tex"
-    "figures/AbstractSimpleChair.pdf"
-    "figures/jedit.png"
-    (*"figures/logo_focl.pdf"*)
-    "figures/pdf.png"
-    "figures/person.png"
-    "figures/pre-post.pdf"
-    "fixme.sty"
-    "hol-ocl-isar.sty"
-    "introduction.tex"
-    "lstisar.sty"
-    "omg.sty"
-    "prooftree.sty"
-    "root.bib"
-    "root.tex"
-    "FOCL_Syntax.tex"
+    "examples/archive/uml_ocl/OCL_core_experiments"
+    "examples/archive/uml_ocl/OCL_lib_Gogolla_challenge_naive"
+    "examples/archive/uml_ocl/OCL_lib_Gogolla_challenge_integer"

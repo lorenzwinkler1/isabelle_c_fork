@@ -33,18 +33,36 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
+(* For the C - example:
+ * Copyright 2014, NICTA
+ *
+ * This software may be distributed and modified according to the terms of
+ * the BSD 2-Clause license. Note that NO WARRANTY is provided.
+ * See "LICENSE_BSD2.txt" for details.
+ *
+ * @TAG(NICTA_BSD)
+ *)
 
 chapter \<open>Example: A slightly optimized Sqrt Prime Sample Proof\<close>
 
-text\<open>This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
-the theory development of the background theory as well as the program spec completely 
-\<^emph>\<open>outside\<close> the C source. This particular development style that keeps the program
-separate from its theory we call TCC (\<^emph>\<open>Theory carrying Code\<close>). It has the 
-advantage that developers of development and verification teams can be separated,
-as is required by many certification standards.
-Note that the opposite style that we call CCT (\<^emph>\<open>Code cazrrying Theories\<close>) is also 
-supported by Isabelle/C.  \<close>
+text \<open> This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
+the theory development of the background theory as well as annotations completely \<^emph>\<open>inside\<close> the 
+C source. This development style we call CCT (\<^emph>\<open>Code-carrying Theories\<close>). CCT - style development makes
+the overall command execution slower, since the execution not only includes parsing, but also 
+AutoCorres' default generation of intermediate theorems and proofs. However, this has useful 
+applications, when for example directly attaching some properties next to where a particular 
+cpp macro is actually defined. Methodologically, it is relevant to express semantic dependencies 
+locally in order to ensure fast feedback as a consequence of changes of the source. 
 
+In CCT style, Programs become a kind of ``proof-carrying (high-level) code''.
+Exports of the C-sources will contain their theory (not only their annotations) as comments
+\<^emph>\<open>inside\<close> which might be also useful in certification as well as advanced  
+``proof-carrying code'' load-and-check schemes for server platforms. 
+
+Note that the opposite style  we call TCC (\<^emph>\<open>Theories Carrying Code\<close>) is also 
+supported by Isabelle/C. It is characteristic for this style that developers of development and 
+verification  teams can be separated, as is required by many certification standards.
+\<close>
 
 theory IsPrime_sqrt_opt_CCT
 imports
@@ -168,6 +186,7 @@ lemma three_and_divides : "prime (p::nat) \<Longrightarrow> 3 < p \<Longrightarr
 section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
 
 text \<open>The invocation of AutoCorres:\<close>
+
 declare [[AutoCorres]]
 
 text \<open>Setup of AutoCorres for semantically representing this C element:\<close>
@@ -219,6 +238,7 @@ text\<open>The following definitions are key importance: they represent the C pr
 thm is_prime_global_addresses.is_prime_body_def
 thm is_prime.is_prime'_def   
 thm SQRT_UINT_MAX_def
+
 text\<open>Note that the pre-processor macro has been converted into a definition in HOL.\<close>
 
 
