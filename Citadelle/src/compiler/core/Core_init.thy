@@ -331,7 +331,7 @@ As general remark, all the future translating steps
 will extensively use Isabelle expressions,
 represented by its Meta-Model, for example lots of functions will use @{term "Term_app"}...
 So the overall can be simplified by the use of polymorphic cartouches.
-It looks feasible to add a new front-end for cartouches in @{theory "FOCL.Init"}
+It looks feasible to add a new front-end for cartouches in @{theory "Isabelle_Meta_Model.Init"}
 supporting the use of Isabelle syntax in cartouches,
 then we could obtain at the end a parsed Isabelle Meta-Model in Isabelle.\<close>
 
@@ -507,7 +507,7 @@ definition "print_access_dot_consts_ty attr_ty =
                                print_infra_type_synonym_class_set_name name)
                 | OclTy_object (OclTyObj (OclTyCore_pre s) _) \<Rightarrow> Raw (wrap_oclty s)
                 | OclTy_base_unlimitednatural \<Rightarrow> str_hol_of_ty_all Typ_apply ty_base attr_ty
-                   \<comment> \<open>REMARK Dependencies to \<^file>\<open>../../basic_types/UML_UnlimitedNatural.thy\<close> can be detected and added
+                   \<comment> \<open>REMARK Dependencies to \<^file>\<open>../../basic_types_extra/UML_UnlimitedNatural.thy\<close> can be detected and added
                              so that this pattern clause would be merged with the default case\<close>
                 | OclTy_collection _ _ \<Rightarrow> Raw (fst (print_infra_type_synonym_class_rec_aux attr_ty))
                 | OclTy_pair _ _ \<Rightarrow> Raw (fst (print_infra_type_synonym_class_rec_aux attr_ty))

@@ -46,17 +46,17 @@
 
 theory  UML_Library
 imports (* Basic Type Operations *)
-        "basic_types/UML_Boolean"
-        "basic_types/UML_Void"
-        "basic_types/UML_Integer"
-        "basic_types/UML_Real"
-        "basic_types/UML_String"
+        "../basic_types/UML_Boolean"
+        "../basic_types/UML_Void"
+        "../basic_types/UML_Integer"
+        "../basic_types/UML_Real"
+        "../basic_types/UML_String"
 
         (* Collection Type Operations *)
-        "collection_types/UML_Pair"
-        "collection_types/UML_Bag"
-        "collection_types/UML_Set"
-        "collection_types/UML_Sequence"
+        "../collection_types/UML_Pair"
+        "../collection_types/UML_Bag"
+        "../collection_types/UML_Set"
+        "../collection_types/UML_Sequence"
 begin
 
 section{* Miscellaneous Stuff*}
@@ -417,10 +417,10 @@ declare [[cartouche_type="Real"]]
 ML{* (*!POKE
 so, the cartouche invocation yields:*)
 val it = [Const ("_constrain" , "_") $ Free ("\<open>-123.23\<close>", "_") $ Free ("<markup>", "_")]: term list
-*}*)
+*}
 
 syntax
   "_ocl_denotation" :: "str_position => string"    ("'_'")
-
+*)
 (*>*)
 end

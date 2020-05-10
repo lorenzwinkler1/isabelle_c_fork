@@ -43,7 +43,7 @@ section\<open>Dynamic Meta Embedding with Reflection\<close>
 
 theory Generator_dynamic_sequential
 imports Printer
-        "../compiler_generic/isabelle_home/src/Pure/Isar/Isabelle_typedecl"
+        Isabelle_Meta_Model.Isabelle_typedecl
   keywords (* OCL (USE tool) *)
            "Between"
            "Attributes" "Operations" "Constraints"
@@ -94,7 +94,7 @@ we basically have two options:
 The generated file can interactively be loaded in Isabelle/jEdit, or saved to the hard disk.
 This mode is called the ``deep exportation'' mode or shortly the ``deep'' mode.
 The aim is to maximally automate the process one is manually performing in
-\<^file>\<open>Generator_static.thy\<close>.
+\<^file>\<open>../compiler_misc/Generator_static.thy\<close>.
 \item On the other hand, it is also possible to directly execute
 in Isabelle/jEdit the generated file from the random access memory.
 This mode corresponds to the ``shallow reflection'' mode or shortly ``shallow'' mode.
