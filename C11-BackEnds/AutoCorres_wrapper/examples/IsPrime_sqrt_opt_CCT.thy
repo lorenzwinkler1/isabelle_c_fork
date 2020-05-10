@@ -1,7 +1,7 @@
 (******************************************************************************
  * Isabelle/C/AutoCorres
  *
- * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Copyright (c) 2019-2020 Université Paris-Saclay, Univ. Paris-Sud, France
  *
  * All rights reserved.
  *
@@ -33,7 +33,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(* For the original C-example:
+(* For the C - example:
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -45,22 +45,26 @@
 
 chapter \<open>Example: A slightly optimized Sqrt Prime Sample Proof\<close>
 
-text\<open>This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
-the theory development of the background theory as well as the program annotations completely 
-\<^emph>\<open>outside\<close> the C source. This particular development style that keeps the program
-separate from its theory we call TCC (\<^emph>\<open>Theories Carrying Code\<close>). It has the 
-advantage that developers of development and verification teams can be separated,
-as is required by many certification standards.
-Note that the opposite style that we call CCT (\<^emph>\<open>Code-carrying Theories\<close>) is also 
-supported by Isabelle/C. In CCT style, Programs become a kind of ``proof-carrying (high-level) code''.
+text \<open> This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
+the theory development of the background theory as well as annotations completely \<^emph>\<open>inside\<close> the 
+C source. This development style we call CCT (\<^emph>\<open>Code-carrying Theories\<close>). CCT - style development makes
+the overall command execution slower, since the execution not only includes parsing, but also 
+AutoCorres' default generation of intermediate theorems and proofs. However, this has useful 
+applications, when for example directly attaching some properties next to where a particular 
+cpp macro is actually defined. Methodologically, it is relevant to express semantic dependencies 
+locally in order to ensure fast feedback as a consequence of changes of the source. 
+
+In CCT style, Programs become a kind of ``proof-carrying (high-level) code''.
 Exports of the C-sources will contain their theory (not only their annotations) as comments
 \<^emph>\<open>inside\<close> which might be also useful in certification as well as advanced  
-``proof-carrying code'' securization schemes of server platforms. 
+``proof-carrying code'' load-and-check schemes for server platforms. 
 
-Of course, since developments can mix C code and HOL developments in an arbitrary manner,
-these two style have to be thought of as extremes in a continuum. \<close>
+Note that the opposite style  we call TCC (\<^emph>\<open>Theories Carrying Code\<close>) is also 
+supported by Isabelle/C. It is characteristic for this style that developers of development and 
+verification  teams can be separated, as is required by many certification standards.
+\<close>
 
-theory IsPrime_sqrt_opt_TCC
+theory IsPrime_sqrt_opt_CCT
 imports
   Isabelle_C_AutoCorres.AutoCorres_Wrapper
   "HOL-Computational_Algebra.Primes"

@@ -33,7 +33,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(*
+(* For the C - example:
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -47,20 +47,19 @@ chapter \<open>Example: Integrated Prime Sample Proof\<close>
 
 text \<open> This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
 the theory development of the background theory as well as annotations completely \<^emph>\<open>inside\<close> the 
-C source. This development style we call TEC (\<^emph>\<open>Theory embedded-in Code\<close>) is also 
-supported by Isabelle/C. TEC - style development makes
+C source. This development style we call CCT (\<^emph>\<open>Code-carrying Theories\<close>). CCT - style development makes
 the overall command execution slower, since the execution not only includes parsing, but also 
 AutoCorres' default generation of intermediate theorems and proofs. However, this has useful 
 applications, when for example directly attaching some properties next to where a particular 
 cpp macro is actually defined. Methodologically, it is relevant to express semantic dependencies 
 locally in order to ensure fast feedback as a consequence of changes of the source. 
 
-In TEC style, Programs become a kind of ``proof-carrying (high-level) code''.
+In CCT style, Programs become a kind of ``proof-carrying (high-level) code''.
 Exports of the C-sources will contain their theory (not only their annotations) as comments
 \<^emph>\<open>inside\<close> which might be also useful in certification as well as advanced  
 ``proof-carrying code'' load-and-check schemes for server platforms. 
 
-Note that the opposite style  we call TEC (\<^emph>\<open>Theory embedded-in Code\<close>) is also 
+Note that the opposite style  we call TCC (\<^emph>\<open>Theories Carrying Code\<close>) is also 
 supported by Isabelle/C. It is characteristic for this style that developers of development and 
 verification  teams can be separated, as is required by many certification standards.
 \<close>

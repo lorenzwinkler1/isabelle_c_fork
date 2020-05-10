@@ -65,10 +65,27 @@ of two possibly interchangeable parsers (from two different projects):
 
 At present, the recommended and default version is C11.
 
-Isabelle/C requires Isabelle2019.
+Isabelle/C requires Isabelle2019. (This is following the latest version currently supported by
+AutoCorres.)
 \<close>
 
-section \<open>Getting started\<close>
+section \<open>Getting started (for users)\<close>
+
+text \<open>
+In the sequel, with \<^verbatim>\<open>isabelle\<close> we refer to your local Isabelle2019
+installation, and assume your current working directory is at the root of Isabelle/C (i.e. the
+directory that contains this \<^file>\<open>README.md\<close> file).
+
+\<^item> Building Isabelle_C : 
+  \<^verbatim>\<open>isabelle build -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-b Isabelle_C\<close>
+\<^item> Building Isabelle_C_AutoCorres : 
+  \<^verbatim>\<open>export L4V_ARCH = ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be permanently made in \<^file>\<open>$ISABELLE_HOME_USER/etc/settings\<close>\<close>
+  \<^verbatim>\<open>isabelle build -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-b Isabelle_C_AutoCorres\<close>
+\<^item> Running an example: 
+  \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C_AutoCorres\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_linear_CCT.thy\<close>
+\<close>
+
+section \<open>Getting started (for developers)\<close>
 
 text \<open>
 A first installation step of Isabelle/C without back-ends is:

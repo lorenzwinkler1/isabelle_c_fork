@@ -33,7 +33,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
-(* For the C - example:
+(* For the original C-example:
  * Copyright 2014, NICTA
  *
  * This software may be distributed and modified according to the terms of
@@ -48,18 +48,17 @@ chapter \<open>Example: A Sqrt Prime Sample Proof\<close>
 text\<open>This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
 the theory development of the background theory as well as the program annotations completely 
 \<^emph>\<open>outside\<close> the C source. This particular development style that keeps the program
-separate from its theory we call CET (\<^emph>\<open>Code embedded-in Theory\<close>). It has the 
+separate from its theory we call TCC (\<^emph>\<open>Theories Carrying Code\<close>). It has the 
 advantage that developers of development and verification teams can be separated,
 as is required by many certification standards.
-Note that the opposite style that we call TEC (\<^emph>\<open>Theory embedded-in Code\<close>) is also 
-supported by Isabelle/C. In TEC style, Programs become a kind of ``proof-carrying (high-level) code''.
+Note that the opposite style that we call CCT (\<^emph>\<open>Code-carrying Theories\<close>) is also 
+supported by Isabelle/C. In CCT style, Programs become a kind of ``proof-carrying (high-level) code''.
 Exports of the C-sources will contain their theory (not only their annotations) as comments
 \<^emph>\<open>inside\<close> which might be also useful in certification as well as advanced  
 ``proof-carrying code'' securization schemes of server platforms. 
 
 Of course, since developments can mix C code and HOL developments in an arbitrary manner,
 these two style have to be thought of as extremes in a continuum. \<close>
-
 
 theory IsPrime_sqrt_TCC
 imports
@@ -132,10 +131,9 @@ lemma sqrt_prime: "\<lbrakk> a * a > n; \<forall>x<a. (x dvd n) = (x = Suc 0 \<o
   apply (rule ccontr)
   apply (drule not_prime)
    apply clarsimp
-  apply (metis dvd_triv_right less_le_trans mult.commute mult_le_cancel2
-           One_nat_def less_eq_nat.simps(1) less_not_refl2
-           mult_eq_self_implies_10 not_less)
-  done
+  by (metis Groups.mult_ac(2) One_nat_def dvd_triv_left le_def le_simps(3) mult_eq_self_implies_10 
+            mult_le_mono order_less_imp_le)
+  
 
 lemma partial_prime_sqr[simp]: "\<lbrakk> n * n > p \<rbrakk> \<Longrightarrow> partial_prime p n = prime p"
   apply (case_tac "n \<ge> p")
