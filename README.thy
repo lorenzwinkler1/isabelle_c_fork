@@ -71,6 +71,8 @@ restriction that a stable AutoCorres version is not yet available.)..
 
 section \<open>Getting started (for users)\<close>
 text\<open> In the sequel,  with "isabelle" we refer to your local Isabelle2019 installation.
+Change you working directory to the root of your working copy (i.e. to the directory that
+contains this README file.)
 
 \<^enum> Building Isabelle_C : 
   \<open>isabelle build -d . -b Isabelle_C\<close>
