@@ -69,11 +69,11 @@ Isabelle/C requires Isabelle2019. (This is following the latest version currentl
 AutoCorres.)
 \<close>
 
-section \<open>Getting started (for users)\<close>
+section \<open>Getting started (quickstart for users)\<close>
 
 text \<open>
 In the sequel, with \<^verbatim>\<open>isabelle\<close> we refer to your local Isabelle2019
-installation, and assume your current working directory is at the root of Isabelle/C (i.e. the
+installation, and assume your current working directory is at the root of \<open>Isabelle_C\<close> (i.e. the
 directory that contains this \<^file>\<open>README.md\<close> file).
 
 \<^item> Building Isabelle_C : 
@@ -105,11 +105,15 @@ all back-ends enabled is performed with:
 text \<open>
 The following C examples or entry-points of documentation can be executed:
 
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^file>\<open>C11-FrontEnd/examples/C0.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^file>\<open>C18-FrontEnd/examples/C0.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^file>\<open>C11-FrontEnd/C_Appendices.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C0.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<open>-l Isabelle_C\<close> \<^file>\<open>C18-FrontEnd/examples/C0.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/C_Appendices.thy\<close>
+
+The option \<open>-l Isabelle_C\<close> can be ommitted; it instructs Isabelle to use the binary
+of the  \<open>Isabelle_C\<close>-session. In case of omission, Isabelle loads \<open>Isabelle_C\<close>-sources
+automatically, such the user might browse in them or modify them.
 \<close>
 
 text \<open>
