@@ -239,6 +239,8 @@ definition is_prime_inv
 lemma "\<not> 2 dvd i = (i mod 2 = (1::nat))"
   using odd_iff_mod_2_eq_one by blast
 
+lemma simple_binomial : "((a::nat) + b) *  (a + b) = a*a + a*b + a*b + b * b"
+  by (simp add: add_mult_distrib2 mult.commute)
 
 lemma inv_preserved0: "is_prime_inv n i s \<Longrightarrow> 
                        \<not> i dvd n \<Longrightarrow>  \<not> (i+2) dvd n \<Longrightarrow> 
@@ -249,58 +251,91 @@ proof(simp, elim conjE)
   fix i :: nat
   assume 1: "odd n"
   and    2: "\<not> (3 dvd n)"
-  and    2: "i * i \<le> n"
-  and    3: "5 \<le> i"
-  and    6: "\<forall>i\<in>{2..<min n i}. \<not> i dvd n"
-  and    7 :"\<not> i dvd n"
-  and    8 :"\<not> (Suc(Suc i)) dvd n"
-  and    9:  "i mod 6 = 5"
-  have  00 :"5 \<le> n" 
-    by (meson "2" "3" le_square order.trans)
+  and    3: "i * i \<le> n"
+  and    6: "5 \<le> i"
+  and    7: "\<forall>i\<in>{2..<min n i}. \<not> i dvd n"
+  and    8 :"\<not> i dvd n"
+  and    9 :"\<not> (Suc(Suc i)) dvd n"
+  and   10:  "i mod 6 = 5"
+  have  11 :   "\<exists> m::nat. i= m*6+5" 
+            by (metis "6" "10" add.commute mod_mod_trivial mult.commute nat_mod_eq_lemma)
+  have  12 :"5 \<le> n" 
+    by (meson 3 "6" le_square order.trans)
   have  *: "\<forall>i\<in>{2..<i}. \<not> i dvd n"
-    by (metis "2" "6" le_antisym le_square min_absorb2 min_def order.trans)
+    by (metis 3 7 le_antisym le_square min_absorb2 min_def order.trans)
   have  **: "odd i"  
-    using "9" by presburger
-  have  ***: "\<not>(3 dvd i)" sorry
-  have  ****: "i \<noteq> 0 \<Longrightarrow> \<not>(5 dvd i)" sorry
+    using "10" by presburger
+  have  *** : "\<not>(3 dvd i)"
+    apply(simp add: Rings.semidom_modulo_class.dvd_eq_mod_eq_0)
+    apply(insert 11, erule_tac exE, rename_tac m)
+    by (metis "10" One_nat_def add_Suc_shift gr0I le_add1 le_add_same_cancel1 mod_double_modulus 
+              mult_2  numeral_3_eq_3 numeral_Bit0 numeral_eq_iff plus_1_eq_Suc semiring_norm(83) 
+              semiring_norm(90) zero_less_numeral )
   have a : "5 * 5 \<le> n" 
-    by (metis "2" "9" mod_less_eq_dividend mod_mult_mult2 mult_le_mono2 order.trans) 
-  have  *****: "i + 6 < n" sorry
+    by (metis 3 "10" mod_less_eq_dividend mod_mult_mult2 mult_le_mono2 order.trans) 
+  have  *****: "i + 6 < n"
+        proof(cases "i=5")
+          case True
+          then show ?thesis 
+            by (smt 3 Groups.add_ac(2) Suc_eq_plus1 Suc_numeral add.left_neutral 
+                    add_diff_cancel_left' add_lessD1 le_antisym le_def less_Suc_eq 
+                    linorder_not_le mult.right_neutral mult_Suc_right numeral_2_eq_2 
+                    numeral_eqs(4) plus_nat.simps(2) semiring_norm(5) semiring_norm(8))
+        next
+          case False
+          assume *: "i \<noteq> 5"
+          obtain  m where "i= m*6+5" 
+            using \<open>\<exists>m. i = m * 6 + 5\<close> by blast      
+          then show ?thesis  apply simp
+            apply(case_tac "m=0", simp_all) 
+             using * apply blast
+            apply(rule Orderings.order_class.order.strict_trans2[OF _ 3])
+            by(auto simp: add_mult_distrib2 mult.commute) 
+        qed
   show "\<forall>i\<in>{2..<min n (i + 6)}. \<not> i dvd n"
   proof (rule ballI, simp, elim conjE) 
     fix j :: nat
-    assume 10:"j < i + 6"
-    and 11 :"2 \<le> j"
-    and 12: "j < n"
+    assume 20:"j < i + 6"
+    and 21 :"2 \<le> j"
+    and 22: "j < n"
     show "\<not>(j dvd n)" 
     proof(cases "j < i")
       case True
       then show ?thesis 
-        by (simp add: "*" "11")
+        by (simp add: "*" "21")
     next
       case False
       have "j\<ge>i" 
         by (simp add: False le_def)
       have *:"j = i+5 \<or> j = i+4 \<or> j = i+3 \<or> j = i+2 \<or> j = i+1 \<or> j = i "
-        using "10" False by linarith
+        using "20" False by linarith
       then show ?thesis
       proof(insert *,elim disjE, simp_all)
         show "\<not> i + 5 dvd n" 
           using "**" "1" by auto
       next 
-        show "\<not> i + 4 dvd n" sledgehammer sorry
+        show "\<not> i + 4 dvd n" 
+        proof (rule ccontr, simp)
+          assume 31 :"i + 4 dvd n"
+          have X:"\<And>m. (9 + m * 6::nat) = 3 * (3 + 2 * m)" by(simp)
+          show "False"
+          apply(insert 31 2)
+          apply(simp add: Rings.semidom_modulo_class.dvd_eq_mod_eq_0)
+          apply(insert 11, erule_tac exE, rename_tac m, simp)
+            using dvd_trans by auto 
+        qed
       next 
         show "\<not> i + 3 dvd n" 
           using "**" "1" by auto
       next
         show "\<not> (Suc(Suc i)) dvd n" 
-          by (simp add: "8")
+          by (simp add: "9")
       next
         show "\<not> (Suc i) dvd n" 
           using "**" "1" by auto
       next
         show "\<not> i dvd n" 
-          by (simp add: "7")
+          by (simp add: 8)
     qed
  qed
 qed
