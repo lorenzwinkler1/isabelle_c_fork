@@ -454,12 +454,50 @@ proof (rule validNF_assume_pre)
             apply (subst whileLoopE_add_inv 
                          [  where I = "\<lambda>r s. is_prime_inv n r s"
                             and   M = "\<lambda>(r, s). (Suc n) * (Suc n) - r * r"])
-            apply(wp, clarsimp)
-            sorry
+          proof(wp, clarsimp)
+            text\<open>@{term is_prime_inv} holds for loop exits via @{term "return"}.\<close>
+            show "\<lbrace>\<lambda>s. is_prime_inv n 5 s\<rbrace> return (even n \<or> 3 dvd n) 
+                  \<lbrace>\<lambda>ret s.  if ret then (0 \<noteq> 0) = prime n 
+                                   else is_prime_inv n 5 s\<rbrace>!"
+              by(wp, auto simp: ** ***) 
+          next
+            text\<open>@{term is_prime_inv} initially holds when entering the loop.\<close>
+            fix s::lifted_globals
+            show "if n < 2 then (0 \<noteq> 0) = prime n
+                           else if n < 4 then (1 \<noteq> 0) = prime n
+                                else is_prime_inv n 5 s"
+              apply(auto simp: * ) 
+              using not_le prime_ge_2_nat apply auto[1]
+              using "*" less_or_eq_imp_le not_le apply blast
+              using "*" apply linarith
+                apply (simp add: SQRT_UINT_MAX_def)
+               defer 1
+              sorry
+          next
+            text\<open>@{term is_prime_inv} preserved.\<close>
+            fix r::nat
+            show "(r dvd n \<longrightarrow> \<not> prime n) \<and>
+                 (Suc (Suc r) dvd n \<longrightarrow> \<not> prime n) \<and>
+                 (\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n \<longrightarrow>
+                  r + 6 \<le> SQRT_UINT_MAX - Suc 0 \<and>
+                 (r + 6) * (r + 6) \<le> n \<and>
+                  partial_prime n (r + 6) \<and>
+                 (r < 65525 \<longrightarrow> r + 6 < SQRT_UINT_MAX))"
+              sorry
+          next
+            fix r::nat fix s::lifted_globals
+            assume * :"\<not> (r < 65531 \<and> r * r \<le> n)"
+            have  ** : "r\<ge>65531 \<or> r * r>n" 
+              using "*" leI by blast
+            assume  ***: "is_prime_inv n r s"
+            show "((1::nat) \<noteq> 0) = prime n"
+              apply simp
+              apply(case_tac "r\<ge>65531") defer 1
+              using "*" "***" apply auto[1] sorry
         qed
       qed
     qed
 qed
-
+qed
 
 end
