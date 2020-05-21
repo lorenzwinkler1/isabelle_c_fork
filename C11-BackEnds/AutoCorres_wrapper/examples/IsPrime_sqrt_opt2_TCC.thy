@@ -465,35 +465,68 @@ proof (rule validNF_assume_pre)
                 using not_le prime_ge_2_nat apply auto[1]
                 using "*" less_or_eq_imp_le not_le apply blast
                 using "*" apply linarith
-                  apply (simp add: SQRT_UINT_MAX_def)
-                apply(frule ****)
-                find_theorems  "_ \<le> _" "_ = _" "_ \<or> _"
-                apply(subst (asm) linorder_class.not_less)
-                apply(subst (asm) order.order_iff_strict)
-                apply(erule disjE)
-                sorry
+                  apply (simp add: SQRT_UINT_MAX_def) 
+                using "*" by linarith                
             next
               text\<open>@{term is_prime_inv} preserved.\<close>
               fix r::nat
+              assume "5 \<le> r"  and "r \<le> SQRT_UINT_MAX - Suc 0"
+                     "r \<le> n"  and "r mod 6 = 5" and "partial_prime n r" and 
+                     "r < 65531" and "r * r \<le> n"
               show "(r dvd n \<longrightarrow> \<not> prime n) \<and>
-                   (Suc (Suc r) dvd n \<longrightarrow> \<not> prime n) \<and>
-                   (\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n \<longrightarrow>
-                    r + 6 \<le> SQRT_UINT_MAX - Suc 0 \<and>
-                   (r + 6) * (r + 6) \<le> n \<and>
-                    partial_prime n (r + 6) \<and>
-                   (r < 65525 \<longrightarrow> r + 6 < SQRT_UINT_MAX))"
-                sorry
-            next
+                     (Suc (Suc r) dvd n \<longrightarrow> \<not> prime n) \<and>
+                     (\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n \<longrightarrow>
+                      r + 6 \<le> SQRT_UINT_MAX - Suc 0 \<and>
+                      r + 6 \<le> n \<and> partial_prime n (r + 6) \<and> (r < 65525 \<longrightarrow> r + 6 < SQRT_UINT_MAX))"
+              proof(intro conjI impI)
+                show "r dvd n \<Longrightarrow> \<not> prime n" 
+                  using \<open>5 \<le> r\<close> \<open>r * r \<le> n\<close> prime_dvd by auto
+              next
+                show "Suc (Suc r) dvd n \<Longrightarrow> \<not> prime n" 
+                  by (smt One_nat_def Suc_leD \<open>5 \<le> r\<close> \<open>r * r \<le> n\<close> dvd_triv_left even_Suc 
+                          even_mult_iff le_SucE le_antisym le_square less_numeral_extra(3) 
+                          mult_eq_self_implies_10 nat.inject numeral_eqs(4) prime_dvd zero_less_Suc)
+              next 
+                show " r < 65525 \<Longrightarrow> r + 6 < SQRT_UINT_MAX " by(simp add:  SQRT_UINT_MAX_def)
+              next
+                assume "\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n"
+                show "partial_prime n (r + 6)"
+                 apply(rule inv_preserved0)
+                  apply (simp add: \<open>5 \<le> r\<close> \<open>partial_prime n r\<close> \<open>r \<le> SQRT_UINT_MAX - Suc 0\<close> 
+                                       \<open>r \<le> n\<close> \<open>r mod 6 = 5\<close>)
+                  apply (simp add: \<open>\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n\<close>)
+                  apply (simp add: \<open>\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n\<close>)
+                  apply (simp add: "**")
+                  apply (simp add: False)
+                  by (simp add: "*")
+              next
+                 assume "\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n"
+                 show "r + 6 \<le> SQRT_UINT_MAX - Suc 0"
+                   apply(simp add: SQRT_UINT_MAX_def)
+                   apply(insert \<open>r < 65531\<close>)
+                   (* feasible : cant be 65530 because even. *)
+                   sorry
+               next
+                 show "r + 6 \<le> n"
+                   apply(insert \<open>r * r \<le> n\<close> \<open>5 \<le> r\<close>)
+                   (* feasible : proof below. *) 
+                   sorry
+               qed
+             next
               text\<open>@{term is_prime_inv} implies postcond when leaving the loop.\<close>
               fix r::nat fix s::lifted_globals
               assume * :"\<not> (r < 65531 \<and> r * r \<le> n)"
-              have  ** : "r\<ge>65531 \<or> r * r>n" 
-                using "*" leI by blast
+                have  ** : "r\<ge>65531 \<or> r * r>n"  using "*" leI by blast
               assume  ***: "is_prime_inv n r s"
               show "((1::nat) \<noteq> 0) = prime n"
                 apply simp
                 apply(case_tac "r\<ge>65531") defer 1
-                using "*" "***" apply auto[1] sorry
+                using "*" "***" apply auto[1]                
+                using "**" partial_prime_sqr apply blast
+                apply(insert ***) 
+                   (* feasible : between 65531 and 65536 (the integer square of no primes, 
+                                SQRT_UINT_MAX), there are no primes. *)
+                sorry
             qed
         qed
       qed
