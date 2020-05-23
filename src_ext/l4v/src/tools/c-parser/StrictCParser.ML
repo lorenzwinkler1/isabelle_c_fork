@@ -63,7 +63,7 @@ fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (input : inp
        | (_, Source src) =>
           f (drain [Input.source_content src |> #1]) (C_Env.encode_positions [Input.pos_of src])
 
-    fun parse_without_c11 thy = 
+    fun parse_without_c11 exit_err thy = 
       docpp
         (open_close (fn istream => fn fname =>
           let
@@ -71,8 +71,14 @@ fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (input : inp
             val lexarg = StrictCLex.UserDeclarations.new_state fname
             val lexer = StrictCParser.makeLexer istream lexarg
             val pos = #source lexarg
+            fun err e =
+              tap (fn _ => 
+                    (writeln (Markup.markup (Markup.bad ()) (Feedback.msg_c99 ^ ": " ^ "returning a default empty parsed value"));
+                     exit_err (Feedback.msg_c99 ^ ": " ^ @{make_string} e ^ Position.here \<^here>)))
+                  ([], !Feedback.numErrors)
           in (invoke error_lookahead pos lexer
-                handle StrictCParser.ParseError => ([], !Feedback.numErrors))
+                handle e as StrictCParser.ParseError => err e
+                     | e as Feedback.WantToExit _ => err e)
              |>> pair fname
           end))
       |>> (fn (fname, v) => Synchronized.change_result last_parsed (K (v, (fname, v))))
@@ -119,7 +125,7 @@ fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (input : inp
     case maybe_c11 of
       SOME true => 
         let val ((res2, err2), thy) = parse_with_c11 thy
-            val ((res1, err1), thy) = parse_without_c11 thy
+            val ((res1, err1), thy) = parse_without_c11 warning thy
             val rm = StmtDecl.rm_region_ext_decl_list
             val r1 = rm res1
             val r2 = rm res2
@@ -134,7 +140,7 @@ fun parse maybe_c11 docpp0 error_lookahead (includes : string list) (input : inp
                         r1 r2 (0, true))
            then ((res1, err1 + err2), thy)
            else error "Parsed values are not similar." end
-    | SOME false => parse_without_c11 thy
+    | SOME false => parse_without_c11 error thy
     | _ => parse_with_c11 thy
   end
 

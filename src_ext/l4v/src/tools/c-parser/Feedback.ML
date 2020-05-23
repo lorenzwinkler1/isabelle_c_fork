@@ -13,6 +13,9 @@ signature FEEDBACK =
 sig
 
   exception WantToExit of string
+
+  val msg_c99 : string
+
   val numErrors : int Unsynchronized.ref
   val errorThreshold : int option Unsynchronized.ref
   val errorStr : Region.t * string -> unit
@@ -35,6 +38,9 @@ structure Feedback :> FEEDBACK =
 struct
 open Unsynchronized
 exception WantToExit of string
+
+val msg_c99 = "C99 parser"
+
 val isSome = Option.isSome
 
 val numErrors = ref 0
