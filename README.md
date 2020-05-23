@@ -32,12 +32,12 @@ Isabelle/C requires Isabelle2019. (This is following the latest version currentl
 AutoCorres.)
 ›
 
-section ‹Getting started (for users)›
+section ‹Getting started (quickstart for users)›
 
 text ‹
 In the sequel, with ▩‹isabelle› we refer to your local Isabelle2019
-installation, and assume your current working directory is at the root of Isabelle/C (i.e. the
-directory that contains this 🗏‹README.md› file).
+installation, and assume your current working directory is at the root of ▩‹Isabelle_C›
+(i.e. the directory that contains this 🗏‹README.md› file).
 
 ▪ Building Isabelle_C : 
   ▩‹isabelle build -d› 🗀‹.› ▩‹-b Isabelle_C›
@@ -68,11 +68,16 @@ all back-ends enabled is performed with:
 text ‹
 The following C examples or entry-points of documentation can be executed:
 
-▪ ▩‹isabelle jedit -d› 🗀‹.› 🗏‹C11-FrontEnd/examples/C0.thy›
-▪ ▩‹isabelle jedit -d› 🗀‹.› 🗏‹C11-FrontEnd/examples/C2.thy›
-▪ ▩‹isabelle jedit -d› 🗀‹.› 🗏‹C11-FrontEnd/examples/C1.thy›
-▪ ▩‹isabelle jedit -d› 🗀‹.› 🗏‹C18-FrontEnd/examples/C0.thy›
-▪ ▩‹isabelle jedit -d› 🗀‹.› 🗏‹C11-FrontEnd/C_Appendices.thy›
+▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l Isabelle_C› 🗏‹C11-FrontEnd/examples/C0.thy›
+▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l Isabelle_C› 🗏‹C11-FrontEnd/examples/C1.thy›
+▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l Isabelle_C› 🗏‹C11-FrontEnd/examples/C2.thy›
+▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l Isabelle_C› 🗏‹C18-FrontEnd/examples/C0.thy›
+▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l Isabelle_C› 🗏‹C11-FrontEnd/C_Appendices.thy›
+
+The option ▩‹-l Isabelle_C› can be omitted; it instructs Isabelle to use a
+binary-built version of the ▩‹Isabelle_C› session. In case of omission,
+Isabelle automatically loads all ▩‹Isabelle_C› sources, such that the user
+might browse in there or modify any files.
 ›
 
 text ‹
