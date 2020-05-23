@@ -238,7 +238,7 @@ fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
                 let fun new_token x xs =
                      ( Lex_new_token (SOME x)
                      , ( case x of 
-                           C_Scan.Right (C_Lex.Token (range, (C_Lex.Ident, src))) =>
+                           C_Scan.Right (C_Lex.Token (range, (C_Lex.Ident _, src))) =>
                              C_Env.Stream_ident (range, src)
                          | _ => st
                        , xs))
@@ -339,7 +339,7 @@ fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
               C_Grammar.Tokens.CONSTANT ((), pos1, pos2)
            | C_Lex.Float _ =>
               C_Grammar.Tokens.CONSTANT ((), pos1, pos2)
-           | C_Lex.Ident => 
+           | C_Lex.Ident _ =>
               C_Grammar.Tokens.NAME (src, pos1, pos2)
            | _ => token_err pos1 pos2 src)
   end
@@ -744,7 +744,7 @@ fun eval env start err accept (ants, ants_err) {context, reports_text, error_lin
                                  (C_Lex.token_list_of dir))
                       #> pair (Right (Left tok))
                   | C_Lex.Token (pos, (C_Lex.Keyword, cts)) => subst_directive tok pos cts
-                  | C_Lex.Token (pos, (C_Lex.Ident, cts)) => subst_directive tok pos cts
+                  | C_Lex.Token (pos, (C_Lex.Ident _, cts)) => subst_directive tok pos cts
                   | _ => pair (Right (Left tok))
                 end
                 ants

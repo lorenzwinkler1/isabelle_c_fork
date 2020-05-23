@@ -109,8 +109,8 @@ val _ =
                            in (C_Grammar_Rule_Lib.declare_varname0 name env_lang, env_tree) end)
                          (these
                            (Symtab.lookup (Directive_include.get (#context env_tree))
-                                          (String.concat (maps (fn C_Scan.Left s => [s] | _ => [])
-                                                               file))))
+                                          (String.concat
+                                            (maps (fn C_Scan.Left (s, _) => [s] | _ => []) file))))
                          (env_lang, env_tree)
                in
                  case tok of
