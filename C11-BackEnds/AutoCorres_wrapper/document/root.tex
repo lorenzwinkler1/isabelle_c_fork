@@ -21,6 +21,7 @@
 \newcommand{\indexdef}[3]%
 {\ifthenelse{\equal{}{#1}}{\index{#3 (#2)|bold}}{\index{#3 (#1\ #2)|bold}}} % from 'isar.sty'
 \newcommand{\isactrlC}{{\isacommand C}}
+\newcommand{\isactrltheoryUNDERSCOREtext}{}
 
 %%
 
@@ -76,10 +77,13 @@ IMP2~\cite{DBLP:journals/afp/LammichW19} or Orca~\cite{bockenek:hal-02069705}.
 
 \inputif{1/document/AutoCorres_Wrapper.tex}
 
-\inputif{2/document/IsPrime_integrated.tex}
-\inputif{2/document/IsPrime_linear_outside.tex}
-\inputif{2/document/IsPrime_sqrt_outside.tex}
-\inputif{2/document/IsPrime_sqrt_opt_outside.tex}
+\inputif{2/document/IsPrime_linear_CCT.tex}
+\inputif{2/document/IsPrime_linear_TCC.tex}
+\inputif{2/document/IsPrime_sqrt_CAS.tex}
+\inputif{2/document/IsPrime_sqrt_opt_CCT.tex}
+\inputif{2/document/IsPrime_sqrt_opt_TCC.tex}
+\inputif{2/document/IsPrime_sqrt_TCC.tex}
+
 \inputif{2/document/Parse_for_loop.tex}
 \inputif{2/document/Quicksort.tex}
 \inputif{2/document/TestSEL4.tex}
