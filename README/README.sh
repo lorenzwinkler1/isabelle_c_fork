@@ -45,7 +45,7 @@ SESSION=Isabelle_C_README
 
 $ISABELLE_TOOL build -b -v -o browser_info -d . $SESSION
 echo -e '<div class="source">\n\n``` {.source}' > $README_MD
-pandoc -t markdown $ISABELLE_HOME_USER/browser_info/Unsorted/$SESSION/$README_HTML | grep -zo 'section.*' | head -n -5 >> $README_MD
+pandoc -t markdown $ISABELLE_HOME_USER/browser_info/Unsorted/$SESSION/$README_HTML | grep -zo 'section.*' | head -n -4 >> $README_MD
 echo -e '```\n\n</div>' >> $README_MD
 git add $README_MD
 git commit -m 'update the generated files'

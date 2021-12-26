@@ -74,15 +74,12 @@ type entry =
  {pos: Position.T,
   id: serial,
   kind: string,
-  files: string list,  (*extensions of embedded files*)
   tags: string list};
 
-fun check_spec pos ((kind, files), tags) : entry =
+fun check_spec pos (kind, tags) : entry =
   if not (member (op =) command_kinds kind) then
     error ("Unknown annotation syntax keyword kind " ^ quote kind)
-  else if not (null files) andalso kind <> Keyword.thy_load then
-    error ("Illegal specification of files for " ^ quote kind)
-  else {pos = pos, id = serial (), kind = kind, files = files, tags = tags};
+  else {pos = pos, id = serial (), kind = kind, tags = tags};
 
 
 (** keyword tables **)
@@ -123,7 +120,7 @@ fun merge_keywords
 
 val add_keywords0 =
   fold
-    (fn ((name, pos), force_minor, spec as ((kind, _), _)) =>
+    (fn ((name, pos), force_minor, spec as (kind, _)) =>
       map_keywords (fn (minor, major, commands) =>
         let val extend = Scan.extend_lexicon (Symbol.explode name)
             fun update spec = Symtab.update (name, spec)
@@ -158,13 +155,6 @@ fun command_markup keywords name =
         (Markup.entity Markup.command_keywordN name));
 
 
-fun command_files keywords name path =
-  (case lookup_command keywords name of
-    NONE => []
-  | SOME {kind, files, ...} =>
-      if kind <> Keyword.thy_load then []
-      else if null files then [path]
-      else map (fn ext => Path.ext ext path) files);
 
 
 (* command categories *)
@@ -808,7 +798,7 @@ fun syntax' f =
             ((case kind of
                 Token.Keyword => Keyword.add_keywords [((x, Position.none), Keyword.no_spec)]
               | Token.Command => Keyword.add_keywords [( (x, Position.none)
-                                                       , ((Keyword.thy_decl, []), []))]
+                                                       , (Keyword.thy_decl, []))]
               | _ => I)
                Keyword.empty_keywords)
             pos1
@@ -915,6 +905,7 @@ sig
   val embedded_input: Input.source parser
   val embedded_position: (string * Position.T) parser
   val text: string parser
+  val path_input: Input.source parser
   val path: string parser
   val path_binding: (string * Position.T) parser
   val session_name: (string * Position.T) parser
@@ -1138,7 +1129,8 @@ val embedded_position = embedded_input >> Input.source_content;
 
 val text = group (fn () => "text") (embedded || verbatim);
 
-val path = group (fn () => "file name/path specification") embedded;
+val path_input = group (fn () => "file name/path specification") embedded_input;
+val path = path_input >> Input.string_of;
 val path_binding = group (fn () => "path binding (strict file name)") (position embedded);
 
 val session_name = group (fn () => "session name") name_position;

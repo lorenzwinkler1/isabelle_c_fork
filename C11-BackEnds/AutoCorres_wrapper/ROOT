@@ -35,18 +35,13 @@
  ******************************************************************************)
 
 session Isabelle_C_AutoCorres in src = AutoCorres +
-  options [document = pdf, document_output = "../output/document/1"]
   directories
     "../../AutoCorres/src"
   theories
     "../../AutoCorres/src/README"
     AutoCorres_Wrapper
-  document_files
-    "root.tex"
-    "root.bib"
 
 session Isabelle_C_AutoCorres_examples in examples = Isabelle_C_AutoCorres +
-  options [document = pdf, document_output = "../output/document/2"]
   sessions
     "HOL-Computational_Algebra"
   theories
@@ -71,12 +66,25 @@ session Isabelle_C_AutoCorres_examples in examples = Isabelle_C_AutoCorres +
     SchorrWaite
     Simple
     TestSEL4
-  document_files
-    "root.tex"
-    "root.bib"
 
 session Isabelle_C_AutoCorres_document = Isabelle_C_AutoCorres_examples +
   options [document = pdf, document_output = "output"]
+  document_theories
+    "Isabelle_C_AutoCorres.AutoCorres_Wrapper"
+    
+    "Isabelle_C_AutoCorres_examples.IsPrime_linear_CCT"
+    "Isabelle_C_AutoCorres_examples.IsPrime_linear_TCC"
+    "Isabelle_C_AutoCorres_examples.IsPrime_sqrt_CAS"
+    "Isabelle_C_AutoCorres_examples.IsPrime_sqrt_opt_CCT"
+    "Isabelle_C_AutoCorres_examples.IsPrime_sqrt_opt_TCC"
+    "Isabelle_C_AutoCorres_examples.IsPrime_sqrt_TCC"
+    
+    "Isabelle_C_AutoCorres_examples.Parse_for_loop"
+    "Isabelle_C_AutoCorres_examples.Quicksort"
+    "Isabelle_C_AutoCorres_examples.TestSEL4"
+
+    "Isabelle_C_AutoCorres.README"
+    "CParser.Init"
   document_files
     "root.tex"
     "root.bib"

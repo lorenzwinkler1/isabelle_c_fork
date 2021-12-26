@@ -33,11 +33,9 @@
 \usepackage{isabelle}
 \usepackage{isabellesym}
 \usepackage{ifthen}
-\IfFileExists{railsetup.sty}{\usepackage{railsetup}}{}
-
-\newcommand\inputif[1]{\IfFileExists{./#1}{\input{#1}}{}}
-\inputif{ontologies}
-\IfFileExists{preamble.tex}{\input{preamble.tex}}{}%
+\usepackage{railsetup}
+\input{ontologies}
+\input{preamble.tex}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage[numbers, sort&compress, sectionbib]{natbib}
@@ -111,30 +109,27 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \chapter{A Conceptual Description of the Isabelle/C Package}
-\inputif{paper.tex}
+\input{paper.tex}
 
-\inputif{1/document/C_Ast.tex}
-\inputif{1/document/C_Lexer_Language.tex}
-\inputif{1/document/C_Environment.tex}
-\inputif{1/document/C_Parser_Language.tex}
-\inputif{1/document/C_Lexer_Annotation.tex}
-\inputif{1/document/C_Parser_Annotation.tex}
-\inputif{1/document/C_Eval.tex}
-\inputif{1/document/C_Command.tex}
-\inputif{1/document/C_Document.tex}
-\inputif{1/document/C_Main.tex}
+\input{C_Ast.tex}
+\input{C_Lexer_Language.tex}
+\input{C_Environment.tex}
+\input{C_Parser_Language.tex}
+\input{C_Lexer_Annotation.tex}
+\input{C_Parser_Annotation.tex}
+\input{C_Eval.tex}
+\input{C_Command.tex}
+\input{C_Document.tex}
+\input{C_Main.tex}
 
-% \inputif{2/document/C0.tex} % not included by default
-\inputif{2/document/C1.tex}
-\inputif{2/document/C2.tex}
-\inputif{2/document/C_paper.tex}
+% \input{C0.tex} % not included by default
+\input{C1.tex}
+\input{C2.tex}
+\input{C_paper.tex}
 
-\inputif{3/document/C_Appendices.tex}
+\input{C_Appendices.tex}
 
-% optional bibliography
-\IfFileExists{root.bib}{%
-    \bibliography{root}
-}{}
+\bibliography{root}
 \end{document}
 
 %%% Local Variables:

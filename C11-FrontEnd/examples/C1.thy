@@ -44,7 +44,7 @@ begin
 text \<open> Operationally, the \<^theory_text>\<open>C\<close> command can be thought of as
 behaving as \<^theory_text>\<open>ML\<close>, where it is for example possible to recursively nest C
 code in C. Generally, the present chapter assumes a familiarity with all advance concepts of ML as
-described in \<^file>\<open>~~/src/HOL/ex/ML.thy\<close>, as well as the concept of ML
+described in \<^file>\<open>~~/src/HOL/Examples/ML.thy\<close>, as well as the concept of ML
 antiquotations (\<^file>\<open>~~/src/Doc/Implementation/ML.thy\<close>). However, even if
 \<^theory_text>\<open>C\<close> might resemble to \<^theory_text>\<open>ML\<close>, we will now see
 in detail that there are actually subtle differences between the two commands.\<close>
@@ -241,7 +241,7 @@ subsection \<open>Bottom-Up vs. Top-Down Evaluation\<close>
 
 ML\<open>
 structure Example_Data = Generic_Data (type T = string list
-                                       val empty = [] val extend = K empty val merge = K empty)
+                                       val empty = [] val extend = I val merge = K empty)
 fun add_ex s1 s2 =
   Example_Data.map (cons s2)
   #> (fn context => let val () = Output.information (s1 ^ s2)
@@ -460,7 +460,7 @@ ML\<open>
 structure Data_Out = Generic_Data
   (type T = int
    val empty = 0
-   val extend = K empty
+   val extend = I
    val merge = K empty)
 
 fun show_env0 make_string f msg context =
@@ -785,7 +785,7 @@ ML \<open>
 structure Directive_setup_define = Generic_Data
   (type T = int
    val empty = 0
-   val extend = K empty
+   val extend = I
    val merge = K empty)
 
 fun setup_define1 pos f =

@@ -151,13 +151,13 @@ struct
 structure Data_In_Source = Generic_Data
   (type T = Input.source list
    val empty = []
-   val extend = K empty
+   val extend = I
    val merge = K empty)
 
 structure Data_In_Env = Generic_Data
   (type T = C_Env.env_lang
    val empty = C_Env.empty_env_lang
-   val extend = K empty
+   val extend = I
    val merge = K empty)
 
 structure Data_Accept = Generic_Data
@@ -491,7 +491,7 @@ struct
 val theory = Context.map_theory
 fun local_theory' target f gthy =
   let
-    val (finish, lthy) = Named_Target.switch target gthy;
+    val (finish, lthy) = Target_Context.switch_named_cmd target gthy;
     val lthy' = lthy
       |> Local_Theory.new_group
       |> f false
@@ -672,7 +672,7 @@ fun local_command'' spec = local_command' spec o K
 val command0_no_range = command_no_range' o drop1
 
 fun command0' f kind scan =
-  command3 (fn f => fn (name, pos) => command00 (drop2 f) kind (scan name) (name, pos)) f
+  command3 (fn f => command00 (drop2 f) kind scan) f
 end
 \<close>
 
@@ -683,12 +683,12 @@ struct
 fun command_c ({lines, pos, ...}: Token.file) =
   C_Module.C (Input.source true (cat_lines lines) (pos, pos));
 
-fun C files gthy =
-  command_c (hd (files (Context.theory_of gthy))) gthy;
+fun C get_file gthy =
+  command_c (get_file (Context.theory_of gthy)) gthy;
 
-fun command_ml environment debug files gthy =
+fun command_ml environment debug get_file gthy =
   let
-    val file: Token.file = hd (files (Context.theory_of gthy));
+    val file = get_file (Context.theory_of gthy);
     val source = Token.file_source file;
 
     val _ = Thy_Output.check_comments (Context.proof_of gthy) (Input.source_explode source);
@@ -715,9 +715,9 @@ C_Thy_Header.add_keywords_minor
           [ ((C_Inner_Syntax.pref_lex name, pos_lex), ty)
           , ((C_Inner_Syntax.pref_bot name, pos_bot), ty)
           , ((C_Inner_Syntax.pref_top name, pos_top), ty) ])
-        [ (("apply", \<^here>, \<^here>, \<^here>), ((Keyword.prf_script, []), ["proof"]))
-        , (("by", \<^here>, \<^here>, \<^here>), ((Keyword.qed, []), ["proof"]))
-        , (("done", \<^here>, \<^here>, \<^here>), ((Keyword.qed_script, []), ["proof"])) ])
+        [ (("apply", \<^here>, \<^here>, \<^here>), (Keyword.prf_script, ["proof"]))
+        , (("by", \<^here>, \<^here>, \<^here>), (Keyword.qed, ["proof"]))
+        , (("done", \<^here>, \<^here>, \<^here>), (Keyword.qed_script, ["proof"])) ])
 \<close>
 
 ML \<comment> \<open>\<^theory>\<open>Pure\<close>\<close> \<open>
@@ -794,11 +794,11 @@ val _ = Theory.setup
                              ("C", \<^here>, \<^here>, \<^here>)
   #> C_Inner_Syntax.command0' (C_Inner_Toplevel.generic_theory o C_Inner_File.ML NONE)
                               Keyword.thy_load
-                              (fn name => C_Resources.parse_files name --| semi)
+                              (C_Resources.parse_file --| semi)
                               ("ML_file", \<^here>, \<^here>, \<^here>)
   #> C_Inner_Syntax.command0' (C_Inner_Toplevel.generic_theory o C_Inner_File.C)
                               Keyword.thy_load
-                              (fn name => C_Resources.parse_files name --| semi)
+                              (C_Resources.parse_file --| semi)
                               ("C_file", \<^here>, \<^here>, \<^here>)
   #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Module.C_export_boot)
                              C_Parse.C_source
@@ -908,8 +908,8 @@ fun command_c ({src_path, lines, digest, pos}: Token.file) =
     #> Context.mapping provide (Local_Theory.background_theory provide)
   end;
 
-fun C files gthy =
-  command_c (hd (files (Context.theory_of gthy))) gthy;
+fun C get_file gthy =
+  command_c (get_file (Context.theory_of gthy)) gthy;
 
 end;
 \<close>
@@ -923,7 +923,7 @@ val semi = Scan.option \<^keyword>\<open>;\<close>;
 
 val _ =
   Outer_Syntax.command \<^command_keyword>\<open>C_file\<close> "read and evaluate Isabelle/C file"
-    (Resources.parse_files "C_file" --| semi >> (Toplevel.generic_theory o C_Outer_File.C));
+    (Resources.parse_file --| semi >> (Toplevel.generic_theory o C_Outer_File.C));
 
 val _ =
   Outer_Syntax.command \<^command_keyword>\<open>C_export_boot\<close>

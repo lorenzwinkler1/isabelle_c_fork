@@ -111,23 +111,29 @@ val parse_inst_ident = Parse.name --| \<^keyword>\<open>::\<close> -- Parse.clas
 
 (* code generation *)
 
-fun prep_destination (location, (s, pos)) =
-  if location = {physical = false}
-  then (location, Path.explode_pos (s, pos))
-  else
-    let
-      val _ =
-        if s = ""
-        then error ("Bad bad empty " ^ Markup.markup Markup.keyword2 "file" ^ " argument")
-        else ();
-      val _ =
-        legacy_feature
-          (Markup.markup Markup.keyword1 "export_code" ^ " with " ^
-            Markup.markup Markup.keyword2 "file" ^ " argument" ^ Position.here pos);
-      val _ = Position.report pos Markup.language_path;
-      val path = #1 (Path.explode_pos (s, pos));
-      val _ = Position.report pos (Markup.path (Path.smart_implode path));
-    in (location, (path, pos)) end;
+fun prep_destination (location, source) =
+  let
+    val s = Input.string_of source
+    val pos = Input.pos_of source
+    val delimited = Input.is_delimited source
+  in
+    if location = {physical = false}
+    then (location, Path.explode_pos (s, pos))
+    else
+      let
+        val _ =
+          if s = ""
+          then error ("Bad bad empty " ^ Markup.markup Markup.keyword2 "file" ^ " argument")
+          else ();
+        val _ =
+          legacy_feature
+            (Markup.markup Markup.keyword1 "export_code" ^ " with " ^
+              Markup.markup Markup.keyword2 "file" ^ " argument" ^ Position.here pos);
+        val _ = Position.report pos (Markup.language_path delimited);
+        val path = #1 (Path.explode_pos (s, pos));
+        val _ = Position.report pos (Markup.path (Path.implode_symbolic path));
+      in (location, (path, pos)) end
+  end;
 
 
 fun export_code_cmd all_public raw_cs seris lthy =

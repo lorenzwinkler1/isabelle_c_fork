@@ -614,7 +614,7 @@ struct
 structure Data_Annot = Generic_Data
   (type T = (bool * string) list Inttab.table
    val empty = Inttab.empty
-   val extend = K empty
+   val extend = I
    val merge = K empty)
 end
 \<close>

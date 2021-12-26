@@ -443,8 +443,7 @@ lemma ptr_offsets_eq2 [simp]:
   "\<lbrakk> unat i * size_of TYPE(word32) < 2 ^ len_of TYPE(addr_bitsize);
      unat j * size_of TYPE(word32) < 2 ^ len_of TYPE(addr_bitsize) \<rbrakk> \<Longrightarrow>
    (a +\<^sub>p uint i = a +\<^sub>p uint j) = (i = j)"
-  by (simp add: uint_nat)
-
+  by (simp add: ptr_add_def word32_mult_cancel_right)
 
 subsection\<open>Array update simplification\<close>
 
@@ -629,7 +628,7 @@ lemma (in quicksort) partition_correct:
           apply (unfold partitioned_def)
           apply clarsimp
           apply (case_tac "i = unat aa")
-           apply (simp add: uint_nat, unat_arith)
+           apply (metis less_or_eq_imp_le not_less uint_nat word_less_nat_alt)
           apply (subgoal_tac "i < unat aa", simp)
           apply unat_arith
          apply (rule_tac n = "n" in array_valid_elem2, assumption+)
@@ -643,7 +642,7 @@ lemma (in quicksort) partition_correct:
      apply clarsimp
      apply unat_arith
     defer
-    apply (clarsimp simp: is_array_def array_loc_valid_def uint_nat)
+    apply (clarsimp simp: is_array_def array_loc_valid_def)
     apply (intro conjI impI allI)
               apply simp
              apply (simp add: CTypesDefs.ptr_add_def)
@@ -651,12 +650,16 @@ lemma (in quicksort) partition_correct:
            apply (simp add: CTypesDefs.ptr_add_def)
           apply unat_arith
          apply (simp add: CTypesDefs.ptr_add_def)
+        apply (simp only: uint_nat)
         apply (subst (asm) (2) ptr_offsets_eq)
           apply (simp, unat_arith)
          apply (simp, unat_arith)
-        apply (simp, unat_arith)
+        apply clarsimp
+        apply unat_arith
+       apply (simp only: uint_nat)
        apply (subst (asm) ptr_offsets_eq, simp, unat_arith, simp, unat_arith)+
        apply simp
+      apply (simp only: uint_nat)
       apply (subst (asm) (3) ptr_offsets_eq)
         apply (simp, unat_arith)
        apply (simp, unat_arith)
@@ -669,11 +672,13 @@ lemma (in quicksort) partition_correct:
         apply (subgoal_tac "\<not> unat aa < unat (b + 1)", simp)
         apply simp
        apply unat_arith
-      apply unat_arith
-     apply (subst (asm) (4) ptr_offsets_eq)
+      subgoal by unat_arith
+     apply (simp only: uint_nat)
+     apply (subst (asm) (3) ptr_offsets_eq)
        apply (simp, unat_arith)
       apply (simp, unat_arith)
      apply simp
+    apply (simp only: uint_nat)
     apply (subst (asm) ptr_offsets_eq, simp, unat_arith, simp, unat_arith)+
     apply clarsimp
     apply (drule_tac x = "i" in spec)
@@ -703,22 +708,22 @@ lemma (in quicksort) partition_correct:
          apply (subgoal_tac "a \<le> a +\<^sub>p uint b", simp)
          apply (rule_tac n = "n" in array_no_wrap2, simp, unat_arith)
         apply clarsimp
-        apply (subgoal_tac "a +\<^sub>p uint b < a +\<^sub>p uint n", simp add: uint_nat)
+        apply (subgoal_tac "a +\<^sub>p uint b < a +\<^sub>p uint n", simp)
         apply (erule_tac n = "n" in array_loc_strict_mono2, unat_arith)
        apply (subgoal_tac "a \<le> a +\<^sub>p uint (b + 1)", simp)
        apply (erule_tac n = "n" in array_no_wrap2, unat_arith)
       apply clarsimp
-      apply (subgoal_tac "a +\<^sub>p uint aa < a +\<^sub>p uint n", simp add: uint_nat)
+      apply (subgoal_tac "a +\<^sub>p uint aa < a +\<^sub>p uint n", simp)
       apply (rule_tac n = "n" in array_loc_strict_mono2, assumption+)
      apply (subgoal_tac "a \<le> a +\<^sub>p uint aa", simp)
      apply (rule_tac n = "n" in array_no_wrap2, assumption+)
     apply clarsimp
-    apply (subgoal_tac "a +\<^sub>p uint aa < a +\<^sub>p uint n", simp add: uint_nat)
+    apply (subgoal_tac "a +\<^sub>p uint aa < a +\<^sub>p uint n", simp)
     apply (rule_tac n = "n" in array_loc_strict_mono2, assumption+)
    apply (subgoal_tac "a \<le> a +\<^sub>p uint (b + 1)", simp)
    apply (erule_tac n = "n" in array_no_wrap2, unat_arith)
   apply clarsimp
-  apply (subgoal_tac "a +\<^sub>p uint (b + 1) < a +\<^sub>p uint n", simp add: uint_nat)
+  apply (subgoal_tac "a +\<^sub>p uint (b + 1) < a +\<^sub>p uint n", simp)
   apply (erule_tac n = "n" in array_loc_strict_mono2, unat_arith)
   done
 
@@ -859,7 +864,7 @@ lemma partitioned_after_shuffling_left:
    \<Longrightarrow> partitioned s a (unat n) (unat pivot_idx)"
   apply (clarsimp simp: partitioned_def unmodified_outside_range_def)
   apply (subgoal_tac "heap_w32 s (a +\<^sub>p uint pivot_idx) =
-                      heap_w32 s0 (a +\<^sub>p uint pivot_idx)", simp add: uint_nat)
+                      heap_w32 s0 (a +\<^sub>p uint pivot_idx)", simp)
    apply (subgoal_tac "array_not_at_mem_end a (unat pivot_idx)")
     apply (case_tac "i < unat pivot_idx", clarsimp)
      apply (subgoal_tac "\<exists>j. (j < unat pivot_idx \<and>
@@ -867,7 +872,7 @@ lemma partitioned_after_shuffling_left:
       apply clarsimp
       apply (drule_tac x = "j" in spec)
       apply (subgoal_tac "j < unat n")
-       apply (clarsimp simp: uint_nat)
+       apply (clarsimp)
       apply unat_arith
      apply (erule old_array_elem, simp)
     apply (drule_tac x = "a +\<^sub>p int i" in spec)
@@ -881,7 +886,7 @@ lemma partitioned_after_shuffling_left:
           unat_arith)
   apply (drule_tac x = "a +\<^sub>p uint pivot_idx" in spec)
   apply (subgoal_tac "array_not_at_mem_end a (unat pivot_idx)")
-   apply (simp add: uint_nat)
+   apply (simp)
   apply (erule_tac s = "s0" and n = "unat n" in subarray_not_at_mem_end2,
          unat_arith)
   done
@@ -914,8 +919,8 @@ lemma partitioned_after_shuffling_right:
   apply (case_tac "i \<le> unat pivot_idx")
    apply (frule_tac x = "a +\<^sub>p int i" in spec)
    apply (subgoal_tac "a +\<^sub>p int i < a +\<^sub>p int (Suc (unat pivot_idx))")
-     apply (simp add: uint_nat)
-    apply (erule array_loc_strict_mono, simp)
+    apply simp
+   apply (erule array_loc_strict_mono, simp)
   apply (subgoal_tac "\<not> i < unat pivot_idx")
    prefer 2
    apply unat_arith
@@ -979,12 +984,13 @@ lemma partitioned_array_sorted:
 
 lemma array_index_Suc:
   "a +\<^sub>p uint m +\<^sub>p 1 = a +\<^sub>p int (Suc (unat m))"
-  by (simp add: uint_nat)
+  by simp
 
 lemma array_loc_le_Suc:
-  "array_not_at_mem_end a (Suc (unat m)) \<Longrightarrow> a +\<^sub>p int (unat m) \<le> a +\<^sub>p 1 +\<^sub>p uint m"
+  "array_not_at_mem_end a (Suc (unat m)) \<Longrightarrow> a +\<^sub>p uint m \<le> a +\<^sub>p 1 +\<^sub>p uint m"
   apply (subst ptr_add_commute)
   apply (subst array_index_Suc)
+  apply (simp only: uint_nat)
   apply (rule array_loc_mono, simp+)
   done
 
@@ -1072,7 +1078,7 @@ next
            apply (erule is_still_array)
             apply (rule disjI2, rule disjI1)
             apply (simp add: array_loc_le_Suc)
-           apply (simp add: uint_nat)
+           apply simp
           apply unat_arith
          apply unat_arith
         apply (rule_tac ?s1.0 = "s'a" and m = "Suc (unat rv)"
@@ -1082,7 +1088,7 @@ next
                        in is_array_after_changing_left)
              apply unat_arith
             apply assumption+
-         apply (simp add: uint_nat)+
+         apply (simp)+
        apply (subgoal_tac "mset (the_array s'b a (unat n)) =
                            mset (the_array s'a a (unat n))")
         apply (subgoal_tac "mset (the_array s'a a (unat n)) =
@@ -1107,15 +1113,16 @@ next
          apply (simp add: is_array_def)
         apply (rule disjI1, rule conjI)
          apply (erule subarray_not_at_mem_end2, unat_arith)
+        apply simp
         apply (rule array_loc_le_Suc)
         apply (erule subarray_not_at_mem_end2, unat_arith)
-       apply (simp add: uint_nat)
+       apply simp
       apply (rule_tac ?s0.0 = "s'a" in partitioned_after_shuffling_right)
           apply (rule_tac ?s1.0 = "s'" and m = "unat rv" in is_array_after_changing_left)
              apply unat_arith
             apply assumption+
         apply (rule_tac ?s0.0 = "s'" in partitioned_after_shuffling_left, assumption+)
-       apply (simp add: uint_nat)+
+       apply simp+
      apply (erule unmodified_outside_range_trans)
      apply (rule_tac ?s2.0 = "s'a" in unmodified_outside_range_trans)
       apply (rule_tac m = "unat rv" in unmodified_outside_subrange1)
@@ -1124,7 +1131,7 @@ next
       apply unat_arith
      apply (rule_tac m = "Suc (unat rv)" in unmodified_outside_subrange2)
        apply (simp add: is_array_def)
-      apply (simp add: uint_nat)
+      apply simp
      apply unat_arith
     apply (case_tac "n = 1", simp)
     apply (subgoal_tac "n = 0", simp, unat_arith)

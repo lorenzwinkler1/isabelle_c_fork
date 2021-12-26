@@ -122,13 +122,21 @@ session "Citadelle_C_deep-dirty" in "src/compiler_citadelle_c/doc" = Citadelle_C
 
 session "Citadelle_C_shallow-dirty" in "src/compiler_citadelle_c/core" = Citadelle_C_init +
   options [quick_and_dirty]
+  directories
+    "$HASKABELLE_HOME_USER/default"
   theories
     C_Model_core
 
-session "Citadelle_C_model-dirty" in "src/compiler_citadelle_c/ml" = "Citadelle_C_shallow-dirty" +
+session "Citadelle_C_ml-dirty" in "src/compiler_citadelle_c/ml" = "Citadelle_C_shallow-dirty" +
   options [quick_and_dirty]
   theories
     C_Model_ml
+
+session "Citadelle_C_ex-dirty" in "src/compiler_citadelle_c/ex" = "Citadelle_C_shallow-dirty" +
+  options [quick_and_dirty]
+  theories
+    C_Model_ex_hol
+    C_Model_ex_meta
 
 (******************************************************)
 

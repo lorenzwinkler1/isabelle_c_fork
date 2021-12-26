@@ -66,7 +66,7 @@ section \<open>\<^dir>\<open>../../../../src_ext/l4v/src\<close>\<close>
  * @TAG(NICTA_BSD)
  *)
 
-subsection \<open>\<^file>\<open>$ISABELLE_HOME/src/HOL/Word/Word.thy\<close>\<close> \<comment> \<open>\<^file>\<open>~~/src/HOL/Word/Word.thy\<close>\<close> (* \<comment>
+subsection \<open>\<^file>\<open>$ISABELLE_HOME/src/HOL/Library/Word.thy\<close>\<close> \<comment> \<open>\<^file>\<open>~~/src/HOL/Library/Word.thy\<close>\<close> (* \<comment>
  \<open>FIXME LaTeX: writing \<^dir>\<open>~~\<close> instead of \<^dir>\<open>$ISABELLE_HOME\<close> does not work inside \<^theory_text>\<open>section\<close>-like commands.\<close> *)
 
 datatype 'a word = W

@@ -65,14 +65,14 @@ of two possibly interchangeable parsers (from two different projects):
 
 At present, the recommended and default version is C11.
 
-Isabelle/C requires Isabelle2020. (This is following the latest version currently supported by
+Isabelle/C requires Isabelle2021. (This is following the latest version currently supported by
 AutoCorres.)
 \<close>
 
 section \<open>Getting started (quickstart for users)\<close>
 
 text \<open>
-In the sequel, with \<^verbatim>\<open>isabelle\<close> we refer to your local Isabelle2020
+In the sequel, with \<^verbatim>\<open>isabelle\<close> we refer to your local Isabelle2021
 installation, and assume your current working directory is at the root of \<^verbatim>\<open>Isabelle_C\<close>
 (i.e. the directory that contains this \<^file>\<open>README.md\<close> file).
 

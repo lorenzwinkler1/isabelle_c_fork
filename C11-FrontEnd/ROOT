@@ -39,16 +39,11 @@
    into a unique session. *)
 
 session Isabelle_C in main = HOL +
-  options [document = pdf, document_output = "../generated/document/1"]
   directories "../src"
   theories
     C_Main
-  document_files
-    "root.bib"
-    "root.tex"
 
 session Isabelle_C_examples in examples = Isabelle_C + (* a standard test suite *)
-  options [document = pdf, document_output = "../generated/document/2"]
   sessions
     "HOL-ex"
     "Isar_Ref"
@@ -57,22 +52,30 @@ session Isabelle_C_examples in examples = Isabelle_C + (* a standard test suite 
     C1
     C2
     C_paper
-  document_files
-    "root.bib"
-    "root.tex"
 
 session Isabelle_C_document in appendices = Isabelle_C_examples +
-  options [document = pdf, document_output = "../generated/document/3"]
   theories
     C_Appendices
-  document_files
-    "root.bib"
-    "root.tex"
 
 session Isabelle_C_all = Isabelle_C_document +
   options [document = pdf, document_output = "generated"]
-  (* TODO: find a way to concatenate together PDF in:
-           generated/document/1 + generated/document/2 + generated/document/3 *)
+  document_theories
+    Isabelle_C.C_Ast
+    Isabelle_C.C_Lexer_Language
+    Isabelle_C.C_Environment
+    Isabelle_C.C_Parser_Language
+    Isabelle_C.C_Lexer_Annotation
+    Isabelle_C.C_Parser_Annotation
+    Isabelle_C.C_Eval
+    Isabelle_C.C_Command
+    Isabelle_C.C_Document
+    Isabelle_C.C_Main
+    
+    Isabelle_C_examples.C1
+    Isabelle_C_examples.C2
+    Isabelle_C_examples.C_paper
+    
+    Isabelle_C_document.C_Appendices
   document_files
     "DOF-COL.sty"
     "DOF-core.sty"
