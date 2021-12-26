@@ -111,7 +111,7 @@ lemma get_master_pde_valid[wp]:
   apply (rule ucast_mono_le)
    apply (rule le_shiftr)
    apply (clarsimp simp: word_bw_comms)
-   apply (clarsimp simp: word_bool_alg.conj_assoc[symmetric])
+   apply (clarsimp simp: and.assoc[symmetric])
    apply (subst word_bw_comms, rule word_and_le2)
   apply (rule shiftr_less_t2n)
   apply (clarsimp simp: pd_bits_def pageBits_def and_mask_less'[where n=14, simplified])
@@ -818,12 +818,10 @@ lemma vs_lookup_pages':
 lemma hyp_refs_eq:
   "ARM.state_hyp_refs_of s' = ARM.state_hyp_refs_of s"
   unfolding s'_def ps_def
-  apply (clarsimp intro!: ext simp: state_hyp_refs_of_def
-                    simp: orthr
-                   split: option.splits)
-  apply (cases ty, simp_all add: tyunt default_object_def default_tcb_def
-                                 hyp_refs_of_def tcb_hyp_refs_def
-                                 default_arch_tcb_def)
+  apply (rule ext)
+  apply (clarsimp simp: state_hyp_refs_of_def orthr split: option.splits)
+  apply (cases ty; simp add: tyunt default_object_def default_tcb_def hyp_refs_of_def tcb_hyp_refs_def
+                             default_arch_tcb_def)
   done
 
 end

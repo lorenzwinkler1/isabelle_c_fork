@@ -43,7 +43,7 @@ and
   , ("memsafe", \<^here>)
   , ("c_types", \<^here>)
   , ("c_defs", \<^here>) ]
-  |> map (fn cmd => (cmd, (("", []), [])))
+  |> map (fn cmd => (cmd, ("", [])))
   |> C_Thy_Header.add_keywords
 \<close>
 
@@ -72,7 +72,6 @@ lemma guarded_spec_body_wp [vcg_hoare]:
   apply (erule order_trans)
   apply (auto simp: image_def Bex_def)
   done
-
 
 ML_file "tools/mlyacc/mlyacclib/MLY_base-sig.ML"
 ML_file "tools/mlyacc/mlyacclib/MLY_join.ML"

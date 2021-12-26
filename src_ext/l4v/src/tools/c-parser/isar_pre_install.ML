@@ -16,7 +16,7 @@ sig
   val of_c_ast : C_Ast.ext_decl list -> StmtDecl.ext_decl list
   val of_statement : C_Ast.statement -> StmtDecl.statement
   val mk_thy_relative' : (theory -> Token.file) -> theory -> Token.file * string
-  val parse_files' : string -> theory -> Token.file
+  val parse_file' : Input.source -> theory -> Token.file
 end
 
 structure IsarPreInstall : ISAR_PRE_INSTALL =
@@ -145,11 +145,14 @@ struct
       val file as {src_path, lines, digest, pos}: Token.file = files thy
     in (file, Position.file_of pos |> the |> Path.explode |> File.full_path Path.current |> Path.implode) end
 
-  fun parse_files' name thy =
+  fun parse_files' make_paths source thy =
     let
-      val keywords = Thy_Header.get_keywords thy;
       val master_dir = Resources.master_directory thy;
-      val pos = Position.none;
-      val src_paths = Keyword.command_files keywords "install_C_file" (Path.explode name);
-    in map (Command.read_file master_dir pos) src_paths |> hd end
+      val name = Input.string_of source;
+      val pos = Input.pos_of source;
+      val delimited = Input.is_delimited source;
+      val src_paths = make_paths (Path.explode name);
+    in map (Command.read_file master_dir pos delimited) src_paths end
+
+  fun parse_file' source = parse_files' single source #> the_single
 end

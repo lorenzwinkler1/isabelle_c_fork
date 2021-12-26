@@ -143,7 +143,7 @@ end
 
 functor Options_Parser
  (structure Parse : C_PARSE
-  structure Resources : sig val parse_files: string -> (theory -> Token.file list) Parse.parser end
+  structure Resources : sig val parse_file: (theory -> Token.file) Parse.parser end
   structure IsarInstall : sig
                             type 'a install_C0
                             val install_C_parser : 'a Parse.parser -> 'a install_C0 Parse.parser
@@ -310,12 +310,12 @@ in
      >> (fn f => f (default_opts ()))
 end
 
-val autocorres_parser = options_parser -- Resources.parse_files "autocorres"
+val autocorres_parser = options_parser -- Resources.parse_file
 val autocorres_parser' =
   (* Filename ('Filename' is first parsed before 'Options'
                because the command is declared as 'thy_load' and
                'thy_load' can only affect the first argument of a command in Isabelle2018.) *)
-  Resources.parse_files "autocorres'" --
+  Resources.parse_file --
   (* Options *)
   options_parser
   >> swap
@@ -364,14 +364,13 @@ let
   (* Enter into the correct context. *)
   val locale_name = case !(#c_locale opt) of NONE => Name_Space.base_name locale_name
                                            | SOME l => l
-
-  val lthy = case try (Named_Target.begin (locale_name, Position.none)) thy of
+  val lthy = case try (Target_Context.context_begin_named_cmd [] (locale_name, Position.none)) thy of
                  SOME lthy => lthy
                | NONE => error ("autocorres: no such locale: " ^ locale_name)
 
 in
   (* Exit context. *)
-  Named_Target.exit
+  (Target_Context.end_named_cmd #> Context.the_theory)
 (if is_none (ProgramInfo.get_prog_info_gamma_defined lthy)
  then lthy
  else

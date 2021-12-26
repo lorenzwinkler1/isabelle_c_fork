@@ -38,6 +38,7 @@ begin
 declare word_neq_0_conv [simp del]
 declare neq0_conv [simp del]
 declare fun_upd_apply[simp del]
+declare of_int_and_nat[simp del]
 
 (* Remove wp combinators which are problematic for AutoCorres
    and restore some prior configuration. *)
@@ -170,7 +171,7 @@ ML \<open>
 val do_autocorres = 
   Toplevel.theory
   o (fn (opt, filename) => fn thy =>
-      AutoCorres.do_autocorres opt (IsarPreInstall.mk_thy_relative' (filename #> hd) thy
+      AutoCorres.do_autocorres opt (IsarPreInstall.mk_thy_relative' filename thy
                                     |> (fn (_, s) =>
                                          (Binding.make (#base (OS.Path.splitBaseExt (OS.Path.file s)), Position.none), s))) thy)
 
@@ -193,7 +194,7 @@ val _ =
 val _ =
   Outer_Syntax.command @{command_keyword "install_autocorres_file"}
     "Install the C file, and abstract the output of the C parser into a monadic representation."
-    (AutoCorres.Parser_Outer.autocorres_parser'' (Resources.parse_files "install_autocorres_file" >> C_Scan.Left) >> do_install_autocorres)
+    (AutoCorres.Parser_Outer.autocorres_parser'' (Resources.parse_file >> C_Scan.Left) >> do_install_autocorres)
 \<close>
 
 ML \<open>

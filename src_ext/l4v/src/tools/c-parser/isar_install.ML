@@ -12,7 +12,7 @@ sig
   type additional_options
   type 'a install_C0 = (((((((bool option * string option) * string option) * int option) * string option) * string option) * string option) * 'a) *
                        additional_options list option
-  type C_source = (theory -> Token.file list, binding * Input.source) C_Scan.either
+  type C_source = (theory -> Token.file, binding * Input.source) C_Scan.either
   type install_C = C_source install_C0
   val GhostState : string -> additional_options
   val get_Csyntax : bool option -> bool option -> bool option -> int option -> theory -> StrictCParser.input -> Absyn.ext_decl list * theory
@@ -20,7 +20,7 @@ sig
   val do_cpp : {error_detail : int, cpp_path : string option} ->
                {includes : string list, input : StrictCParser.input} -> string option
   val install_C_file : install_C -> theory -> (binding * string) * theory
-  val interactive_install : (theory -> Token.file list, binding * Input.source) C_Scan.either -> theory -> theory
+  val interactive_install : C_source -> theory -> theory
   val mk_thy_relative : theory -> string -> string
 
   val extra_trace_filename : string Config.T
@@ -81,7 +81,7 @@ end);
 datatype additional_options = MachineState of string | GhostState of string | CRoots of string list
 type 'a install_C0 = (((((((bool option * string option) * string option) * int option) * string option) * string option) * string option) * 'a) *
                      additional_options list option
-type C_source = (theory -> Token.file list, binding * Input.source) C_Scan.either
+type C_source = (theory -> Token.file, binding * Input.source) C_Scan.either
 type install_C = C_source install_C0
 
 fun make_install_C files ((((((((maybe_c11,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),()),statetylist_opt) =
@@ -213,10 +213,10 @@ fun define_function_names fninfo thy = let
     val b = Binding.name cname
     val ((_, (_, th)), lthy) =
         lthy
-        |> Local_Theory.open_target |> snd
+        |> Local_Theory.begin_nested |> snd
         |>Local_Theory.define ((b, NoSyn),
                               ((Thm.def_binding b, []), mk_int_numeral n))
-    val lthy' = Local_Theory.close_target lthy
+    val lthy' = Local_Theory.end_nested lthy
     val morph  = Proof_Context.export_morphism lthy lthy'
     val th'     = Morphism.thm morph th
 
@@ -246,7 +246,7 @@ end
 
 fun define_global_initializers globloc msgpfx name_munger mungedb cse globs thy = let
   open ProgramAnalysis Absyn
-  val lthy = Named_Target.init globloc thy
+  val lthy = Named_Target.init [] globloc thy
   val globinits = let
     val inittab = get_globinits cse
     fun foldthis (gnm : MString.t, gty) defs = let
@@ -327,11 +327,9 @@ in
   recurse (Binaryset.empty String.compare) slist
 end
 
-fun mk_thy_relative' files = IsarPreInstall.mk_thy_relative' (files #> hd)
-
 fun install_C_file00 files thy =
-  case files of C_Scan.Left files => 
-                  let val p = mk_thy_relative' files thy in (StrictCParser.File p, C_Scan.Left (#2 p)) end
+  case files of C_Scan.Left file => 
+                  let val p = IsarPreInstall.mk_thy_relative' file thy in (StrictCParser.File p, C_Scan.Left (#2 p)) end
               | C_Scan.Right (binding, src) => (StrictCParser.Source src, C_Scan.Right binding)
 
 fun install_C_file0 ((((((((maybe_c11,no_cpp),parse_stop),sub_decl),memsafe),ctyps),cdefs),files),statetylist_opt) thy = let
@@ -408,7 +406,7 @@ in
             state {owners=owners,gstate_ty=gstate_ty,mstate_ty=mstate_ty} thy
       val loc_b = Binding.name (suffix HPInter.globalsN (Name_Space.base_name localename))
       val (globloc, ctxt) =
-          Expression.add_locale loc_b loc_b ([], []) globs thy
+          Expression.add_locale loc_b loc_b [] ([], []) globs thy
       val thy = Local_Theory.exit_global ctxt
       val _ = Output.state ("Created locale for globals (" ^ Binding.print loc_b ^
                        ")- with " ^ Int.toString (length globs) ^
@@ -570,7 +568,7 @@ end
 
 functor Isar_Install_Parse
  (structure P : C_PARSE
-  structure Resources : sig val parse_files: string -> (theory -> Token.file list) P.parser end
+  structure Resources : sig val parse_file: (theory -> Token.file) P.parser end
   structure C_Outer_Parse : sig val C_source : Input.source P.parser end) =
 struct
 open IsarInstall
@@ -608,12 +606,12 @@ fun file_inclusion resources_parse toplevel_theory =
 
 fun new_C_include_dir toplevel_theory = P.text >> (toplevel_theory o new_include)
 
-fun install_C_file toplevel_theory = file_inclusion (Resources.parse_files "install_C_file" >> C_Scan.Left) toplevel_theory
+fun install_C_file toplevel_theory = file_inclusion (Resources.parse_file >> C_Scan.Left) toplevel_theory
 
 fun install_C toplevel_theory = file_inclusion (P.binding -- C_Outer_Parse.C_source >> C_Scan.Right) toplevel_theory
 
 fun install_C_file_types0 toplevel_theory =
-  parsing_option -- (Resources.parse_files "install_C_file_types" >> C_Scan.Left)
+  parsing_option -- (Resources.parse_file >> C_Scan.Left)
   >> (toplevel_theory o install_C_file_types)
 
 fun install_C_types toplevel_theory =

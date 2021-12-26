@@ -52,7 +52,7 @@ sig
 
   (* storing csenv's in the theory *)
   val store_csenv : string * csenv -> theory -> theory
-  val get_csenv : theory -> string -> csenv option
+  val get_csenv : theory -> Input.source -> csenv option
   val get_csenv' : theory -> string -> csenv option
   (* storing ghost-state types in the theory *)
   val store_ghostty : string * typ -> theory -> theory
@@ -766,7 +766,7 @@ fun store_csenv (s,cse) =
     csenvData.map (Symtab.update(s,cse))
 fun get_csenv thy file = 
   Symtab.lookup (csenvData.get thy)
-                (IsarPreInstall.mk_thy_relative' (IsarPreInstall.parse_files' file) thy |> #2)
+                (IsarPreInstall.mk_thy_relative' (IsarPreInstall.parse_file' file) thy |> #2)
 fun get_csenv' thy file = 
   Symtab.lookup (csenvData.get thy)
                 file

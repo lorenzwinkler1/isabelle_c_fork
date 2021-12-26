@@ -14,11 +14,9 @@ session "Simpl-VCG" in Simpl = Word_Lib +
     "Vcg"
 
 session CParser = "Simpl-VCG" +
-  options [document = pdf, document_output = "../../../../../C11-BackEnds/AutoCorres_wrapper/output/document/3"]
   sessions
     (* To optimize the overall compilation time, the session taking the longest time to compile is put as a direct dependence of CParser, instead of being listed here. *)
     "HOL-Library"
-    "HOL-Word"
     "Lib"
     Isabelle_C
   directories
@@ -27,6 +25,3 @@ session CParser = "Simpl-VCG" +
     "umm_heap/$L4V_ARCH"
   theories
     "CTranslation"
-  document_files
-    "root.tex"
-    "root.bib"
