@@ -28,14 +28,14 @@ of two possibly interchangeable parsers (from two different projects):
 
 At present, the recommended and default version is C11.
 
-Isabelle/C requires Isabelle2019. (This is following the latest version currently supported by
+Isabelle/C requires Isabelle2020. (This is following the latest version currently supported by
 AutoCorres.)
 ›
 
 section ‹Getting started (quickstart for users)›
 
 text ‹
-In the sequel, with ▩‹isabelle› we refer to your local Isabelle2019
+In the sequel, with ▩‹isabelle› we refer to your local Isabelle2020
 installation, and assume your current working directory is at the root of ▩‹Isabelle_C›
 (i.e. the directory that contains this 🗏‹README.md› file).
 
@@ -72,7 +72,7 @@ The following C examples or entry-points of documentation can be executed:
 ▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l Isabelle_C› 🗏‹C11-FrontEnd/examples/C1.thy›
 ▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l Isabelle_C› 🗏‹C11-FrontEnd/examples/C2.thy›
 ▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l Isabelle_C› 🗏‹C18-FrontEnd/examples/C0.thy›
-▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l Isabelle_C› 🗏‹C11-FrontEnd/C_Appendices.thy›
+▪ ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l Isabelle_C› 🗏‹C11-FrontEnd/appendices/C_Appendices.thy›
 
 The option ▩‹-l Isabelle_C› can be omitted; it instructs Isabelle to use a
 binary-built version of the ▩‹Isabelle_C› session. In case of omission,
@@ -89,7 +89,7 @@ C editing support in PIDE; it also contains annotation commands without any sema
 generation and the use of bindings resulting from the static C environment.
 ▪ The example 🗏‹C18-FrontEnd/examples/C0.thy› is basically used to
 demonstrate the faithfulness of the C18 parser implementation.
-▪ The example 🗏‹C11-FrontEnd/C_Appendices.thy› shows the use of
+▪ The example 🗏‹C11-FrontEnd/appendices/C_Appendices.thy› shows the use of
 Isabelle/C documentation facilities.
 ›
 
@@ -153,9 +153,9 @@ project used is ‹e3352826893db4d00fc402fad2a0125307ebe45e›.
 subsection ‹Isabelle/C/README›
 
 text ‹
-🗏‹README.md› is automatically generated from 🗏‹README.thy›
+🗏‹README.md› is automatically generated from 🗏‹README/README.thy›
 using:
-▪ ▩‹isabelle env› 🗏‹./README.sh›
+▪ ▩‹isabelle env› 🗏‹README/README.sh›
 ›
 
 text ‹ Note that this shell-script requires the prior installation of
