@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory InvariantsPre_AI
@@ -107,6 +103,9 @@ lemma a_type_aa_type: "(a_type (ArchObj ako) = AArch T) = (aa_type ako = T)"
 abbreviation
   "typ_at T \<equiv> obj_at (\<lambda>ob. a_type ob = T)"
 
+abbreviation
+  "typs_of \<equiv> \<lambda>s. kheap s ||> a_type"
+
 definition
   pspace_aligned :: "'z::state_ext state \<Rightarrow> bool"
 where
@@ -126,6 +125,10 @@ where
          {x .. x + (2 ^ obj_bits ko - 1)} \<inter>
          {y .. y + (2 ^ obj_bits ko' - 1)} = {}"
 
+lemma pspace_distinctD:
+  "\<lbrakk> kheap s x = Some ko; kheap s y = Some ko'; x \<noteq> y; pspace_distinct s \<rbrakk>
+   \<Longrightarrow> mask_range x (obj_bits ko) \<inter> mask_range y (obj_bits ko') = {}"
+  by (simp add: pspace_distinct_def mask_def)
 
 definition
   caps_of_state :: "'z::state_ext state \<Rightarrow> cslot_ptr \<Rightarrow> cap option"
@@ -267,5 +270,21 @@ lemma inj_IRQRef[simp]: "inj IRQRef" by (auto intro!: injI)
 lemma inj_ArchRef[simp]: "inj ArchRef" by (auto intro!: injI)
 
 lemmas arch_cap_set_map_simps[simp] = arch_cap_set_map_def[split_simps cap.split]
+
+lemma a_typeE:
+  "\<lbrakk>a_type ko = ACapTable sz; (\<And>cs. \<lbrakk> ko = CNode sz cs; well_formed_cnode_n sz cs \<rbrakk> \<Longrightarrow> R)\<rbrakk> \<Longrightarrow> R"
+  "\<lbrakk>a_type ko = ATCB; (\<And>tcb. ko = TCB tcb \<Longrightarrow> R)\<rbrakk> \<Longrightarrow> R"
+  "\<lbrakk>a_type ko = AEndpoint; (\<And>ep. ko = Endpoint ep \<Longrightarrow> R)\<rbrakk> \<Longrightarrow> R"
+  "\<lbrakk>a_type ko = ANTFN; (\<And>ntfn. ko = Notification ntfn \<Longrightarrow> R)\<rbrakk> \<Longrightarrow> R"
+  "\<lbrakk>a_type ko = AArch T; (\<And>ao. \<lbrakk> ko = ArchObj ao; aa_type ao = T \<rbrakk> \<Longrightarrow> R)\<rbrakk> \<Longrightarrow> R"
+  "\<lbrakk>a_type ko = AGarbage sz;
+    (\<And>sz' cs. \<lbrakk> ko = CNode (sz - cte_level_bits) cs; \<not>well_formed_cnode_n sz' cs;
+                cte_level_bits \<le> sz \<rbrakk> \<Longrightarrow> R)\<rbrakk>
+   \<Longrightarrow> R"
+  by (cases ko; clarsimp simp add: a_type_def split: if_split_asm)+
+
+lemma typ_at_typs_of:
+  "typ_at T p s = (typs_of s p = Some T)"
+  by (auto simp: obj_at_def in_opt_map_eq)
 
 end

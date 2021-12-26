@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -15,9 +11,8 @@ Entry point for architecture dependent definitions.
 chapter "Toplevel ARM Definitions"
 
 theory Arch_A
-imports "../TcbAcc_A" "VCPU_A"
+imports TcbAcc_A VCPU_A
 begin
-
 
 context Arch begin global_naming ARM_A
 
@@ -36,6 +31,8 @@ text \<open>Switch to a thread's virtual address space context. Clear the load-e
 definition
   arch_switch_to_thread :: "obj_ref \<Rightarrow> (unit,'z::state_ext) s_monad" where
   "arch_switch_to_thread t \<equiv> do
+     t' \<leftarrow> gets_the $ get_tcb t;
+     vcpu_switch $ tcb_vcpu $ tcb_arch t';
      set_vm_root t;
      do_machine_op $ clearExMonitor
    od"
@@ -123,9 +120,7 @@ where
 
 
 text \<open>The Page capability confers the authority to map, unmap and flush the
-memory page. The remap system call is a convenience operation that ensures the
-page is mapped in the same location as this cap was previously used to map it
-in.\<close>
+  memory page.\<close>
 definition
 perform_page_invocation :: "page_invocation \<Rightarrow> (unit,'z::state_ext) s_monad" where
 "perform_page_invocation iv \<equiv> case iv of
@@ -149,22 +144,6 @@ perform_page_invocation :: "page_invocation \<Rightarrow> (unit,'z::state_ext) s
             if flush then (invalidate_tlb_by_asid asid) else return ()
         od
     od
-| PageRemap asid (Inl (pte, slots)) \<Rightarrow> do
-    flush \<leftarrow> pte_check_if_mapped (hd slots);
-    store_pte (hd slots) pte;
-    mapM_x (swp store_pte InvalidPTE) (tl slots);
-    do_machine_op $ cleanCacheRange_PoU (hd slots) (last_byte_pte (last slots))
-                                        (addrFromPPtr (hd slots));
-    if flush then (invalidate_tlb_by_asid asid) else return ()
-  od
-| PageRemap asid (Inr (pde, slots)) \<Rightarrow> do
-    flush \<leftarrow> pde_check_if_mapped (hd slots);
-    store_pde (hd slots) pde;
-    mapM_x (swp store_pde InvalidPDE) (tl slots);
-    do_machine_op $ cleanCacheRange_PoU (hd slots) (last_byte_pde (last slots))
-                                        (addrFromPPtr (hd slots));
-    if flush then (invalidate_tlb_by_asid asid) else return ()
-  od
 | PageUnmap cap ct_slot \<Rightarrow>
     (case cap of
       PageCap dev p R vp_size vp_mapped_addr \<Rightarrow> do

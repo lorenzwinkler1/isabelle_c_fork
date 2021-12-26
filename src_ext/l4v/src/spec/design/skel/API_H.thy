@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 chapter "The API"
@@ -16,6 +12,8 @@ begin
 
 text \<open>collects all API modules\<close>
 
-#INCLUDE_HASKELL SEL4.lhs
+#INCLUDE_HASKELL SEL4.lhs decls_only NOT callKernel
+
+#INCLUDE_HASKELL SEL4.lhs NOT kernelExitAssertions
 
 end

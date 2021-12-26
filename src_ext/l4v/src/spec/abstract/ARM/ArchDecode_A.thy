@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -16,8 +12,8 @@ chapter "Decoding Architecture-specific System Calls"
 
 theory ArchDecode_A
 imports
-  "../Interrupt_A"
-  "../InvocationLabels_A"
+  Interrupt_A
+  InvocationLabels_A
 begin
 context Arch begin global_naming ARM_A
 
@@ -143,15 +139,21 @@ where
              attr = args ! 2;
              pd_cap = fst (extra_caps ! 0)
         in doE
-            whenE (mapped_address \<noteq> None) $ throwError $ InvalidCapability 0;
             (pd,asid) \<leftarrow> (case pd_cap of
                             ArchObjectCap (PageDirectoryCap pd (Some asid)) \<Rightarrow>
                               returnOk (pd,asid)
                          | _ \<Rightarrow> throwError $ InvalidCapability 1);
+            case mapped_address of
+              Some (asid', vaddr') \<Rightarrow> doE
+                whenE (asid' \<noteq> asid) (throwError $ InvalidCapability 1);
+                whenE (vaddr' \<noteq> vaddr) (throwError $ InvalidArgument 0)
+              odE
+            | None \<Rightarrow> doE
+                vtop \<leftarrow> returnOk (vaddr + (1 << (pageBitsForSize pgsz)) - 1);
+                whenE (vtop \<ge> kernel_base) $ throwError $ InvalidArgument 0
+              odE;
             pd' \<leftarrow> lookup_error_on_failure False $ find_pd_for_asid asid;
             whenE (pd' \<noteq> pd) $ throwError $ InvalidCapability 1;
-            vtop \<leftarrow> returnOk (vaddr + (1 << (pageBitsForSize pgsz)) - 1);
-            whenE (vtop \<ge> kernel_base) $ throwError $ InvalidArgument 0;
             vm_rights \<leftarrow> returnOk (mask_vm_rights R (data_to_rights rights_mask));
             check_vp_alignment pgsz vaddr;
             entries \<leftarrow> create_mapping_entries (addrFromPPtr p)
@@ -162,31 +164,7 @@ where
                 (ArchObjectCap $ PageCap dev p R pgsz (Some (asid, vaddr)))
                 cte entries
         odE
-    else  throwError TruncatedMessage
-    else if invocation_type label = ArchInvocationLabel ARMPageRemap then
-         if length args > 1 \<and> length extra_caps > 0
-         then let rights_mask = args ! 0;
-                  attr = args ! 1;
-                  pd_cap = fst (extra_caps ! 0)
-         in doE
-            (pd,asid) \<leftarrow> (case pd_cap of
-                            ArchObjectCap (PageDirectoryCap pd (Some asid)) \<Rightarrow>
-                              returnOk (pd,asid)
-                         | _ \<Rightarrow> throwError $ InvalidCapability 1);
-            (asid', vaddr) \<leftarrow> (case mapped_address of
-                  Some a \<Rightarrow> returnOk a
-                | _ \<Rightarrow> throwError $ InvalidCapability 0);
-            pd' \<leftarrow> lookup_error_on_failure False $ find_pd_for_asid asid';
-            whenE (pd' \<noteq> pd \<or> asid' \<noteq> asid) $ throwError $ InvalidCapability 1;
-            vm_rights \<leftarrow> returnOk (mask_vm_rights R $ data_to_rights rights_mask);
-            check_vp_alignment pgsz vaddr;
-            entries \<leftarrow> create_mapping_entries (addrFromPPtr p)
-                                              vaddr pgsz vm_rights
-                                              (attribs_from_word attr) pd;
-            ensure_safe_mapping entries;
-            returnOk $ InvokePage $ PageRemap asid' entries
-        odE
-    else  throwError TruncatedMessage
+    else throwError TruncatedMessage
     else if invocation_type label = ArchInvocationLabel ARMPageUnmap
     then  returnOk $ InvokePage $ PageUnmap cap cte
     else if isPageFlushLabel (invocation_type label) then

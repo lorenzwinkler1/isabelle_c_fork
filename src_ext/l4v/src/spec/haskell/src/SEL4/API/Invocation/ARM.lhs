@@ -1,11 +1,7 @@
 %
 % Copyright 2014, General Dynamics C4 Systems
 %
-% This software may be distributed and modified according to the terms of
-% the GNU General Public License version 2. Note that NO WARRANTY is provided.
-% See "LICENSE_GPLv2.txt" for details.
-%
-% @TAG(GD_GPL)
+% SPDX-License-Identifier: GPL-2.0-only
 %
 
 This module defines the machine-specific invocations for the ARM.
@@ -89,9 +85,6 @@ IO pages are invoked using InvokePage (cap contains a bit indicating it is an IO
 >         pageFlushPStart :: PAddr,
 >         pageFlushPD :: PPtr PDE,
 >         pageFlushASID :: ASID }
->     | PageRemap {
->         pageRemapASID :: ASID,
->         pageRemapEntries :: Either (PTE, [PPtr PTE]) (PDE, [PPtr PDE]) }
 >     | PageMap {
 >         pageMapASID :: ASID,
 >         pageMapCap :: Capability,
@@ -135,6 +128,7 @@ FIXME ARMHYP move HyperReg definition (to Hardware?)
 >     | VCPUInjectIRQ (PPtr VCPU) Int VIRQ
 >     | VCPUReadRegister (PPtr VCPU) HyperReg
 >     | VCPUWriteRegister (PPtr VCPU) HyperReg HyperRegVal
+>     | VCPUAckVPPI (PPtr VCPU) VPPIEventIRQ
 >     deriving (Show, Eq)
 
 #endif

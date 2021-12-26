@@ -1,11 +1,7 @@
 (*
- * Copyright 2017, Data61, CSIRO
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(DATA61_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -15,18 +11,10 @@ Arch-specific functions for the abstract model of CSpace.
 chapter "Architecture-specific TCB functions"
 
 theory ArchTcb_A
-imports "../KHeap_A"
+imports KHeap_A
 begin
 
 context Arch begin global_naming ARM_A
-
-definition
-  arch_tcb_set_ipc_buffer :: "machine_word \<Rightarrow> vspace_ref \<Rightarrow> (unit, 'a::state_ext) s_monad"
-where
-  "arch_tcb_set_ipc_buffer target ptr \<equiv> as_user target $ setRegister TPIDRURW ptr"
-
-(* Allow most pre-existing proofs to continue to work. *)
-declare arch_tcb_set_ipc_buffer_def [simp]
 
 definition
   sanitise_register :: "bool \<Rightarrow> register \<Rightarrow> machine_word \<Rightarrow> machine_word"

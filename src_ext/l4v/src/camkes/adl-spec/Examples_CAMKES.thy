@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 chapter \<open>\label{sec:examples}Example Systems\<close>
@@ -101,7 +97,8 @@ definition
 where
   "client \<equiv> \<lparr>
     control = True,
-    requires = [(''s'', simple)],
+    hardware = False,
+    requires = [(''s'', (InterfaceRequired, simple))],
     provides = [],
     dataports = [],
     emits = [],
@@ -114,6 +111,7 @@ definition
 where
   "echo \<equiv> \<lparr>
     control = False,
+    hardware = False,
     requires = [],
     provides = [(''s'', simple)],
     dataports = [],
@@ -151,9 +149,11 @@ where
         conn_type = seL4RPC,
         conn_from = [(''client'', ''s'')],
         conn_to = [(''echo'', ''s'')]
-      \<rparr>)]
+      \<rparr>)],
+      group_labels = []
     \<rparr>,
-    configuration = None
+    configuration = None,
+    policy_extra = {}
   \<rparr>"
 
 text \<open>
@@ -191,6 +191,7 @@ definition
 where
   "emitter \<equiv> \<lparr>
     control = True,
+    hardware = False,
     requires = [],
     provides = [],
     dataports = [],
@@ -214,11 +215,12 @@ definition
 where
   "consumer \<equiv> \<lparr>
     control = True,
+    hardware = False,
     requires = [],
     provides = [],
     dataports = [],
     emits = [],
-    consumes = [(''event'', signal)],
+    consumes = [(''event'', (InterfaceRequired, signal))],
     attributes = []
   \<rparr>"
 
@@ -234,12 +236,14 @@ where
     composition = \<lparr>
       components = [(''source'', emitter), (''sink'', consumer)],
       connections = [(''simpleEvent1'', \<lparr>
-        conn_type = seL4Asynch,
+        conn_type = seL4Notification,
         conn_from = [(''source'', ''event'')],
         conn_to = [(''sink'', ''event'')]
-      \<rparr>)]
+      \<rparr>)],
+      group_labels = []
     \<rparr>,
-    configuration = None
+    configuration = None,
+    policy_extra = {}
   \<rparr>"
 
 text \<open>
@@ -267,6 +271,7 @@ definition
 where
   "data_client \<equiv> \<lparr>
     control = True,
+    hardware = False,
     requires = [],
     provides = [],
     dataports = [(''d1'', None), (''d2'', None)],
@@ -299,14 +304,20 @@ where
         conn_type = seL4SharedData,
         conn_from = [(''comp2'', ''d1'')],
         conn_to = [(''comp1'', ''d2'')]
-      \<rparr>)]
+      \<rparr>)],
+      group_labels = []
     \<rparr>,
-    configuration = None
+    configuration = None,
+    policy_extra = {}
   \<rparr>"
 
 text \<open>The data port example is wellformed:\<close>
 lemma "wellformed_assembly data_system"
-  by (simp add: wellformed_CAMKES_simps data_system_def data_client_def)
+  apply (simp add: data_system_def data_client_def)
+  apply (simp add: wellformed_CAMKES_simps
+                   refs_valid_connection_def (* HACK because the wellformed_CAMKES_simps version backtracks excessively *))
+  done
+
 
 subsection \<open>\label{subsec:terminal}Secure Terminal\<close>
 text \<open>
@@ -357,6 +368,7 @@ definition
 where
   "manager \<equiv> \<lparr>
     control = False,
+    hardware = False,
     requires = [],
     provides = [(''domain1'', display), (''domain2'', display)],
     dataports = [],
@@ -376,7 +388,8 @@ definition
 where
   "terminal_client \<equiv> \<lparr>
     control = True,
-    requires = [(''d'', display)],
+    hardware = False,
+    requires = [(''d'', (InterfaceRequired, display))],
     provides = [],
     dataports = [],
     emits = [],
@@ -412,7 +425,8 @@ where
                   (''client1'', terminal_client),
                   (''client2'', terminal_client)],
     connections = [(''channel1'', channel1),
-                   (''channel2'', channel2)]
+                   (''channel2'', channel2)],
+    group_labels = []
   \<rparr>"
 
 text \<open>
@@ -431,14 +445,15 @@ definition
 where
   "terminal \<equiv> \<lparr>
     composition = comp,
-    configuration = Some conf
+    configuration = Some conf,
+    policy_extra = {}
   \<rparr>"
 
 text \<open>
   Wellformedness for this more complex example is easy as well.
 \<close>
 lemma "wellformed_assembly terminal"
-  by (simp add: wellformed_CAMKES_simps
+  by (simp add: wellformed_CAMKES_simps refs_valid_connection_def
                 terminal_def comp_def manager_def terminal_client_def display_def
                 channel1_def channel2_def conf_def)
 
@@ -455,7 +470,8 @@ definition
 where
   "x \<equiv> \<lparr>
     control = undefined,
-    requires = [(undefined, undefined)], \<comment> \<open>1 required interface...\<close>
+    hardware = undefined,
+    requires = [(undefined, (InterfaceRequired, [undefined]))], \<comment> \<open>1 required interface...\<close>
     provides = undefined,
     dataports = undefined,
     emits = undefined,
@@ -468,8 +484,10 @@ definition
 where
   "broken_assembly \<equiv> \<lparr>composition = \<lparr>
     components = [(undefined, x)],
-    connections = [] \<comment> \<open>... that is unsatisfied.\<close>
-  \<rparr>, configuration = undefined\<rparr>"
+    connections = [], \<comment> \<open>... that is unsatisfied.\<close>
+    group_labels = undefined
+  \<rparr>, configuration = undefined,
+     policy_extra = undefined\<rparr>"
 
 lemma "\<not> wellformed_assembly broken_assembly"
   apply (unfold wellformed_assembly_def)
@@ -481,7 +499,7 @@ lemma "\<not> wellformed_assembly broken_assembly"
                 refs_valid_procedures_def
                 x_def ex_one_def)
   apply fastforce
- done
+  done
 (*>*)
 (*<*)end(*>*)
 
@@ -495,8 +513,10 @@ definition
 where
   "broken_assembly \<equiv> \<lparr> composition = \<lparr>
     components = [],
-    connections = undefined
-  \<rparr>, configuration = undefined \<rparr>"
+    connections = undefined,
+    group_labels = undefined
+  \<rparr>, configuration = undefined,
+     policy_extra = {} \<rparr>"
 
 lemma "\<not>wellformed_assembly broken_assembly"
   apply (unfold wellformed_assembly_def)
@@ -504,53 +524,63 @@ lemma "\<not>wellformed_assembly broken_assembly"
    apply (unfold broken_assembly_def)
    apply (frule wellformed_composition_is_nonempty)
    apply simp+
- done
+  done
 (*>*)
 (*<*)end(*>*)
 
 (*<*)
 lemma "\<not>wellformed_assembly \<lparr> composition = \<lparr>
     components = [(''foo'', undefined), (''foo'', undefined)],
-    connections = undefined
-  \<rparr>, configuration = undefined \<rparr>"
+    connections = undefined,
+    group_labels = undefined
+  \<rparr>, configuration = undefined,
+     policy_extra = {} \<rparr>"
   by (simp add:wellformed_assembly_def wellformed_composition_def)
 
 lemma "\<not>wellformed_assembly \<lparr> composition = \<lparr>
     components = undefined,
-    connections = [(''foo'', undefined), (''foo'', undefined)]
-  \<rparr>, configuration = undefined \<rparr>"
+    connections = [(''foo'', undefined), (''foo'', undefined)],
+    group_labels = undefined
+  \<rparr>, configuration = undefined,
+     policy_extra = {} \<rparr>"
   by (simp add:wellformed_assembly_def wellformed_composition_def)
 
 lemma "\<not>wellformed_assembly \<lparr> composition = \<lparr>
     components = [(''foo'', undefined)],
-    connections = [(''foo'', undefined)]
-  \<rparr>, configuration = undefined \<rparr>"
+    connections = [(''foo'', undefined)],
+    group_labels = undefined
+  \<rparr>, configuration = undefined,
+     policy_extra = {} \<rparr>"
   by (simp add:wellformed_assembly_def wellformed_composition_def)
 
 (* Catch previous issue (\<exists>! x \<in> xs::set \<noteq> \<exists>1 x \<in> xs::list) *)
 lemma "\<not>wellformed_assembly \<lparr> composition = \<lparr>
     components = [(''foo'', \<lparr>
       control = undefined,
-      requires = [(''bar'', undefined)],
+      hardware = undefined,
+      requires = [(''bar'', (InterfaceRequired, [undefined]))],
       provides = undefined,
       dataports = undefined,
       emits = undefined,
       consumes = undefined,
       attributes = undefined \<rparr>)],
-    connections = [(''bar'', \<lparr>
-      conn_type = undefined,
-      conn_from = [(''foo'', ''bar'')],
-      conn_to = undefined \<rparr>),
-    (''baz'', \<lparr>
-      conn_type = undefined,
-      conn_from = [(''foo'', ''bar'')],
-      conn_to = undefined \<rparr>)]
-  \<rparr>, configuration = undefined \<rparr>"
-  by (simp add:wellformed_assembly_def wellformed_composition_def refs_valid_components_def
-      refs_valid_composition_def refs_valid_procedures_def ex_one_def)
+    connections = [
+      (''dup1'', \<lparr>
+        conn_type = undefined,
+        conn_from = [(''foo'', ''bar'')],
+        conn_to = undefined \<rparr>),
+      (''dup2'', \<lparr>
+        conn_type = undefined,
+        conn_from = [(''foo'', ''bar'')],
+        conn_to = undefined \<rparr>)],
+    group_labels = undefined
+  \<rparr>, configuration = undefined,
+     policy_extra = {} \<rparr>"
+  by (simp add: wellformed_assembly_def wellformed_composition_def refs_valid_components_def
+                refs_valid_composition_def refs_valid_procedures_def
+                ex_one_def
+           split: prod.splits)
 
-lemma "\<not>wellformed_procedure []"
-  by (simp add:wellformed_procedure_def)
 (*>*)
 
 (*<*)end(*>*)

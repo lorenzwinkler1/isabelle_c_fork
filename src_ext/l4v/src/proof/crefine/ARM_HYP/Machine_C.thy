@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -93,6 +89,16 @@ assumes setSCTLR_ccorres:
   "ccorres dc xfdc \<top> (\<lbrace>\<acute>sctlr = sctlr \<rbrace>) []
            (doMachineOp (setSCTLR scltr))
            (Call setSCTLR_'proc)"
+
+assumes readTPIDRURO_ccorres:
+  "ccorres (=) ret__unsigned_long_' \<top> UNIV []
+           (doMachineOp getTPIDRURO)
+           (Call readTPIDRURO_'proc)"
+
+assumes writeTPIDRURO_ccorres:
+  "ccorres dc xfdc \<top> (\<lbrace>\<acute>reg = reg \<rbrace>) []
+           (doMachineOp (setTPIDRURO reg))
+           (Call writeTPIDRURO_'proc)"
 
 assumes addressTranslateS1CPR_ccorres:
   "ccorres (=) ret__unsigned_long_' \<top> (\<lbrace>\<acute>vaddr = vaddr \<rbrace>) []
@@ -203,10 +209,10 @@ assumes getFAR_ccorres:
 (* FIXME ARMHYP double-check this, assumption is ccorres holds regardless of in_kernel *)
 assumes getActiveIRQ_ccorres:
 "\<And>in_kernel.
-   ccorres (\<lambda>(a::10 word option) c::16 word.
-     case a of None \<Rightarrow> c = (0xFFFF::16 word)
-     | Some (x::10 word) \<Rightarrow> c = ucast x \<and> c \<noteq> (0xFFFF::16 word))
-     (\<lambda>t. irq_' (s\<lparr>globals := globals t, irq_' := ret__unsigned_short_' t\<rparr> ))
+   ccorres (\<lambda>(a::10 word option) c::machine_word.
+     case a of None \<Rightarrow> c = 0x0000FFFF
+     | Some (x::10 word) \<Rightarrow> c = ucast x \<and> c \<noteq> 0x0000FFFF)
+     (\<lambda>t. irq_' (s\<lparr>globals := globals t, irq_' := ret__unsigned_long_' t\<rparr> ))
      \<top> UNIV hs
  (doMachineOp (getActiveIRQ in_kernel)) (Call getActiveIRQ_'proc)"
 
@@ -287,6 +293,33 @@ assumes set_gic_vcpu_ctrl_lr_ccorres:
 assumes get_gic_vcpu_ctrl_lr_ccorres:
   "ccorres (\<lambda>v virq. virq = virq_C (FCP (\<lambda>_. v))) ret__struct_virq_C_' \<top> (\<lbrace>\<acute>num = scast n \<rbrace>) hs
            (doMachineOp (get_gic_vcpu_ctrl_lr n)) (Call get_gic_vcpu_ctrl_lr_'proc)"
+
+(* ARM Virtual Timer *)
+
+assumes set_cntv_cval_64_ccorres:
+  "ccorres dc xfdc \<top> (\<lbrace>\<acute>val___unsigned_longlong = val\<rbrace>) []
+           (doMachineOp (set_cntv_cval_64 val))
+           (Call set_cntv_cval_64_'proc)"
+
+assumes set_cntv_off_64_ccorres:
+  "ccorres dc xfdc \<top> (\<lbrace>\<acute>val___unsigned_longlong = val\<rbrace>) []
+           (doMachineOp (set_cntv_off_64 val))
+           (Call set_cntv_off_64_'proc)"
+
+assumes read_cntpct_ccorres:
+  "ccorres (=) ret__unsigned_longlong_' \<top> UNIV []
+           (doMachineOp read_cntpct)
+           (Call read_cntpct_'proc)"
+
+assumes get_cntv_cval_64_ccorres:
+  "ccorres (=) ret__unsigned_longlong_' \<top> UNIV []
+           (doMachineOp get_cntv_cval_64)
+           (Call get_cntv_cval_64_'proc)"
+
+assumes get_cntv_off_64_ccorres:
+  "ccorres (=) ret__unsigned_longlong_' \<top> UNIV []
+           (doMachineOp get_cntv_off_64)
+           (Call get_cntv_off_64_'proc)"
 
 (* The following are fastpath specific assumptions.
    We might want to move them somewhere else. *)
@@ -455,7 +488,6 @@ lemma cacheRangeOp_ccorres:
              (f;; \<acute>index :== \<acute>index + 1))"
   apply (clarsimp simp: cacheRangeOp_def doMachineOp_mapM_x split_def
                         cacheLine_def cacheLineBits_def)
-thm cacheLineBits_def
   apply (rule ccorres_gen_asm[where G=\<top>, simplified])
   apply (rule ccorres_guard_imp)
     apply (rule ccorres_rel_imp)
@@ -692,21 +724,9 @@ lemma invalidateCacheRange_I_ccorres:
            (Call invalidateCacheRange_I_'proc)"
   apply (rule ccorres_gen_asm[where G=\<top>, simplified])
   apply (cinit' lift: start_' end_' pstart_')
-   apply (clarsimp simp: word_sle_def whileAnno_def)
-   apply (simp add: invalidateCacheRange_I_def)
-   apply csymbr
-   apply (rule cacheRangeOp_ccorres[simplified dc_def])
-     apply (rule empty_fail_invalidateByVA_I)
-    apply clarsimp
-    apply (cinitlift index_')
-    apply (rule ccorres_guard_imp2)
-     apply csymbr
-     apply (ctac add: invalidateByVA_I_ccorres[unfolded dc_def])
-    apply (clarsimp simp: lineStart_def cacheLineBits_def shiftr_shiftl1
-                          mask_out_sub_mask)
-    apply (drule_tac s="w1 && mask 6" in sym, simp add: cache_range_lineIndex_helper)
-   apply (vcg exspec=invalidateByVA_I_modifies)
-  apply clarsimp
+   apply (unfold invalidateCacheRange_I_def)
+   apply (ctac add: invalidate_I_PoU_ccorres)
+  apply simp
   done
 
 lemma branchFlushRange_ccorres:

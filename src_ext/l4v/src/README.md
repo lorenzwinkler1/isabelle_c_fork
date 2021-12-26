@@ -1,3 +1,9 @@
+<!--
+     Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
+
+     SPDX-License-Identifier: CC-BY-SA-4.0
+-->
+
 [![DOI][0]](http://dx.doi.org/10.5281/zenodo.591732)
 
   [0]: https://zenodo.org/badge/doi/10.5281/zenodo.591732.svg
@@ -27,51 +33,13 @@ repo](https://github.com/seL4/verification-manifest).
 
   [5]: http://source.android.com/source/downloading.html#installing-repo     "google repo installation"
 
-### Software dependencies
 
-On **Ubuntu 18.04**, to run all the tests against the **ARMv7-A** architecture
-you will need to install the following packages:
-```bash
-sudo apt-get install \
-    haskell-stack python python-pip python-dev \
-    mlton-compiler gcc-arm-none-eabi \
-    build-essential libxml2-utils ccache ncurses-dev librsvg2-bin \
-    device-tree-compiler cmake ninja-build curl zlib1g-dev \
-    texlive-fonts-recommended texlive-latex-extra \
-    texlive-metapost texlive-bibtex-extra
-```
-```bash
-sudo pip install --upgrade pip
-sudo pip install sel4-deps
-```
+Dependencies
+------------
 
-On **Debian Stretch**, install the above packages as well as:
-```bash
-sudo apt-get install \
-    rsync
-```
+For software dependencies and Isabelle setup, see the
+[setup.md](docs/setup.md) file in the `docs` directory.
 
-### Haskell Stack
-L4V requires [haskell-stack](https://docs.haskellstack.org/en/stable/README).
-Make sure you've adjusted your `PATH` to include `$HOME/.local/bin`, and that
-you're running an up-to-date version:
-```bash
-stack upgrade --binary-only
-which stack # should be $HOME/.local/bin/stack
-```
-
-### MacOS
-Other than the cross-compiler `gcc` toolchain, setup on MacOS should be similar
-to that on Ubuntu. To set up a cross-compiler, try the following:
-* Install `XCode` from the AppStore and its command line tools. If you are
-  running MacPorts, you have these already. Otherwise, after you have XCode
-  installed, run `gcc --version` in a terminal window. If it reports a version,
-  you're set. Otherwise it should pop up a window and prompt for installation
-  of the command line tools.
-* Install the seL4 Python dependencies, for instance using `sudo easy_install
-  sel4-deps`.  `easy_install` is part of Python's [`setuptools`][9].
-* Install the [`misc/scripts/cpp`](misc/scripts/cpp) wrapper for clang, by
-  putting it in `~/bin`, or somewhere else in your `PATH`.
 
 Contributing
 ------------
@@ -83,6 +51,8 @@ Overview
 --------
 
 The repository is organised as follows.
+
+ * [`docs`](docs/): documentation on conventions, style, etc.
 
  * [`spec`](spec/): a number of different formal specifications of seL4
     * [`abstract`](spec/abstract/): the functional abstract specification of seL4
@@ -106,7 +76,7 @@ The repository is organised as follows.
       * [`design`](spec/design/): the design-level specification of seL4,
         generated from the Haskell model.
       * [`c`](spec/cspec/c/): the C code of the seL4 kernel, preprocessed into a form that
-        can be read into Isabelle. This is generated from the [seL4 repository](../seL4).
+        can be read into Isabelle. This is generated from the [seL4 repository](https://github.com/seL4/seL4).
 
  * [`proof`](proof/): the seL4 proofs
     * [`invariant-abstract`](proof/invariant-abstract/): invariants of the seL4 abstract specification
@@ -147,11 +117,11 @@ The repository is organised as follows.
     systems.
 
 
-  [6]: http://www.nicta.com.au/pub?id=7847           "An Isabelle Proof Method Language"
+  [6]: https://ts.data61.csiro.au/publications/nictaabstracts/Matichuk_WM_14.abstract.pml "An Isabelle Proof Method Language"
 
 
 Hardware requirements
-------------
+---------------------
 
 Almost all proofs in this repository should work within 4GB of RAM. Proofs
 involving the C refinement, will usually need the 64bit mode of polyml and
@@ -161,60 +131,10 @@ The proofs distribute reasonably well over multiple cores, up to about 8
 cores are useful.
 
 
-Isabelle Setup
---------------
+jEdit
+-----
 
-After the repository is set up using `repo` (as per the [setup section](#setup) above), you
-should have following directory structure, where `l4v` is the repository you
-are currently looking at:
-
-```bash
-verification/
-    isabelle/
-    l4v/
-    seL4/
-```
-
-To set up Isabelle for use in `l4v/`, assuming you have no previous
-installation of Isabelle, run the following commands in the directory
-`verification/l4v/`:
-
-```bash
-mkdir -p ~/.isabelle/etc
-cp -i misc/etc/settings ~/.isabelle/etc/settings
-./isabelle/bin/isabelle components -a
-./isabelle/bin/isabelle jedit -bf
-./isabelle/bin/isabelle build -bv HOL-Word
-```
-
-These commands perform the following steps:
-
- * create an Isabelle user settings directory.
- * install L4.verified Isabelle settings.
-   These settings initialise the Isabelle installation to use the standard
-   Isabelle `contrib` tools from the Munich Isabelle repository and set up
-   paths such that multiple Isabelle repository installations can be used
-   side by side without interfering with each other.
- * download `contrib` components from the Munich repository. This includes
-   Scala, a Java JDK, PolyML, and multiple external provers. You should
-   download these, even if you have these tools previously installed
-   elsewhere to make sure you have the right versions. Depending on your
-   internet connection, this may take some time.
- * compile and build the Isabelle PIDE jEdit interface.
- * build basic Isabelle images, including `HOL-Word` to ensure that
-   the installation works. This may take a few minutes.
-
-Alternatively, it is possible to use the official Isabelle2019 release
-bundle for your platform from the [Isabelle website][2]. In this case, the
-installation steps above can be skipped, and you would replace the directory
-`verification/isabelle/` with a symbolic link to the Isabelle home directory
-of the release version. Note that this is not recommended for development,
-since Google repo will overwrite this link when you synchronise repositories
-and Isabelle upgrades will have to be performed manually as development
-progresses.
-
-### JEdit
-We provide a JEdit macro that is very useful when working with large theory
+We provide a jEdit macro that is very useful when working with large theory
 files, **goto-error**, which moves the cursor to the first error in the file.
 
 To install the macro, run the following commands in the directory
@@ -271,20 +191,10 @@ from the directory `l4v/`. For available sessions, see the corresponding
 each major directory in the repository.
 
 For interactively exploring, say the invariant proof of the abstract
-specification with a pre-built logic image for the abstract specification,
-run
+specification with a pre-built logic image for the abstract specification and
+all of the invariant proof's dependencies, run
 
-    ./isabelle/bin/isabelle jedit -d . -l ASpec
+    ./isabelle/bin/isabelle jedit -d . -R AInvs
 
 in `l4v/` and open one of the files in `proof/invariant-abstract`.
-
-
-License
--------
-
-The files in this repository are released under standard open source
-licenses. Please see the individual file headers and
-[`LICENSE_GPLv2.txt`](LICENSE_GPLv2.txt) and
-[`LICENSE_BSD2.txt`](LICENSE_BSD2.txt) files for details.
-
 

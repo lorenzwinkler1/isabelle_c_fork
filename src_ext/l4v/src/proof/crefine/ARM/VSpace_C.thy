@@ -1,40 +1,12 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory VSpace_C
 imports TcbAcc_C CSpace_C PSpace_C TcbQueue_C
 begin
-
-context begin interpretation Arch . (*FIXME: arch_split*)
-
-(* FIXME: move *)
-lemma empty_fail_findPDForASID[iff]:
-  "empty_fail (findPDForASID asid)"
-  apply (simp add: findPDForASID_def liftME_def)
-  apply (intro empty_fail_bindE, simp_all split: option.split)
-     apply (simp add: assertE_def split: if_split)
-    apply (simp add: assertE_def split: if_split)
-   apply (simp add: empty_fail_getObject)
-  apply (simp add: assertE_def liftE_bindE checkPDAt_def split: if_split)
-  done
-
-(* FIXME: move *)
-lemma empty_fail_findPDForASIDAssert[iff]:
-  "empty_fail (findPDForASIDAssert asid)"
-  apply (simp add: findPDForASIDAssert_def catch_def
-                   checkPDAt_def checkPDUniqueToASID_def
-                   checkPDASIDMapMembership_def)
-  apply (intro empty_fail_bind, simp_all split: sum.split)
-  done
-
-end
 
 context kernel_m begin
 
@@ -88,7 +60,7 @@ lemma getKSASIDTable_ccorres_stuff:
   apply (drule rf_asidTable [where idx=idx])
     apply fastforce
    apply (simp add: mask_def)
-   apply (simp add: minus_one_helper3)
+   apply (simp add: word_le_minus_one_leq)
   apply (clarsimp split: option.splits)
   done
 
@@ -583,8 +555,9 @@ lemma generic_frame_cap_get_capFIsMapped_spec:
        Call generic_frame_cap_get_capFIsMapped_'proc
        \<lbrace>\<acute>ret__unsigned_long = (if generic_frame_cap_get_capFMappedASID_CL (cap_lift \<^bsup>s\<^esup>cap) \<noteq> 0 then 1 else 0)\<rbrace>"
   apply vcg
-  apply (clarsimp simp: generic_frame_cap_get_capFMappedASID_CL_def if_distrib [where f=scast])
-done
+  apply (clarsimp simp: generic_frame_cap_get_capFMappedASID_CL_def if_distrib [where f=scast]
+                  cong: if_cong)
+  done
 
 
 
@@ -736,8 +709,8 @@ lemma ptrFromPAddr_spec:
   Call ptrFromPAddr_'proc
   \<lbrace>  \<acute>ret__ptr_to_void =  Ptr (ptrFromPAddr (paddr_' s) ) \<rbrace>"
   apply vcg
-  apply (simp add: ARM.ptrFromPAddr_def physMappingOffset_def
-                   kernelBase_addr_def physBase_def ARM.physBase_def)
+  apply (simp add: ARM.ptrFromPAddr_def pptrBaseOffset_def
+                   pptrBase_def physBase_def ARM.physBase_def)
   done
 
 lemma addrFromPPtr_spec:
@@ -746,8 +719,8 @@ lemma addrFromPPtr_spec:
   \<lbrace>  \<acute>ret__unsigned_long =  (addrFromPPtr (ptr_val (pptr_' s)) ) \<rbrace>"
   apply vcg
   apply (simp add: addrFromPPtr_def
-                   ARM.addrFromPPtr_def physMappingOffset_def
-                   kernelBase_addr_def physBase_def ARM.physBase_def)
+                   ARM.addrFromPPtr_def pptrBaseOffset_def
+                   pptrBase_def physBase_def ARM.physBase_def)
   done
 
 
@@ -865,26 +838,6 @@ lemma ccorres_pre_getObject_asidpool:
      apply (wpsimp wp: getASID_wp empty_fail_getObject)+
   apply (erule cmap_relationE1 [OF rf_sr_cpspace_asidpool_relation],
          erule ko_at_projectKO_opt)
-  apply simp
-  done
-
-(* FIXME: move *)
-lemma ccorres_from_vcg_throws_nofail:
-  "\<forall>\<sigma>. \<Gamma>\<turnstile> {s. P \<sigma> \<and> s \<in> P' \<and> (\<sigma>, s) \<in> srel} c {},
-  {s. \<not>snd (a \<sigma>) \<longrightarrow> (\<exists>(rv, \<sigma>')\<in>fst (a \<sigma>). (\<sigma>', s) \<in> srel \<and> arrel rv (axf s))} \<Longrightarrow>
-  ccorres_underlying srel \<Gamma> r xf arrel axf P P' (SKIP # hs) a c"
-  apply (rule ccorresI')
-  apply (drule_tac x = s in spec)
-  apply (drule hoare_sound)
-  apply (simp add: HoarePartialDef.valid_def cvalid_def)
-  apply (erule exec_handlers.cases)
-    apply clarsimp
-    apply (drule spec, drule spec, drule (1) mp)
-    apply (clarsimp dest!: exec_handlers_SkipD
-                     simp: split_def unif_rrel_simps elim!: bexI [rotated])
-   apply clarsimp
-   apply (drule spec, drule spec, drule (1) mp)
-   apply clarsimp
   apply simp
   done
 
@@ -1320,7 +1273,6 @@ lemma findFreeHWASID_ccorres:
                            Collect_const_mem word_sless_msb_less
                            ucast_less[THEN order_less_le_trans]
                            word_0_sle_from_less)
-     apply (simp add: option_to_0_def)
      apply (frule(1) is_inv_SomeD, clarsimp)
      apply (drule subsetD, erule domI)
      apply simp
@@ -1955,15 +1907,6 @@ lemma flushPage_ccorres:
   apply (simp add: pageBits_def mask_eq_iff_w2p word_size)
   done
 
-lemma ignoreFailure_liftM:
-  "ignoreFailure = liftM (\<lambda>v. ())"
-  apply (rule ext)+
-  apply (simp add: ignoreFailure_def liftM_def
-                   catch_def)
-  apply (rule bind_apply_cong[OF refl])
-  apply (simp split: sum.split)
-  done
-
 end
 
 context begin interpretation Arch . (*FIXME: arch_split*)
@@ -2055,6 +1998,7 @@ lemma ccorres_return_void_C':
 lemma is_aligned_cache_preconds:
   "\<lbrakk>is_aligned rva n; n \<ge> 6\<rbrakk> \<Longrightarrow> rva \<le> rva + 0x3F \<and>
           addrFromPPtr rva \<le> addrFromPPtr rva + 0x3F \<and> rva && mask 5 = addrFromPPtr rva && mask 5"
+  supply if_cong[cong]
   apply (drule is_aligned_weaken, simp)
   apply (rule conjI)
    apply (drule is_aligned_no_overflow, simp, unat_arith)[1]
@@ -2192,7 +2136,7 @@ lemmas ccorres_move_array_assertion_pde_16
 lemma unmapPage_ccorres:
   "ccorres dc xfdc (invs' and (\<lambda>s. 2 ^ pageBitsForSize sz \<le> gsMaxObjectSize s)
                           and (\<lambda>_. asid \<le> mask asid_bits \<and> vmsz_aligned' vptr sz
-                                           \<and> vptr < kernelBase))
+                                           \<and> vptr < pptrBase))
       (UNIV \<inter> {s. gen_framesize_to_H (page_size_' s) = sz \<and> page_size_' s < 4}
             \<inter> {s. asid_' s = asid} \<inter> {s. vptr_' s = vptr} \<inter> {s. pptr_' s = Ptr pptr}) []
       (unmapPage sz asid vptr pptr) (Call unmapPage_'proc)"
@@ -2422,7 +2366,7 @@ lemma unmapPage_ccorres:
                      apply (simp add: vmsz_aligned'_def vmsz_aligned_def)
                      apply (clarsimp simp: lookup_pd_slot_def Let_def
                                         mask_add_aligned field_simps)
-                     apply (erule less_kernelBase_valid_pde_offset')
+                     apply (erule less_pptrBase_valid_pde_offset')
                       apply (simp add: vmsz_aligned'_def)
                      apply (simp add: word_le_nat_alt unat_of_nat)
                     apply (simp add: upto_enum_step_def)
@@ -2587,17 +2531,6 @@ lemma updateCap_frame_mapped_addr_ccorres:
   done
 
 (* FIXME: move *)
-lemma diminished_PageCap:
-  "diminished' (ArchObjectCap (PageCap d p R sz a)) cap \<Longrightarrow>
-  \<exists>R'. cap = ArchObjectCap (PageCap d p R' sz a)"
-  apply (clarsimp simp: diminished'_def)
-  apply (clarsimp simp: maskCapRights_def Let_def)
-  apply (cases cap, simp_all add: isCap_simps)
-  apply (simp add: ARM_H.maskCapRights_def)
-  apply (simp add: isPageCap_def split: arch_capability.splits)
-  done
-
-(* FIXME: move *)
 lemma ccap_relation_mapped_asid_0:
   "ccap_relation (ArchObjectCap (PageCap d v0 v1 v2 v3)) cap
   \<Longrightarrow> (generic_frame_cap_get_capFMappedASID_CL (cap_lift cap) \<noteq> 0 \<longrightarrow> v3 \<noteq> None) \<and>
@@ -2651,14 +2584,6 @@ lemma ccap_relation_mapped_asid_0:
   apply simp
   done
 
-(* FIXME: move *)
-lemma getSlotCap_wp':
-  "\<lbrace>\<lambda>s. \<forall>cap. cte_wp_at' (\<lambda>c. cteCap c = cap) p s \<longrightarrow> Q cap s\<rbrace> getSlotCap p \<lbrace>Q\<rbrace>"
-  apply (simp add: getSlotCap_def)
-  apply (wp getCTE_wp')
-  apply (clarsimp simp: cte_wp_at_ctes_of)
-  done
-
 lemma ccap_relation_PageCap_generics:
   "ccap_relation (ArchObjectCap (PageCap d ptr rghts sz mapdata)) cap'
     \<Longrightarrow> (mapdata \<noteq> None \<longrightarrow>
@@ -2708,7 +2633,7 @@ lemma ccap_relation_PageCap_generics:
 
 lemma performPageInvocationUnmap_ccorres:
   "ccorres (K (K \<bottom>) \<currency> dc) (liftxf errstate id (K ()) ret__unsigned_long_')
-       (invs' and cte_wp_at' (diminished' (ArchObjectCap cap) o cteCap) ctSlot and K (isPageCap cap))
+       (invs' and cte_wp_at' ((=) (ArchObjectCap cap) o cteCap) ctSlot and K (isPageCap cap))
        (UNIV \<inter> \<lbrace>ccap_relation (ArchObjectCap cap) \<acute>cap\<rbrace> \<inter> \<lbrace>\<acute>ctSlot = Ptr ctSlot\<rbrace>)
        []
        (liftE (performPageInvocation (PageUnmap cap ctSlot)))
@@ -2718,7 +2643,7 @@ lemma performPageInvocationUnmap_ccorres:
    apply csymbr
    apply (rule ccorres_guard_imp [where A=
                "invs'
-                and cte_wp_at' (diminished' (ArchObjectCap cap) o cteCap) ctSlot
+                and cte_wp_at' ((=) (ArchObjectCap cap) o cteCap) ctSlot
                 and K (isPageCap cap)"])
      apply wpc
       apply (rule_tac P=" ret__unsigned_long = 0" in ccorres_gen_asm)
@@ -2766,7 +2691,7 @@ lemma performPageInvocationUnmap_ccorres:
      apply (simp add: cte_wp_at_ctes_of)
      apply wp
     apply (clarsimp simp: cte_wp_at_ctes_of isCap_simps split: if_split)
-    apply (drule diminished_PageCap)
+    apply (drule_tac t="cteCap cte" in sym)
     apply clarsimp
     apply (drule ccap_relation_mapped_asid_0)
     apply (frule ctes_of_valid', clarsimp)
@@ -2774,7 +2699,7 @@ lemma performPageInvocationUnmap_ccorres:
     apply (fastforce simp: mask_def valid_cap'_def)
    apply assumption
   apply (clarsimp simp: cte_wp_at_ctes_of isCap_simps split: if_split)
-  apply (drule diminished_PageCap)
+  apply (drule_tac t="cteCap cte" in sym)
   apply clarsimp
   apply (frule (1) rf_sr_ctes_of_clift)
   apply (clarsimp simp: typ_heap_simps')
@@ -2829,6 +2754,7 @@ lemma makeUserPDE_spec:
        C_CL = 0,
        B_CL = iwb_from_cacheable  \<^bsup>s\<^esup>cacheable
     \<rparr>) \<rbrace>"
+  supply if_cong[cong]
   apply (rule allI, rule conseqPre, vcg)
   apply (clarsimp simp:ap_from_vm_rights_mask split:if_splits)
   apply (intro conjI impI allI | clarsimp )+
@@ -2878,7 +2804,7 @@ lemma makeUserPTE_spec:
   Call makeUserPTE_'proc
   \<lbrace> pte_lift \<acute>ret__struct_pte_C = Some (if \<^bsup>s\<^esup>page_size = scast Kernel_C.ARMSmallPage
     then Pte_pte_small
-     \<lparr> address_CL = \<^bsup>s\<^esup>paddr,
+     \<lparr> pte_pte_small_CL.address_CL = \<^bsup>s\<^esup>paddr,
        nG_CL = 1,
        S_CL = shared_bit_from_cacheable \<^bsup>s\<^esup>cacheable,
        APX_CL = 0,
@@ -2959,27 +2885,6 @@ lemma cap_lift_PDCap_Base:
 declare mask_Suc_0[simp]
 
 (* FIXME: move *)
-lemma setCTE_asidpool':
-  "\<lbrace> ko_at' (ASIDPool pool) p \<rbrace> setCTE c p' \<lbrace>\<lambda>_. ko_at' (ASIDPool pool) p\<rbrace>"
-  apply (clarsimp simp: setCTE_def)
-  apply (simp add: setObject_def split_def)
-  apply (rule hoare_seq_ext [OF _ hoare_gets_post])
-  apply (clarsimp simp: valid_def in_monad)
-  apply (frule updateObject_type)
-  apply (clarsimp simp: obj_at'_def projectKOs)
-  apply (rule conjI)
-   apply (clarsimp simp: lookupAround2_char1)
-   apply (clarsimp split: if_split)
-   apply (case_tac obj', auto)[1]
-   apply (rename_tac arch_kernel_object)
-   apply (case_tac arch_kernel_object, auto)[1]
-   apply (simp add: updateObject_cte)
-   apply (clarsimp simp: updateObject_cte typeError_def magnitudeCheck_def in_monad
-                   split: kernel_object.splits if_splits option.splits)
-  apply (clarsimp simp: ps_clear_upd' lookupAround2_char1)
-  done
-
-(* FIXME: move *)
 lemma asid_pool_at_rf_sr:
   "\<lbrakk>ko_at' (ASIDPool pool) p s; (s, s') \<in> rf_sr\<rbrakk> \<Longrightarrow>
   \<exists>pool'. cslift s' (ap_Ptr p) = Some pool' \<and>
@@ -2987,17 +2892,6 @@ lemma asid_pool_at_rf_sr:
   apply (clarsimp simp: rf_sr_def cstate_relation_def Let_def cpspace_relation_def)
   apply (erule (1) cmap_relation_ko_atE)
   apply clarsimp
-  done
-
-(* FIXME: move *)
-lemma asid_pool_at_ko:
-  "asid_pool_at' p s \<Longrightarrow> \<exists>pool. ko_at' (ASIDPool pool) p s"
-  apply (clarsimp simp: typ_at'_def obj_at'_def ko_wp_at'_def projectKOs)
-  apply (case_tac ko, auto)
-  apply (rename_tac arch_kernel_object)
-  apply (case_tac arch_kernel_object, auto)[1]
-  apply (rename_tac asidpool)
-  apply (case_tac asidpool, auto)[1]
   done
 
 (* FIXME: move *)
@@ -3130,7 +3024,7 @@ lemma performASIDPoolInvocation_ccorres:
    apply simp
   apply (clarsimp simp: cte_wp_at_ctes_of)
   apply (rule conjI)
-   apply (clarsimp dest!: asid_pool_at_ko simp: obj_at'_def)
+   apply (clarsimp dest!: asid_pool_at'_ko simp: obj_at'_def)
   apply (rule cmap_relationE1[OF cmap_relation_cte], assumption+)
   apply (clarsimp simp: typ_heap_simps cap_get_tag_isCap_ArchObject2
                         isPDCap_def isCap_simps

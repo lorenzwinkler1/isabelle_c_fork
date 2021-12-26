@@ -1,11 +1,7 @@
 %
 % Copyright 2014, General Dynamics C4 Systems
 %
-% This software may be distributed and modified according to the terms of
-% the GNU General Public License version 2. Note that NO WARRANTY is provided.
-% See "LICENSE_GPLv2.txt" for details.
-%
-% @TAG(GD_GPL)
+% SPDX-License-Identifier: GPL-2.0-only
 %
 
 This module defines the set of kernel object types that are available on all implementations.
@@ -28,9 +24,6 @@ The following is the definition of the five object types that are always availab
 >         | CapTableObject
 >         deriving (Enum, Bounded, Eq, Show)
 
-> tcbBlockSizeBits :: Int
-> tcbBlockSizeBits = wordSizeCase 9 11
-
 > epSizeBits :: Int
 > epSizeBits = 4
 
@@ -39,13 +32,6 @@ The following is the definition of the five object types that are always availab
 
 > cteSizeBits :: Int
 > cteSizeBits = wordSizeCase 4 5
-
-> apiGetObjectSize :: APIObjectType -> Int -> Int
-> apiGetObjectSize Untyped size = size
-> apiGetObjectSize TCBObject _ = tcbBlockSizeBits
-> apiGetObjectSize EndpointObject _ = epSizeBits
-> apiGetObjectSize NotificationObject _ = ntfnSizeBits
-> apiGetObjectSize CapTableObject size = cteSizeBits + size
 
 
 

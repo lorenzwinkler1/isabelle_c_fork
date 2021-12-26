@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -15,7 +11,7 @@ Entry point for architecture dependent definitions.
 chapter "Toplevel x64 Definitions"
 
 theory Arch_A
-imports "../TcbAcc_A"
+imports TcbAcc_A
 begin
 
 context Arch begin global_naming X64_A
@@ -135,9 +131,7 @@ where
       | _ \<Rightarrow> fail)"
 
 text \<open>The Page capability confers the authority to map, unmap and flush the
-memory page. The remap system call is a convenience operation that ensures the
-page is mapped in the same location as this cap was previously used to map it
-in.\<close>
+  memory page.\<close>
 definition
 perform_page_invocation :: "page_invocation \<Rightarrow> (unit,'z::state_ext) s_monad" where
 "perform_page_invocation iv \<equiv> case iv of
@@ -150,13 +144,6 @@ perform_page_invocation :: "page_invocation \<Rightarrow> (unit,'z::state_ext) s
       asid \<leftarrow> case cap of
                   ArchObjectCap (PageCap _ _ _ _ _ (Some (as, _))) \<Rightarrow> return as
                 | _ \<Rightarrow> fail;
-      invalidate_page_structure_cache_asid (addrFromPPtr vspace) asid
-    od
-  | PageRemap entries asid vspace \<Rightarrow> do
-      case entries of
-          (VMPTE pte, slot) \<Rightarrow> store_pte slot pte
-        | (VMPDE pde, slot) \<Rightarrow> store_pde slot pde
-        | (VMPDPTE pdpte, slot) \<Rightarrow> store_pdpte slot pdpte;
       invalidate_page_structure_cache_asid (addrFromPPtr vspace) asid
     od
   | PageUnmap cap ct_slot \<Rightarrow>

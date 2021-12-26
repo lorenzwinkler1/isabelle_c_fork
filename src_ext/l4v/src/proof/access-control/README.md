@@ -1,3 +1,8 @@
+<!--
+     Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
+
+     SPDX-License-Identifier: CC-BY-SA-4.0
+-->
 
 Access Control Proof
 ====================
@@ -13,7 +18,7 @@ These properties are phrased over seL4's
 [abstract specification](../../spec/abstract/) and this proof builds on
 top of the [Abstract Spec Invariant Proof](../invariant-abstract/).
 
-  [1]: http://www.nicta.com.au/pub?id=4709 "seL4 Enforces Integrity"
+  [1]: https://ts.data61.csiro.au/publications/nictaabstracts/Sewell_WGMAK_11.abstract.pml "seL4 Enforces Integrity"
 
 
 Building

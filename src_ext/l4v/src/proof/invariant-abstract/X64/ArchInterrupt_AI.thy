@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchInterrupt_AI
-imports "../Interrupt_AI"
+imports Interrupt_AI
 begin
 
 context Arch begin global_naming X64
@@ -58,7 +54,7 @@ private method cap_hammer = (((drule_tac x="caps ! 0" in bspec)+, (rule nth_mem,
 
 private method word_hammer = solves \<open>(clarsimp simp: not_less maxIRQ_def ioapicIRQLines_def
                                     maxPCIDev_def maxPCIBus_def maxPCIFunc_def,
-                                    (word_bitwise, auto?)?)[1]\<close>
+                                    auto?)[1]\<close>
 
 lemma irq_plus_min_ge_min:
   "irq \<le> maxUserIRQ - minUserIRQ \<Longrightarrow>
@@ -75,6 +71,37 @@ lemma irq_plus_min_le_max:
   apply (clarsimp simp: minUserIRQ_def maxUserIRQ_def)
   apply (subst add.commute)
   apply (clarsimp simp: Word.le_plus)
+  done
+
+private lemma irq_ineq_one:
+  "x \<le> 0x6B \<Longrightarrow> 0x10 \<le> UCAST(64 \<rightarrow> 8) x + 0x10"
+  by (word_bitwise, clarsimp)
+
+private lemma irq_ineq_two:
+  "x \<le> 0x6B \<Longrightarrow> UCAST(64 \<rightarrow> 8) x + 0x10 \<le> 0x7B"
+  apply (subgoal_tac "UCAST(64 \<rightarrow> 8) x \<le> 0x6B")
+   defer
+   apply (erule ucast_mono_le'[where y="0x6B" and 'a=64 and 'b=8,simplified])
+  apply (thin_tac "x \<le> 0x6B")
+  apply (subst add.commute)
+  apply (rule le_plus)
+  apply simp+
+  done
+
+private lemma irq_ineq_three:
+  "(x :: 8 word) \<le> 0x6B \<Longrightarrow> x + 0x10 \<le> 0x7B"
+  apply (subst add.commute)
+  apply (rule le_plus)
+  apply simp+
+  done
+
+private lemma irq_ineq_four:
+  "(x :: 8 word) \<le> 0x6B \<Longrightarrow> 0x10 \<le> x + 0x10"
+  apply (subst word_le_nat_alt)
+  apply (subst unat_add_lem')
+   apply (subst (asm) word_le_nat_alt)
+   apply simp
+  apply simp
   done
 
 lemma arch_decode_irq_control_valid[wp]:
@@ -94,13 +121,13 @@ lemma arch_decode_irq_control_valid[wp]:
           | wpc
           | wp hoare_vcg_imp_lift_R[where P="\<lambda>rv s. \<not> x64_num_ioapics (arch_state s) - 1 < args ! 2"]
           | wp hoare_vcg_imp_lift_R[where P="\<lambda>rv s. x64_num_ioapics (arch_state s) \<noteq> 0"]
-          | wp_once hoare_drop_imps)+
-  apply (safe; clarsimp simp: word_le_not_less[symmetric] minus_one_helper5
-                              ucast_id irq_plus_min_ge_min irq_plus_min_le_max
-               | cap_hammer
-               | word_hammer)+
+          | wp (once) hoare_drop_imps)+
+  apply ( safe; auto simp: word_le_not_less[symmetric] word_leq_minus_one_le
+                           ucast_id irq_plus_min_ge_min irq_plus_min_le_max ioapicIRQLines_def
+                           minUserIRQ_def maxUserIRQ_def word_add_le_mono1 word_add_le_mono2
+                           word_le_plus irq_ineq_one irq_ineq_two irq_ineq_three irq_ineq_four
+        | cap_hammer | word_hammer)+
   done
-
 end
 
 lemma (* decode_irq_control_valid *)[Interrupt_AI_asms]:
@@ -115,7 +142,7 @@ lemma (* decode_irq_control_valid *)[Interrupt_AI_asms]:
                  split del: if_split cong: if_cong)
   apply (rule hoare_pre)
    apply (wp ensure_empty_stronger | simp add: cte_wp_at_eq_simp
-                 | wp_once hoare_drop_imps)+
+                 | wp (once) hoare_drop_imps)+
   done
 
 lemma get_irq_slot_different_ARCH[Interrupt_AI_asms]:
@@ -166,6 +193,8 @@ lemma (* set_irq_state_valid_cap *)[Interrupt_AI_asms]:
   done
 
 crunch valid_global_refs[Interrupt_AI_asms]: set_irq_state "valid_global_refs"
+
+crunch typ_at[wp]: arch_invoke_irq_handler "\<lambda>s. P (typ_at T p s)"
 
 lemma invoke_irq_handler_invs'[Interrupt_AI_asms]:
   assumes dmo_ex_inv[wp]: "\<And>f. \<lbrace>invs and ex_inv\<rbrace> do_machine_op f \<lbrace>\<lambda>rv::unit. ex_inv\<rbrace>"
@@ -324,7 +353,8 @@ lemma (* handle_interrupt_invs *) [Interrupt_AI_asms]:
   apply (simp add: handle_interrupt_def  )
   apply (rule conjI; rule impI)
   apply (simp add: do_machine_op_bind empty_fail_ackInterrupt_ARCH empty_fail_maskInterrupt_ARCH)
-     apply (wp dmo_maskInterrupt_invs maskInterrupt_invs_ARCH dmo_ackInterrupt | wpc | simp)+
+     apply (wp dmo_maskInterrupt_invs maskInterrupt_invs_ARCH dmo_ackInterrupt
+            | wpc | simp add: arch_mask_irq_signal_def)+
      apply (wp get_cap_wp send_signal_interrupt_states)
     apply (rule_tac Q="\<lambda>rv. invs and (\<lambda>s. st = interrupt_states s irq)" in hoare_post_imp)
      apply (clarsimp simp: ex_nonz_cap_to_def invs_valid_objs)
@@ -342,6 +372,8 @@ lemma sts_arch_irq_control_inv_valid[wp, Interrupt_AI_asms]:
    apply (clarsimp)
    apply (wp ex_cte_cap_to_pres | simp add: cap_table_at_typ)+
   done
+
+crunch typ_at[wp]: arch_invoke_irq_handler "\<lambda>s. P (typ_at T p s)"
 
 end
 

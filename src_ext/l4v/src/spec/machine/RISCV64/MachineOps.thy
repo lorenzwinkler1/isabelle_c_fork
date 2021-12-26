@@ -1,11 +1,7 @@
 (*
- * Copyright 2018, Data61, CSIRO
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(DATA61_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 chapter "Machine Operations"
@@ -14,7 +10,7 @@ theory MachineOps
 imports
   "Word_Lib.WordSetup"
   "Lib.NonDetMonad"
-  "../MachineMonad"
+  MachineMonad
 begin
 
 section "Wrapping and Lifting Machine Operations"
@@ -103,6 +99,26 @@ definition debugPrint :: "unit list \<Rightarrow> unit machine_monad"
 
 
 subsection \<open>Interrupt Controller\<close>
+
+definition
+  IRQ :: "irq \<Rightarrow> irq"
+where "IRQ \<equiv> id"
+
+consts'
+  setIRQTrigger_impl :: "irq \<Rightarrow> bool \<Rightarrow> unit machine_rest_monad"
+
+definition
+  setIRQTrigger :: "irq \<Rightarrow> bool \<Rightarrow> unit machine_monad"
+where
+  "setIRQTrigger irq trigger \<equiv> machine_op_lift (setIRQTrigger_impl irq trigger)"
+
+consts'
+  plic_complete_claim_impl :: "irq \<Rightarrow> unit machine_rest_monad"
+
+definition
+  plic_complete_claim :: "irq \<Rightarrow> unit machine_monad"
+where
+  "plic_complete_claim irq \<equiv> machine_op_lift (plic_complete_claim_impl irq)"
 
 text \<open>Interrupts that cannot occur while the kernel is running (e.g. at preemption points), but
 that can occur from user mode. Empty on RISCV64.\<close>
@@ -221,10 +237,10 @@ lemmas cache_machine_op_defs = sfence_def hwASIDFlush_def
 
 subsection "Faults"
 
-consts' sbadaddr_val :: "machine_state \<Rightarrow> machine_word"
-definition read_sbadaddr :: "machine_word machine_monad"
+consts' stval_val :: "machine_state \<Rightarrow> machine_word"
+definition read_stval :: "machine_word machine_monad"
   where
-  "read_sbadaddr = gets sbadaddr_val"
+  "read_stval = gets stval_val"
 
 
 subsection "Virtual Memory"

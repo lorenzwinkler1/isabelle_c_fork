@@ -1,11 +1,7 @@
 %
 % Copyright 2014, General Dynamics C4 Systems
 %
-% This software may be distributed and modified according to the terms of
-% the GNU General Public License version 2. Note that NO WARRANTY is provided.
-% See "LICENSE_GPLv2.txt" for details.
-%
-% @TAG(GD_GPL)
+% SPDX-License-Identifier: GPL-2.0-only
 %
 
 This module defines the machine-specific invocations for the ARM.
@@ -36,7 +32,6 @@ FIXME ARMHYP ARMPageMapIO is an inconsistant name (but coined by kernel team)
 >         | ARMIOPageTableUnmap
 #endif
 >         | ARMPageMap
->         | ARMPageRemap
 >         | ARMPageUnmap
 #ifdef CONFIG_ARM_SMMU
 >         | ARMPageMapIO
@@ -53,6 +48,7 @@ FIXME ARMHYP ARMPageMapIO is an inconsistant name (but coined by kernel team)
 >         | ARMVCPUInjectIRQ
 >         | ARMVCPUReadReg
 >         | ARMVCPUWriteReg
+>         | ARMVCPUAckVPPI
 #endif
 >         | ARMIRQIssueIRQHandler
 >         deriving (Eq, Enum, Bounded, Show)

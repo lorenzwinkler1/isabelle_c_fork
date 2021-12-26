@@ -1,10 +1,7 @@
+%
 % Copyright 2014, General Dynamics C4 Systems
 %
-% This software may be distributed and modified according to the terms of
-% the GNU General Public License version 2. Note that NO WARRANTY is provided.
-% See "LICENSE_GPLv2.txt" for details.
-%
-% @TAG(GD_GPL)
+% SPDX-License-Identifier: GPL-2.0-only
 %
 
 This module defines the machine-specific interrupt handling routines for x64.
@@ -23,7 +20,7 @@ This module defines the machine-specific interrupt handling routines for x64.
 > import SEL4.Object.Structures
 > import SEL4.API.Failures
 > import SEL4.API.Types
->-- import SEL4.API.Invocation
+> import SEL4.API.Invocation
 > import SEL4.API.InvocationLabels
 > import SEL4.API.Invocation.X64 as ArchInv
 > import SEL4.API.InvocationLabels.X64 as ArchLabels
@@ -49,8 +46,8 @@ This module defines the machine-specific interrupt handling routines for x64.
 >         (ArchInvocationLabel ArchLabels.X64IRQIssueIRQHandlerIOAPIC,
 >                  index:depth:ioapic:pin:level:polarity:irqW:_, cnode:_) -> do
 >
+>             rangeCheck irqW 0 (fromEnum Arch.maxUserIRQ - fromEnum Arch.minUserIRQ)
 >             let preIrq = fromIntegral irqW :: Word8
->             rangeCheck preIrq 0 (fromEnum Arch.maxUserIRQ - fromEnum Arch.minUserIRQ)
 >             let irq = toEnum (fromEnum Arch.minUserIRQ + fromIntegral preIrq) :: IRQ
 >
 >             irqActive <- withoutFailure $ isIRQActive irq
@@ -78,8 +75,8 @@ This module defines the machine-specific interrupt handling routines for x64.
 >         (ArchInvocationLabel ArchLabels.X64IRQIssueIRQHandlerMSI,
 >                  index:depth:pciBus:pciDev:pciFunc:handle:irqW:_, cnode:_) -> do
 >
+>             rangeCheck irqW 0 (fromEnum Arch.maxUserIRQ - fromEnum Arch.minUserIRQ)
 >             let preIrq = fromIntegral irqW :: Word8
->             rangeCheck preIrq 0 (fromEnum Arch.maxUserIRQ - fromEnum Arch.minUserIRQ)
 >             let irq = toEnum (fromEnum Arch.minUserIRQ + fromIntegral preIrq) :: IRQ
 >
 >             irqActive <- withoutFailure $ isIRQActive irq
@@ -126,6 +123,13 @@ updateIRQState sets the arch-specific IRQ state for an IRQ
 >     setIRQState IRQSignal (IRQ irq)
 >     cteInsert (IRQHandlerCap (IRQ irq)) srcSlot destSlot
 >     return ()
+
+> invokeIRQHandler :: IRQHandlerInvocation -> Kernel ()
+> invokeIRQHandler (AckIRQ irq) = doMachineOp $ maskInterrupt False irq
+> invokeIRQHandler _ = return ()
+
+> maskIrqSignal :: IRQ -> Kernel ()
+> maskIrqSignal irq = doMachineOp $ maskInterrupt True irq
 
 %FIXME: separate ranges for ISA interrupts and user interrupts
 

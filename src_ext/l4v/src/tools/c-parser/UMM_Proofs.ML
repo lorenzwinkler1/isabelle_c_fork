@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 (* FIXME: all this should work on Proof.context or local_thy, not theory *)
@@ -318,6 +314,8 @@ in
 end;
 
 val packed_type_simps = @{thms "packed_type_intro_simps"}
+val packed_type_class_intro = @{thm "packed_type_class_intro"}
+val td_packed_intros = @{thms "td_packed_intros"}
 
 fun umm_packed_type recname recty typtag_thm tag_def_thm fgthms thy = let
   val _ = Feedback.informStr (0, "Proving UMM packed type for type "^recname^"... ")
@@ -332,7 +330,10 @@ fun umm_packed_type recname recty typtag_thm tag_def_thm fgthms thy = let
   val is_packed_type_thm =
       Goal.prove_internal ctxt0 [] packed_type_instance_ct
        (fn _ => DETERM ((
-                ((fn _ => Class.intro_classes_tac ctxt0 []) THEN_ALL_NEW (asm_simp_tac pt_ss)) 1)))
+                (resolve_tac ctxt0 [packed_type_class_intro]
+                 THEN' K (unfold_tac ctxt0 [typtag_thm, tag_def_thm])
+                 THEN' REPEAT_ALL_NEW (resolve_tac ctxt0 td_packed_intros))
+                 THEN_ALL_NEW (asm_simp_tac pt_ss)) 1))
 in
     Axclass.add_arity is_packed_type_thm thy
 end handle THM _ => (Feedback.informStr (0, "Failed to prove UMM packed type for type "^recname); thy)

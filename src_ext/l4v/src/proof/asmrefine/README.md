@@ -1,3 +1,9 @@
+<!--
+     Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
+
+     SPDX-License-Identifier: CC-BY-SA-4.0
+-->
+
 Assembly Refinement Proof
 =========================
 
@@ -17,13 +23,13 @@ PLDI '13 [paper][1].
 These theories are specific to seL4, and build on the more general apparatus
 in the [tools directory](../../tools/asmrefine).
 
-  [1]: http://www.nicta.com.au/pub?id=6449  "Translation Validation for a Verified OS Kernel"
+  [1]: https://ts.data61.csiro.au/publications/nictaabstracts/Sewell_MK_13.abstract.pml  "Translation Validation for a Verified OS Kernel"
 
 Important Theories
 ------------------
 
-The [`SEL4SimplExport`](SEL4SimplExport.thy) theory, when executed, exports the
-kernel's C semantics into the graph refinement language used by the external
-graph refinement toolset. The [`SEL4GraphRefine`](SEL4GraphRefine.thy) theory
-establishes that this exported graph semantics is a formal refinement of
+The [`SEL4SimplExport`](export/SEL4SimplExport.thy) theory, when executed,
+exports the kernel's C semantics into the graph refinement language used by the
+external graph refinement toolset. The [`SEL4GraphRefine`](SEL4GraphRefine.thy)
+theory establishes that this exported graph semantics is a formal refinement of
 the kernel's C semantics.

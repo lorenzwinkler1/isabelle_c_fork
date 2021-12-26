@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Untyped_DR
@@ -419,7 +415,8 @@ lemma transform_default_tcb:
                    get_tcb_mrs_def Suc_le_eq get_tcb_message_info_def msg_info_register_def
                    msgInfoRegister_def data_to_message_info_def arch_tcb_context_get_def
                    get_ipc_buffer_words_def)
-  apply (simp add: transform_intent_def invocation_type_def fromEnum_def enum_invocation_label toEnum_def)
+  apply (simp add: transform_intent_def invocation_type_def fromEnum_def enum_invocation_label
+                   enum_gen_invocation_labels toEnum_def)
   apply (simp add: fun_eq_iff tcb_slot_defs infer_tcb_pending_op_def infer_tcb_bound_notification_def
                    guess_error_def default_etcb_def default_domain_def)
   done
@@ -587,6 +584,7 @@ lemma retype_region_dcorres:
   (Untyped_D.retype_region
   us (translate_object_type type) (map (retype_transform_obj_ref type us) (retype_addrs ptr type n us)))
   (Retype_A.retype_region ptr n us type dev)"
+  supply if_cong[cong]
   apply (simp add: retype_region_def Untyped_D.retype_region_def
               split del: if_split)
   apply (clarsimp simp:when_def generate_object_ids_def bind_assoc
@@ -812,6 +810,7 @@ lemma create_cap_dcorres:
         (Untyped_D.create_cap (translate_object_type type) sz (transform_cslot_ptr parent) dev
                  (transform_cslot_ptr slot, retype_transform_obj_ref type sz ptr))
         (Retype_A.create_cap type sz parent dev (slot, ptr))"
+  supply if_cong[cong]
   apply (simp add: Untyped_D.create_cap_def Retype_A.create_cap_def)
   apply (rule stronger_corres_guard_imp)
     apply (rule corres_gets_the_bind)
@@ -1162,7 +1161,7 @@ lemma free_range_of_untyped_pick_retype_addrs:
   apply (subst AND_NOT_mask_plus_AND_mask_eq[symmetric,where n = sz])
   apply (subst add.commute[where a = "(ptr && mask sz)"])
   apply (rule word_plus_strict_mono_right)
-   apply (rule minus_one_helper)
+   apply (rule word_leq_le_minus_one)
     apply simp
    apply (simp add:shiftl_t2n field_simps)
    apply (subst add.assoc)
@@ -1268,6 +1267,7 @@ lemma reset_untyped_cap_corres:
           and (\<lambda>s. descendants_of cref (cdt s) = {}))
      (Untyped_D.reset_untyped_cap (transform_cslot_ptr cref))
      (Retype_A.reset_untyped_cap cref)"
+  supply if_cong[cong]
   apply (rule dcorres_expand_pfx)
   apply (clarsimp simp: cte_wp_at_caps_of_state is_cap_simps)
   apply (simp add: Untyped_D.reset_untyped_cap_def reset_untyped_cap_def
@@ -1466,6 +1466,7 @@ lemma invoke_untyped_corres:
            (Untyped_D.invoke_untyped
              (translate_untyped_invocation untyped_invocation))
            (Retype_A.invoke_untyped untyped_invocation)"
+    supply option.case_cong[cong] if_cong[cong]
     apply (clarsimp simp: Untyped_D.invoke_untyped_def mapM_x_def translate_untyped_invocation_def
                           ui ptrs invoke_untyped_def unlessE_whenE)
     apply (rule corres_guard_imp)
@@ -1556,7 +1557,7 @@ lemma invoke_untyped_corres:
          apply wp
         apply (simp split del: if_split)
         apply (wp get_cap_wp)+
-       apply (wp_once hoare_drop_imps)
+       apply (wp (once) hoare_drop_imps)
        apply wp
       apply ((rule validE_validE_R)?,
              rule_tac E="\<top>\<top>" and
@@ -1654,7 +1655,11 @@ proof -
     done
 qed
 
+context
+notes if_cong[cong]
+begin
 crunch inv[wp]: "CSpace_D.ensure_empty" "P"
+end
 
 lemma mapME_x_inv_wp2:
   "(\<And>x. \<lbrace>P and E\<rbrace> f x \<lbrace>\<lambda>rv. P and E\<rbrace>,\<lbrace>\<lambda>rv. E\<rbrace>)
@@ -1745,13 +1750,14 @@ lemma decode_untyped_corres:
    dcorres (dc \<oplus> (\<lambda>x y. x = translate_untyped_invocation y))
        \<top> (cte_wp_at ((=) cap') slot' and invs
            and (\<lambda>s. \<forall>x \<in> set (map fst excaps'). s \<turnstile> x)
-           and (\<lambda>s. \<forall>x \<in> set excaps'. cte_wp_at (diminished (fst x)) (snd x) s) and valid_etcbs)
+           and (\<lambda>s. \<forall>x \<in> set excaps'. cte_wp_at ((=) (fst x)) (snd x) s) and valid_etcbs)
      (Untyped_D.decode_untyped_invocation cap slot excaps ui)
      (Decode_A.decode_untyped_invocation label' args' slot' cap' (map fst excaps'))"
+  supply if_cong[cong]
   apply (simp add: transform_intent_def map_option_Some_eq2
                    transform_intent_untyped_retype_def
-            split: invocation_label.split_asm arch_invocation_label.split_asm list.split_asm
-                   option.split_asm)
+            split: invocation_label.split_asm gen_invocation_labels.split_asm
+                   arch_invocation_label.split_asm list.split_asm option.split_asm)
   apply (cases ui)
   apply (drule transform_translate_type[where 'a=det_ext])
   apply (clarsimp simp: Untyped_D.decode_untyped_invocation_def
@@ -1762,7 +1768,7 @@ lemma decode_untyped_corres:
   apply (rename_tac a list w1 w2 w3 w4 w5 apiobject_type)
   apply (cases excaps')
    apply (simp add: get_index_def transform_cap_list_def
-                    alternative_refl)
+                    alternative_refl gen_invocation_type_eq)
   apply (simp add: get_index_def transform_cap_list_def throw_on_none_def
                    split_beta
                split del: if_split)
@@ -1809,9 +1815,8 @@ lemma decode_untyped_corres:
               apply (simp add:has_children_def KHeap_D.is_cdt_parent_def
                 descendants_of_empty_lift word_neq_0_conv)
               apply (clarsimp simp: not_less is_cap_simps bits_of_def)
-              apply (clarsimp simp:is_cap_simps cap_object_simps
-                transform_cslot_ptr_def bits_of_def
-                cap_aligned_def nat_bl_to_bin_nat_to_cref)
+              apply (clarsimp simp: is_cap_simps transform_cslot_ptr_def bits_of_def
+                                    cap_aligned_def nat_bl_to_bin_nat_to_cref)
              apply (wp check_children_wp)
             apply simp
            apply (simp add:const_on_failure_def)
@@ -1834,9 +1839,8 @@ lemma decode_untyped_corres:
             apply (simp add: dc_def[symmetric])
             apply (rule dcorres_ensure_empty)
            apply (wp mapME_x_inv_wp[OF hoare_pre(2)] | simp)+
-        apply (clarsimp simp:is_cap_simps cap_object_simps
-             transform_cslot_ptr_def bits_of_def
-             cap_aligned_def nat_bl_to_bin_nat_to_cref)
+        apply (clarsimp simp: is_cap_simps transform_cslot_ptr_def bits_of_def cap_aligned_def
+                              nat_bl_to_bin_nat_to_cref)
        apply simp
       apply clarsimp
      apply (rule hoare_pre)
@@ -1871,10 +1875,10 @@ lemma decode_untyped_label_not_match:
   "\<lbrakk>Some intent = transform_intent (invocation_type label) args; \<forall>ui. intent \<noteq> UntypedIntent ui\<rbrakk>
     \<Longrightarrow> \<lbrace>(=) s\<rbrace> Decode_A.decode_untyped_invocation label args ref (cap.UntypedCap dev a b idx) e
              \<lbrace>\<lambda>r. \<bottom>\<rbrace>, \<lbrace>\<lambda>e. (=) s\<rbrace>"
-  apply (case_tac "invocation_type label = UntypedRetype")
+  apply (case_tac "invocation_type label = GenInvocationLabel UntypedRetype")
    apply (clarsimp simp:Decode_A.decode_untyped_invocation_def transform_intent_def)+
    apply (clarsimp simp:transform_intent_untyped_retype_def split:option.splits list.splits)
-  apply (simp add:Decode_A.decode_untyped_invocation_def unlessE_def)
+  apply (simp add:Decode_A.decode_untyped_invocation_def unlessE_def gen_invocation_type_eq)
   apply wp
   done
 

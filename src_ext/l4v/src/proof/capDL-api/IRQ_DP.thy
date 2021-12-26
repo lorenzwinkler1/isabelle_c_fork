@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory IRQ_DP
@@ -188,9 +184,9 @@ shows "\<lbrace>\<guillemotleft>root_tcb_id \<mapsto>f root_tcb  \<and>* (root_t
                 apply (clarsimp)
                apply (rule set_cap_wp[sep_wand_wp])
               apply (rule mark_tcb_intent_error_sep_inv)
-             apply (wp_once)
+             apply (wp (once))
             apply (rule corrupt_ipc_buffer_sep_inv)
-           apply (wp_once)
+           apply (wp (once))
           apply (rule_tac P = "(iv = (InvokeIrqControl $ (IssueIrqHandler irq control_ptr (cap_object root_cap, offset node_index root_size))))" in  hoare_gen_asmEx)
           apply (clarsimp simp: unify)
           apply (wp invoke_irq_control_issue_handler_wp[sep_wand_wp])
@@ -335,9 +331,9 @@ shows "\<lbrace>\<guillemotleft>root_tcb_id \<mapsto>f root_tcb  \<and>* (root_t
                 apply (clarsimp)
                apply (rule set_cap_wp[sep_wand_wp])
               apply (rule mark_tcb_intent_error_sep_inv)
-             apply (wp_once)
+             apply (wp (once))
             apply (rule corrupt_ipc_buffer_sep_inv)
-           apply (wp_once)
+           apply (wp (once))
           apply (rule_tac P = "(iv = (InvokeIrqHandler $ SetIrqHandler (the $ cdl_cap_irq irq_cap) endpoint_cap endpoint_ptr))" in  hoare_gen_asmEx)
           apply (clarsimp)
           apply (wp)

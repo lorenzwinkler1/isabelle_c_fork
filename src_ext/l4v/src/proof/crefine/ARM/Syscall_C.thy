@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Syscall_C
@@ -119,7 +115,7 @@ lemma decodeInvocation_ccorres:
        (invs' and (\<lambda>s. ksCurThread s = thread) and ct_active' and sch_act_simple
               and valid_cap' cp and (\<lambda>s. \<forall>x \<in> zobj_refs' cp. ex_nonz_cap_to' x s)
               and (excaps_in_mem extraCaps \<circ> ctes_of)
-              and cte_wp_at' (diminished' cp \<circ> cteCap) slot
+              and cte_wp_at' ((=) cp \<circ> cteCap) slot
               and (\<lambda>s. \<forall>v \<in> set extraCaps. ex_cte_cap_wp_to' isCNodeCap (snd v) s)
               and (\<lambda>s. \<forall>v \<in> set extraCaps. s \<turnstile>' fst v \<and> cte_at' (snd v) s)
               and (\<lambda>s. \<forall>v \<in> set extraCaps. \<forall>y \<in> zobj_refs' (fst v). ex_nonz_cap_to' y s)
@@ -314,8 +310,6 @@ lemma decodeInvocation_ccorres:
                          unat_eq_0 sysargs_rel_n_def n_msgRegisters_def valid_tcb_state'_def
              | rule conjI | erule pred_tcb'_weakenE disjE
              | drule st_tcb_at_idle_thread')+
-     apply (fastforce dest: diminished_ReplyCap')
-    apply (fastforce dest!: diminished_ReplyCap')
    apply fastforce
   apply (simp add: cap_lift_capEPBadge_mask_eq)
   apply (clarsimp simp: rf_sr_ksCurThread Collect_const_mem
@@ -554,6 +548,7 @@ lemma sendFaultIPC_ccorres:
             \<inter> {s. tptr_' s = tcb_ptr_to_ctcb_ptr tptr})
       [] (sendFaultIPC tptr fault)
          (Call sendFaultIPC_'proc)"
+  supply if_cong[cong] option.case_cong[cong]
   supply Collect_const[simp del]
   apply (cinit lift: tptr_' cong: call_ignore_cong)
    apply (simp add: liftE_bindE del:Collect_const cong:call_ignore_cong)
@@ -719,10 +714,6 @@ lemma handleFault_ccorres:
   apply (clarsimp simp: pred_tcb_at')
   done
 
-lemma invs_queues_imp:
-  "invs' s \<longrightarrow> valid_queues s"
-  by clarsimp
-
 (* FIXME: move *)
 lemma length_CL_from_H [simp]:
   "length_CL (mi_from_H mi) = msgLength mi"
@@ -732,6 +723,7 @@ lemma getMRs_length:
   "\<lbrace>\<lambda>s. msgLength mi \<le> 120\<rbrace> getMRs thread buffer mi
   \<lbrace>\<lambda>args s. if buffer = None then length args = min (unat n_msgRegisters) (unat (msgLength mi))
             else length args = unat (msgLength mi)\<rbrace>"
+  supply if_cong[cong]
   apply (cases buffer)
    apply (simp add: getMRs_def)
    apply (rule hoare_pre, wp)
@@ -953,7 +945,7 @@ lemma handleInvocation_ccorres:
           apply vcg
          apply (rule conseqPre, vcg)
          apply clarsimp
-        apply (simp, wp lcs_diminished'[unfolded o_def])
+        apply (simp, wp lcs_eq[unfolded o_def])
        apply clarsimp
        apply (vcg exspec= lookupCapAndSlot_modifies)
       apply simp
@@ -1155,16 +1147,6 @@ lemma cap_case_EndpointCap_NotificationCap:
          split: capability.split)
 
 
-(* FIXME: MOVE *)
-lemma capFaultOnFailure_if_case_sum:
-  " (capFaultOnFailure epCPtr b (if c then f else g) >>=
-      sum.case_sum (handleFault thread) return) =
-    (if c then ((capFaultOnFailure epCPtr b  f)
-                 >>= sum.case_sum (handleFault thread) return)
-          else ((capFaultOnFailure epCPtr b  g)
-                 >>= sum.case_sum (handleFault thread) return))"
-  by (case_tac c, clarsimp, clarsimp)
-
 lemma invs_valid_objs_strengthen:
   "invs' s \<longrightarrow> valid_objs' s" by fastforce
 
@@ -1184,6 +1166,7 @@ lemma handleRecv_ccorres:
        []
        (handleRecv isBlocking)
        (Call handleRecv_'proc)"
+  supply if_cong[cong] option.case_cong[cong]
   apply (cinit lift: isBlocking_')
    apply (rule ccorres_pre_getCurThread)
    apply (ctac)
@@ -1373,7 +1356,7 @@ lemma handleRecv_ccorres:
                 auto simp: pred_tcb_at'_def obj_at'_def objBits_simps projectKOs ct_in_state'_def)[1]
          apply wp
      apply clarsimp
-     apply (vcg exspec=isBlocked_modifies exspec=lookupCap_modifies)
+     apply (vcg exspec=isStopped_modifies exspec=lookupCap_modifies)
 
     apply wp
    apply clarsimp
@@ -1518,6 +1501,13 @@ lemma scast_maxIRQ_is_less:
   apply fastforce
 done
 
+lemma ucast_maxIRQ_is_less:
+  "SCAST(32 signed \<rightarrow> 32) Kernel_C.maxIRQ < UCAST(10 \<rightarrow> 32) irq \<Longrightarrow> scast Kernel_C.maxIRQ < irq"
+  apply (clarsimp simp: scast_def Kernel_C.maxIRQ_def)
+  apply (subgoal_tac "LENGTH(10) \<le> LENGTH(32)")
+  apply (drule less_ucast_ucast_less[where x= "0x9F" and y="irq"])
+    by (simp)+
+
 lemma scast_maxIRQ_is_not_less: "(\<not> (Kernel_C.maxIRQ) <s (ucast \<circ> (ucast :: irq \<Rightarrow> 16 word)) b)  \<Longrightarrow> \<not> (scast Kernel_C.maxIRQ < b)"
   apply (subgoal_tac "sint (ucast Kernel_C.maxIRQ :: 32 sword) \<ge> sint (ucast (ucast b))";
          simp only: Kernel_C.maxIRQ_def word_sless_def word_sle_def)
@@ -1526,6 +1516,15 @@ lemma scast_maxIRQ_is_not_less: "(\<not> (Kernel_C.maxIRQ) <s (ucast \<circ> (uc
           simp add: is_up_def target_size source_size)
   apply (cases "sint maxIRQ \<le> sint (UCAST(10 \<rightarrow> 32 signed) b)"; simp add: maxIRQ_def sint_uint)
 done
+
+lemma ucast_maxIRQ_is_not_less:
+  "\<not> (SCAST(32 signed \<rightarrow> 32) Kernel_C.maxIRQ < UCAST(10 \<rightarrow> 32) irq) \<Longrightarrow> \<not> (scast Kernel_C.maxIRQ < irq)"
+  apply (clarsimp simp: scast_def Kernel_C.maxIRQ_def)
+  apply (subgoal_tac "LENGTH(10) \<le> LENGTH(32)")
+   prefer 2
+   apply simp
+  apply (erule notE)
+  using ucast_up_mono by fastforce
 
 lemma ccorres_handleReserveIRQ:
   "ccorres dc xfdc \<top> UNIV hs (handleReservedIRQ irq) (Call handleReservedIRQ_'proc)"
@@ -1544,7 +1543,7 @@ lemma handleInterrupt_ccorres:
   apply (cinit lift: irq_' cong: call_ignore_cong)
    apply (rule ccorres_Cond_rhs_Seq)
     apply (simp  add: Platform_maxIRQ del: Collect_const)
-    apply (drule scast_maxIRQ_is_less[simplified])
+    apply (drule ucast_maxIRQ_is_less[simplified])
     apply (simp del: Collect_const)
     apply (rule ccorres_rhs_assoc)+
     apply (subst doMachineOp_bind)
@@ -1560,7 +1559,7 @@ lemma handleInterrupt_ccorres:
       apply (vcg exspec=ackInterrupt_modifies)
      apply wp
     apply (vcg exspec=maskInterrupt_modifies)
-   apply (simp add: scast_maxIRQ_is_not_less Platform_maxIRQ del: Collect_const)
+   apply (simp add: ucast_maxIRQ_is_not_less Platform_maxIRQ del: Collect_const)
    apply (rule ccorres_pre_getIRQState)
     apply wpc
       apply simp
@@ -1573,6 +1572,7 @@ lemma handleInterrupt_ccorres:
      apply (rule getIRQSlot_ccorres3)
      apply (rule ccorres_getSlotCap_cte_at)
      apply (rule_tac P="cte_at' rv" in ccorres_cross_over_guard)
+     supply ccorres_move_array_assertion_tcb_ctes [corres_pre del]
      apply ctac
        apply csymbr
        apply csymbr
@@ -1589,6 +1589,7 @@ lemma handleInterrupt_ccorres:
          apply csymbr
          apply csymbr
          apply (ctac (no_vcg) add: sendSignal_ccorres)
+          apply (simp add: maskIrqSignal_def)
           apply (ctac (no_vcg) add: maskInterrupt_ccorres)
            apply (ctac add: ackInterrupt_ccorres [unfolded dc_def])
           apply wp+
@@ -1597,7 +1598,7 @@ lemma handleInterrupt_ccorres:
         apply (rule ccorres_rhs_assoc)+
         apply csymbr+
         apply (rule ccorres_cond_false_seq)
-        apply simp
+        apply (simp add: maskIrqSignal_def)
         apply (ctac (no_vcg) add: maskInterrupt_ccorres)
          apply (ctac add: ackInterrupt_ccorres [unfolded dc_def])
         apply wp
@@ -1606,7 +1607,8 @@ lemma handleInterrupt_ccorres:
        apply (case_tac rva, simp_all del: Collect_const)[1]
                   prefer 3
                   apply metis
-                 apply ((rule ccorres_guard_imp2,
+                 apply ((simp add: maskIrqSignal_def,
+                        rule ccorres_guard_imp2,
                         rule ccorres_cond_false_seq, simp,
                         rule ccorres_cond_false_seq, simp,
                         ctac (no_vcg) add: maskInterrupt_ccorres,
@@ -1645,6 +1647,7 @@ lemma handleInterrupt_ccorres:
   apply (clarsimp simp: IRQTimer_def IRQSignal_def maxIRQ_def
                         cte_wp_at_ctes_of ucast_ucast_b is_up)
   apply (intro conjI impI)
+       using Word.word_of_int and ucast_def apply metis
       apply clarsimp
       apply (erule(1) cmap_relationE1[OF cmap_relation_cte])
       apply (clarsimp simp: typ_heap_simps')

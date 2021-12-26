@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory VSpaceEntries_AI
-imports "./$L4V_ARCH/ArchSyscall_AI"
+imports ArchSyscall_AI
 begin
 
 definition valid_entries :: " ('b \<Rightarrow> ('a::len) word \<Rightarrow> 'c set) \<Rightarrow> (('a::len) word \<Rightarrow> 'b) \<Rightarrow> bool"
@@ -88,13 +84,13 @@ lemma ucast_neg_mask:
   "len_of TYPE('a) \<le> len_of TYPE ('b)
    \<Longrightarrow> ((ucast ptr && ~~ mask n)::('a :: len) word) = ucast ((ptr::('b :: len) word) && ~~ mask n)"
   apply (rule word_eqI)
-  apply (auto simp:nth_ucast neg_mask_bang word_size)
+  apply (auto simp:nth_ucast neg_mask_test_bit word_size)
   done
 
 lemma shiftr_eq_neg_mask_eq:
   "a >> b = c >> b \<Longrightarrow> a && ~~ mask b = c && ~~ mask b"
   apply (rule word_eqI[rule_format])
-   apply (simp add:neg_mask_bang)
+   apply (simp add:neg_mask_test_bit)
   apply (drule_tac f = "\<lambda>x. x !! (n - b)" in arg_cong)
   apply (simp add:nth_shiftr)
   apply (rule iffI)

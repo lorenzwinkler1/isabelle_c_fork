@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (* Wellformedness of caps, kernel objects, states on the C level
@@ -59,7 +55,7 @@ type_synonym ioport_table_C = "machine_word[1024]"
 
 type_synonym tcb_cnode_array = "cte_C[5]"
 type_synonym fpu_bytes_array = "word8[fpu_bytes]"
-type_synonym registers_array = "machine_word[23]"
+type_synonym registers_array = "machine_word[24]"
 
 abbreviation "user_context_Ptr \<equiv> Ptr :: addr \<Rightarrow> user_context_C ptr"
 abbreviation "machine_word_Ptr \<equiv> Ptr :: addr \<Rightarrow> machine_word ptr"

@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 theory Rule_By_Method
@@ -226,7 +222,7 @@ fun pos_closure (scan : 'a context_parser) :
 val parse_flags = Args.mode "schematic" -- Args.mode "raw_prop" >> (fn (b,b') => {vars = b, prop = b'})
 
 fun tac m ctxt =
-  Method.NO_CONTEXT_TACTIC ctxt
+  NO_CONTEXT_TACTIC ctxt
     (Method.evaluate_runtime m ctxt []);
 
 (* Declare as a mixed attribute to avoid any partial evaluation *)

@@ -1,10 +1,8 @@
--- Copyright 2018, Data61, CSIRO
 --
--- This software may be distributed and modified according to the terms of
--- the GNU General Public License version 2. Note that NO WARRANTY is provided.
--- See "LICENSE_GPLv2.txt" for details.
+-- Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
 --
--- @TAG(DATA61_GPL)
+-- SPDX-License-Identifier: GPL-2.0-only
+--
 
 -- This module contains operations on machine-specific object types.
 
@@ -90,7 +88,9 @@ finaliseCap (PageTableCap {
     catchFailure
         (do
             vroot <- findVSpaceForASID asid
-            when (vroot == pte) (withoutFailure $ deleteASID asid pte))
+            if vroot == pte
+                then withoutFailure $ deleteASID asid pte
+                else throw InvalidRoot)
         (\_ -> unmapPageTable asid vptr pte)
 
     return (NullCap, NullCap)
@@ -136,14 +136,10 @@ sameObjectAs a b = sameRegionAs a b
 
 -- Create an architecture-specific object.
 
--- % FIXME: it is not clear whether we can have large/huge device pages
-
 placeNewDataObject :: PPtr () -> Int -> Bool -> Kernel ()
 placeNewDataObject regionBase sz isDevice = if isDevice
     then placeNewObject regionBase UserDataDevice sz
     else placeNewObject regionBase UserData sz
-
--- FIXME RISCV: C code missing AUXUPD, TODO in later stages of project
 
 createObject :: ObjectType -> PPtr () -> Int -> Bool -> Kernel ArchCapability
 createObject t regionBase _ isDevice =
@@ -160,14 +156,14 @@ createObject t regionBase _ isDevice =
             return $! FrameCap (pointerCast regionBase)
                   VMReadWrite RISCVSmallPage isDevice Nothing
         Arch.Types.LargePageObject -> do
-            placeNewDataObject regionBase 0 isDevice
+            placeNewDataObject regionBase ptTranslationBits isDevice
             modify (\ks -> ks { gsUserPages =
               funupd (gsUserPages ks)
                      (fromPPtr regionBase) (Just RISCVLargePage)})
             return $! FrameCap (pointerCast regionBase)
                   VMReadWrite RISCVLargePage isDevice Nothing
         Arch.Types.HugePageObject -> do
-            placeNewDataObject regionBase 0 isDevice
+            placeNewDataObject regionBase (ptTranslationBits+ptTranslationBits) isDevice
             modify (\ks -> ks { gsUserPages =
               funupd (gsUserPages ks)
                      (fromPPtr regionBase) (Just RISCVHugePage)})

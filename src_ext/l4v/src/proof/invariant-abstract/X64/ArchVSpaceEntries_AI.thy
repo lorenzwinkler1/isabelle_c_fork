@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchVSpaceEntries_AI
-imports "../VSpaceEntries_AI"
+imports VSpaceEntries_AI
 begin
 
 context Arch begin global_naming X64 (*FIXME: arch_split*)
@@ -45,7 +41,6 @@ where
   | "pte_range (SmallPagePTE ptr x y) p = {p}"
 
 abbreviation "valid_pt_entries \<equiv> \<lambda>pt. valid_entries pte_range pt"
-thm valid_entries_def
 abbreviation "valid_pd_entries \<equiv> \<lambda>pd. valid_entries pde_range pd"
 
 abbreviation "valid_pdpt_entries \<equiv> \<lambda>pdpt. valid_entries pdpte_range pdpt"
@@ -107,7 +102,7 @@ lemma shift_0x3C_set:
   apply (subst image_cong[where N="{x. x < 2 ^ 4}"])
     apply (safe, simp_all)[1]
      apply (drule plus_one_helper2, simp_all)[1]
-    apply (drule minus_one_helper3, simp_all)[1]
+    apply (drule word_le_minus_one_leq, simp_all)[1]
    apply (rule_tac f="\<lambda>x. ucast (x && mask bits >> 2)" in arg_cong)
    apply (rule trans[OF add.commute is_aligned_add_or], assumption)
    apply (rule shiftl_less_t2n, simp_all)[1]
@@ -116,7 +111,7 @@ lemma shift_0x3C_set:
     apply (simp add: word_bits_conv)
    apply (rule word_eqI)
    apply (simp add: word_ops_nth_size word_size nth_ucast nth_shiftr
-                    nth_shiftl neg_mask_bang
+                    nth_shiftl neg_mask_test_bit
                     word_bits_conv)
    apply (safe, simp_all add: is_aligned_nth)[1]
    apply (drule_tac x="Suc (Suc n)" in spec)
@@ -628,7 +623,7 @@ lemma perform_page_valid_vspace_objs'[wp]:
                                   pde_check_if_mapped_def
                            split: pte.splits pde.splits
                  | wpc
-                 | wp_once hoare_drop_imps)+
+                 | wp (once) hoare_drop_imps)+
   done
 
 lemma perform_page_table_valid_vspace_objs'[wp]:
@@ -643,7 +638,7 @@ lemma perform_page_table_valid_vspace_objs'[wp]:
               | wpc
               | simp add: swp_def
               | strengthen all_imp_ko_at_from_ex_strg
-              | wp_once hoare_drop_imps)+
+              | wp (once) hoare_drop_imps)+
   done
 
 lemma perform_page_directory_valid_vspace_objs'[wp]:
@@ -659,7 +654,7 @@ lemma perform_page_directory_valid_vspace_objs'[wp]:
               | wpc
               | simp add: swp_def
               | strengthen all_imp_ko_at_from_ex_strg
-              | wp_once hoare_drop_imps)+
+              | wp (once) hoare_drop_imps)+
   done
 
 lemma perform_pdpt_valid_vspace_objs'[wp]:
@@ -675,7 +670,7 @@ lemma perform_pdpt_valid_vspace_objs'[wp]:
               | wpc
               | simp add: swp_def
               | strengthen all_imp_ko_at_from_ex_strg
-              | wp_once hoare_drop_imps)+
+              | wp (once) hoare_drop_imps)+
   done
 
 crunch valid_vspace_objs'[wp]: perform_io_port_invocation, perform_ioport_control_invocation valid_vspace_objs'
@@ -702,7 +697,7 @@ lemma handle_invocation_valid_vspace_objs'[wp]:
   apply (simp add: handle_invocation_def)
   apply (wp syscall_valid set_thread_state_ct_st
                | simp add: split_def | wpc
-               | wp_once hoare_drop_imps)+
+               | wp (once) hoare_drop_imps)+
   apply (auto simp: ct_in_state_def elim: st_tcb_ex_cap)
   done
 
@@ -717,7 +712,7 @@ crunch valid_vspace_objs'[wp]: activate_thread,switch_to_thread, handle_hypervis
 lemma handle_event_valid_vspace_objs'[wp]:
   "\<lbrace>valid_vspace_objs' and invs and ct_active\<rbrace> handle_event e \<lbrace>\<lambda>rv. valid_vspace_objs'\<rbrace>"
   apply (case_tac e; simp)
-   by (wp | wpc | simp | wp_once hoare_drop_imps)+
+   by (wp | wpc | simp add: handle_vm_fault_def | wp (once) hoare_drop_imps)+
 
 lemma schedule_valid_vspace_objs'[wp]: "\<lbrace>valid_vspace_objs'\<rbrace> schedule :: (unit,unit) s_monad \<lbrace>\<lambda>_. valid_vspace_objs'\<rbrace>"
   apply (simp add: schedule_def allActiveTCBs_def)
@@ -731,10 +726,10 @@ lemma call_kernel_valid_vspace_objs'[wp]:
    \<lbrace>\<lambda>_. valid_vspace_objs'\<rbrace>"
   apply (cases e, simp_all add: call_kernel_def)
       apply (rule hoare_pre)
-       apply (wp | simp | wpc
+       apply (wp | simp add: handle_vm_fault_def | wpc
                  | rule conjI | clarsimp simp: ct_in_state_def
                  | erule pred_tcb_weakenE
-                 | wp_once hoare_drop_imps)+
+                 | wp (once) hoare_drop_imps)+
   done
 
 end

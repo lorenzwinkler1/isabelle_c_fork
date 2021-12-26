@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 chapter "Platform Definitions"
@@ -15,7 +11,7 @@ imports
   "Lib.Defs"
   "Lib.Lib"
   "Word_Lib.WordSetup"
-  "../Setup_Locale"
+  Setup_Locale
 begin
 
 context Arch begin global_naming ARM_HYP
@@ -45,30 +41,36 @@ definition
   cacheLine :: nat where
   "cacheLine = 2^cacheLineBits"
 
-definition
-  kernelBase_addr :: word32 where
-  "kernelBase_addr \<equiv> 0xe0000000"
-
 (* Arch specific kernel base address used for haskell spec *)
 definition
-  kernelBase :: word32 where
-  "kernelBase \<equiv> 0xe0000000"
+  pptrBase :: word32 where
+  "pptrBase \<equiv> 0xe0000000"
 
 definition
   physBase :: word32 where
   "physBase \<equiv> 0x80000000"
 
+abbreviation (input) "paddrBase \<equiv> physBase"
+
 definition
-  physMappingOffset :: word32 where
-  "physMappingOffset \<equiv> kernelBase_addr - physBase"
+  pptrTop :: "32 word" where
+  "pptrTop \<equiv> 0xfff00000"
+
+definition
+  paddrTop :: "32 word" where
+  "paddrTop \<equiv> pptrTop - (pptrBase - physBase)"
+
+definition
+  pptrBaseOffset :: word32 where
+  "pptrBaseOffset \<equiv> pptrBase - physBase"
 
 definition
   ptrFromPAddr :: "paddr \<Rightarrow> word32" where
-  "ptrFromPAddr paddr \<equiv> paddr + physMappingOffset"
+  "ptrFromPAddr paddr \<equiv> paddr + pptrBaseOffset"
 
 definition
   addrFromPPtr :: "word32 \<Rightarrow> paddr" where
-  "addrFromPPtr pptr \<equiv> pptr - physMappingOffset"
+  "addrFromPPtr pptr \<equiv> pptr - pptrBaseOffset"
 
 definition
   minIRQ :: "irq" where
@@ -80,6 +82,9 @@ definition
 
 definition irqVGICMaintenance :: "irq"
   where "irqVGICMaintenance \<equiv> 25"
+
+definition irqVTimerEvent :: "irq"
+  where "irqVTimerEvent  \<equiv> 27"
 
 end
 

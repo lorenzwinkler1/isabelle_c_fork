@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory DetSchedDomainTime_AI
-imports "$L4V_ARCH/ArchDetSchedAux_AI"
+imports ArchDetSchedAux_AI
 begin
 
 text \<open>
@@ -54,8 +50,6 @@ locale DetSchedDomainTime_AI =
     "\<And>P f t x y. \<lbrace>\<lambda>s. P (domain_list s)\<rbrace> handle_arch_fault_reply f t x y \<lbrace>\<lambda>_ s. P (domain_list s)\<rbrace>"
   assumes init_arch_objects_domain_list_inv'[wp]:
     "\<And>P t p n s r. \<lbrace>\<lambda>s. P (domain_list s)\<rbrace> init_arch_objects t p n s r \<lbrace>\<lambda>_ s. P (domain_list s)\<rbrace>"
-  assumes arch_tcb_set_ipc_buffer_domain_list_inv'[wp]:
-    "\<And>P t p. \<lbrace>\<lambda>s. P (domain_list s)\<rbrace> arch_tcb_set_ipc_buffer t p \<lbrace>\<lambda>_ s. P (domain_list s)\<rbrace>"
   assumes arch_post_modify_registers_domain_list_inv'[wp]:
     "\<And>P t p. \<lbrace>\<lambda>s. P (domain_list s)\<rbrace> arch_post_modify_registers t p \<lbrace>\<lambda>_ s. P (domain_list s)\<rbrace>"
   assumes arch_invoke_irq_control_domain_list_inv'[wp]:
@@ -78,8 +72,6 @@ locale DetSchedDomainTime_AI =
     "\<And>P f t x y. \<lbrace>\<lambda>s. P (domain_time s)\<rbrace> handle_arch_fault_reply f t x y \<lbrace>\<lambda>_ s. P (domain_time s)\<rbrace>"
   assumes init_arch_objects_domain_time_inv'[wp]:
     "\<And>P t p n s r. \<lbrace>\<lambda>s. P (domain_time s)\<rbrace> init_arch_objects t p n s r \<lbrace>\<lambda>_ s. P (domain_time s)\<rbrace>"
-  assumes arch_tcb_set_ipc_buffer_domain_time_inv'[wp]:
-    "\<And>P t p. \<lbrace>\<lambda>s. P (domain_time s)\<rbrace> arch_tcb_set_ipc_buffer t p \<lbrace>\<lambda>_ s. P (domain_time s)\<rbrace>"
   assumes arch_post_modify_registers_domain_time_inv'[wp]:
     "\<And>P t p. \<lbrace>\<lambda>s. P (domain_time s)\<rbrace> arch_post_modify_registers t p \<lbrace>\<lambda>_ s. P (domain_time s)\<rbrace>"
   assumes arch_invoke_irq_control_domain_time_inv'[wp]:
@@ -96,6 +88,10 @@ locale DetSchedDomainTime_AI =
     "\<And>P ft. \<lbrace>\<lambda>s. P (domain_time s)\<rbrace> arch_post_cap_deletion ft \<lbrace>\<lambda>_ s. P (domain_time s)\<rbrace>"
   assumes arch_post_cap_deletion_domain_list_inv'[wp]:
     "\<And>P ft. \<lbrace>\<lambda>s. P (domain_list s)\<rbrace> arch_post_cap_deletion ft \<lbrace>\<lambda>_ s. P (domain_list s)\<rbrace>"
+  assumes arch_invoke_irq_handler_domain_list_inv'[wp]:
+    "\<And>P i. arch_invoke_irq_handler i \<lbrace>\<lambda>s. P (domain_list s)\<rbrace>"
+  assumes arch_invoke_irq_handler_domain_time_inv'[wp]:
+    "\<And>P i. arch_invoke_irq_handler i \<lbrace>\<lambda>s. P (domain_time s)\<rbrace>"
 
 crunches update_restart_pc
   for domain_list[wp]: "\<lambda>s. P (domain_list s)"
@@ -119,6 +115,11 @@ locale DetSchedDomainTime_AI_2 = DetSchedDomainTime_AI +
     "\<And>P irq. \<lbrace>\<lambda>s. P (domain_time s)\<rbrace> handle_reserved_irq irq \<lbrace>\<lambda>_ s. P (domain_time s)\<rbrace>"
   assumes handle_reserved_irq_domain_list_inv'[wp]:
     "\<And>P irq. \<lbrace>\<lambda>s. P (domain_list s)\<rbrace> handle_reserved_irq irq \<lbrace>\<lambda>_ s. P (domain_list s)\<rbrace>"
+  assumes arch_mask_irq_signal_domain_list_inv'[wp]:
+    "\<And>P irq. arch_mask_irq_signal irq \<lbrace>\<lambda>s. P (domain_list s)\<rbrace>"
+  assumes arch_mask_irq_signal_domain_time_inv'[wp]:
+    "\<And>P irq. arch_mask_irq_signal irq \<lbrace>\<lambda>s. P (domain_time s)\<rbrace>"
+
 
 context DetSchedDomainTime_AI begin
 
@@ -170,7 +171,7 @@ crunch domain_list_inv[wp]: delete_objects "\<lambda>s :: det_ext state. P (doma
 crunch domain_list_inv[wp]: update_work_units "\<lambda>s. P (domain_list s)"
 
 crunch domain_list_inv[wp]: preemption_point "\<lambda>s. P (domain_list s)"
-  (wp: select_inv OR_choiceE_weak_wp ignore: OR_choiceE)
+  (wp: OR_choiceE_weak_wp ignore_del: preemption_point)
 
 crunch domain_list_inv[wp]: reset_untyped_cap "\<lambda>s. P (domain_list s)"
   (wp: crunch_wps hoare_unless_wp mapME_x_inv_wp select_inv
@@ -319,7 +320,7 @@ crunch domain_time_inv[wp]: delete_objects "\<lambda>s :: det_ext state. P (doma
 crunch domain_time_inv[wp]: update_work_units "\<lambda>s. P (domain_time s)"
 
 crunch domain_time_inv[wp]: preemption_point "\<lambda>s. P (domain_time s)"
-  (wp: select_inv OR_choiceE_weak_wp ignore: OR_choiceE)
+  (wp: OR_choiceE_weak_wp ignore_del: preemption_point)
 
 crunch domain_time_inv[wp]: reset_untyped_cap "\<lambda>s. P (domain_time s)"
   (wp: crunch_wps hoare_unless_wp mapME_x_inv_wp select_inv

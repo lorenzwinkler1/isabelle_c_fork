@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory EmptyFail
@@ -109,7 +105,7 @@ lemma empty_fail_getNotification [intro!, wp, simp]:
 
 lemma empty_fail_lookupIPCBuffer [intro!, wp, simp]:
   "empty_fail (lookupIPCBuffer a b)"
-  by (clarsimp simp: lookupIPCBuffer_def ARM_H.lookupIPCBuffer_def
+  by (clarsimp simp: lookupIPCBuffer_def
                      Let_def getThreadBufferSlot_def locateSlot_conv
               split: capability.splits arch_capability.splits | wp | wpc)+
 

@@ -1,11 +1,7 @@
 (*
- * Copyright 2016, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 (*
@@ -65,7 +61,7 @@ fun term_show_types no_markup ctxt term =
       |> Config.put show_sorts false
       |> Config.put show_consts false
       *)
-      |> Variable.auto_fixes term
+      |> Proof_Context.augment term
   in
     singleton (Syntax.uncheck_terms ctxt') term
     |> Sledgehammer_Isar_Annotate.annotate_types_in_term ctxt'

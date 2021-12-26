@@ -1,6 +1,4 @@
-(*
- * @TAG(OTHER_BSD)
- *)
+(* SPDX-License-Identifier: BSD-3-Clause *)
 (*
  * Copyright (C) 2002 Tobias Nipkow (TUM)
  * Copyright (C) 2013--2014 Japheth Lim (NICTA)
@@ -39,6 +37,7 @@ theory CList imports
   "AutoCorres.AutoCorres"
 begin
 
+external_file "list.c"
 install_C_file "list.c"
 autocorres "list.c"
 

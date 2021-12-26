@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -441,8 +437,9 @@ implement virtual memory pages in a virtual address space. The
 \item[\meth{Map}] takes a
   \obj{Page Directory} or a \obj{Page Table} capability as an argument
   and installs a PDE or PTE referring to the \obj{Page} in the
-  specified location, respectively.
-\item[\meth{Remap}] changes the permissions of an existing mapping.
+  specified location, respectively. In addition, \meth{Map} has a
+  remapping mode which is used to change the access permissions on an
+  existing mapping.
 \item[\meth{Unmap}] removes an existing mapping.
 \end{description}
 

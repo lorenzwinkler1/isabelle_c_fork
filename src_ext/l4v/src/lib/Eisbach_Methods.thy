@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 (*
@@ -14,7 +10,7 @@
 
 theory Eisbach_Methods
 imports
-  "subgoal_focus/Subgoal_Methods"
+  Subgoal_Methods
   "HOL-Eisbach.Eisbach_Tools"
   Rule_By_Method
   Local_Method
@@ -30,7 +26,7 @@ method_setup print_raw_goal = \<open>Scan.succeed (fn ctxt => fn facts =>
     Seq.make_results (Seq.single (ctxt, st)))))\<close>
 
 ML \<open>fun method_evaluate text ctxt facts =
-  Method.NO_CONTEXT_TACTIC ctxt
+  NO_CONTEXT_TACTIC ctxt
     (Method.evaluate_runtime text ctxt facts)\<close>
 
 
@@ -358,8 +354,6 @@ section \<open>Utility methods\<close>
 
 subsection \<open>Finding a goal based on successful application of a method\<close>
 
-context begin
-
 method_setup find_goal =
  \<open>Method.text_closure >> (fn m => fn ctxt => fn facts =>
    let
@@ -371,7 +365,11 @@ method_setup find_goal =
 
    in SIMPLE_METHOD (FIRSTGOAL prefer_first) facts end)\<close>
 
-end
+text \<open>Ensure that the proof state is in a certain case of a case distinction:\<close>
+method in_case for x = match premises in "t = x" for t \<Rightarrow> succeed
+
+text \<open>Focus on a case in a case distinction:\<close>
+method find_case for x = find_goal \<open>in_case x\<close>
 
 notepad begin
 
@@ -391,6 +389,17 @@ notepad begin
   have  "B" "A" "A \<and> A"
     apply (find_goal \<open>succeeds \<open>simp\<close>\<close>) \<comment> \<open>find the first goal which can be simplified (without doing so)\<close>
     apply (rule conjI)
+    by (rule A B)+
+
+  fix x::'a and S :: "nat \<Rightarrow> 'a" and T R
+  have
+    "x = T \<Longrightarrow> A"
+    "x = S 10 \<Longrightarrow> B"
+    "x = R \<Longrightarrow> B"
+  apply -
+    apply (find_case "S ?n")
+    apply (fails \<open>in_case R\<close>)
+    apply (in_case "S ?n")
     by (rule A B)+
 
 end

@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -15,7 +11,7 @@ Accessor functions for architecture specific parts of the specification.
 chapter "Accessing the x64 VSpace"
 
 theory ArchVSpaceAcc_A
-imports "../KHeap_A"
+imports KHeap_A
 begin
 
 context Arch begin global_naming X64_A
@@ -46,6 +42,11 @@ section "Kernel Heap Accessors"
 
 text \<open>Manipulate ASID pools, page directories and page tables in the kernel
 heap.\<close>
+(* declared in Arch as workaround for VER-1099 *)
+locale_abbrev aobjs_of :: "'z::state_ext state \<Rightarrow> obj_ref \<rightharpoonup> arch_kernel_obj"
+  where
+  "aobjs_of \<equiv> \<lambda>s. kheap s |> aobj_of"
+
 definition
   get_asid_pool :: "obj_ref \<Rightarrow> (asid_low_index \<rightharpoonup> obj_ref, 'z::state_ext) s_monad" where
   "get_asid_pool ptr \<equiv> do

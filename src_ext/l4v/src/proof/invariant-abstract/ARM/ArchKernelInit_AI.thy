@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (* Kernel init refinement. Currently axiomatised.
@@ -13,9 +9,9 @@
 
 theory ArchKernelInit_AI
 imports
-  "../ADT_AI"
-  "../Tcb_AI"
-  "../Arch_AI"
+  ADT_AI
+  Tcb_AI
+  Arch_AI
 begin
 
 context Arch begin global_naming ARM (*FIXME: arch_split*)
@@ -134,7 +130,7 @@ proof -
                 \<le> init_irq_node_ptr + 2 ^ 14 - 1"
     apply (simp only: add_diff_eq[symmetric])
     apply (rule word_add_le_mono2)
-     apply (rule minus_one_helper3, rule shiftl_less_t2n[OF P])
+     apply (rule word_le_minus_one_leq, rule shiftl_less_t2n[OF P])
      apply simp
     apply (simp add: kernel_base_def
       cte_level_bits_def word_bits_def init_irq_node_ptr_def)
@@ -367,8 +363,8 @@ lemma invs_A:
    apply (clarsimp simp: valid_ao_at_def obj_at_def empty_table_def pde_ref_def
                          valid_pde_mappings_def valid_vso_at_def)
    apply (simp add: kernel_base_def kernel_mapping_slots_def
-                    Platform.ARM.addrFromPPtr_def physMappingOffset_def
-                    kernelBase_addr_def physBase_def pageBits_def is_aligned_def)
+                    Platform.ARM.addrFromPPtr_def pptrBaseOffset_def
+                    pptrBase_def physBase_def pageBits_def is_aligned_def)
   apply (rule conjI)
    apply (simp add: valid_kernel_mappings_def state_defs
                          valid_kernel_mappings_if_pd_def pde_ref_def

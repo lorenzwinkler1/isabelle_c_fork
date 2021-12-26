@@ -1,3 +1,9 @@
+#
+# Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
 *.pyc
 *.lev
 *.o
@@ -9,6 +15,7 @@
 
 /spec/cspec/c/build
 
+/spec/haskell/stack.yaml.lock
 /spec/haskell/doc/**/*.aux
 /spec/haskell/doc/**/*.bbl
 /spec/haskell/doc/**/*.blg

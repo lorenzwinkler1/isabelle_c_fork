@@ -1,21 +1,16 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory KHeap_AI
-imports "./$L4V_ARCH/ArchKHeap_AI"
+imports ArchKHeap_AI
 begin
 
 context begin interpretation Arch .
 
 requalify_consts
-  valid_ao_at
   obj_is_device
   valid_vso_at
   non_vspace_obj
@@ -144,7 +139,6 @@ lemma valid_cap_same_type:
   by (intro hoare_to_pure_kheap_upd[OF valid_arch_cap_typ, simplified obj_at_def],
       assumption, auto)
 
-
 lemma valid_obj_same_type:
   "\<lbrakk> valid_obj p' obj s; valid_obj p k s; kheap s p = Some ko; a_type k = a_type ko \<rbrakk>
    \<Longrightarrow> valid_obj p' obj (s\<lparr>kheap := kheap s(p \<mapsto> k)\<rparr>)"
@@ -169,12 +163,6 @@ lemma valid_obj_same_type:
   apply (auto intro: arch_valid_obj_same_type)
   done
 
-lemma valid_vspace_obj_same_type:
-  "\<lbrakk>valid_vspace_obj ao s;  kheap s p = Some ko; a_type ko' = a_type ko\<rbrakk>
-  \<Longrightarrow> valid_vspace_obj ao (s\<lparr>kheap := kheap s(p \<mapsto> ko')\<rparr>)"
-    apply (rule hoare_to_pure_kheap_upd[OF valid_vspace_obj_typ])
-    by (auto simp: obj_at_def)
-
 lemma set_object_valid_objs[wp]:
   "\<lbrace>valid_objs and valid_obj p k\<rbrace>
   set_object p k
@@ -195,16 +183,17 @@ lemma assert_get_tcb:
   "\<lbrace> P \<rbrace> gets_the (get_tcb t) \<lbrace> \<lambda>r. P and tcb_at t \<rbrace>"
   by (clarsimp simp: valid_def in_monad gets_the_def tcb_at_def)
 
+(* This rule is not always safe. However, we make it [wp] while we're only doing proofs that don't
+   involve extended state, and then remove it from [wp] in Deterministic_AI. *)
 lemma dxo_wp_weak[wp]:
-assumes xopv: "\<And>s f. P (trans_state f s) = P s"
-shows
-"\<lbrace>P\<rbrace> do_extended_op x \<lbrace>\<lambda>_. P\<rbrace>"
+  assumes xopv: "\<And>s f. P (trans_state f s) = P s"
+  shows "\<lbrace>P\<rbrace> do_extended_op x \<lbrace>\<lambda>_. P\<rbrace>"
   unfolding do_extended_op_def
   apply (simp add: split_def)
   apply wp
   apply (clarsimp simp: mk_ef_def)
   apply (simp add: xopv[simplified trans_state_update'])
-done
+  done
 
 crunch ct[wp]: set_thread_state "\<lambda>s. P (cur_thread s)"
 
@@ -1042,10 +1031,7 @@ lemma valid_kernel_mappings[wp]: "f \<lbrace>valid_kernel_mappings\<rbrace>"
   by (rule valid_kernel_mappings_lift, (wp vsobj_at)+)
 
 lemma equal_kernel_mappings[wp]: "f \<lbrace>equal_kernel_mappings\<rbrace>"
-  by (rule equal_kernel_mappings_lift, wp vsobj_at)
-
-lemma valid_vso_at[wp]:"f \<lbrace>valid_vso_at p\<rbrace>"
-  by (rule valid_vso_at_lift_aobj_at; wp vsobj_at; simp)
+  by (rule equal_kernel_mappings_lift; wp vsobj_at)
 
 lemma in_user_frame[wp]:"f \<lbrace>in_user_frame p\<rbrace>"
   by (rule in_user_frame_obj_pred_lift; wp vsobj_at; simp)
@@ -1420,11 +1406,12 @@ lemma do_machine_op_arch [wp]:
   apply simp
   done
 
+crunches do_machine_op
+  for aobjs_of[wp]: "\<lambda>s. P (aobjs_of s)"
 
 lemma do_machine_op_valid_arch [wp]:
   "do_machine_op f \<lbrace>valid_arch_state\<rbrace>"
-  by (rule valid_arch_state_lift) wp+
-
+  by (rule valid_arch_state_lift; wpsimp)
 
 lemma do_machine_op_vs_lookup [wp]:
   "do_machine_op f \<lbrace>\<lambda>s. P (vs_lookup s)\<rbrace>"

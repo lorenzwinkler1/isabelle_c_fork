@@ -1,11 +1,7 @@
 %
 % Copyright 2014, General Dynamics C4 Systems
 %
-% This software may be distributed and modified according to the terms of
-% the GNU General Public License version 2. Note that NO WARRANTY is provided.
-% See "LICENSE_GPLv2.txt" for details.
-%
-% @TAG(GD_GPL)
+% SPDX-License-Identifier: GPL-2.0-only
 %
 
 This module contains an instance of the machine-specific kernel API for the ARM architecture with hypervisor extensions.
@@ -14,10 +10,12 @@ This module contains an instance of the machine-specific kernel API for the ARM 
 
 > module SEL4.API.Types.ARM where
 
-> import SEL4.API.Types.Universal(APIObjectType, apiGetObjectSize)
+> import SEL4.API.Types.Universal(APIObjectType(..),
+>                                 epSizeBits, ntfnSizeBits, cteSizeBits)
 > import SEL4.Machine.Hardware.ARM
 > import Data.List (elemIndex)
 > import Data.Maybe (fromJust)
+> import Data.WordLib (wordSizeCase)
 
 There are three ARM-specific object types: virtual pages, page tables, and page directories.
 
@@ -88,6 +86,16 @@ I/O MMU additions add IO page table objects. Note that there is only one IO page
 > toAPIType _ = Nothing
 
 > pageType = SmallPageObject
+
+> tcbBlockSizeBits :: Int
+> tcbBlockSizeBits = 9
+
+> apiGetObjectSize :: APIObjectType -> Int -> Int
+> apiGetObjectSize Untyped size = size
+> apiGetObjectSize TCBObject _ = tcbBlockSizeBits
+> apiGetObjectSize EndpointObject _ = epSizeBits
+> apiGetObjectSize NotificationObject _ = ntfnSizeBits
+> apiGetObjectSize CapTableObject size = cteSizeBits + size
 
 > getObjectSize :: ObjectType -> Int -> Int
 > getObjectSize SmallPageObject _ = pageBitsForSize ARMSmallPage

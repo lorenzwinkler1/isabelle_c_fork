@@ -1,10 +1,8 @@
--- Copyright 2018, Data61, CSIRO
 --
--- This software may be distributed and modified according to the terms of
--- the GNU General Public License version 2. Note that NO WARRANTY is provided.
--- See "LICENSE_GPLv2.txt" for details.
+-- Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
 --
--- @TAG(DATA61_GPL)
+-- SPDX-License-Identifier: GPL-2.0-only
+--
 
 -- This module contains the physical memory model's representations of the
 -- RISC-V 64bit-specific data structures, as well as a type representing
@@ -40,6 +38,13 @@ data ArchCapability
         capPTMappedAddress :: Maybe (ASID, VPtr) }
     deriving (Eq, Show)
 
+{- The range of allowable sizes for Untyped objects depends on addressable memory size. -}
+
+minUntypedSizeBits :: Int
+minUntypedSizeBits = 4
+
+maxUntypedSizeBits :: Int
+maxUntypedSizeBits = 38
 
 {- Kernel Objects -}
 
@@ -78,10 +83,10 @@ newtype ASID = ASID { fromASID :: Word64 }
     deriving (Show, Eq, Ord, Enum, Real, Integral, Num, Bits, Ix, Bounded)
 
 asidHighBits :: Int
-asidHighBits = 6
+asidHighBits = 7
 
 asidLowBits :: Int
-asidLowBits = 10
+asidLowBits = 9
 
 asidBits :: Int
 asidBits = asidHighBits + asidLowBits

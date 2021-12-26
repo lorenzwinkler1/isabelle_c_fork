@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 theory Strengthen
@@ -343,7 +339,7 @@ fun setup_strg ctxt params thms meths = let
     val congs = Congs.get (Proof_Context.theory_of ctxt)
     val rules = map (Make_Strengthen_Rule.auto_mk ctxt) thms
     val tac = case meths of [] => NONE
-      | _ => SOME (FIRST (map (fn meth => Method.NO_CONTEXT_TACTIC ctxt
+      | _ => SOME (FIRST (map (fn meth => NO_CONTEXT_TACTIC ctxt
         (Method.evaluate meth ctxt [])) meths))
   in apply_strg ctxt params congs rules tac
         THEN_ALL_NEW final_oblig_strengthen ctxt end
@@ -362,7 +358,7 @@ fun default_strengthen ctxt thms = strengthen ctxt false true thms []
 val strengthen_args =
   Attrib.thms >> curry (fn (rules, ctxt) =>
     Method.CONTEXT_METHOD (fn _ =>
-      Method.RUNTIME (Method.CONTEXT_TACTIC
+      Method.RUNTIME (CONTEXT_TACTIC
         (strengthen ctxt false true rules [] 1))
     )
   );
@@ -370,7 +366,7 @@ val strengthen_args =
 val strengthen_asm_args =
   Attrib.thms >> curry (fn (rules, ctxt) =>
     Method.CONTEXT_METHOD (fn _ =>
-      Method.RUNTIME (Method.CONTEXT_TACTIC
+      Method.RUNTIME (CONTEXT_TACTIC
         (strengthen ctxt true false rules [] 1))
     )
   );
@@ -378,7 +374,7 @@ val strengthen_asm_args =
 val strengthen_method_args =
   Method.text_closure >> curry (fn (meth, ctxt) =>
     Method.CONTEXT_METHOD (fn _ =>
-      Method.RUNTIME (Method.CONTEXT_TACTIC
+      Method.RUNTIME (CONTEXT_TACTIC
         (strengthen ctxt true true [] [meth] 1))
     )
   );

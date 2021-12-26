@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (* Automation framework for general C refinement *)
@@ -215,8 +211,6 @@ next
     done
 qed simp_all
 
-
-thm ccorres_lift_rhs_call [where P = "\<lambda>_ s. hrs_htd \<^bsup>s\<^esup>t_hrs \<Turnstile>\<^sub>t (xfa s)"]
 
 lemmas ccorres_lift_rhs_no_guard = ccorres_lift_rhs_call [where P = "\<lambda>_ _. True", simplified]
 lemmas ccorres_lift_rhss = ccorres_lift_rhs_no_guard ccorres_lift_rhs_call

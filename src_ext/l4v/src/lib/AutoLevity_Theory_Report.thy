@@ -1,14 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
- *
- * Report generating for autolevity. Computes proof start/end ranges, tracks levity tags
- * and reports on lemma, const, type and theory dependencies.
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 theory AutoLevity_Theory_Report
@@ -404,9 +397,9 @@ fun get_reports_for_thy thy =
     val lemmas =  Facts.dest_static false parent_facts (Global_Theory.facts_of thy)
     |> map_filter (fn (xnm, thms) =>
        let
-          val {pos, theory_name, ...} = Name_Space.the_entry fact_space xnm;
+          val {theory_long_name, pos, ...} = Name_Space.the_entry fact_space xnm;
           in
-            if theory_name = thy_nm then
+            if theory_long_name = thy_nm then
             let
              val thms' = map (Thm.transfer thy) thms;
 
@@ -436,9 +429,9 @@ fun get_reports_for_thy thy =
     fun get_deps_of kind space xnms = xnms
     |> map_filter (fn xnm =>
       let
-          val {pos, theory_name, ...} = Name_Space.the_entry space xnm;
+          val {theory_long_name, pos, ...} = Name_Space.the_entry space xnm;
           in
-            if theory_name = thy_nm then
+            if theory_long_name = thy_nm then
             let
               val specs = Defs.specifications_of defs (kind, xnm);
 

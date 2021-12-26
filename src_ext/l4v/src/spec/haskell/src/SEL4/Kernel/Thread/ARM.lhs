@@ -1,11 +1,7 @@
 %
 % Copyright 2014, General Dynamics C4 Systems
 %
-% This software may be distributed and modified according to the terms of
-% the GNU General Public License version 2. Note that NO WARRANTY is provided.
-% See "LICENSE_GPLv2.txt" for details.
-%
-% @TAG(GD_GPL)
+% SPDX-License-Identifier: GPL-2.0-only
 %
 
 \begin{impdetails}
@@ -23,6 +19,7 @@ This module contains the architecture-specific thread switch code for the ARM.
 > import SEL4.Machine
 > import SEL4.Machine.RegisterSet.ARM (Register(..))
 > import SEL4.Model.StateData
+> import SEL4.Model.PSpace (getObject)
 > import SEL4.Object.Structures
 > import SEL4.Object.TCB
 > import SEL4.Kernel.VSpace.ARM
@@ -38,6 +35,10 @@ The ARM thread switch function invalidates all caches and the TLB, and writes th
 
 > switchToThread :: PPtr TCB -> Kernel ()
 > switchToThread tcb = do
+#ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
+>     tcbobj <- getObject tcb
+>     vcpuSwitch (atcbVCPUPtr $ tcbArch tcbobj)
+#endif
 >     setVMRoot tcb
 >     doMachineOp $ ARMHardware.clearExMonitor
 

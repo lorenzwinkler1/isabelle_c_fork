@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -13,7 +9,7 @@ Properties of machine operations.
 *)
 
 theory Machine_AI
-imports "../Bits_AI"
+imports Bits_AI
 begin
 
 
@@ -45,6 +41,7 @@ struct
   fun put_precond _ _ = error "crunch no_irq should not be calling put_precond";
   val pre_thms = [];
   val wpc_tactic = wp_cases_tactic_weak;
+  fun wps_tactic _ _ _ = no_tac;
   val magic = Syntax.parse_term @{context}
     "\<lambda>mapp_lambda_ignore. no_irq mapp_lambda_ignore";
   val get_monad_state_type = get_nondet_monad_state_type;

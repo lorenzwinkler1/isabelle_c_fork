@@ -1,11 +1,7 @@
 %
 % Copyright 2014, General Dynamics C4 Systems
 %
-% This software may be distributed and modified according to the terms of
-% the GNU General Public License version 2. Note that NO WARRANTY is provided.
-% See "LICENSE_GPLv2.txt" for details.
-%
-% @TAG(GD_GPL)
+% SPDX-License-Identifier: GPL-2.0-only
 %
 
 This module provides the invocation handling for the kernel's two interrupt-handling capability types: the interrupt controller, and the IRQ handlers. It also provides a function that dispatches received interrupts to the appropriate handlers.
@@ -23,11 +19,11 @@ We use the C preprocessor to select a target architecture.
 >     performIRQControl, invokeIRQHandler,
 >     deletingIRQHandler, deletedIRQHandler,
 >     initInterruptController, handleInterrupt,
->     setIRQState, isIRQActive
+>     setIRQState, getIRQState, isIRQActive
 >   ) where
 
 > {-# BOOT-IMPORTS: SEL4.Machine SEL4.Model SEL4.Object.Structures #-}
-> {-# BOOT-EXPORTS: setIRQState isIRQActive #-}
+> {-# BOOT-EXPORTS: setIRQState isIRQActive getIRQState #-}
 
 > import Prelude hiding (Word)
 
@@ -65,7 +61,7 @@ There is a single, global interrupt controller object; a capability to it is pro
 > decodeIRQControlInvocation :: Word -> [Word] -> PPtr CTE -> [Capability] ->
 >         KernelF SyscallError IRQControlInvocation
 > decodeIRQControlInvocation label args srcSlot extraCaps =
->     case (invocationType label, args, extraCaps) of
+>     case (genInvocationType label, args, extraCaps) of
 >         (IRQIssueIRQHandler, irqW:index:depth:_, cnode:_) -> do
 >             Arch.checkIRQ irqW
 >             let irq = toEnum (fromIntegral irqW) :: IRQ
@@ -96,7 +92,7 @@ An IRQ handler capability allows a thread possessing it to set an endpoint which
 > decodeIRQHandlerInvocation :: Word -> IRQ -> [(Capability, PPtr CTE)] ->
 >         KernelF SyscallError IRQHandlerInvocation
 > decodeIRQHandlerInvocation label irq extraCaps =
->     case (invocationType label,extraCaps) of
+>     case (genInvocationType label,extraCaps) of
 >         (IRQAckIRQ,_) -> return $ AckIRQ irq
 >         (IRQSetIRQHandler,(cap,slot):_) -> case cap of
 >                 NotificationCap { capNtfnCanSend = True } ->
@@ -113,7 +109,7 @@ An IRQ handler capability allows a thread possessing it to set an endpoint which
 
 > invokeIRQHandler :: IRQHandlerInvocation -> Kernel ()
 > invokeIRQHandler (AckIRQ irq) =
->     doMachineOp $ maskInterrupt False irq
+>     Arch.invokeIRQHandler (AckIRQ irq)
 > invokeIRQHandler (SetIRQHandler irq cap slot) = do
 >     irqSlot <- getIRQSlot irq
 >     cteDeleteOne irqSlot
@@ -189,7 +185,7 @@ is set to an incorrect value.
 >                       sendSignal (capNtfnPtr cap) (capNtfnBadge cap)
 >                   _ -> doMachineOp $ debugPrint $
 >                       "Undelivered interrupt: " ++ show irq
->               doMachineOp $ maskInterrupt True irq
+>               Arch.maskIrqSignal irq
 >           IRQTimer -> do
 >               timerTick
 >               doMachineOp resetTimer

@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchDetype_AI
-imports "../Detype_AI"
+imports Detype_AI
 begin
 
 context Arch begin global_naming ARM_HYP
@@ -438,6 +434,14 @@ lemma valid_table_caps:
   apply (metis no_obj_refs)
   done
 
+lemma unique_table_refs:
+    "\<And>cps P. unique_table_refs cps
+             \<Longrightarrow> unique_table_refs (\<lambda>x. if P x then None else cps x)"
+    apply (simp only: unique_table_refs_def option.simps
+                      simp_thms
+               split: if_split)
+    apply blast
+    done
 
 lemma valid_arch_caps_detype[detype_invs_proofs]: "valid_arch_caps (detype (untyped_range cap) s)"
   using valid_arch_caps  by (simp add: valid_arch_caps_def

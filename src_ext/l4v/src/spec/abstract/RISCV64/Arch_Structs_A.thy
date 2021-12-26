@@ -1,11 +1,7 @@
 (*
- * Copyright 2018, Data61, CSIRO
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(DATA61_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 chapter "RISCV64-Specific Data Types"
@@ -13,8 +9,8 @@ chapter "RISCV64-Specific Data Types"
 theory Arch_Structs_A
 imports
   "ExecSpec.Arch_Structs_B"
-  "../ExceptionTypes_A"
-  "../VMRights_A"
+  ExceptionTypes_A
+  VMRights_A
 begin
 
 context Arch begin global_naming RISCV64_A
@@ -55,19 +51,22 @@ section \<open>Architecture-specific objects\<close>
 
 (* This datatype does not match up with the executable spec directly:
    This one here models all "things" one can set on a page or page table entry.
-   The attributes accessible to users are the ones returned by attribs_from_word,
-   the ones not applicable to page tables are returned by page_only_attrs. *)
+   The attributes accessible to users are the ones returned by attribs_from_word. *)
 datatype vm_attribute = Global | Execute | User
 type_synonym vm_attributes = "vm_attribute set"
 
-definition page_only_attrs :: "vm_attributes"
-  where
-  "page_only_attrs = {Global}"
+(* The address of the target object is stored shifted right by pt_bits and stored as a ppn (page
+   number). To get the address, use addr_from_pte *)
+type_synonym pte_ppn_len = 52 (* machine_word_len - pt_bits *)
+type_synonym pte_ppn = "pte_ppn_len word"
+
+definition ppn_len :: nat where
+  "ppn_len \<equiv> LENGTH(pte_ppn_len)"
 
 datatype pte =
     InvalidPTE
-  | PagePTE (pte_ppn : machine_word) (pte_attr : vm_attributes) (pte_rights : vm_rights)
-  | PageTablePTE (pte_ppn : machine_word) (pte_attr : vm_attributes)
+  | PagePTE (pte_ppn : pte_ppn) (pte_attr : vm_attributes) (pte_rights : vm_rights)
+  | PageTablePTE (pte_ppn : pte_ppn) (pte_attr : vm_attributes)
 
 type_synonym pt_index_len = 9
 type_synonym pt_index = "pt_index_len word"
@@ -105,6 +104,14 @@ definition pt_bits :: "nat"
   where
   "pt_bits \<equiv> table_size"
 
+definition addr_from_ppn :: "pte_ppn \<Rightarrow> paddr"
+  where
+  "addr_from_ppn ppn = ucast ppn << pt_bits"
+
+abbreviation addr_from_pte :: "pte \<Rightarrow> paddr"
+  where
+  "addr_from_pte pte \<equiv> addr_from_ppn (pte_ppn pte)"
+
 primrec arch_obj_size :: "arch_cap \<Rightarrow> nat"
   where
   "arch_obj_size (ASIDPoolCap _ _) = pageBits"
@@ -123,7 +130,7 @@ definition cte_level_bits :: nat
 
 definition tcb_bits :: nat
   where
-  "tcb_bits \<equiv> 11"
+  "tcb_bits \<equiv> 10"
 
 definition endpoint_bits :: nat
   where
@@ -139,7 +146,7 @@ definition untyped_min_bits :: nat
 
 definition untyped_max_bits :: nat
   where
-  "untyped_max_bits \<equiv> 47"
+  "untyped_max_bits \<equiv> 38"
 
 primrec arch_kobj_size :: "arch_kernel_obj \<Rightarrow> nat"
   where
@@ -158,6 +165,11 @@ definition acap_rights_update :: "cap_rights \<Rightarrow> arch_cap \<Rightarrow
     case acap of
       FrameCap ref cR sz dev as \<Rightarrow> FrameCap ref (validate_vm_rights R) sz dev as
     | _ \<Rightarrow> acap"
+
+text \<open>Sanity check:\<close>
+lemma "LENGTH(pte_ppn_len) = word_bits - pt_bits"
+  by (simp add: pte_bits_def ptTranslationBits_def word_size_bits_def word_bits_def
+                pt_bits_def table_size_def)
 
 section \<open>Architecture-specific object types and default objects\<close>
 
@@ -192,6 +204,24 @@ definition default_arch_object :: "aobject_type \<Rightarrow> bool \<Rightarrow>
 
 type_synonym riscv_vspace_region_uses = "vspace_ref \<Rightarrow> riscvvspace_region_use"
 
+text \<open>
+  The number of levels over all virtual memory tables.
+  For RISC-V, we have three page table levels plus the ASID pool level.
+
+  The top level (with the highest number) contains ASID pools, the next levels contain the
+  top-level page tables, and level 1 page tables. The bottom-level page tables (level 0)
+  contains only InvalidPTEs or PagePTEs.
+\<close>
+type_synonym vm_level = 4
+
+definition asid_pool_level :: vm_level
+  where
+  "asid_pool_level = maxBound"
+
+definition max_pt_level :: vm_level
+  where
+  "max_pt_level = asid_pool_level - 1"
+
 end
 
 qualify RISCV64_A (in Arch)
@@ -200,7 +230,15 @@ section \<open>Architecture-specific state\<close>
 
 record arch_state =
   riscv_asid_table :: "asid_high_index \<rightharpoonup> obj_ref"
-  riscv_global_pt :: obj_ref
+  riscv_global_pts :: "RISCV64_A.vm_level \<Rightarrow> obj_ref set"
+  riscv_kernel_vspace :: "obj_ref \<Rightarrow> RISCV64_H.riscvvspace_region_use"
+
+text \<open>
+  The @{const riscv_global_pts} generalise the concept of global page tables.
+  The invariants will constrain the set of tables for @{term max_pt_level} to a
+  singleton, and for @{term asid_pool_level} to empty. All other levels may contain
+  multiple or no tables, depending on how kernel initialisation sets up the kernel window.
+\<close>
 
 end_qualify
 

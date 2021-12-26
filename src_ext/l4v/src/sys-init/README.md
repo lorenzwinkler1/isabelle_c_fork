@@ -1,3 +1,9 @@
+<!--
+     Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
+
+     SPDX-License-Identifier: CC-BY-SA-4.0
+-->
+
 CapDL User-level system initialiser
 ===================================
 
@@ -5,13 +11,13 @@ This contains a formalised algorithm and the proof of correctness of
 a user-level system initialiser that uses [capDL](../spec/capDL/) to
 specify the state of the resultant system.
 
-It builds on the [CapDL API Proofs](../spec/capDL-api/), and uses
-a [separation logic defined for capDL](../spec/sep-capDL/).
+It builds on the [CapDL API Proofs](../proof/capDL-api/), and uses
+a [separation logic defined for capDL](../proof/sep-capDL/).
 
 The system initialiser and the proof are described in the
 [ICFEM '13 paper][Boyton_13] and Andrew Boyton's PhD thesis.
 
-  [Boyton_13]: http://www.nicta.com.au/pub?id=7047 "Formally Verified System Initialisation"
+  [Boyton_13]: https://ts.data61.csiro.au/publications/nictaabstracts/Boyton_ABFGGKLS_13.abstract.pml "Formally Verified System Initialisation"
 
 Building
 --------
@@ -43,8 +49,8 @@ Important Theories
   [`WellFormed_SI`](WellFormed_SI.thy).
 
 * Two example capDL specifications that are "well-formed" are found in
-  [`ExampleSpec_SI`](ExampleSpec_SI.thy) and
-  [`ExampleSpecIRQ_SI`](ExampleSpecIRQ_SI.thy). The former is a simple
+  [`ExampleSpec_SI`](examples/ExampleSpec_SI.thy) and
+  [`ExampleSpecIRQ_SI`](examples/ExampleSpecIRQ_SI.thy). The former is a simple
   capDL spec, and the latter a more complicated specifications with IRQ
   support.
 

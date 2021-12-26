@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -13,7 +9,7 @@ CSpace invariants
 *)
 
 theory CSpaceInv_AI
-imports "./$L4V_ARCH/ArchCSpaceInvPre_AI"
+imports ArchCSpaceInvPre_AI
 begin
 
 context begin interpretation Arch .
@@ -1502,22 +1498,6 @@ lemma final_NullCap:
   "is_final_cap' NullCap = \<bottom>"
   by (rule ext, simp add: is_final_cap'_def)
 
-lemma unique_table_refs_no_cap_asidE:
-  "\<lbrakk>caps_of_state s p = Some cap;
-    unique_table_refs (caps_of_state s)\<rbrakk>
-   \<Longrightarrow> no_cap_to_obj_with_diff_ref cap S s"
-  apply (clarsimp simp: no_cap_to_obj_with_diff_ref_def
-                        cte_wp_at_caps_of_state)
-  apply (unfold unique_table_refs_def)
-  apply (drule_tac x=p in spec, drule_tac x="(a,b)" in spec)
-  apply (drule spec)+
-  apply (erule impE, assumption)+
-  apply (clarsimp simp: is_cap_simps)
-  done
-
-lemmas unique_table_refs_no_cap_asidD
-     = unique_table_refs_no_cap_asidE[where S="{}"]
-
 lemma set_cap_only_idle [wp]:
   "set_cap cap p \<lbrace>only_idle\<rbrace>"
   by (wp only_idle_lift set_cap_typ_at)
@@ -2114,19 +2094,6 @@ lemma cap_rights_update_id [intro!, simp]:
   "valid_cap c s \<Longrightarrow> cap_rights_update (cap_rights c) c = c"
   unfolding cap_rights_update_def
   by (cases c; fastforce simp: valid_cap_def split: bool.splits)
-
-
-lemma diminished_is_update:
-  "valid_cap c' s \<Longrightarrow> diminished c c' \<Longrightarrow> \<exists>R. c' = cap_rights_update R c"
-  apply (clarsimp simp: diminished_def mask_cap_def)
-  apply (rule exI)
-  apply (rule sym)
-  apply (frule (1) cap_rights_update_id)
-  done
-
-
-lemmas diminished_is_update' =
-  diminished_is_update[OF caps_of_state_valid_cap[OF _ invs_valid_objs]]
 
 
 end

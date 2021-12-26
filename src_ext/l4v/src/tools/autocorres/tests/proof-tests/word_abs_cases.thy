@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 theory word_abs_cases imports
@@ -63,6 +59,7 @@ lemma [unfolded INT_MIN_def INT_MAX_def, simplified, L2flow]:
   "simp_expr (INT_MIN \<le> b \<and> b \<le> INT_MAX \<and> b \<noteq> 0) (a smod b \<le> INT_MAX) True"
   by (simp add: simp_expr_def INT_MIN_MAX_smod)
 
+external_file "word_abs_cases.c"
 install_C_file "word_abs_cases.c"
 autocorres [
   unsigned_word_abs = callee_flat_u_abs

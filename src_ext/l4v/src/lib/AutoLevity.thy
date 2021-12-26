@@ -1,15 +1,11 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 theory AutoLevity (* FIXME: broken *)
-imports "../tools/proofcount/ProofGraph"
+imports "ProofGraph"
 begin
 ML \<open>val infoflow_file = "~~/../lib/proof_counting/Noninterference_Refinement_graphs.xml"\<close>
 ML \<open>val (full_spec,proof_spec_raw,thy_deps) = Proof_Graph.read_graph_spec_from infoflow_file\<close>

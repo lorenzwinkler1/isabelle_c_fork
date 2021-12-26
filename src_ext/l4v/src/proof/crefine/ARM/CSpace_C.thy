@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 
@@ -38,8 +34,6 @@ lemma maskCapRights_cap_cases:
   apply (cases c; simp add: isCap_simps split del: if_split)
   done
 
-
-lemma imp_ignore: "B \<Longrightarrow> A \<longrightarrow> B" by blast
 
 lemma wordFromVMRights_spec:
   "\<forall>s. \<Gamma> \<turnstile> {s} Call wordFromVMRights_'proc \<lbrace>\<acute>ret__unsigned_long = \<^bsup>s\<^esup>vm_rights\<rbrace>"
@@ -612,7 +606,7 @@ lemma cteInsert_ccorres_mdb_helper:
   apply (rule allI)
   apply (rule conseqPre)
   apply vcg
-  apply (clarsimp simp: return_def mask_1_eq_1[simplified])
+  apply (clarsimp simp: return_def mask_Suc_0)
   apply (simp add: cmdbnode_relation_def)
   done
 
@@ -832,6 +826,7 @@ lemma update_freeIndex':
       using order_trans[OF i'_bound power_increasing[OF sz_bound], simplified]
       by (simp add: word_of_nat_le untypedBits_defs)
     show ?thesis
+      supply if_cong[cong]
       apply (cinit lift: cap_ptr_' v32_')
        apply (rule ccorres_pre_getCTE)
        apply (rule_tac P="\<lambda>s. ctes_of s srcSlot = Some rv \<and> (\<exists>i. cteCap rv = UntypedCap d p sz i)"
@@ -1028,8 +1023,6 @@ lemma cslift_ptr_safe:
         in lift_t_ptr_safe[where g = c_guard])
   apply (fastforce simp add:typ_heap_simps hrs_htd_def)
   done
-
-thm ccorres_move_c_guard_cte
 
 lemma ccorres_move_ptr_safe:
   "ccorres_underlying rf_sr \<Gamma> r xf arrel axf A C' hs a c \<Longrightarrow>
@@ -1711,12 +1704,12 @@ lemma mdbPrev_not_zero_eq_simpler:
 
 definition
   irq_opt_relation_def:
-  "irq_opt_relation (airq :: (10 word) option) (cirq :: word16) \<equiv>
+  "irq_opt_relation (airq :: (10 word) option) (cirq :: machine_word) \<equiv>
        case airq of
          Some irq \<Rightarrow> (cirq = ucast irq \<and>
-                      irq \<noteq> scast irqInvalid \<and>
-                      ucast irq \<le> (scast Kernel_C.maxIRQ :: word16))
-       | None \<Rightarrow> cirq = scast irqInvalid"
+                      irq \<noteq> ucast irqInvalid \<and>
+                      ucast irq \<le> UCAST(32 signed \<rightarrow> 32) Kernel_C.maxIRQ)
+       | None \<Rightarrow> cirq = ucast irqInvalid"
 
 
 declare unat_ucast_up_simp[simp]
@@ -1724,18 +1717,12 @@ declare unat_ucast_up_simp[simp]
 
 lemma setIRQState_ccorres:
   "ccorres dc xfdc
-          (\<top> and (\<lambda>s. ucast irq \<le> (scast Kernel_C.maxIRQ :: word16)))
-          (UNIV \<inter> {s. irqState_' s = irqstate_to_C irqState}
-                \<inter> {s. irq_' s = (ucast irq :: word16)}  )
-          []
-         (setIRQState irqState irq)
-         (Call setIRQState_'proc )"
-proof -
-  have is_up_8_16[simp]: "is_up (ucast :: word8 \<Rightarrow> word16)"
-  by (simp add: is_up_def source_size_def target_size_def word_size)
-
-
-show ?thesis
+           (\<top> and (\<lambda>s. ucast irq \<le> (ucast Kernel_C.maxIRQ :: machine_word)))
+           (UNIV \<inter> {s. irqState_' s = irqstate_to_C irqState}
+                 \<inter> {s. irq_' s = ucast irq}  )
+           []
+           (setIRQState irqState irq)
+           (Call setIRQState_'proc )"
   apply (rule ccorres_gen_asm)
   apply (cinit simp del: return_bind)
    apply (rule ccorres_symb_exec_l)
@@ -1773,14 +1760,13 @@ show ?thesis
   apply (simp add: Kernel_C.IRQSignal_def Kernel_C.IRQInactive_def)
   apply (simp add: Kernel_C.IRQTimer_def Kernel_C.IRQInactive_def)
   apply (simp add: Kernel_C.IRQInactive_def Kernel_C.IRQReserved_def)
-  done
-qed
+done
 
 
 lemma deletedIRQHandler_ccorres:
   "ccorres dc xfdc
-         (\<lambda>s. ucast irq \<le> (scast Kernel_C.maxIRQ :: 16 word))
-         (UNIV\<inter> {s. irq_' s = ucast irq}) []
+         (\<lambda>s. ucast irq \<le> (ucast Kernel_C.maxIRQ :: machine_word))
+         (UNIV \<inter> {s. irq_' s = ucast irq}) []
          (deletedIRQHandler irq)
          (Call deletedIRQHandler_'proc )"
   apply (cinit simp del: return_bind)
@@ -1908,7 +1894,7 @@ lemma heap_list_zero_Ball_intvl:
 lemma untypedZeroRange_not_device:
   "untypedZeroRange cap = Some r
     \<Longrightarrow> \<not> capIsDevice cap"
-  by (clarsimp simp: untypedZeroRange_def)
+  by (clarsimp simp: untypedZeroRange_def cong: if_cong)
 
 lemma updateTrackedFreeIndex_noop_ccorres:
   "ccorres dc xfdc (cte_wp_at' ((\<lambda>cap. isUntypedCap cap
@@ -2011,8 +1997,11 @@ where
 definition
   cleanup_info_wf' :: "capability \<Rightarrow> bool"
 where
-  "cleanup_info_wf' cap \<equiv> case cap of IRQHandlerCap irq \<Rightarrow>
-      UCAST(10\<rightarrow>16) irq \<le> SCAST(32 signed\<rightarrow>16) Kernel_C.maxIRQ | ArchObjectCap acap \<Rightarrow> arch_cleanup_info_wf' acap | _ \<Rightarrow> True"
+  "cleanup_info_wf' cap \<equiv> case cap of
+      IRQHandlerCap irq \<Rightarrow>
+        UCAST(10\<rightarrow>machine_word_len) irq \<le> SCAST(32 signed\<rightarrow>machine_word_len) Kernel_C.maxIRQ
+    | ArchObjectCap acap \<Rightarrow> arch_cleanup_info_wf' acap
+    | _ \<Rightarrow> True"
 
 lemma postCapDeletion_ccorres:
   "cleanup_info_wf' cap \<Longrightarrow>
@@ -2055,7 +2044,7 @@ lemma postCapDeletion_ccorres:
   apply (clarsimp simp: cap_irq_handler_cap_lift ccap_relation_def cap_to_H_def
                         cleanup_info_wf'_def c_valid_cap_def cl_valid_cap_def mask_def)
   apply (clarsimp simp: word_size Kernel_C.maxIRQ_def maxIRQ_def)
-  by (word_bitwise, clarsimp)
+  by word_bitwise
 
 lemma emptySlot_ccorres:
   "ccorres dc xfdc
@@ -2066,6 +2055,7 @@ lemma emptySlot_ccorres:
           []
           (emptySlot slot info)
           (Call emptySlot_'proc)"
+  supply if_cong[cong]
   apply (cinit lift: slot_' cleanupInfo_' simp: case_Null_If)
 
   \<comment> \<open>--- handle the clearUntypedFreeIndex\<close>
@@ -2303,6 +2293,7 @@ lemma Arch_sameRegionAs_spec:
                  ccap_relation (ArchObjectCap capb) \<acute>cap_b  \<rbrace>
   Call Arch_sameRegionAs_'proc
   \<lbrace>  \<acute>ret__unsigned_long = from_bool (Arch.sameRegionAs capa capb) \<rbrace>"
+  supply if_cong[cong]
   apply vcg
   apply clarsimp
 
@@ -2691,7 +2682,7 @@ lemma ccap_relation_get_capSizeBits_physical:
         defer 4 (* arch caps last *)
         apply ((frule cap_get_tag_isCap_unfolded_H_cap,
                      clarsimp simp: unfolds
-                             split: if_split_asm)+)[5] (* SOMEONE FIX SUBGOAL PLZ *)
+                             split: if_split_asm)+)[5]
    apply (frule cap_get_tag_isCap_unfolded_H_cap)
    apply (clarsimp simp: unfolds split: if_split_asm)
    apply (rule arg_cong [OF less_mask_eq[where n=5, unfolded mask_def, simplified]])
@@ -2974,7 +2965,7 @@ lemma sameRegionAs_spec:
               apply (simp add: ccap_relation_def map_option_case)
               apply (simp add: cap_thread_cap_lift)
               apply (simp add: cap_to_H_def)
-             apply (clarsimp simp: case_bool_If ctcb_ptr_to_tcb_ptr_def if_distrib
+              apply (clarsimp simp: case_bool_If ctcb_ptr_to_tcb_ptr_def if_distrib
                               cong: if_cong)
              apply (frule_tac cap'=cap_b in cap_get_tag_isArchCap_unfolded_H_cap)
              apply (clarsimp simp: isArchCap_tag_def2)
@@ -3004,9 +2995,8 @@ lemma sameRegionAs_spec:
                           split: if_split bool.split
                           | intro impI conjI
                           | simp )+
-               apply (drule ucast_ucast_mask_eq, simp)
-               apply (simp add: ucast_ucast_mask)
-              apply (erule ucast_up_neq,simp)
+           apply (drule ucast_ucast_mask_eq, simp)
+           apply (simp add: ucast_ucast_mask)
           apply (frule_tac cap'=cap_b in cap_get_tag_isArchCap_unfolded_H_cap)
           apply (clarsimp simp: isArchCap_tag_def2)
          \<comment> \<open>capa is an EndpointCap\<close>
@@ -3234,6 +3224,7 @@ lemma isMDBParentOf_spec:
             (\<exists>s. s \<turnstile>' (cteCap ctea)) }
    Call isMDBParentOf_'proc
    \<lbrace> \<acute>ret__unsigned_long = from_bool (isMDBParentOf ctea cteb) \<rbrace>"
+  supply if_cong[cong]
   apply (intro allI, rule conseqPre)
    apply vcg
   apply (clarsimp simp: isMDBParentOf_def)
@@ -3322,6 +3313,7 @@ lemma updateCapData_spec:
   "\<forall>cap. \<Gamma> \<turnstile> \<lbrace> ccap_relation cap \<acute>cap \<and> preserve = to_bool (\<acute>preserve) \<and> newData = \<acute>newData\<rbrace>
   Call updateCapData_'proc
   \<lbrace>  ccap_relation (updateCapData preserve newData cap) \<acute>ret__struct_cap_C \<rbrace>"
+  supply if_cong[cong]
   apply (rule allI, rule conseqPre)
   apply vcg
   apply (clarsimp simp: if_1_0_0)

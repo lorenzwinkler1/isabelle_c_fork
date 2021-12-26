@@ -1,15 +1,11 @@
 (*
- * Copyright 2016, Data61, CSIRO
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(DATA61_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchDetSchedDomainTime_AI
-imports "../DetSchedDomainTime_AI"
+imports DetSchedDomainTime_AI
 begin
 
 context Arch begin global_naming X64
@@ -27,10 +23,11 @@ crunch domain_list_inv [wp, DetSchedDomainTime_AI_assms]: arch_finalise_cap "\<l
 
 crunch domain_list_inv [wp, DetSchedDomainTime_AI_assms]:
   arch_activate_idle_thread, arch_switch_to_thread, arch_switch_to_idle_thread,
-  handle_arch_fault_reply, arch_tcb_set_ipc_buffer,
+  handle_arch_fault_reply,
   arch_invoke_irq_control, handle_vm_fault, arch_post_modify_registers,
   prepare_thread_delete, handle_hypervisor_fault, arch_post_cap_deletion,
-  make_arch_fault_msg, arch_get_sanitise_register_info, handle_reserved_irq
+  make_arch_fault_msg, arch_get_sanitise_register_info, handle_reserved_irq,
+  arch_invoke_irq_handler, arch_mask_irq_signal
   "\<lambda>s. P (domain_list s)"
 
 crunch domain_time_inv [wp, DetSchedDomainTime_AI_assms]: arch_finalise_cap "\<lambda>s. P (domain_time s)"
@@ -38,10 +35,11 @@ crunch domain_time_inv [wp, DetSchedDomainTime_AI_assms]: arch_finalise_cap "\<l
 
 crunch domain_time_inv [wp, DetSchedDomainTime_AI_assms]:
   arch_activate_idle_thread, arch_switch_to_thread, arch_switch_to_idle_thread,
-  handle_arch_fault_reply, init_arch_objects, arch_tcb_set_ipc_buffer,
+  handle_arch_fault_reply, init_arch_objects,
   arch_invoke_irq_control, handle_vm_fault, arch_post_modify_registers,
   prepare_thread_delete, handle_hypervisor_fault, arch_post_cap_deletion,
-  arch_get_sanitise_register_info, handle_reserved_irq
+  arch_get_sanitise_register_info, handle_reserved_irq, arch_invoke_irq_handler,
+  arch_mask_irq_signal
   "\<lambda>s. P (domain_time s)"
 
 declare init_arch_objects_exst[DetSchedDomainTime_AI_assms]
@@ -60,6 +58,10 @@ context Arch begin global_naming X64
 crunch domain_list_inv [wp, DetSchedDomainTime_AI_assms]: arch_perform_invocation "\<lambda>s. P (domain_list s)"
   (wp: crunch_wps check_cap_inv)
 
+crunch domain_time_inv [wp, DetSchedDomainTime_AI_assms]: arch_mask_irq_signal "\<lambda>s. P (domain_time s)"
+
+crunch domain_list_inv [wp, DetSchedDomainTime_AI_assms]: arch_mask_irq_signal "\<lambda>s. P (domain_list s)"
+
 crunch domain_time_inv [wp, DetSchedDomainTime_AI_assms]: arch_perform_invocation "\<lambda>s. P (domain_time s)"
   (wp: crunch_wps check_cap_inv)
 
@@ -74,7 +76,7 @@ lemma handle_interrupt_valid_domain_time [DetSchedDomainTime_AI_assms]:
   apply (case_tac "maxIRQ < i"; simp)
     subgoal by (wp hoare_false_imp, simp)
   apply (rule hoare_pre)
-   apply (wp do_machine_op_exst | simp | wpc)+
+   apply (wp do_machine_op_exst | simp add: arch_mask_irq_signal_def | wpc)+
       apply (rule_tac Q="\<lambda>_ s. 0 < domain_time s" in hoare_post_imp, fastforce)
       apply wp
      apply (wp get_cap_wp)
@@ -84,7 +86,7 @@ lemma handle_interrupt_valid_domain_time [DetSchedDomainTime_AI_assms]:
     apply (clarsimp simp: timer_tick_def num_domains_def)
     apply (wp reschedule_required_valid_domain_time
           | simp add: handle_reserved_irq_def
-          | wp_once hoare_drop_imp)+
+          | wp (once) hoare_drop_imp)+
    apply clarsimp
   done
 

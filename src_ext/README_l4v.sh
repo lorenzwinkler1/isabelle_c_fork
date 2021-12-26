@@ -39,6 +39,6 @@
 set -x
 set -e
 
-mkdir -p l4v/src
-git mv camkes CONTRIBUTING.md CONTRIBUTORS.md .gitignore isabelle lib LICENSE_BSD2.txt LICENSE_GPLv2.txt .licenseignore misc proof README.md ROOTS run_tests spec sys-init tools l4v/src
+mkdir -p src_ext/l4v/src
+git mv camkes CODE_OF_CONDUCT.md CONTRIBUTING.md CONTRIBUTORS.md docs .github .gitignore .gitlint isabelle lib .licenseignore LICENSE.md LICENSES misc proof README.md .reuse ROOTS run_tests spec .stylefilter sys-init tools src_ext/l4v/src
 git commit -m 'move files into a common directory'

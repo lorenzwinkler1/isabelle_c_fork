@@ -1,11 +1,7 @@
 #
 # Copyright 2014, General Dynamics C4 Systems
 #
-# This software may be distributed and modified according to the terms of
-# the GNU General Public License version 2. Note that NO WARRANTY is provided.
-# See "LICENSE_GPLv2.txt" for details.
-#
-# @TAG(GD_GPL)
+# SPDX-License-Identifier: GPL-2.0-only
 #
 
 BOOT_MODULES = Kernel/CSpace Kernel/Thread Kernel/FaultHandler \
@@ -64,7 +60,7 @@ build-x64: sandbox $(BOOT_FILES)
 	$(CABAL_BUILD) --builddir="dist/x64"
 
 build-riscv: sandbox $(BOOT_FILES)
-	$(CABAL_CONFIGURE) --configure-option="riscv-spike" \
+	$(CABAL_CONFIGURE) --configure-option="riscv-hifive" \
 	    --flags="ArchRiscV -FFI" \
 	    --builddir="dist/riscv"
 	$(CABAL_BUILD) --builddir="dist/riscv"
@@ -78,6 +74,7 @@ build-riscv: sandbox $(BOOT_FILES)
 # cabal package database is missing, the build will fail.
 
 .stack-work:
+	mkdir -p ~/.stack
 	stack --install-ghc build cabal-install
 
 $(CUSTOM_BOOT_FILES):

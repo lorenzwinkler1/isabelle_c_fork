@@ -1,16 +1,12 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchBCorres2_AI
 imports
-  "../BCorres2_AI"
+  BCorres2_AI
 begin
 
 context Arch begin global_naming ARM_HYP
@@ -28,7 +24,7 @@ crunch (bcorres)bcorres[wp]: set_extra_badge,derive_cap truncate_state (ignore: 
 crunch (bcorres)bcorres[wp]: invoke_untyped truncate_state
   (ignore: sequence_x)
 
-crunch (bcorres)bcorres[BCorres2_AI_assms,wp]: set_mcpriority, arch_tcb_set_ipc_buffer,
+crunch (bcorres)bcorres[BCorres2_AI_assms,wp]: set_mcpriority,
           arch_get_sanitise_register_info, arch_post_modify_registers truncate_state
 
 lemma invoke_tcb_bcorres[wp]:
@@ -147,6 +143,11 @@ lemma vgic_maintenance_bcorres[wp]:
   unfolding vgic_maintenance_def
   by (wpsimp simp: vgic_update_lr_bcorres)
 
+lemma vppi_event_bcorres[wp]:
+  "bcorres (vppi_event irq) (vppi_event irq)"
+  unfolding vppi_event_def
+  by wpsimp
+
 lemma handle_reserved_irq_bcorres[wp]: "bcorres (handle_reserved_irq a) (handle_reserved_irq a)"
   unfolding handle_reserved_irq_def by wpsimp
 
@@ -157,8 +158,9 @@ lemma handle_hypervisor_fault_bcorres[wp]: "bcorres (handle_hypervisor_fault a b
 
 lemma handle_event_bcorres[wp]: "bcorres (handle_event e) (handle_event e)"
   apply (cases e)
-  apply (simp add: handle_send_def handle_call_def handle_recv_def handle_reply_def handle_yield_def handle_interrupt_def
-                   handle_reserved_irq_def handle_hypervisor_fault.simps Let_def | intro impI conjI allI | wp | wpc)+
+  apply (simp add: handle_send_def handle_call_def handle_recv_def handle_reply_def handle_yield_def
+                   handle_interrupt_def handle_reserved_irq_def Let_def arch_mask_irq_signal_def
+         | intro impI conjI allI | wp | wpc)+
   done
 
 crunch (bcorres)bcorres[wp]: guarded_switch_to,switch_to_idle_thread truncate_state (ignore: storeWord clearExMonitor)

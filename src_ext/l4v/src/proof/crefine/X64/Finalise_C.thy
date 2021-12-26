@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Finalise_C
@@ -177,7 +173,7 @@ lemma tcbSchedEnqueue_cslift_precond_discharge:
     apply (simp add: maxDom_to_H maxPrio_to_H)+
   apply (simp add: cready_queues_index_to_C_def2 numPriorities_def)
   apply (clarsimp simp: ctcb_relation_def)
-  apply (frule arg_cong[where f=unat], subst(asm) unat_ucast_8_64)
+  apply (frule arg_cong[where f=unat], subst(asm) unat_ucast_up_simp, simp)
   apply (frule tcb_queue'_head_end_NULL)
    apply (erule conjunct1[OF valid_queues_valid_q])
   apply (frule(1) tcb_queue_relation_qhead_valid')
@@ -663,7 +659,7 @@ lemma suspend_ccorres:
         apply (drule_tac x=d in spec)
         apply (drule_tac x=p in spec)
         apply (clarsimp elim!: obj_at'_weakenE simp: inQ_def)
-       apply (wp_trace sts_valid_queues_partial)[1]
+       apply (wp sts_valid_queues_partial)[1]
       apply clarsimp
       apply (wpsimp simp: valid_tcb_state'_def)
      apply clarsimp
@@ -804,6 +800,7 @@ lemma unbindNotification_ccorres:
   "ccorres dc xfdc
     (invs') (UNIV \<inter> {s. tcb_' s = tcb_ptr_to_ctcb_ptr tcb}) []
     (unbindNotification tcb) (Call unbindNotification_'proc)"
+  supply option.case_cong[cong]
   apply (cinit lift: tcb_')
    apply (rule_tac xf'=ntfnPtr_'
                     and r'="\<lambda>rv rv'. rv' = option_to_ptr rv \<and> rv \<noteq> Some 0"
@@ -837,6 +834,7 @@ lemma unbindNotification_ccorres:
 lemma unbindMaybeNotification_ccorres:
   "ccorres dc xfdc (invs') (UNIV \<inter> {s. ntfnPtr_' s = ntfn_Ptr ntfnptr}) []
         (unbindMaybeNotification ntfnptr) (Call unbindMaybeNotification_'proc)"
+  supply option.case_cong[cong]
   apply (cinit lift: ntfnPtr_')
    apply (rule ccorres_symb_exec_l [OF _ get_ntfn_inv' _ empty_fail_getNotification])
     apply (rule ccorres_rhs_assoc2)
@@ -1123,7 +1121,7 @@ lemma deleteASIDPool_ccorres:
              apply (rule conjI, clarsimp simp: ucast_of_nat_small)
              apply (clarsimp simp: asid_map_lifts asid_map_relation_def)
             apply (simp add: asid_low_bits_def word_of_nat_less)
-           apply (clarsimp simp: asid_low_bits_def ucast_less_ucast[where y="0x200" and 'a=32, simplified])
+           apply (clarsimp simp: asid_low_bits_def ucast_less_ucast_weak[where y="0x200" and 'a=32, simplified])
           apply (vcg exspec=hwASIDInvalidate_modifies)
           apply clarsimp
          apply (rule hoare_pre, wp)
@@ -1174,6 +1172,7 @@ lemma deleteASID_ccorres:
   "ccorres dc xfdc (invs' and K (asid < 2 ^ 12) and K (vs \<noteq> 0))
       (UNIV \<inter> {s. asid_' s = asid} \<inter> {s. vspace_' s = Ptr vs}) []
       (deleteASID asid vs) (Call deleteASID_'proc)"
+  supply if_cong[cong]
   apply (cinit lift: asid_' vspace_' cong: call_ignore_cong)
    apply (rule ccorres_Guard_Seq)+
    apply (rule_tac r'="\<lambda>rv rv'. case rv (ucast (asid_high_bits_of asid)) of
@@ -1200,13 +1199,11 @@ lemma deleteASID_ccorres:
      apply wpc
       apply (simp add: ccorres_cond_iffs dc_def[symmetric]
                        Collect_False
-                  del: Collect_const
                  cong: call_ignore_cong)
       apply (rule ccorres_return_Skip)
      apply (clarsimp simp: dc_def[symmetric] when_def
-                           Collect_True liftM_def
-                     cong: conj_cong call_ignore_cong
-                      del: Collect_const)
+                           liftM_def
+                     cong: conj_cong call_ignore_cong)
      apply ccorres_rewrite
      apply (rule ccorres_rhs_assoc)+
      apply (rule ccorres_pre_getObject_asidpool)
@@ -1283,7 +1280,7 @@ lemma deleteASID_ccorres:
                            asid_low_bits_def order_le_less_trans [OF word_and_le1])
     apply wp
    apply vcg
-  apply (clarsimp simp: Collect_const_mem if_1_0_0
+  apply (clarsimp simp: Collect_const_mem
                         word_sless_def word_sle_def
                         Kernel_C.asidLowBits_def
                         typ_at_to_obj_at_arches)
@@ -1429,6 +1426,7 @@ lemma unmapPageTable_ccorres:
   "ccorres dc xfdc (invs' and page_table_at' ptPtr and (\<lambda>s. asid \<le> mask asid_bits \<and> vaddr < pptrBase))
       (UNIV \<inter> {s. asid_' s = asid} \<inter> {s. vaddr___unsigned_long_' s = vaddr} \<inter> {s. pt_' s = Ptr ptPtr})
       [] (unmapPageTable asid vaddr ptPtr) (Call unmapPageTable_'proc)"
+  supply if_cong[cong]
   apply (rule ccorres_gen_asm)
   apply (cinit lift: asid_' vaddr___unsigned_long_' pt_')
    apply (clarsimp simp add: ignoreFailure_liftM)
@@ -1676,7 +1674,6 @@ lemma deletingIRQHandler_ccorres:
                    cong: call_ignore_cong )
    apply (rule_tac r'="\<lambda>rv rv'. rv' = Ptr rv"
                 and xf'="slot_'" in ccorres_split_nothrow)
-       apply (simp add: sint_ucast_eq_uint is_down)
        apply (rule ccorres_Guard_intStateIRQNode_array_Ptr)
        apply (rule ccorres_move_array_assertion_irq)
        apply (rule ccorres_from_vcg[where P=\<top> and P'=UNIV])
@@ -1684,9 +1681,9 @@ lemma deletingIRQHandler_ccorres:
        apply (rule allI, rule conseqPre, vcg)
        apply (clarsimp simp: getIRQSlot_def liftM_def getInterruptState_def
                              locateSlot_conv)
-       apply (simp add: bind_def simpler_gets_def return_def
-                        ucast_nat_def uint_up_ucast is_up)
-       apply (erule getIRQSlot_ccorres_stuff[simplified])
+       apply (simp add: bind_def simpler_gets_def return_def ucast_nat_def uint_up_ucast
+                        is_up getIRQSlot_ccorres_stuff[simplified]
+                   flip: of_int_uint_ucast)
       apply ceqv
      apply (rule ccorres_symb_exec_l)
         apply (rule ccorres_symb_exec_l)
@@ -1720,7 +1717,7 @@ lemma Zombie_new_spec:
   apply vcg
   apply (clarsimp simp: word_sle_def)
   apply (simp add: mask_def word_log_esimps[where 'a=machine_word_len, simplified])
-  apply clarsimp thm Zombie_new_body_def
+  apply clarsimp
   apply (simp add: word_add_less_mono1[where k=1 and j="0x3F", simplified])
   done
 
@@ -1741,7 +1738,7 @@ lemma irq_opt_relation_Some_ucast':
     \<Longrightarrow> irq_opt_relation (Some (ucast x)) (ucast x)"
   apply (rule_tac P = "%y. irq_opt_relation (Some (ucast x)) y" in subst[rotated])
   apply (rule irq_opt_relation_Some_ucast[rotated])
-    apply simp+
+    apply (simp add: ucast_ucast_mask)+
   done
 
 lemma ccap_relation_IRQHandler_mask:
@@ -1866,6 +1863,7 @@ lemma unmapPageDirectory_ccorres:
   "ccorres dc xfdc (invs' and (\<lambda>s. asid \<le> mask asid_bits \<and> vaddr < pptrBase))
       (UNIV \<inter> {s. asid_' s = asid} \<inter> {s. vaddr___unsigned_long_' s = vaddr} \<inter> {s. pd_' s = Ptr pdPtr})
       [] (unmapPageDirectory asid vaddr pdPtr) (Call unmapPageDirectory_'proc)"
+  supply if_cong[cong]
   apply (rule ccorres_gen_asm)
   apply (cinit lift: asid_' vaddr___unsigned_long_' pd_')
    apply (clarsimp simp add: ignoreFailure_liftM)
@@ -2220,6 +2218,7 @@ lemma Arch_finaliseCap_ccorres:
                         \<inter> {s. final_' s = from_bool is_final}) []
    (Arch.finaliseCap cp is_final) (Call Arch_finaliseCap_'proc)"
   (is "ccorres _ _ ?abstract_pre ?c_pre _ _ _")
+  supply if_cong[cong] option.case_cong[cong]
   apply (cinit lift: cap_' final_' cong: call_ignore_cong)
    apply csymbr
    apply (simp add: X64_H.finaliseCap_def cap_get_tag_isCap_ArchObject)
@@ -2653,7 +2652,9 @@ lemma finaliseCap_ccorres:
    apply (clarsimp simp: isCap_simps irqInvalid_def
                       valid_cap'_def X64.maxIRQ_def
                       Kernel_C.maxIRQ_def)
-    apply (rule irq_opt_relation_Some_ucast', simp)
+    apply (rule irq_opt_relation_Some_ucast'[simplified Kernel_C.maxIRQ_def, simplified])
+     apply fastforce
+    apply simp
     apply (clarsimp simp: isCap_simps irqInvalid_def
                       valid_cap'_def X64.maxIRQ_def
                       Kernel_C.maxIRQ_def)

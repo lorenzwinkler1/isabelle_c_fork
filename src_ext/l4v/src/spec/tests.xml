@@ -2,12 +2,8 @@
 <!--
      Copyright 2014, General Dynamics C4 Systems
 
-     This software may be distributed and modified according to the terms of
-     the GNU General Public License version 2. Note that NO WARRANTY is provided.
-     See "LICENSE_GPLv2.txt" for details.
-
-     @TAG(GD_GPL)
-  -->
+     SPDX-License-Identifier: GPL-2.0-only
+-->
 
 <!--
 
@@ -26,17 +22,22 @@
 
     <set depends="isabelle Lib">
         <!-- Various seL4 specifications. -->
-        <test name="ASpec" depends="haskell-translator">make ASpec</test>
-        <test name="ASpecDoc" depends="ASpec">make ASpecDoc</test>
-        <test name="ExecSpec" depends="haskell-translator">make ExecSpec</test>
-        <test name="DSpec" depends="haskell-translator">make DSpec</test>
         <test name="TakeGrant">make TakeGrant</test>
-        <test name="ASepSpec" depends="ASpec">make ASepSpec</test>
+
+        <set depends="haskell-translator">
+            <test name="ASpec">make ASpec</test>
+            <test name="ExecSpec">make ExecSpec</test>
+            <test name="DSpec">make DSpec</test>
+        </set>
+
+        <set depends="ASpec">
+            <test name="ASepSpec">make ASepSpec</test>
+        </set>
     </set>
 
     <set>
         <!-- Build Haskell kernel code. -->
-        <test name="HaskellKernel" cwd="haskell" cpu-timeout="1800">./check-newlines.sh &amp;&amp; make</test>
+        <test name="HaskellKernel" cwd="haskell" cpu-timeout="1800">make</test>
     </set>
 
 </testsuite>

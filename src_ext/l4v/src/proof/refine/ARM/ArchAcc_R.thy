@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -15,11 +11,6 @@
 theory ArchAcc_R
 imports SubMonad_R
 begin
-
-(*FIXME move*)
-lemma hoare_add_post':
-  "\<lbrakk>\<lbrace>P'\<rbrace> f \<lbrace>Q'\<rbrace>; \<lbrace>P''\<rbrace> f \<lbrace>\<lambda>rv s. Q' rv s \<longrightarrow> Q rv s\<rbrace>\<rbrakk> \<Longrightarrow> \<lbrace>P' and P''\<rbrace> f \<lbrace>Q\<rbrace>"
-  by (fastforce simp add: valid_def)
 
 context begin
 
@@ -955,10 +946,10 @@ lemma page_table_at_state_relation:
   apply (drule_tac x = "ucast y" in spec)
   apply (drule sym[where s = "pspace_dom (kheap s)"])
   apply (clarsimp simp:typ_at'_def ko_wp_at'_def)
-  apply (subgoal_tac "(ptr + physMappingOffset + (y << 2)) \<in> dom (ksPSpace sa)")
+  apply (subgoal_tac "(ptr + pptrBaseOffset + (y << 2)) \<in> dom (ksPSpace sa)")
    prefer 2
    apply (clarsimp simp: pspace_dom_def)
-   apply (rule_tac x = "ptr + physMappingOffset" in bexI[where A = "dom (kheap s)"])
+   apply (rule_tac x = "ptr + pptrBaseOffset" in bexI[where A = "dom (kheap s)"])
     apply (simp add:image_def)
     apply (rule_tac x = "ucast y" in exI)
     apply (simp add:ucast_ucast_len)
@@ -1077,7 +1068,7 @@ lemma getObject_pde_inv[wp]:
   by (simp add: getObject_inv loadObject_default_inv)
 
 crunch typ_at'[wp]: copyGlobalMappings "\<lambda>s. P (typ_at' T p s)"
-  (wp: mapM_x_wp' ignore: forM_x getObject)
+  (wp: mapM_x_wp')
 
 lemmas copyGlobalMappings_typ_ats[wp] = typ_at_lifts [OF copyGlobalMappings_typ_at']
 

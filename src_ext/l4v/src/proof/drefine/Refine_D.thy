@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -51,7 +47,7 @@ lemma dcorres_call_kernel:
         apply (simp add: handle_pending_interrupts_def)
         apply (rule corres_split [OF _ get_active_irq_corres])
           apply (clarsimp simp: when_def split: option.splits)
-          apply (rule handle_interrupt_corres)
+          apply (rule handle_interrupt_corres[simplified dc_def])
          apply ((wp | simp)+)[3]
       apply (rule hoare_post_imp_dc2E, rule handle_event_invs_and_valid_sched)
       apply (clarsimp simp: invs_def valid_state_def)

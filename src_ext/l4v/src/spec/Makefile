@@ -1,11 +1,7 @@
 #
 # Copyright 2014, General Dynamics C4 Systems
 #
-# This software may be distributed and modified according to the terms of
-# the GNU General Public License version 2. Note that NO WARRANTY is provided.
-# See "LICENSE_GPLv2.txt" for details.
-#
-# @TAG(GD_GPL)
+# SPDX-License-Identifier: GPL-2.0-only
 #
 
 SHELL=bash
@@ -27,25 +23,33 @@ report-regression:
 #
 
 # Spec heaps.
-HEAPS += ASpec ASpecDoc ExecSpec DSpec CKernel CSpec TakeGrant ASepSpec
+HEAPS += ASpec ExecSpec DSpec CKernel CSpec TakeGrant ASepSpec
 
 # Additional dependencies
 
+# CKernel uses the `machinety=machine_state` option for `install_C_file`,
+# and therefore depends on `design-spec`.
 CKernel CSpec: c-kernel design-spec
 
+ExecSpec DSpec : design-spec
+
+ASPEC_VERSION_FILE=abstract/document/VERSION
+ASPEC_GITREV_FILE=abstract/document/gitrev.tex
+GIT_ROOT_FILE=abstract/document/git-root.tex
+
 # NOTE: The abstract spec imports Events from Haskell hence the dependency
+ASpec: ASpec-files design-spec
 
-ASpec ExecSpec DSpec : design-spec
+ASpec-files: $(ASPEC_VERSION_FILE) $(GIT_ROOT_FILE) $(ASPEC_GITREV_FILE)
 
-ASPEC_DOC_GITREV_FILE=abstract/document/gitrev.tex
-ASPEC_DOC_VERSION_FILE=abstract/document/VERSION
-
-ASpecDoc: design-spec $(ASPEC_DOC_VERSION_FILE) $(ASPEC_DOC_GITREV_FILE)
-
-$(ASPEC_DOC_VERSION_FILE): $(SEL4_VERSION)
+$(ASPEC_VERSION_FILE): $(SEL4_VERSION)
 	cp $< $@
 
-$(ASPEC_DOC_GITREV_FILE): .FORCE
+$(GIT_ROOT_FILE):
+	git rev-parse --show-toplevel > $@
+	perl -p -i -e "s/\n//" $@
+
+$(ASPEC_GITREV_FILE): .FORCE
 	git rev-parse --short=15 HEAD > $@ || echo unknown > $@
 	git diff --no-ext-diff --quiet || echo "*" >> $@
 	git diff --no-ext-diff --quiet --cached || echo "+" >> $@

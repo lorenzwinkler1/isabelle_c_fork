@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 (*
@@ -20,9 +16,11 @@ imports
   Match_Abbreviation
   Try_Methods
   Extract_Conjunct
+  ML_Goal
   Eval_Bool
   NICTATools
   "HOL-Library.Prefix_Order"
+  "HOL-Word.Word"
 begin
 
 (* FIXME: eliminate *)
@@ -110,6 +108,9 @@ where
 
 definition
  "swp f \<equiv> \<lambda>x y. f y x"
+
+lemma swp_apply[simp]: "swp f y x = f x y"
+  by (simp add: swp_def)
 
 primrec (nonexhaustive)
   theRight :: "'a + 'b \<Rightarrow> 'b" where
@@ -760,6 +761,11 @@ lemma graph_of_empty :
 lemma graph_of_in_ranD: "\<forall>y \<in> ran f. P y \<Longrightarrow> (x,y) \<in> graph_of f \<Longrightarrow> P y"
   by (auto simp: graph_of_def ran_def)
 
+lemma graph_of_SomeD:
+  "\<lbrakk> graph_of f \<subseteq> graph_of g; f x = Some y \<rbrakk> \<Longrightarrow> g x = Some y"
+  unfolding graph_of_def
+  by auto
+
 lemma in_set_zip_refl :
   "(x,y) \<in> set (zip xs xs) = (y = x \<and> x \<in> set xs)"
   by (induct xs) auto
@@ -1286,7 +1292,7 @@ lemma set_neqI:
   by clarsimp
 
 lemma set_pair_UN:
-  "{x. P x} = UNION {xa. \<exists>xb. P (xa, xb)} (\<lambda>xa. {xa} \<times> {xb. P (xa, xb)})"
+  "{x. P x} = \<Union> ((\<lambda>xa. {xa} \<times> {xb. P (xa, xb)}) ` {xa. \<exists>xb. P (xa, xb)})"
   by fastforce
 
 lemma singleton_elemD: "S = {x} \<Longrightarrow> x \<in> S"
@@ -1327,8 +1333,6 @@ lemma ball_ran_modify_map_eq:
   "\<lbrakk> \<forall>v. m x = Some v \<longrightarrow> P (f v) = P v \<rbrakk>
   \<Longrightarrow> (\<forall>v \<in> ran (modify_map m x f). P v) = (\<forall>v \<in> ran m. P v)"
   by (auto simp: modify_map_def ball_ran_eq)
-
-lemma disj_imp: "(P \<or> Q) = (\<not>P \<longrightarrow> Q)" by blast
 
 lemma eq_singleton_redux:
   "\<lbrakk> S = {x} \<rbrakk> \<Longrightarrow> x \<in> S"
@@ -1751,6 +1755,51 @@ lemma is_inv_inj2:
   "is_inv f g \<Longrightarrow> inj_on g (dom g)"
   using is_inv_com is_inv_inj by blast
 
+text \<open>Map inversion (implicitly assuming injectivity).\<close>
+definition
+  "the_inv_map m = (\<lambda>s. if s\<in>ran m then Some (THE x. m x = Some s) else None)"
+
+text \<open>Map inversion can be expressed by function inversion.\<close>
+lemma the_inv_map_def2:
+  "the_inv_map m = (Some \<circ> the_inv_into (dom m) (the \<circ> m)) |` (ran m)"
+  apply (rule ext)
+  apply (clarsimp simp: the_inv_map_def the_inv_into_def dom_def)
+  apply (rule_tac f=The in arg_cong)
+  apply (rule ext)
+  apply auto
+  done
+
+text \<open>The domain of a function composition with Some is the universal set.\<close>
+lemma dom_comp_Some[simp]: "dom (comp Some f) = UNIV" by (simp add: dom_def)
+
+text \<open>Assuming injectivity, map inversion produces an inversive map.\<close>
+lemma is_inv_the_inv_map:
+  "inj_on m (dom m) \<Longrightarrow> is_inv m (the_inv_map m)"
+  apply (simp add: is_inv_def)
+  apply (intro conjI allI impI)
+   apply (simp add: the_inv_map_def2)
+  apply (auto simp add: the_inv_map_def inj_on_def dom_def intro: ranI)
+  done
+
+lemma the_the_inv_mapI:
+  "inj_on m (dom m) \<Longrightarrow> m x = Some y \<Longrightarrow> the (the_inv_map m y) = x"
+  by (auto simp: the_inv_map_def ran_def inj_on_def dom_def)
+
+lemma eq_restrict_map_None:
+  "restrict_map m A x = None \<longleftrightarrow> x ~: (A \<inter> dom m)"
+  by (auto simp: restrict_map_def split: if_split_asm)
+
+lemma eq_the_inv_map_None[simp]: "the_inv_map m x = None \<longleftrightarrow> x\<notin>ran m"
+  by (simp add: the_inv_map_def2 eq_restrict_map_None)
+
+lemma is_inv_unique:
+  "is_inv f g \<Longrightarrow> is_inv f h \<Longrightarrow> g=h"
+  apply (rule ext)
+  apply (clarsimp simp: is_inv_def dom_def Collect_eq ran_def)
+  apply (drule_tac x=x in spec)+
+  apply (case_tac "g x", clarsimp+)
+  done
+
 lemma range_convergence1:
   "\<lbrakk> \<forall>z. x < z \<and> z \<le> y \<longrightarrow> P z; \<forall>z > y. P (z :: 'a :: linorder) \<rbrakk> \<Longrightarrow> \<forall>z > x. P z"
   using not_le by blast
@@ -1948,15 +1997,15 @@ lemma dom_eqD:
   "\<lbrakk> f x = Some v; dom f = S \<rbrakk> \<Longrightarrow> x \<in> S"
   by clarsimp
 
-lemma exception_set_finite_1:
+lemma exception_set_finite1:
   "finite {x. P x} \<Longrightarrow> finite {x. (x = y \<longrightarrow> Q x) \<and> P x}"
   by (simp add: Collect_conj_eq)
 
-lemma exception_set_finite_2:
+lemma exception_set_finite2:
   "finite {x. P x} \<Longrightarrow> finite {x. x \<noteq> y \<longrightarrow> P x}"
   by (simp add: imp_conv_disj)
 
-lemmas exception_set_finite = exception_set_finite_1 exception_set_finite_2
+lemmas exception_set_finite = exception_set_finite1 exception_set_finite2
 
 lemma exfEI:
   "\<lbrakk> \<exists>x. P x; \<And>x. P x \<Longrightarrow> Q (f x) \<rbrakk> \<Longrightarrow> \<exists>x. Q x"
@@ -2176,10 +2225,6 @@ lemma zip_append_singleton:
   by (induct xs; case_tac ys; simp)
      (clarsimp simp: zip_append1 zip_take_length zip_singleton)
 
-lemma ran_map_of_zip:
-  "\<lbrakk>length xs = length ys; distinct xs\<rbrakk> \<Longrightarrow> ran (map_of (zip xs ys)) = set ys"
-  by (induct rule: list_induct2) auto
-
 lemma ranE:
   "\<lbrakk> v \<in> ran f; \<And>x. f x = Some v \<Longrightarrow> R\<rbrakk> \<Longrightarrow> R"
   by (auto simp: ran_def)
@@ -2344,6 +2389,10 @@ lemma not_psubset_eq:
   "\<lbrakk> \<not> A \<subset> B; A \<subseteq> B \<rbrakk> \<Longrightarrow> A = B"
   by blast
 
+lemma set_as_imp:
+  "(A \<inter> P \<union> B \<inter> -P) = {s. (s \<in> P \<longrightarrow> s \<in> A) \<and> (s \<notin> P \<longrightarrow> s \<in> B)}"
+  by auto
+
 
 lemma in_image_op_plus:
   "(x + y \<in> (+) x ` S) = ((y :: 'a :: ring) \<in> S)"
@@ -2505,5 +2554,69 @@ lemma rsubst:
 
 lemma ex_impE: "((\<exists>x. P x) \<longrightarrow> Q) \<Longrightarrow> P x \<Longrightarrow> Q"
   by blast
+
+lemma option_Some_value_independent:
+  "\<lbrakk> f x = Some v; \<And>v'. f x = Some v' \<Longrightarrow> f y = Some v' \<rbrakk> \<Longrightarrow> f y = Some v"
+  by blast
+
+text \<open>Some int bitwise lemmas. Helpers for proofs about \<^file>\<open>NatBitwise.thy\<close>\<close>
+lemma int_2p_eq_shiftl:
+  "(2::int)^x = 1 << x"
+  by (simp add: shiftl_int_def)
+
+lemma nat_int_mul:
+  "nat (int a * b) = a * nat b"
+  by (simp add: nat_mult_distrib)
+
+lemma int_shiftl_less_cancel:
+  "n \<le> m \<Longrightarrow> ((x :: int) << n < y << m) = (x < y << (m - n))"
+  apply (drule le_Suc_ex)
+  apply (clarsimp simp: shiftl_int_def power_add)
+  done
+
+lemma int_shiftl_lt_2p_bits:
+  "0 \<le> (x::int) \<Longrightarrow> x < 1 << n \<Longrightarrow> \<forall>i \<ge> n. \<not> x !! i"
+  apply (clarsimp simp: shiftl_int_def)
+  apply (clarsimp simp: bin_nth_eq_mod even_iff_mod_2_eq_zero)
+  apply (drule_tac z="2^i" in less_le_trans)
+   apply simp
+  apply simp
+  done
+\<comment> \<open>TODO: The converse should be true as well, but seems hard to prove.\<close>
+
+lemma int_eq_test_bit:
+  "((x :: int) = y) = (\<forall>i. test_bit x i = test_bit y i)"
+  apply simp
+  apply (metis bin_eqI)
+  done
+lemmas int_eq_test_bitI = int_eq_test_bit[THEN iffD2, rule_format]
+
+lemma le_nat_shrink_left:
+  "y \<le> z \<Longrightarrow> y = Suc x \<Longrightarrow> x < z"
+  by simp
+
+lemma length_ge_split:
+  "n < length xs \<Longrightarrow> \<exists>x xs'. xs = x # xs' \<and> n \<le> length xs'"
+  by (cases xs) auto
+
+text \<open>Support for defining enumerations on datatypes derived from enumerations\<close>
+lemma distinct_map_enum:
+  "\<lbrakk> (\<forall> x y. (F x = F y \<longrightarrow> x = y )) \<rbrakk>
+   \<Longrightarrow> distinct (map F (enum_class.enum :: 'a :: enum list))"
+  by (simp add: distinct_map enum_distinct inj_onI)
+
+lemma if_option_None_eq:
+  "((if P then None else Some x) = None) = P"
+  by (auto split: if_splits)
+
+lemma not_in_ran_None_upd:
+  "x \<notin> ran m \<Longrightarrow> x \<notin> ran (m(y := None))"
+  by (auto simp: ran_def split: if_split)
+
+text \<open>Prevent clarsimp and others from creating Some from not None by folding this and unfolding
+  again when safe.\<close>
+
+definition
+  "not_None x = (x \<noteq> None)"
 
 end

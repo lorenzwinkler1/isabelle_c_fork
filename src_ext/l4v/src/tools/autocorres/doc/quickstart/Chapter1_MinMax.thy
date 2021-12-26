@@ -1,17 +1,15 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 (*<*)
 theory Chapter1_MinMax
 imports "AutoCorres.AutoCorres"
 begin
+
+external_file "minmax.c"
 (*>*)
 
 section \<open>Introduction\<close>
@@ -57,7 +55,7 @@ text \<open>
   which (we expect) return the minimum and maximum respectively of two unsigned
   integers.
 
-  \lstinputlisting[language=C, firstline=17]{../../minmax.c}
+  \lstinputlisting[language=C, firstline=13]{../../minmax.c}
 
   It is easy to see that \texttt{min} is correct, but perhaps less obvious why
   \texttt{max} is correct. AutoCorres will hopefully allow us to prove these

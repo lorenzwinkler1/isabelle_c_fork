@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -14,9 +10,8 @@ Functions for cancelling IPC.
 
 chapter "IPC Cancelling"
 
-
 theory IpcCancel_A
-imports "./$L4V_ARCH/ArchIpcCancel_A"
+imports ArchIpcCancel_A
 begin
 
 context begin interpretation Arch .

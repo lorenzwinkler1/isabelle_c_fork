@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -13,8 +9,9 @@ Lemmas on arch get/set object etc
 *)
 
 theory ArchAcc_AI
-imports "../SubMonad_AI"
- "Lib.Crunch_Instances_NonDet"
+imports
+  SubMonad_AI
+  "Lib.Crunch_Instances_NonDet"
 begin
 
 context Arch begin global_naming ARM
@@ -296,7 +293,7 @@ crunch inv[wp]: get_master_pde P
 
 lemma ucast_mask_asid_low_bits [simp]:
   "ucast ((asid::word32) && mask asid_low_bits) = (ucast asid :: 10 word)"
-  by word_eqI_solve
+  by (word_eqI_solve simp: asid_low_bits_def)
 
 
 lemma ucast_ucast_asid_high_bits [simp]:
@@ -306,7 +303,7 @@ lemma ucast_ucast_asid_high_bits [simp]:
 
 lemma mask_asid_low_bits_ucast_ucast:
   "((asid::word32) && mask asid_low_bits) = ucast (ucast asid :: 10 word)"
-  by word_eqI_solve
+  by (word_eqI_solve simp: asid_low_bits_def)
 
 
 lemma set_asid_pool_cur [wp]:
@@ -367,7 +364,7 @@ lemma pde_at_aligned_vptr:
       apply simp
      apply (clarsimp simp: upto_enum_step_def word_shift_by_2)
      apply (rule shiftl_less_t2n[where m=6, simplified])
-      apply (rule minus_one_helper5)
+      apply (rule word_leq_minus_one_le)
        apply simp+
     apply (rule sym, rule add_mask_lower_bits)
      apply (simp add: pd_bits_def pageBits_def)
@@ -1904,6 +1901,11 @@ lemma valid_pde_typ_at:
    valid_pde pde s = valid_pde pde s'"
   by (case_tac pde, auto simp add: data_at_def)
 
+lemma valid_vspace_obj_same_type:
+  "\<lbrakk>valid_vspace_obj ao s;  kheap s p = Some ko; a_type ko' = a_type ko\<rbrakk>
+  \<Longrightarrow> valid_vspace_obj ao (s\<lparr>kheap := kheap s(p \<mapsto> ko')\<rparr>)"
+    apply (rule hoare_to_pure_kheap_upd[OF valid_vspace_obj_typ])
+    by (auto simp: obj_at_def)
 
 lemma set_asid_pool_global_objs [wp]:
   "\<lbrace>valid_global_objs and valid_arch_state\<rbrace>
@@ -2567,7 +2569,7 @@ lemma create_mapping_entries_valid_slots [wp]:
   apply (rule conjI, simp add: upto_enum_def)
   apply (intro allI impI)
   apply (subst less_kernel_base_mapping_slots_both,assumption+)
-   apply (simp add: minus_one_helper5)
+   apply (simp add: word_leq_minus_one_le)
   apply (simp add: pd_bits vmsz_aligned_def)
   apply (frule (1) is_aligned_lookup_pd_slot
                    [OF _ is_aligned_weaken[of _ 14 6, simplified]])
@@ -2588,8 +2590,8 @@ lemma is_aligned_addrFromPPtr_n:
   "\<lbrakk> is_aligned p n; n \<le> 28 \<rbrakk> \<Longrightarrow> is_aligned (Platform.ARM.addrFromPPtr p) n"
   apply (simp add: Platform.ARM.addrFromPPtr_def)
   apply (erule aligned_sub_aligned, simp_all)
-  apply (simp add: physMappingOffset_def physBase_def
-                   kernelBase_addr_def pageBits_def)
+  apply (simp add: pptrBaseOffset_def physBase_def
+                   pptrBase_def pageBits_def)
   apply (erule is_aligned_weaken[rotated])
   apply (simp add: is_aligned_def)
   done
@@ -2601,8 +2603,8 @@ lemma is_aligned_addrFromPPtr:
 lemma is_aligned_ptrFromPAddr_n:
   "\<lbrakk>is_aligned x sz; sz\<le> 28\<rbrakk>
   \<Longrightarrow> is_aligned (ptrFromPAddr x) sz"
-  apply (simp add:ptrFromPAddr_def physMappingOffset_def
-    kernelBase_addr_def physBase_def)
+  apply (simp add:ptrFromPAddr_def pptrBaseOffset_def
+    pptrBase_def physBase_def)
   apply (erule aligned_add_aligned)
    apply (erule is_aligned_weaken[rotated])
    apply (simp add:is_aligned_def)
@@ -2728,11 +2730,7 @@ lemma lookup_pd_slot_add_eq:
         apply (drule (1) order_le_less_trans)
         apply (drule bang_is_le)
         apply (drule_tac z="2 ^ 4" in order_le_less_trans, assumption)
-        apply (drule word_power_increasing)
-           apply simp
-          apply simp
-         apply simp
-        by arith
+        by (drule word_power_increasing; simp?)
     apply simp
     apply (clarsimp simp: word_size nth_shiftl nth_shiftr is_aligned_nth)
     apply (erule disjE)
@@ -2740,11 +2738,7 @@ lemma lookup_pd_slot_add_eq:
       apply (drule (1) order_le_less_trans)
       apply (drule bang_is_le)
       apply (drule_tac z="2 ^ 4" in order_le_less_trans, assumption)
-      apply (drule word_power_increasing)
-         apply simp
-        apply simp
-       apply simp
-      apply arith
+      apply (drule word_power_increasing; simp?)
      apply (spec "18 + n'")
      apply (frule test_bit_size[where n="18 + n'"])
     by (simp add: word_size)
@@ -3271,16 +3265,12 @@ lemma machine_op_lift_device_state[wp]:
                      select_def ignore_failure_def select_f_def
               split: if_splits)
 
-crunch device_state_inv[wp]: invalidateLocalTLB_ASID "\<lambda>ms. P (device_state ms)"
-crunch device_state_inv[wp]: invalidateLocalTLB_VAASID "\<lambda>ms. P (device_state ms)"
-crunch device_state_inv[wp]: setHardwareASID "\<lambda>ms. P (device_state ms)"
-crunch device_state_inv[wp]: isb "\<lambda>ms. P (device_state ms)"
-crunch device_state_inv[wp]: dsb "\<lambda>ms. P (device_state ms)"
-crunch device_state_inv[wp]: set_current_pd "\<lambda>ms. P (device_state ms)"
-  (simp: writeTTBR0_def)
-crunch device_state_inv[wp]: storeWord "\<lambda>ms. P (device_state ms)"
-crunch device_state_inv[wp]: cleanByVA_PoU "\<lambda>ms. P (device_state ms)"
-crunch device_state_inv[wp]: cleanL2Range "\<lambda>ms. P (device_state ms)"
+crunches invalidateLocalTLB_ASID, invalidateLocalTLB_VAASID, setHardwareASID, isb, dsb,
+         set_current_pd, storeWord, cleanByVA_PoU, cleanL2Range
+  for device_state_inv[wp]: "\<lambda>ms. P (device_state ms)"
+  (simp: writeTTBR0_def
+   ignore_del: invalidateLocalTLB_ASID invalidateLocalTLB_VAASID setHardwareASID isb
+               dsb storeWord cleanByVA_PoU cleanL2Range)
 
 lemma as_user_inv:
   assumes x: "\<And>P. \<lbrace>P\<rbrace> f \<lbrace>\<lambda>x. P\<rbrace>"

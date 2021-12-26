@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -13,7 +9,7 @@ Properties of machine operations.
 *)
 
 theory Machine_AI
-imports "../Bits_AI"
+imports Bits_AI
 begin
 
 
@@ -45,6 +41,7 @@ struct
   fun put_precond _ _ = error "crunch no_irq should not be calling put_precond";
   val pre_thms = [];
   val wpc_tactic = wp_cases_tactic_weak;
+  fun wps_tactic _ _ _ = no_tac;
   val magic = Syntax.parse_term @{context}
     "\<lambda>mapp_lambda_ignore. no_irq mapp_lambda_ignore";
   val get_monad_state_type = get_nondet_monad_state_type;
@@ -277,7 +274,7 @@ lemma no_fail_cleanCacheRange_RAM[simp, wp]:
 
 lemma no_fail_invalidateCacheRange_I[simp, wp]:
   "no_fail \<top> (invalidateCacheRange_I s e p)"
-  by (simp add: invalidateCacheRange_I_def, wp no_fail_invalidateByVA_I)
+  by (simp add: invalidateCacheRange_I_def, wp no_fail_invalidate_I_PoU)
 
 lemma no_fail_invalidateCacheRange_RAM[simp, wp]:
   "no_fail \<top> (invalidateCacheRange_RAM s e p)"
@@ -637,7 +634,7 @@ lemma no_irq_cleanCacheRange_RAM[simp, wp]:
 
 lemma no_irq_invalidateCacheRange_I[simp, wp]:
   "no_irq (invalidateCacheRange_I s e p)"
-  by (simp add: invalidateCacheRange_I_def, wp no_irq_invalidateByVA_I)
+  by (simp add: invalidateCacheRange_I_def, wp no_irq_invalidate_I_PoU)
 
 lemma no_irq_when:
   "\<lbrakk>P \<Longrightarrow> no_irq f\<rbrakk> \<Longrightarrow> no_irq (when P f)"
@@ -820,11 +817,13 @@ lemma empty_fail_set_gic_vcpu_ctrl_hcr[simp, intro!]:
   "empty_fail (set_gic_vcpu_ctrl_hcr w)"
   by (simp add: set_gic_vcpu_ctrl_hcr_def)
 
-crunches readVCPUHardwareReg, writeVCPUHardwareReg
+crunches readVCPUHardwareReg, writeVCPUHardwareReg, get_cntv_cval_64, set_cntv_cval_64,
+          get_cntv_off_64, set_cntv_off_64, read_cntpct
   for (no_fail) no_fail[intro!, wp, simp]
   and (empty_fail) empty_fail[intro!, wp, simp]
   and (no_irq) no_irq[intro!, wp, simp]
-  (ignore: machine_op_lift writeVCPUHardwareReg_impl gets wp: ef_machine_op_lift)
+  (ignore: machine_op_lift writeVCPUHardwareReg_impl set_cntv_cval_64_impl set_cntv_off_64_impl gets
+   wp: ef_machine_op_lift)
 
 lemma empty_fail_cacheRangeOp [simp, intro!]:
   assumes ef: "\<And>a b. empty_fail (oper a b)"
@@ -854,7 +853,7 @@ lemma empty_fail_cleanCacheRange_RAM[simp, intro!]:
 
 lemma empty_fail_invalidateCacheRange_I[simp, intro!]:
   "empty_fail (invalidateCacheRange_I s e p)"
-  by (simp add: invalidateCacheRange_I_def empty_fail_invalidateByVA_I)
+  by (simp add: invalidateCacheRange_I_def empty_fail_invalidate_I_PoU)
 
 lemma empty_fail_invalidateCacheRange_RAM[simp, intro!]:
   "empty_fail (invalidateCacheRange_RAM s e p)"

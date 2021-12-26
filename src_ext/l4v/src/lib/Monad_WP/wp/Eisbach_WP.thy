@@ -1,22 +1,18 @@
 (*
- * Copyright 2015, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 (*  WP-specific Eisbach methods *)
 
 theory Eisbach_WP
 imports
-  "../../Eisbach_Methods"
-  "../NonDetMonadVCG"
-  "../../Conjuncts"
-  "../../Rule_By_Method"
-  "WPI"
+  Eisbach_Methods
+  NonDetMonadVCG
+  Conjuncts
+  Rule_By_Method
+  WPI
 begin
 
 

@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Syscall_S
@@ -101,6 +97,7 @@ lemma bisim_rab:
                                 | _ \<Rightarrow> throwError undefined
                         odE)
                       (resolve_address_bits (cap, cref))"
+  using resolve_address_bits'.simps[simp]
   unfolding resolve_address_bits_def
   apply (cases "length cref < word_bits")
    apply (auto intro!: bisim_underlyingI
@@ -549,27 +546,9 @@ lemma separate_state_more_update[simp]:
 
 lemma cap_delete_one_sep [wp]:
   "\<lbrace>separate_state\<rbrace> cap_delete_one cptr \<lbrace>\<lambda>_. separate_state\<rbrace>"
-  unfolding cap_delete_one_def
-  apply (simp add: unless_when)
-  apply (wp get_cap_wp')
-     apply (simp add: empty_slot_def post_cap_deletion_def)
-     apply (wp | simp)+
-     (* ugh *)
-       apply (rule separate_state_pres)
-       apply (rule hoare_pre)
-        apply (wps set_cdt_typ_at)
-        apply (wp)
-       apply assumption
-      apply (wp get_cap_inv hoare_drop_imps)+
-    apply (simp add: conj_comms)
-    apply (rule separate_state_pres)
-    apply (rule hoare_pre)
-     apply (wps)
-     apply wp
-    apply simp
-   apply (wp get_cap_wp')+
-  apply simp
-  done
+  unfolding cap_delete_one_def empty_slot_def post_cap_deletion_def
+  by (wpsimp wp: get_cap_wp' hoare_drop_imps |
+      rule separate_state_pres, rule hoare_pre, (wps set_cdt_typ_at; wp), assumption)+
 
 lemma bisim_caller_cap:
   assumes bs: "bisim R P P' a (f NullCap)"
@@ -689,16 +668,7 @@ lemma handle_event_bisim:
       apply (rule bisim_split_catch_req)
         apply (rule bisim_reflE)
        apply (rule handle_fault_bisim)
-      apply wp
-      apply (case_tac vmfault_type, simp_all)[1]
-       apply (wp separate_state_pres)
-         apply (rule hoare_pre, wps, wp, simp)
-        apply wp
-         apply (rule hoare_pre, wps, wp, simp)
-        apply simp
-
-       apply (wp separate_state_pres)+
-         apply (rule hoare_pre, wps, wp+, simp)
+      apply (wpsimp wp: hv_inv_ex)
         apply wpsimp+
    apply (simp add: cur_tcb_def)
 
@@ -732,9 +702,11 @@ lemma activate_thread_separate_state [wp]:
 
 lemma schedule_separate_state [wp]:
   "\<lbrace>separate_state\<rbrace> schedule :: (unit,unit) s_monad \<lbrace>\<lambda>_. separate_state\<rbrace>"
-  apply (simp add: schedule_def switch_to_thread_def arch_switch_to_thread_def switch_to_idle_thread_def arch_switch_to_idle_thread_def allActiveTCBs_def)
-  apply (wp select_inv separate_state_pres' alternative_valid | wpc | simp add: arch_activate_idle_thread_def |  strengthen imp_consequent)+
-  done
+  unfolding schedule_def switch_to_thread_def arch_switch_to_thread_def
+            switch_to_idle_thread_def arch_switch_to_idle_thread_def allActiveTCBs_def
+  by (wpsimp wp: select_inv separate_state_pres' alternative_valid
+             simp: arch_activate_idle_thread_def |
+      strengthen imp_consequent)+
 
 lemma set_message_info_sep_pres [wp]:
       "\<lbrace>\<lambda>s. P (typ_at t p s) (caps_of_state s)\<rbrace>
@@ -773,7 +745,8 @@ lemma handle_interrupt_separate_state [wp]:
   "\<lbrace>separate_state\<rbrace> handle_interrupt irq \<lbrace>\<lambda>_. separate_state\<rbrace>"
   unfolding handle_interrupt_def
   apply (rule hoare_pre)
-  apply (wp | wpc | wps | simp add: handle_reserved_irq_def | strengthen imp_consequent)+
+  apply (wp | wpc | wps | simp add: handle_reserved_irq_def arch_mask_irq_signal_def
+         | strengthen imp_consequent)+
   done
 
 lemma decode_invocation_separate_state [wp]:

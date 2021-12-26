@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory RWHelper_DP
@@ -20,7 +16,7 @@ lemma eq_on_subset:
   by (auto simp:eq_on_def)
 
 definition WritingOf :: "(('a \<Rightarrow>'b option) \<Rightarrow> ('a \<Rightarrow> 'b option)) \<Rightarrow> 'a set"
-where "WritingOf f \<equiv> SUP s:UNIV. {ptr. (f s) ptr \<noteq> s ptr} "
+where "WritingOf f \<equiv> UN s:UNIV. {ptr. (f s) ptr \<noteq> s ptr} "
 
 definition IsReadingEstimateOf :: "'a set \<Rightarrow> (('a \<Rightarrow> 'b option) \<Rightarrow> ('a \<Rightarrow> 'b option)) \<Rightarrow> 'a set \<Rightarrow> bool"
   where "IsReadingEstimateOf m f estimate \<equiv> (\<forall>s s'. (eq_on m s s') \<longrightarrow> (eq_on estimate (f s) (f s')))"

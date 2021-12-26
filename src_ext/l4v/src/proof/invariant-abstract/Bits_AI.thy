@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Bits_AI
-imports "./$L4V_ARCH/ArchBits_AI"
+imports ArchBits_AI
 begin
 
 lemmas crunch_wps = hoare_drop_imps mapM_wp' mapM_x_wp'
@@ -20,14 +16,6 @@ lemmas crunch_simps = split_def whenE_def unlessE_def Let_def if_fun_split
 lemma in_set_object:
   "(rv, s') \<in> fst (set_object ptr obj s) \<Longrightarrow> s' = s \<lparr> kheap := kheap s (ptr \<mapsto> obj) \<rparr>"
   by (clarsimp simp: set_object_def get_object_def in_monad)
-
-definition
-  intr :: "ExceptionTypes_A.interrupt \<Rightarrow> irq \<Rightarrow> bool" where
- "intr x y \<equiv> (x = Interrupted y)"
-
-lemma intr_simp[simp]:
- "intr (Interrupted x) y = (x = y)"
-  by (simp add: intr_def)
 
 lemma cap_fault_injection:
  "cap_fault_on_failure addr b = injection_handler (ExceptionTypes_A.CapFault addr b)"
@@ -104,5 +92,14 @@ lemma empty_on_failure_wp[wp]:
   "\<lbrace>P\<rbrace> m \<lbrace>Q\<rbrace>,\<lbrace>\<lambda>rv. Q []\<rbrace>
     \<Longrightarrow> \<lbrace>P\<rbrace> empty_on_failure m \<lbrace>Q\<rbrace>"
   by (simp add: empty_on_failure_def) wp
+
+lemma gen_invocation_typeI:
+  "invocation_type l = GenInvocationLabel x \<Longrightarrow> gen_invocation_type l = x"
+  by (simp add: gen_invocation_type_def)
+
+lemma gen_invocation_type_eq:
+  "x \<noteq> InvalidInvocation \<Longrightarrow>
+  (invocation_type l = GenInvocationLabel x) = (gen_invocation_type l = x)"
+  by (auto simp: gen_invocation_type_def split: invocation_label.splits)
 
 end

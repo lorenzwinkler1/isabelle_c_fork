@@ -1,11 +1,7 @@
 %
 % Copyright 2014, General Dynamics C4 Systems
 %
-% This software may be distributed and modified according to the terms of
-% the GNU General Public License version 2. Note that NO WARRANTY is provided.
-% See "LICENSE_GPLv2.txt" for details.
-%
-% @TAG(GD_GPL)
+% SPDX-License-Identifier: GPL-2.0-only
 %
 
 This module defines the handling of the ARM hardware-defined page tables.
@@ -62,7 +58,7 @@ The ARM-specific invocations are imported with the "ArchInv" prefix. This is nec
 
 \subsection{Constants}
 
-All virtual addresses above "kernelBase" cannot be mapped by user-level tasks. With the exception of one page, at "globalsBase", they cannot be read; the globals page is mapped read-only.
+All virtual addresses above "pptrBase" cannot be mapped by user-level tasks. With the exception of one page, at "globalsBase", they cannot be read; the globals page is mapped read-only.
 
 > globalsBase :: VPtr
 > globalsBase = VPtr 0xffffc000
@@ -167,7 +163,7 @@ An abstract version looks like:
 
 However we assume that the result of getMemoryRegions is actually [0,1<<24] and do the following
 
->     let baseoffset = kernelBase `shiftR` pageBitsForSize (ARMSection)
+>     let baseoffset = pptrBase `shiftR` pageBitsForSize (ARMSection)
 
 >     let ptSize = ptBits - pteBits
 >     let pdSize = pdBits - pdeBits
@@ -505,7 +501,7 @@ With hypervisor extensions, kernel and user MMUs are completely independent. How
 > copyGlobalMappings newPD = do
 >     globalPD <- gets (armKSGlobalPD . ksArchState)
 >     let pdSize = 1 `shiftL` (pdBits - pdeBits)
->     forM_ [fromVPtr kernelBase `shiftR` 20 .. pdSize - 1] $ \index -> do
+>     forM_ [fromVPtr pptrBase `shiftR` 20 .. pdSize - 1] $ \index -> do
 >         let offset = PPtr index `shiftL` pdeBits
 >         pde <- getObject (globalPD + offset)
 >         storePDE (newPD + offset) pde
@@ -929,10 +925,6 @@ If the current thread has no page directory, or if it has an invalid ASID, the h
 >                     throw InvalidRoot
 >                 withoutFailure $ do
 >                     armv_contextSwitch pd asid
-#ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
->                     tcbobj <- getObject tcb
->                     vcpuSwitch (atcbVCPUPtr $ tcbArch tcbobj)
-#endif
 >             _ -> throw InvalidRoot)
 >         (\_ -> do
 >             case threadRoot of
@@ -1245,7 +1237,7 @@ Capabilities for page directories --- the top level of the hardware-defined page
 >         (True, start:end:_) -> do
 >             when (end <= start) $
 >                 throw $ InvalidArgument 1
->             when (VPtr start >= kernelBase || VPtr end > kernelBase) $
+>             when (VPtr start >= pptrBase || VPtr end > pptrBase) $
 >                 throw IllegalOperation
 >             (pd,asid) <- case cap of
 >                 PageDirectoryCap {
@@ -1294,7 +1286,7 @@ Note that these capabilities cannot be copied until they have been mapped, so an
 >                          capPDBasePtr = pd })
 >                     -> return (pd,asid)
 >                 _ -> throw $ InvalidCapability 1
->             when (VPtr vaddr >= kernelBase) $
+>             when (VPtr vaddr >= pptrBase) $
 >                 throw $ InvalidArgument 0
 >             pdCheck <- lookupErrorOnFailure False $ findPDForASID asid
 >             when (pdCheck /= pd) $ throw $ InvalidCapability 1
@@ -1326,29 +1318,31 @@ Note that these capabilities cannot be copied until they have been mapped, so an
 >                 ptUnmapCapSlot = cte }
 >         _ -> throw IllegalOperation
 
-Virtual page capabilities may each represent a single mapping into a page table. Unlike page table capabilities, they may be unmapped without deletion, and may be freely copied to allow multiple mappings of the same page. Along with the \emph{Map} and \emph{Unmap} operations, there is a \emph{Remap} operation, which is used to change the access permissions on an existing mapping.
+Virtual page capabilities may each represent a single mapping into a page table. Unlike page table capabilities, they may be unmapped without deletion, and may be freely copied to allow multiple mappings of the same page. There are two operations \emph{Map} and \emph{Unmap} which affect the mapping of a page capability. In addition, \emph{Map} has a remapping mode which is used to change the access permissions on an existing mapping.
 
-FIXME ARMHYP_SMMU check SMMU isIOSpaceFrameCap(cap) for remap / unmap
-FIXME ARMHYP TODO add call to ARMPageMapIO decode for map and unmap; remap not allowed
+FIXME ARMHYP_SMMU check SMMU isIOSpaceFrameCap(cap) for unmap
+FIXME ARMHYP TODO add call to ARMPageMapIO decode for map and unmap
 FIXME ARMHYP capVPMappedAddress is not what we want for ARM\_HYP? C code has capFMappedAddress for ARM, capFBasePtr for ARM\_HYP here
 
 > decodeARMMMUInvocation label args _ cte cap@(PageCap {}) extraCaps =
 >  do
 >     case (invocationType label, args, extraCaps) of
 >         (ArchInvocationLabel ARMPageMap, vaddr:rightsMask:attr:_, (pdCap,_):_) -> do
->             when (isJust $ capVPMappedAddress cap) $
->                 throw $ InvalidCapability 0
 >             (pd,asid) <- case pdCap of
 >                 ArchObjectCap (PageDirectoryCap {
 >                         capPDMappedASID = Just asid,
 >                         capPDBasePtr = pd })
 >                     -> return (pd,asid)
 >                 _ -> throw $ InvalidCapability 1
+>             case capVPMappedAddress cap of
+>                 Just (asid', vaddr') -> do
+>                     when (asid' /= asid) $ throw $ InvalidCapability 1
+>                     when (vaddr' /= (VPtr vaddr)) $ throw $ InvalidArgument 0
+>                 Nothing ->  do
+>                     let vtop = vaddr + bit (pageBitsForSize $ capVPSize cap) - 1
+>                     when (VPtr vtop >= pptrBase) $ throw $ InvalidArgument 0
 >             pdCheck <- lookupErrorOnFailure False $ findPDForASID asid
 >             when (pdCheck /= pd) $ throw $ InvalidCapability 1
->             let vtop = vaddr + bit (pageBitsForSize $ capVPSize cap) - 1
->             when (VPtr vtop >= kernelBase) $
->                 throw $ InvalidArgument 0
 >             let vmRights = maskVMRights (capVPRights cap) $
 >                     rightsFromWord rightsMask
 >             checkVPAlignment (capVPSize cap) (VPtr vaddr)
@@ -1366,31 +1360,6 @@ FIXME ARMHYP capVPMappedAddress is not what we want for ARM\_HYP? C code has cap
 #ifdef CONFIG_ARM_SMMU
 >         (ArchInvocationLabel ARMPageMapIO, _, _) -> error "FIXME ARMHYP_SMMU"
 #endif
->         (ArchInvocationLabel ARMPageRemap, rightsMask:attr:_, (pdCap, _):_) -> do
-#ifdef CONFIG_ARM_SMMU
->             when (isIOSpaceFrameCap cap) $ throw IllegalOperation
-#endif
->             (pd,asid) <- case pdCap of
->                 ArchObjectCap (PageDirectoryCap {
->                         capPDMappedASID = Just asid,
->                         capPDBasePtr = pd })
->                     -> return (pd,asid)
->                 _ -> throw $ InvalidCapability 1
->             (asidCheck, vaddr) <- case capVPMappedAddress cap of
->                 Just a -> return a
->                 _ -> throw $ InvalidCapability 0
->             pdCheck <- lookupErrorOnFailure False $ findPDForASID asidCheck
->             when (pdCheck /= pd || asidCheck /= asid) $ throw $ InvalidCapability 1
->             let vmRights = maskVMRights (capVPRights cap) $
->                     rightsFromWord rightsMask
->             checkVPAlignment (capVPSize cap) vaddr
->             entries <- createMappingEntries (addrFromPPtr $ capVPBasePtr cap)
->                 vaddr (capVPSize cap) vmRights (attribsFromWord attr) pd
->             ensureSafeMapping entries
->             return $ InvokePage $ PageRemap {
->                 pageRemapASID = asidCheck,
->                 pageRemapEntries = entries }
->         (ArchInvocationLabel ARMPageRemap, _, _) -> throw TruncatedMessage
 >         (ArchInvocationLabel ARMPageUnmap, _, _) ->
 >                 return $
 #ifdef CONFIG_ARM_SMMU
@@ -1488,6 +1457,8 @@ ASID pool capabilities are used to allocate unique address space identifiers for
 #ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
 >         let start' = start + fromPPtr vaddr'
 >         let end' = end + fromPPtr vaddr'
+>         when (pstart < paddrBase || ((end' - start') + fromPAddr pstart > fromPAddr paddrTop)) $
+>             throw IllegalOperation
 #else
 >         let start' = start + fromVPtr vaddr
 >         let end' = end + fromVPtr vaddr
@@ -1573,7 +1544,7 @@ Don't flush an empty range.
 >     updateCap ctSlot (ArchObjectCap $
 >                            cap { capPTMappedAddress = Nothing })
 
-When checking if there was already something mapped before a PageMap or PageRemap,
+When checking if there was already something mapped before a PageMap,
 we need only check the first slot because ensureSafeMapping tells us that
 the PT/PD is consistent.
 
@@ -1631,34 +1602,6 @@ the PT/PD is consistent.
 >                                     (VPtr $ (fromPPtr (last slots)) + (bit pdeBits - 1))
 >                                     (addrFromPPtr (head slots))
 >             when tlbFlush $ invalidateTLBByASID asid
->
-> performPageInvocation (PageRemap asid (Left (pte, slots))) = do
->     tlbFlush <- pteCheckIfMapped (head slots)
-#ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
->     mapM (\(slot, i) -> storePTE slot (addPTEOffset pte i))
->          (zip slots [0 .. fromIntegral (length slots - 1)])
-#else
->     mapM (flip storePTE pte) slots
-#endif
->     doMachineOp $
->         cleanCacheRange_PoU (VPtr $ fromPPtr $ head slots)
->                             (VPtr $ (fromPPtr (last slots)) + (bit pteBits - 1))
->                             (addrFromPPtr (head slots))
->     when tlbFlush $ invalidateTLBByASID asid
->
-> performPageInvocation (PageRemap asid (Right (pde, slots))) = do
->     tlbFlush <- pdeCheckIfMapped (head slots)
-#ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
->     mapM (\(slot, i) -> storePDE slot (addPDEOffset pde i))
->          (zip slots [0 .. fromIntegral (length slots - 1)])
-#else
->     mapM (flip storePDE pde) slots
-#endif
->     doMachineOp $
->         cleanCacheRange_PoU (VPtr $ fromPPtr $ head slots)
->                             (VPtr $ (fromPPtr (last slots)) + (bit pdeBits - 1))
->                             (addrFromPPtr (head slots))
->     when tlbFlush $ invalidateTLBByASID asid
 >
 > performPageInvocation (PageUnmap cap ctSlot) = do
 >     case capVPMappedAddress cap of

@@ -1,16 +1,12 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchBCorres2_AI
 imports
-  "../BCorres2_AI"
+  BCorres2_AI
 begin
 
 context Arch begin global_naming X64
@@ -28,7 +24,7 @@ crunch (bcorres)bcorres[wp]: set_extra_badge,derive_cap truncate_state (ignore: 
 crunch (bcorres)bcorres[wp]: invoke_untyped truncate_state
   (ignore: sequence_x)
 
-crunch (bcorres)bcorres[wp]: set_mcpriority,arch_tcb_set_ipc_buffer truncate_state
+crunch (bcorres)bcorres[wp]: set_mcpriority truncate_state
 
 crunch (bcorres)bcorres[wp, BCorres2_AI_assms]: arch_get_sanitise_register_info, arch_post_modify_registers truncate_state
 
@@ -136,6 +132,7 @@ crunch (bcorres) bcorres[wp]: handle_invocation truncate_state
 crunch (bcorres)bcorres[wp]: receive_ipc,receive_signal,delete_caller_cap truncate_state
 
 lemma handle_vm_fault_bcorres[wp]: "bcorres (handle_vm_fault a b) (handle_vm_fault a b)"
+  unfolding handle_vm_fault_def
   apply (cases b)
   apply (simp | wp)+
   done
@@ -146,7 +143,8 @@ lemma handle_hypervisor_fault_bcorres[wp]: "bcorres (handle_hypervisor_fault a b
 lemma handle_event_bcorres[wp]: "bcorres (handle_event e) (handle_event e)"
   apply (cases e)
   apply (simp add: handle_send_def handle_call_def handle_recv_def handle_reply_def handle_yield_def
-                   handle_interrupt_def Let_def handle_reserved_irq_def | intro impI conjI allI | wp | wpc)+
+                   handle_interrupt_def Let_def handle_reserved_irq_def arch_mask_irq_signal_def
+         | intro impI conjI allI | wp | wpc)+
   done
 
 crunch (bcorres)bcorres[wp]: guarded_switch_to,switch_to_idle_thread truncate_state (ignore: storeWord)

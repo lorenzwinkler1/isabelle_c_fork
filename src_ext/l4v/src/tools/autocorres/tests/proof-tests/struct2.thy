@@ -1,17 +1,14 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 theory struct2
 imports "AutoCorres.AutoCorres"
 begin
 
+external_file "struct2.c"
 install_C_file "struct2.c"
 
 autocorres [keep_going] "struct2.c"

@@ -1,16 +1,12 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 theory BCorres_UL
 imports
-  "Monad_WP/NonDetMonadVCG"
+  NonDetMonadVCG
   Crunch_Instances_NonDet
 begin
 
@@ -292,6 +288,7 @@ struct
     | put_precond _ _ = error "put_precond: not an bcorres term";
   val pre_thms = [];
   val wpc_tactic = WeakestPreCases.wp_cases_tac @{thms wpc_processors};
+  fun wps_tactic _ _ _ = no_tac;
   val magic = Syntax.parse_term @{context}
     "\<lambda>mapp_lambda_ignore. bcorres_underlying t_free_ignore mapp_lambda_ignore g_free_ignore";
   val get_monad_state_type = get_nondet_monad_state_type;

@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Retype_AC
@@ -142,7 +138,7 @@ lemma copy_global_mappings_index_subset:
   apply (subst shiftl_shiftr1, simp)
   apply (simp add: word_size)
   apply (rule sym, rule less_mask_eq)
-  apply (simp add: minus_one_helper5 pd_bits_def pageBits_def)
+  apply (simp add: word_leq_minus_one_le pd_bits_def pageBits_def)
   done
 
 lemma copy_global_mappings_integrity:
@@ -509,8 +505,7 @@ lemma invoke_untyped_integrity:
          | clarsimp simp: split_paired_Ball
          | erule in_set_zipE
          | blast)+
-  apply (clarsimp simp: is_aligned_neg_mask_eq
-                        ptr_range_def p_assoc_help bits_of_def
+  apply (clarsimp simp: ptr_range_def p_assoc_help bits_of_def
                         cte_wp_at_caps_of_state)
   apply (frule(1) cap_cur_auth_caps_of_state, simp+)
   apply (clarsimp simp: aag_cap_auth_def pas_refined_all_auth_is_owns)
@@ -891,7 +886,7 @@ lemma retype_region_ranges'':
     apply(rule is_aligned_add)
      apply(fastforce simp: range_cover_def)
     apply(simp add: is_aligned_mult_triv2)
-   apply(rule minus_one_helper, simp)
+   apply(rule word_leq_le_minus_one, simp)
    apply(rule power_not_zero)
    apply(simp add: range_cover_def)
   apply simp
@@ -1083,7 +1078,7 @@ lemma delete_objects_descendants_range_in'':
      \<lbrace>\<lambda>_. descendants_range_in {word2..(word2 && ~~ mask sz) + 2 ^ sz - 1} slot\<rbrace>"
   apply(clarsimp simp: valid_def)
   apply(frule untyped_cap_aligned, fastforce)
-  apply(clarsimp simp: is_aligned_neg_mask_eq)
+  apply(clarsimp)
   apply(erule use_valid)
    apply(wp delete_objects_descendants_range_in' | clarsimp | blast)+
   done
@@ -1096,7 +1091,7 @@ lemma delete_objects_descendants_range_in''':
      \<lbrace>\<lambda>_. descendants_range_in {word2 && ~~ mask sz..(word2 && ~~ mask sz) + 2 ^ sz - 1} slot\<rbrace>"
   apply(clarsimp simp: valid_def)
   apply(frule untyped_cap_aligned, fastforce)
-  apply(clarsimp simp: is_aligned_neg_mask_eq)
+  apply(clarsimp)
   apply(erule use_valid)
    apply(wp delete_objects_descendants_range_in' | clarsimp | blast)+
   done
@@ -1121,7 +1116,7 @@ lemma delete_objects_descendants_range_in'''':
   apply(erule use_valid)
    apply(wp delete_objects_descendants_range_in' | clarsimp | blast)+
   apply(drule range_cover_subset'', simp)
-  apply(fastforce dest: untyped_cap_aligned simp: is_aligned_neg_mask_eq)
+  apply(fastforce dest: untyped_cap_aligned)
   done
 
 lemmas delete_objects_descendants_range_in =
@@ -1176,7 +1171,7 @@ lemma usable_range_disjoint:
        "unat ((ptr && mask sz) + (of_nat (length slots) * (2::word32) ^ obj_bits_api tp us)) < 2 ^ sz
         \<Longrightarrow> ptr + of_nat (length slots) * 2 ^ obj_bits_api tp us - 1
         < ptr + of_nat (length slots) * 2 ^ obj_bits_api tp us"
-      apply (rule minus_one_helper,simp)
+      apply (rule word_leq_le_minus_one,simp)
       apply (rule neq_0_no_wrap)
       apply (rule machine_word_plus_mono_right_split)
       apply (simp add:shiftl_t2n range_cover_unat[OF cover] field_simps)
@@ -1231,7 +1226,7 @@ lemma delete_objects_pspace_no_overlap':
    \<lbrace>\<lambda>rv. pspace_no_overlap_range_cover (ptr && ~~ mask sz) sz\<rbrace>"
   apply(clarsimp simp: valid_def)
   apply(frule untyped_cap_aligned, simp)
-  apply(clarsimp simp: is_aligned_neg_mask_eq)
+  apply(clarsimp)
   apply(frule(1) cte_wp_at_valid_objs_valid_cap)
   apply(erule use_valid, wp delete_objects_pspace_no_overlap, auto)
   done

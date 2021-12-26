@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 (* Author: Thomas Sewell
@@ -16,8 +12,9 @@
 theory HaskellLib_H
 imports
   Lib
-  "More_Numeral_Type"
-  "Monad_WP/NonDetMonadVCG"
+  NatBitwise
+  More_Numeral_Type
+  NonDetMonadVCG
 begin
 
 abbreviation (input) "flip \<equiv> swp"
@@ -203,26 +200,6 @@ lemma either_simp[simp]: "either = case_sum"
   apply (simp add: either_def)
   done
 
-
-instantiation nat :: bit_operations
-begin
-
-definition
-  "bitNOT = nat o bitNOT o int"
-
-definition
-  "bitAND x y = nat (bitAND (int x) (int y))"
-
-definition
-  "bitOR x y = nat (bitOR (int x) (int y))"
-
-definition
-  "bitXOR x y = nat (bitXOR (int x) (int y))"
-
-instance ..
-
-end
-
 class HS_bit = bit_operations +
   fixes shiftL :: "'a \<Rightarrow> nat \<Rightarrow> 'a"
   fixes shiftR :: "'a \<Rightarrow> nat \<Rightarrow> 'a"
@@ -272,9 +249,8 @@ instance ..
 
 end
 
-definition
-  bit_def[simp]:
- "bit x \<equiv> shiftL 1 x"
+definition bit :: "nat \<Rightarrow> 'a::{one,HS_bit}" where
+  bit_def[simp]: "bit x \<equiv> shiftL 1 x"
 
 definition
 "isAligned x n \<equiv> x && mask n = 0"
@@ -451,13 +427,6 @@ lemma finite_inv_card_less':
 lemma finite_inv_card_less:
    "(card (UNIV - insert (a :: ('a :: finite)) s) < card (UNIV - s)) = (a \<notin> s)"
   by (simp add: finite_inv_card_less')
-
-text \<open>Support for defining enumerations on datatypes derived from enumerations\<close>
-lemma distinct_map_enum: "\<lbrakk> (\<forall> x y. (F x = F y \<longrightarrow> x = y )) \<rbrakk> \<Longrightarrow> distinct (map F (enum :: 'a :: enum list))"
-  apply (simp add: distinct_map)
-  apply (rule inj_onI)
-  apply simp
-  done
 
 definition
   "minimum ls \<equiv> Min (set ls)"

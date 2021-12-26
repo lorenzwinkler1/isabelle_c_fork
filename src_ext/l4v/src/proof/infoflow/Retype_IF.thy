@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Retype_IF
@@ -204,7 +200,8 @@ lemma dmo_cleanCacheRange_PoU_reads_respects:
   by(wp dmo_cacheRangeOp_reads_respects dmo_mol_reads_respects | simp add: cleanByVA_PoU_def)+
 
 crunch irq_state[wp]: clearMemory "\<lambda>s. P (irq_state s)"
-  (wp: crunch_wps simp: crunch_simps storeWord_def cleanByVA_PoU_def ignore: cacheRangeOp)
+  (wp: crunch_wps simp: crunch_simps storeWord_def cleanByVA_PoU_def
+   ignore_del: clearMemory)
 
 lemma dmo_clearMemory_reads_respects:
   "reads_respects aag l \<top> (do_machine_op (clearMemory ptr bits))"
@@ -921,7 +918,7 @@ lemma delete_objects_caps_no_overlap:
   apply(rule descendants_range_caps_no_overlapI)
     apply(erule use_valid | wp | simp add: descendants_range_def2 | blast)+
    apply(frule untyped_cap_aligned,
-         (simp add: is_aligned_neg_mask_eq invs_valid_objs)+)
+         (simp add: invs_valid_objs)+)
    apply(rule conjI, assumption)
    apply(drule (2) untyped_slots_not_in_untyped_range, simp+, rule subset_refl)
     apply simp
@@ -938,7 +935,7 @@ lemma get_cap_reads_respects_g:
   apply simp
   done
 
-lemma irq_state_independent_globals_equiv[simp]:
+lemma irq_state_independent_globals_equiv[simp,intro!]:
   "irq_state_independent_A (globals_equiv st)"
   by (clarsimp simp: irq_state_independent_A_def globals_equiv_def
                      idle_equiv_def)
@@ -984,7 +981,7 @@ lemma delete_objects_pspace_no_overlap_again:
   apply(frule cte_wp_at_valid_objs_valid_cap, clarsimp+)
   apply(erule pspace_no_overlap_subset[rotated])
   apply(rule pspace_no_overlap_subset, rule pspace_no_overlap_detype, simp+)
-  apply(simp add: valid_cap_simps cap_aligned_def is_aligned_neg_mask_eq field_simps)
+  apply(simp add: valid_cap_simps cap_aligned_def field_simps)
   done
 
 lemma ex_tupleI:
@@ -1022,11 +1019,10 @@ lemma reset_untyped_cap_reads_respects_g:
          apply (wp only_timer_irq_inv_pres[where P=\<top> and Q=\<top>]
                    no_irq_clearMemory
               | simp
-              | wp_once dmo_wp)+
+              | wp (once) dmo_wp)+
         apply (clarsimp simp: cte_wp_at_caps_of_state is_cap_simps bits_of_def)
         apply (frule(1) caps_of_state_valid)
-        apply (clarsimp simp: valid_cap_simps cap_aligned_def
-                              is_aligned_neg_mask_eq field_simps
+        apply (clarsimp simp: valid_cap_simps cap_aligned_def field_simps
                               free_index_of_def invs_valid_global_objs)
         apply (simp add: aligned_add_aligned is_aligned_shiftl)
         apply (clarsimp simp: reset_chunk_bits_def)
@@ -1039,11 +1035,10 @@ lemma reset_untyped_cap_reads_respects_g:
          apply (wp only_timer_irq_inv_pres[where P=\<top> and Q=\<top>]
                    no_irq_clearMemory
              | simp
-             | wp_once dmo_wp)+
+             | wp (once) dmo_wp)+
         apply (clarsimp simp: cte_wp_at_caps_of_state is_cap_simps bits_of_def)
         apply (frule(1) caps_of_state_valid)
-        apply (clarsimp simp: valid_cap_simps cap_aligned_def
-                              is_aligned_neg_mask_eq field_simps
+        apply (clarsimp simp: valid_cap_simps cap_aligned_def field_simps
                               free_index_of_def)
        apply (wp | simp)+
        apply (wp delete_objects_reads_respects_g)
@@ -1058,8 +1053,7 @@ lemma reset_untyped_cap_reads_respects_g:
     apply (wp get_cap_wp)
   apply (clarsimp simp: cte_wp_at_caps_of_state is_cap_simps bits_of_def)
   apply (frule(1) caps_of_state_valid)
-  apply (clarsimp simp: valid_cap_simps cap_aligned_def
-                        is_aligned_neg_mask_eq field_simps
+  apply (clarsimp simp: valid_cap_simps cap_aligned_def field_simps
                         free_index_of_def invs_valid_global_objs)
   apply (frule valid_global_refsD2, clarsimp+)
   apply (clarsimp simp: ptr_range_def[symmetric] global_refs_def

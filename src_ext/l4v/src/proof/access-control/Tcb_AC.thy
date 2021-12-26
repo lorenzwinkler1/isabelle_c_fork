@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Tcb_AC
@@ -139,8 +135,6 @@ lemma setup_reply_master_pas_refined:
 
 crunches possible_switch_to
   for tcb_domain_map_wellformed[wp]: " tcb_domain_map_wellformed aag"
-  and pas_refined[wp]: "pas_refined aag"
-
 
 lemma restart_pas_refined:
   "\<lbrace>pas_refined aag and invs and tcb_at t and K (is_subject aag t)\<rbrace> restart t \<lbrace>\<lambda>rv. pas_refined aag\<rbrace>"
@@ -167,14 +161,13 @@ lemma set_priority_integrity_autarch[wp]:
   by (simp add: set_priority_def | wp)+
 
 lemma set_priority_pas_refined[wp]:
- "\<lbrace>pas_refined aag\<rbrace>
+  "\<lbrace>pas_refined aag\<rbrace>
     set_priority tptr prio \<lbrace>\<lambda>_. pas_refined aag\<rbrace>"
-  apply (simp add: set_priority_def thread_set_priority_def ethread_set_def set_eobject_def
-                    get_etcb_def
-        | wp hoare_vcg_imp_lift)+
-  apply (simp add: tcb_sched_action_def | wp)+
+  apply (simp add: set_priority_def thread_set_priority_def ethread_set_def set_eobject_def get_etcb_def
+         | wp hoare_vcg_imp_lift')+
+   apply (simp add: tcb_sched_action_def | wp)+
   apply (clarsimp simp: etcb_at_def pas_refined_def tcb_domain_map_wellformed_aux_def
-          split: option.splits)
+                 split: option.splits)
   apply (erule_tac x="(a, b)" in ballE)
    apply simp
   apply (erule domains_of_state_aux.cases)
@@ -517,7 +510,7 @@ lemma decode_set_ipc_buffer_authorised:
   apply (rule hoare_pre)
   apply (clarsimp simp: ball_Un aag_cap_auth_def split del: if_split split: prod.split
        | strengthen stupid_strg
-       | wp_once derive_cap_obj_refs_auth derive_cap_untyped_range_subset derive_cap_clas derive_cap_cli
+       | wp (once) derive_cap_obj_refs_auth derive_cap_untyped_range_subset derive_cap_clas derive_cap_cli
                  hoare_vcg_all_lift_R whenE_throwError_wp slot_long_running_inv
        | wpc)+
   apply (cases excaps, simp)
@@ -533,7 +526,7 @@ lemma decode_set_space_authorised:
   apply (rule hoare_pre)
   apply (simp cong: list.case_cong split del: if_split)
   apply (clarsimp simp: ball_Un split del: if_split
-       | wp_once derive_cap_obj_refs_auth derive_cap_untyped_range_subset derive_cap_clas derive_cap_cli
+       | wp (once) derive_cap_obj_refs_auth derive_cap_untyped_range_subset derive_cap_clas derive_cap_cli
                  hoare_vcg_const_imp_lift_R hoare_vcg_all_lift_R whenE_throwError_wp slot_long_running_inv)+
   apply (clarsimp simp: not_less all_set_conv_all_nth dest!: P_0_1_spec)
   apply (auto simp: aag_cap_auth_def update_cap_cli intro: update_cap_obj_refs_subset dest!: update_cap_untyped_range_subset update_cap_cap_auth_conferred_subset)
@@ -558,7 +551,7 @@ lemma decode_tcb_configure_authorised_helper:
   apply (rule hoare_pre)
    apply (clarsimp simp: ball_Un split del: if_split split: prod.split
         | strengthen stupid_strg
-        | wp_once derive_cap_obj_refs_auth derive_cap_untyped_range_subset derive_cap_clas derive_cap_cli
+        | wp (once) derive_cap_obj_refs_auth derive_cap_untyped_range_subset derive_cap_clas derive_cap_cli
                   hoare_vcg_all_lift_R whenE_throwError_wp slot_long_running_inv)+
   apply (clarsimp cong: list.case_cong option.case_cong prod.case_cong split: prod.split_asm)
   apply (clarsimp simp: not_less all_set_conv_all_nth dest!: P_0_1_spec)

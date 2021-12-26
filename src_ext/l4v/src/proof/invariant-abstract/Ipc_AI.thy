@@ -1,15 +1,12 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Ipc_AI
-imports "./$L4V_ARCH/ArchFinalise_AI"
+imports
+  ArchFinalise_AI
   "Lib.WPBang"
 begin
 
@@ -1495,7 +1492,7 @@ lemma lookup_extra_caps_srcs[wp]:
                    split_def lookup_slot_for_thread_def)
   apply (wp mapME_set[where R=valid_objs] get_cap_wp resolve_address_bits_real_cte_at
              | simp add: cte_wp_at_caps_of_state
-             | wp_once hoare_drop_imps
+             | wp (once) hoare_drop_imps
              | clarsimp simp: objs_valid_tcb_ctable)+
   done
 
@@ -3128,7 +3125,7 @@ lemma hf_invs':
      apply (wpe lookup_cap_ex_cap)
      apply (wpsimp wp: hoare_vcg_all_lift_R
         | strengthen reply_cap_doesnt_exist_strg
-        | wp_once hoare_drop_imps)+
+        | wp (once) hoare_drop_imps)+
   apply (simp add: conj_comms)
   apply (fastforce elim!: pred_tcb_weakenE
                simp: invs_def valid_state_def valid_idle_def st_tcb_def2

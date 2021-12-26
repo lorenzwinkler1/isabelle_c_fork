@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -530,8 +526,6 @@ lemma cap_table_at_gsCNodes:
   apply blast
   done
 
-declare resolve_address_bits'.simps[simp del]
-
 lemma getSlotCap_valid:
   "\<lbrace>\<lambda>s. valid_objs' s \<and> (cte_wp_at' (\<lambda>_. True) p s \<longrightarrow> (\<forall>cap. valid_cap' cap s \<longrightarrow> Q cap s))\<rbrace>
   getSlotCap p \<lbrace>Q\<rbrace>"
@@ -1025,7 +1019,7 @@ lemma update_prev_next_trancl:
 proof (cases "m ptr")
   case None
   thus ?thesis using nxt
-    by (simp add: modify_map_def) (simp add: None [symmetric])
+    by (simp add: modify_map_def)
 next
   case (Some cte)
   let ?m = "m(ptr \<mapsto> cteMDBNode_update (mdbPrev_update z) cte)"
@@ -1053,7 +1047,7 @@ lemma update_prev_next_trancl2:
 proof (cases "m ptr")
   case None
   thus ?thesis using nxt
-    by (simp add: modify_map_def) (simp add: None [symmetric] fun_upd_triv)
+    by (simp add: modify_map_def)
 next
   case (Some cte)
   let ?m = "m(ptr \<mapsto> cteMDBNode_update (mdbPrev_update z) cte)"
@@ -1062,8 +1056,7 @@ next
   proof induct
     case (base y)
     thus ?case using Some
-      by (auto intro!: r_into_trancl
-        simp: modify_map_def mdb_next_update next_unfold' split: if_split_asm)
+      by (fastforce simp: modify_map_def mdb_next_update next_unfold' split: if_split_asm)
   next
     case (step q r)
     show ?case
@@ -1150,7 +1143,7 @@ proof
   proof (cases "m ptr")
     case None
     thus ?thesis
-      by (simp add: modify_map_def, rule subst, subst fun_upd_triv) (rule x0)
+      by (simp add: modify_map_def) (rule x0)
   next
     case (Some cte)
     show ?thesis
@@ -1493,7 +1486,7 @@ lemma cte_at_cte_map_in_obj_bits:
      apply assumption
     apply (subst add_diff_eq[symmetric])
     apply (rule word_plus_mono_right)
-     apply (erule minus_one_helper3)
+     apply (erule word_le_minus_one_leq)
     apply (erule is_aligned_no_wrap')
     apply (rule word_power_less_1)
     apply (simp add: cte_level_bits_def word_bits_def)
@@ -1513,7 +1506,7 @@ lemma cte_at_cte_map_in_obj_bits:
     apply (erule is_aligned_no_wrap')
     apply (simp add: word_bits_conv)
    apply (rule word_plus_mono_right)
-    apply (drule minus_one_helper3)
+    apply (drule word_le_minus_one_leq)
     apply simp
    apply (erule is_aligned_no_wrap')
    apply simp
@@ -6468,6 +6461,7 @@ lemma cap_swap_corres:
                cte_wp_at' (weak_derived' dcap' o cteCap) dest' s))
          (cap_swap scap src dcap dest) (cteSwap scap' src' dcap' dest')"
   (is "corres _ ?P ?P' _ _") using assms including no_pre
+  supply None_upd_eq[simp del]
   apply (unfold cap_swap_def cteSwap_def)
   apply (cases "src=dest")
    apply (rule corres_assume_pre)

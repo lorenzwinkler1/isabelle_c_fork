@@ -1,22 +1,16 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Invariants_AI
-imports "./$L4V_ARCH/ArchInvariants_AI"
+imports ArchInvariants_AI
 begin
 
 context begin interpretation Arch .
 
 requalify_types
-  vs_chain
-  vs_ref
   iarch_tcb
 
 requalify_consts
@@ -53,12 +47,6 @@ requalify_consts
 
   ASIDPoolObj
 
-  vs_lookup1
-  vs_lookup_trans
-  vs_refs
-  vs_lookup_pages1
-  vs_lookup_pages_trans
-  vs_refs_pages
   valid_vs_lookup
   user_mem
   device_mem
@@ -67,6 +55,9 @@ requalify_consts
 
   valid_arch_mdb
   arch_tcb_to_iarch_tcb
+
+  vs_lookup
+  vs_lookup_pages
 
 requalify_facts
   valid_arch_sizes
@@ -85,8 +76,6 @@ requalify_facts
   physical_arch_cap_has_ref
   wellformed_arch_default
   valid_vspace_obj_default'
-  vs_lookup1_stateI2
-  vs_lookup_pages1_stateI2
   typ_at_pg
   state_hyp_refs_of_elemD
   ko_at_state_hyp_refs_ofD
@@ -125,10 +114,6 @@ lemmas [intro!] =  idle_global acap_rights_update_id
 lemmas [simp] =  acap_rights_update_id state_hyp_refs_update
                  tcb_arch_ref_simps hyp_live_tcb_simps hyp_refs_of_simps
 
-(* Checking that vs_lookup notation is installed *)
-
-term "vs_lookup :: 'z::state_ext state \<Rightarrow> vs_chain set"
-term "(a \<rhd> b) :: ('z:: state_ext state) \<Rightarrow> bool"
 
 \<comment> \<open>---------------------------------------------------------------------------\<close>
 section "Invariant Definitions for Abstract Spec"
@@ -283,12 +268,12 @@ where
   (if f < 2^n  then {p+of_nat f .. p + 2 ^ n - 1} else {})"
 
 definition
-  "obj_range p obj \<equiv> {p .. p + 2^obj_bits obj - 1}"
+  "obj_range p obj \<equiv> {p .. p + 2^obj_bits obj - 1}" (* FIXME mask_range *)
 
 definition
   "pspace_no_overlap S \<equiv>
            \<lambda>s. \<forall>x ko. kheap s x = Some ko \<longrightarrow>
-                {x .. x + (2 ^ obj_bits ko - 1)} \<inter> S = {}"
+                {x .. x + (2 ^ obj_bits ko - 1)} \<inter> S = {}" (* FIXME obj_range *)
 
 definition
   "valid_untyped c \<equiv> \<lambda>s.
@@ -1067,7 +1052,7 @@ definition
   | AArch T' \<Rightarrow> arch_obj_bits_type T'"
 
 definition
-  "typ_range p T \<equiv> {p .. p + 2^obj_bits_type T - 1}"
+  "typ_range p T \<equiv> {p .. p + 2^obj_bits_type T - 1}" (* FIXME mask_range *)
 
 abbreviation
   "active st \<equiv> st = Running \<or> st = Restart"
@@ -1297,10 +1282,6 @@ lemma valid_objsE [elim]:
 lemma obj_at_ko_at:
   "obj_at P p s \<Longrightarrow> \<exists>ko. ko_at ko p s \<and> P ko"
   by (auto simp add: obj_at_def)
-
-lemma symreftype_inverse[simp]:
-  "symreftype (symreftype t) = t"
-  by (cases t, simp+)
 
 lemma tcb_st_refs_of_simps[simp]: (* ARMHYP add TCBHypRef? *)
  "tcb_st_refs_of (Running)               = {}"
@@ -1780,7 +1761,7 @@ lemma gen_obj_refs_Int:
             \<and> cap_irqs cap \<inter> cap_irqs cap' = {}
             \<and> arch_gen_refs cap \<inter> arch_gen_refs cap' = {})"
   by (simp add: gen_obj_refs_def Int_Un_distrib Int_Un_distrib2
-                image_Int[symmetric] Int_image_empty image_Int[symmetric])
+                image_Int[symmetric] Int_image_empty)
 
 lemma is_final_cap'_def2:
   "is_final_cap' cap =
@@ -2203,6 +2184,13 @@ lemma ko_at_obj_congD:
 lemma not_obj_at_strengthen:
   "obj_at (Not \<circ> P) p s \<Longrightarrow> \<not> obj_at P p s"
   by (clarsimp simp: obj_at_def)
+
+lemma not_pred_tcb_at_strengthen:
+  "pred_tcb_at proj (Not \<circ> P) p s \<Longrightarrow> \<not> pred_tcb_at proj P p s"
+  apply (simp add: pred_tcb_at_def)
+  apply (strengthen not_obj_at_strengthen)
+  apply (fastforce simp add: comp_def obj_at_def)
+  done
 
 text \<open>using typ_at triples to prove other triples\<close>
 
@@ -2645,10 +2633,8 @@ lemma valid_reply_masters_update [iff]:
   "valid_reply_masters (f s) = valid_reply_masters s"
   by (simp add: valid_reply_masters_def)
 
-
 lemmas in_user_frame_update[iff] = in_user_frame_update
 lemmas in_device_frame_update[iff] = in_device_frame_update
-lemmas equal_kernel_mappings_update[iff] = equal_kernel_mappings_update
 
 end
 
@@ -2657,13 +2643,15 @@ context p_arch_update_eq begin
 
 interpretation Arch_p_arch_update_eq f ..
 
+declare equal_kernel_mappings_update [iff]
+
 lemma valid_vspace_objs_update [iff]:
   "valid_vspace_objs (f s) = valid_vspace_objs s"
-  by (simp add: valid_vspace_objs_def)
+  by (simp add: valid_vspace_objs_def arch pspace)
 
 lemma valid_arch_cap_update [iff]:
   "valid_arch_caps (f s) = valid_arch_caps s"
-  by (simp add: valid_arch_caps_def)
+  by (simp add: valid_arch_caps_def pspace arch)
 
 lemma valid_global_objs_update [iff]:
   "valid_global_objs (f s) = valid_global_objs s"
@@ -2671,7 +2659,7 @@ lemma valid_global_objs_update [iff]:
 
 lemma valid_global_vspace_mappings_update [iff]:
   "valid_global_vspace_mappings (f s) = valid_global_vspace_mappings s"
-  by (simp add: valid_global_vspace_mappings_def arch)
+  unfolding valid_global_vspace_mappings_def by (simp add: arch Let_def)
 
 lemma pspace_in_kernel_window_update [iff]:
   "pspace_in_kernel_window (f s) = pspace_in_kernel_window s"
@@ -2706,7 +2694,7 @@ lemma valid_asid_map_update [iff]:
 
 lemma valid_arch_state_update [iff]:
   "valid_arch_state (f s) = valid_arch_state s"
-  by (simp add: valid_arch_state_def arch split: option.split)
+  by (simp add: valid_arch_state_def arch pspace split: option.split)
 
 lemma valid_idle_update [iff]:
   "valid_idle (f s) = valid_idle s"
@@ -2963,7 +2951,7 @@ lemmas caps_of_state_valid_cap = cte_wp_valid_cap [OF caps_of_state_cteD]
 
 lemma (in Arch) obj_ref_is_arch:
   "\<lbrakk>aobj_ref c = Some r; valid_arch_cap c s\<rbrakk> \<Longrightarrow> \<exists> ako. kheap s r = Some (ArchObj ako)"
-by (auto simp add: valid_arch_cap_def obj_at_def split: arch_cap.splits if_splits)
+by (auto simp add: valid_arch_cap_def obj_at_def valid_arch_cap_ref_def split: arch_cap.splits if_splits)
 
 
 requalify_facts Arch.obj_ref_is_arch
@@ -3463,27 +3451,34 @@ lemma sym_refs_bound_tcb_atD:
   apply auto
   done
 
-
-lemma vs_lookup_trans_sub2:
-  assumes ko: "\<And>ko p. \<lbrakk> ko_at ko p s; vs_refs ko \<noteq> {} \<rbrakk> \<Longrightarrow> obj_at (\<lambda>ko'. vs_refs ko \<subseteq> vs_refs ko') p s'"
-  shows "vs_lookup_trans s \<subseteq> vs_lookup_trans s'"
-proof -
-  have "vs_lookup1 s \<subseteq> vs_lookup1 s'"
-    by (fastforce dest: ko elim: vs_lookup1_stateI2)
-  thus ?thesis by (rule rtrancl_mono)
-qed
-
-lemma vs_lookup_pages_trans_sub2:
-  assumes ko: "\<And>ko p. \<lbrakk> ko_at ko p s; vs_refs_pages ko \<noteq> {} \<rbrakk> \<Longrightarrow> obj_at (\<lambda>ko'. vs_refs_pages ko \<subseteq> vs_refs_pages ko') p s'"
-  shows "vs_lookup_pages_trans s \<subseteq> vs_lookup_pages_trans s'"
-proof -
-  have "vs_lookup_pages1 s \<subseteq> vs_lookup_pages1 s'"
-    by (fastforce dest: ko elim: vs_lookup_pages1_stateI2)
-  thus ?thesis by (rule rtrancl_mono)
-qed
-
 lemma max_ipc_length_unfold:
   "max_ipc_length = 128"
   by (simp add: max_ipc_length_def cap_transfer_data_size_def msg_max_length_def msg_max_extra_caps_def)
+
+lemmas invs_implies =
+  invs_equal_kernel_mappings
+  invs_arch_state
+  invs_valid_asid_map
+  invs_valid_global_objs
+  invs_valid_ioports
+  invs_vspace_objs
+  invs_psp_aligned
+  invs_distinct
+  invs_cur
+  invs_iflive
+  invs_ifunsafe
+  invs_valid_global_refs
+  invs_valid_idle
+  invs_valid_irq_node
+  invs_mdb
+  invs_valid_objs
+  invs_valid_pspace
+  invs_valid_reply_caps
+  invs_valid_reply_masters
+  invs_valid_stateI
+  invs_zombies
+  invs_hyp_sym_refs
+  invs_sym_refs
+  tcb_at_invs
 
 end

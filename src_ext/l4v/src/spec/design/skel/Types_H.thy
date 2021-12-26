@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -16,9 +12,9 @@ chapter "Types visible in the API"
 
 theory Types_H
 imports
-  "./$L4V_ARCH/State_H"
+  State_H
   "Lib.Lib"
-  "./$L4V_ARCH/ArchTypes_H"
+  ArchTypes_H
 begin
 
 context begin interpretation Arch .
@@ -35,6 +31,10 @@ requalify_consts
   isFrameType
   pageType
   ptrFromPAddr
+  tcbBlockSizeBits
+
+requalify_facts
+  tcbBlockSizeBits_def
 end
 
 #INCLUDE_HASKELL SEL4/API/Types.lhs all_bits NOT wordsFromBootInfo messageInfoFromWord wordFromMessageInfo ObjectType getObjectSize fromAPIType toAPIType isFrameType pageType

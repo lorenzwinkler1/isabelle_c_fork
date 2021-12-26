@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -1137,7 +1133,7 @@ crunches cteInsert
   and norqL1[wp]: "\<lambda>s. P (ksReadyQueuesL1Bitmap s)"
   and norqL2[wp]: "\<lambda>s. P (ksReadyQueuesL2Bitmap s)"
   and typ_at'[wp]: "\<lambda>s. P (typ_at' T p s)"
-  (wp: updateObject_cte_inv crunch_wps)
+  (wp: updateObject_cte_inv crunch_wps ignore_del: setObject)
 
 lemmas updateMDB_typ_ats [wp] = typ_at_lifts [OF updateMDB_typ_at']
 lemmas updateCap_typ_ats [wp] = typ_at_lifts [OF updateCap_typ_at']
@@ -1148,7 +1144,7 @@ lemma setObject_cte_ct:
   by (clarsimp simp: valid_def setCTE_def[symmetric] dest!: setCTE_pspace_only)
 
 crunch ct[wp]: cteInsert "\<lambda>s. P (ksCurThread s)"
-  (wp: setObject_cte_ct hoare_drop_imps ignore: setObject)
+  (wp: setObject_cte_ct hoare_drop_imps)
 end
 context mdb_insert
 begin
@@ -3126,7 +3122,7 @@ lemma setObject_cte_domIdx:
   by (clarsimp simp: valid_def setCTE_def[symmetric] dest!: setCTE_pspace_only)
 
 crunch ksDomScheduleIdx[wp]: cteInsert "\<lambda>s. P (ksDomScheduleIdx s)"
-  (wp: setObject_cte_domIdx hoare_drop_imps ignore: setObject)
+  (wp: setObject_cte_domIdx hoare_drop_imps)
 
 crunch gsUntypedZeroRanges[wp]: cteInsert "\<lambda>s. P (gsUntypedZeroRanges s)"
   (wp: setObject_ksPSpace_only updateObject_cte_inv crunch_wps)
@@ -5799,7 +5795,7 @@ lemma lookupSlotForCNodeOp_real_cte_at'[wp]:
   apply (simp add: lookupSlotForCNodeOp_def split_def unlessE_def
                      split del: if_split cong: if_cong)
   apply (rule hoare_pre)
-   apply (wp resolveAddressBits_real_cte_at' | simp | wp_once hoare_drop_imps)+
+   apply (wp resolveAddressBits_real_cte_at' | simp | wp (once) hoare_drop_imps)+
   done
 
 lemma cte_refs_maskCapRights[simp]:
@@ -5856,12 +5852,12 @@ proof (induct arbitrary: s rule: resolveAddressBits.induct)
     apply (simp add: Let_def split_def cap_case_CNodeCap[unfolded isCap_simps]
                split del: if_split cong: if_cong)
     apply (rule hoare_pre_spec_validE)
-     apply ((elim exE | wp_once spec_strengthen_postE[OF "1.hyps"])+,
+     apply ((elim exE | wp (once) spec_strengthen_postE[OF "1.hyps"])+,
               (rule refl conjI | simp add: in_monad split del: if_split del: cte_refs'.simps)+)
             apply (wp getSlotCap_cap_to2
                      | simp    add: assertE_def split_def whenE_def locateSlotCap_def
                         split del: if_split | simp add: imp_conjL[symmetric]
-                     | wp_once hoare_drop_imps)+
+                     | wp (once) hoare_drop_imps)+
     apply (clarsimp simp: P)
   done
 qed
@@ -6039,22 +6035,6 @@ lemma updateCap_same_master:
   apply (clarsimp simp: cte_wp_at_ctes_of)
   done
 
-lemma diminished_cte_refs':
-  "diminished' cap cap' \<Longrightarrow> cte_refs' cap n = cte_refs' cap' n"
-  by (clarsimp simp: diminished'_def)
-
-lemma diminished_Untyped' :
-  "diminished' (UntypedCap d r n x) cap = (cap = UntypedCap d r n x)"
-  apply (rule iffI)
-   apply (case_tac cap)
-    apply (clarsimp simp:isCap_simps maskCapRights_def diminished'_def split:if_split_asm)+
-   (* 6 subgoals *)
-   apply (rename_tac arch_capability R)
-   apply (case_tac arch_capability)
-    apply (clarsimp simp: isCap_simps ARM_H.maskCapRights_def maskCapRights_def
-                          diminished'_def Let_def)+
-done
-
 lemma updateCapFreeIndex_valid_mdb_ctes:
   assumes preserve:"\<And>m m'. mdb_inv_preserve m m' \<Longrightarrow> mdb_inv_preserve (Q m) (Q m')"
   and     coin  :"\<And>m cte. \<lbrakk>m src = Some cte\<rbrakk> \<Longrightarrow> (\<exists>cte'. (Q m) src = Some cte' \<and> cteCap cte = cteCap cte')"
@@ -6116,7 +6096,7 @@ lemma usableUntypedRange_mono2:
     \<Longrightarrow> capPtr cap' = capPtr cap
     \<Longrightarrow> capBlockSize cap' = capBlockSize cap
     \<Longrightarrow> usableUntypedRange cap \<le> usableUntypedRange cap'"
-  apply (clarsimp simp only: isCap_simps capPtr.simps capBlockSize.simps del: subsetI)
+  apply (clarsimp simp only: isCap_simps capability.sel del: subsetI)
   apply (rule usableUntypedRange_mono1, auto simp: capAligned_def)
   done
 
@@ -6191,7 +6171,7 @@ lemma updateFreeIndex_forward_invs':
       apply (simp add:updateCap_def)
       apply (wp irqs_masked_lift valid_queues_lift' cur_tcb_lift ct_idle_or_in_cur_domain'_lift
                 hoare_vcg_disj_lift untyped_ranges_zero_lift getCTE_wp
-               | wp_once hoare_use_eq[where f="gsUntypedZeroRanges"]
+               | wp (once) hoare_use_eq[where f="gsUntypedZeroRanges"]
                | simp add: getSlotCap_def)+
   apply (clarsimp simp: cte_wp_at_ctes_of fun_upd_def[symmetric])
   apply (clarsimp simp: isCap_simps valid_pspace'_def)

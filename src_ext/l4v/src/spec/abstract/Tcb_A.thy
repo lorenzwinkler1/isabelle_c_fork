@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -15,14 +11,13 @@ The TCB and thread related specifications.
 chapter "Threads and TCBs"
 
 theory Tcb_A
-imports TcbAcc_A Schedule_A "$L4V_ARCH/ArchTcb_A"
+imports TcbAcc_A Schedule_A ArchTcb_A
 begin
 
 context begin interpretation Arch .
 
 requalify_consts
   arch_activate_idle_thread
-  arch_tcb_set_ipc_buffer
   sanitise_register
   arch_get_sanitise_register_info
   arch_post_modify_registers
@@ -161,8 +156,6 @@ where
     liftE $ option_update_thread target (tcb_fault_handler_update o K) faultep;
     liftE $  case mcp of None \<Rightarrow> return()
      | Some (newmcp, _) \<Rightarrow> set_mcpriority target newmcp;
-    liftE $ case priority of None \<Rightarrow> return()
-     | Some (prio, _) \<Rightarrow> do_extended_op (set_priority target prio);
     (case croot of None \<Rightarrow> returnOk ()
      | Some (new_cap, src_slot) \<Rightarrow> doE
       cap_delete (target, tcb_cnode_index 0);
@@ -181,7 +174,6 @@ where
      | Some (ptr, frame) \<Rightarrow> doE
       cap_delete (target, tcb_cnode_index 4);
       liftE $ thread_set (\<lambda>t. t \<lparr> tcb_ipc_buffer := ptr \<rparr>) target;
-      liftE $ arch_tcb_set_ipc_buffer target ptr;
       liftE $ case frame of None \<Rightarrow> return ()
        | Some (new_cap, src_slot) \<Rightarrow>
             check_cap_at new_cap src_slot
@@ -190,6 +182,9 @@ where
       cur \<leftarrow> liftE $ gets cur_thread;
       liftE $ when (target = cur) (do_extended_op reschedule_required)
     odE);
+    liftE $ case priority
+              of None \<Rightarrow> return()
+               | Some (prio, _) \<Rightarrow> do_extended_op (set_priority target prio);
     returnOk []
   odE"
 

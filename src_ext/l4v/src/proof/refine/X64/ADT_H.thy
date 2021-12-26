@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 chapter \<open>Abstract datatype for the executable specification\<close>
@@ -578,16 +574,6 @@ lemma unaligned_page_offsets_helper:
     apply (frule_tac i=n and k="0x1000" in word_mult_less_mono1, simp+)+
   done
 
-(* FIXME: move *)
-lemma unaligned_helper:
-  "\<lbrakk>is_aligned x n; y\<noteq>0; y < 2 ^ n\<rbrakk> \<Longrightarrow> \<not> is_aligned (x + y) n"
-  apply (simp (no_asm_simp) add: is_aligned_mask)
-  apply (simp add: mask_add_aligned)
-  apply (cut_tac mask_eq_iff_w2p[of n y], simp_all add: word_size)
-  apply (rule ccontr)
-  apply (simp add: not_less power_overflow word_bits_conv)
-  done
-
 lemma pspace_aligned_distinct_None:
   (* NOTE: life would be easier if pspace_aligned and pspace_distinct were defined on PSpace instead of the whole kernel state. *)
 assumes pspace_aligned:
@@ -1063,7 +1049,7 @@ apply (clarsimp simp: pde_relation_def)
        apply (erule_tac x=offs in allE)
        apply (rename_tac pdpte')
        apply (case_tac pdpte', simp_all add:)[1]
-        apply_trace (clarsimp split: X64_A.pdpte.splits)
+        apply (clarsimp split: X64_A.pdpte.splits)
         apply (rule set_eqI, clarsimp)
         apply (case_tac x, simp_all)[1]
        apply (clarsimp split: X64_A.pdpte.splits)
@@ -1296,7 +1282,7 @@ proof -
    apply (frule_tac b=b and c=cte_level_bits in bin_to_bl_of_bl_eq)
      apply (fastforce simp: cte_level_bits_def objBits_defs)+
   apply (case_tac "b = [False, False, False]")
-   apply (simp add: is_aligned_neg_mask_eq)
+   apply simp
   apply (frule_tac b=b and c=cte_level_bits in bin_to_bl_of_bl_eq)
     apply (fastforce simp: tcb_cap_cases_length cte_level_bits_def objBits_defs)+
   apply (subgoal_tac "ksPSpace s' (cte_map (a, b)) = None")

@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ADT_AC
@@ -114,7 +110,7 @@ lemma ptable_state_objs_to_policy:
                       vspace_cap_rights_to_auth b)" in bexI)
    apply clarsimp
    apply (rule_tac x="(ptrFromPAddr a + (x && mask aa), auth)" in image_eqI)
-    apply (simp add: ptrFromPAddr_def physMappingOffset_def kernelBase_addr_def physBase_def)
+    apply (simp add: ptrFromPAddr_def pptrBaseOffset_def pptrBase_def physBase_def)
    apply (simp add: ptr_offset_in_ptr_range)
 
   apply (simp add: kernel_mappings_kernel_mapping_slots')
@@ -181,7 +177,7 @@ lemma get_page_info_state_objs_to_policy:
                       vspace_cap_rights_to_auth r)" in bexI)
    apply clarsimp
    apply (rule_tac x="(ptrFromPAddr base + (x && mask sz), auth)" in image_eqI)
-    apply (simp add: ptrFromPAddr_def physMappingOffset_def kernelBase_addr_def physBase_def)
+    apply (simp add: ptrFromPAddr_def pptrBaseOffset_def pptrBase_def physBase_def)
    apply (simp add: ptr_offset_in_ptr_range)
 
   apply (clarsimp simp: graph_of_def)
@@ -255,11 +251,10 @@ lemma dmo_user_memory_update_respects_Write:
   "\<lbrace>integrity aag X st and K (\<forall>p \<in> dom um. aag_has_auth_to aag Write p)\<rbrace>
   do_machine_op (user_memory_update um)
   \<lbrace>\<lambda>a. integrity aag X st\<rbrace>"
-  apply (simp add: user_memory_update_def)
-  apply (rule hoare_pre)
-   apply (wp dmo_wp)
+  unfolding user_memory_update_def
+  apply (wp dmo_wp)
   apply clarsimp
-  apply (simp cong: abstract_state.fold_congs)
+  apply (simp cong: abstract_state.fold_congs option.case_cong_weak)
   apply (rule integrity_underlying_mem_update)
     apply simp+
   apply (simp add: dom_def)+

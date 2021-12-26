@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -455,13 +451,10 @@ lemma check_vp_corres:
   done
 
 lemma checkVP_wpR [wp]:
-  "\<lbrace>\<lambda>s. vmsz_aligned' w sz \<longrightarrow> P () s\<rbrace>
+  "\<lbrace>\<lambda>s. vmsz_aligned w sz \<longrightarrow> P () s\<rbrace>
   checkVPAlignment sz w \<lbrace>P\<rbrace>, -"
-  apply (simp add: checkVPAlignment_def unlessE_whenE cong: vmpage_size.case_cong)
-  apply (rule hoare_pre)
-   apply (wp hoare_whenE_wp|wpc)+
-  apply (simp add: is_aligned_mask vmsz_aligned'_def)
-  done
+  apply (simp add: checkVPAlignment_def)
+  by (wpsimp wp: hoare_whenE_wp simp: is_aligned_mask vmsz_aligned_def)
 
 lemma asidHighBits [simp]:
   "asidHighBits = asid_high_bits"
@@ -471,9 +464,7 @@ declare word_unat_power [symmetric, simp del]
 
 crunch inv [wp]: "X64_H.decodeInvocation" "P"
   (wp: crunch_wps mapME_x_inv_wp getASID_wp
-   simp: forME_x_def crunch_simps
-
-   ignore: forME_x getObject)
+   simp: forME_x_def crunch_simps)
 
 lemma case_option_corresE:
   assumes nonec: "corres r Pn Qn (nc >>=E f) (nc' >>=E g)"
@@ -563,164 +554,98 @@ lemma find_vspace_for_asid_lookup_slot [wp]:
 lemmas vmsz_aligned_imp_aligned
     = vmsz_aligned_def[THEN meta_eq_to_obj_eq, THEN iffD1, THEN is_aligned_weaken]
 
+lemma corres_splitEE':
+  assumes "corres_underlying sr nf nf' (f \<oplus> r') P P' a c"
+  assumes "\<And>rv rv'. r' rv rv'
+           \<Longrightarrow> corres_underlying sr nf nf' (f \<oplus> r) (R rv) (R' rv') (b rv) (d rv')"
+  assumes "\<lbrace>Q\<rbrace> a \<lbrace>R\<rbrace>,\<lbrace>\<top>\<top>\<rbrace>" "\<lbrace>Q'\<rbrace> c \<lbrace>R'\<rbrace>,\<lbrace>\<top>\<top>\<rbrace>"
+  shows   "corres_underlying sr nf nf' (f \<oplus> r) (P and Q) (P' and Q') (a >>=E (\<lambda>rv. b rv)) (c >>=E (\<lambda>rv'. d rv'))"
+  by (rule corres_splitEE; rule assms)
+
 lemma decode_page_inv_corres:
   "\<lbrakk>cap = arch_cap.PageCap d p R mt sz opt; acap_relation cap cap';
     list_all2 cap_relation (map fst excaps) (map fst excaps');
     list_all2 (\<lambda>s s'. s' = cte_map s) (map snd excaps) (map snd excaps') \<rbrakk> \<Longrightarrow>
      corres (ser \<oplus> archinv_relation)
             (invs and valid_cap (cap.ArchObjectCap cap) and
-             cte_wp_at (is_arch_diminished (cap.ArchObjectCap cap)) slot and
+             cte_wp_at ((=) (cap.ArchObjectCap cap)) slot and
              (\<lambda>s. \<forall>x\<in>set excaps. s \<turnstile> fst x \<and> cte_wp_at (\<lambda>_. True) (snd x) s))
             (invs' and valid_cap' (capability.ArchObjectCap cap') and
              (\<lambda>s. \<forall>x\<in>set excaps'. valid_cap' (fst x) s \<and> cte_wp_at' (\<lambda>_. True) (snd x) s))
             (decode_page_invocation l args slot cap excaps)
             (decodeX64FrameInvocation l args (cte_map slot) cap' excaps')"
-  apply (simp add: decode_page_invocation_def decodeX64FrameInvocation_def Let_def isCap_simps split del: if_split)
+  apply (simp add: decode_page_invocation_def decodeX64FrameInvocation_def Let_def isCap_simps
+        split del: if_split)
   apply (cases "invocation_type l = ArchInvocationLabel X64PageMap")
-   apply (case_tac "\<not>(2 < length args \<and> excaps \<noteq> [])")
-    apply (auto split: list.split)[1]
+   apply (case_tac "\<not>(2 < length args \<and> excaps \<noteq> [])", clarsimp split: list.splits)
    apply (simp add: Let_def neq_Nil_conv)
    apply (elim exE conjE)
-   apply (simp split: list.split, intro conjI impI allI, simp_all)[1]
+   apply (rename_tac pm_cap pm_cap_cnode pm_cap_slot excaps_rest)
+   apply (clarsimp split: list.split, intro conjI impI allI; clarsimp)
+   apply (rename_tac vaddr rights_mask attr pd_cap' excaps'_rest args_rest)
    apply (rule corres_guard_imp)
-     apply (rule whenE_throwError_corres)
-       apply simp
-      apply simp
-     apply (simp split: cap.split, intro conjI impI allI, simp_all)[1]
-     apply (rename_tac arch_capa)
-     apply (case_tac arch_capa, simp_all)[1]
-     apply (rename_tac wd opt')
-     apply (case_tac opt', simp_all)[1]
-     apply (rename_tac optv)
-     apply (rule corres_splitEE)
-        prefer 2
-        apply (rule corres_lookup_error)
-        apply (rule_tac P="valid_arch_state and valid_vspace_objs and
-                             pspace_aligned and equal_kernel_mappings and valid_global_objs and
-                             valid_cap (cap.ArchObjectCap
-                                         (arch_cap.PML4Cap wd (Some optv)))"
-                     in corres_guard_imp)
-          apply (rule find_vspace_for_asid_corres[OF refl])
-         apply (clarsimp simp: valid_cap_def)
-        apply simp
-       apply (rule whenE_throwError_corres, simp, simp)
-       apply (rule_tac R="\<lambda>_ s. valid_vspace_objs s \<and> pspace_aligned s
-                                  \<and> hd args + (2 ^ pageBitsForSize sz) \<le> user_vtop \<and> hd args \<le> user_vtop \<and>
-                                  valid_arch_state s \<and> equal_kernel_mappings s \<and> valid_global_objs s \<and>
-                                  s \<turnstile> (fst (hd excaps)) \<and> (\<exists>\<rhd> (lookup_pml4_slot (obj_ref_of (fst (hd excaps))) (hd args) && ~~ mask pml4_bits)) s \<and>
-                                  (\<exists>\<rhd> rv') s \<and> page_map_l4_at rv' s"
-                     and R'="\<lambda>_ s. s \<turnstile>' (fst (hd excaps')) \<and> valid_objs' s \<and>
-                                    pspace_aligned' s \<and> pspace_distinct' s \<and>
-                                    valid_arch_state' s"
-                         in corres_splitEE)
-          prefer 2
-          apply (rule corres_whenE)
-            apply (simp add: pptr_base_def X64.pptrBase_def pptrBase_def shiftl_t2n mask_def)
-           apply (rule corres_trivial, simp)
-          apply simp
-         apply (rule corres_guard_imp)
-           apply (rule corres_splitEE)
-              prefer 2
-              apply (rule check_vp_corres)
-             apply (rule corres_splitEE)
-                prefer 2
-                apply (simp only: addrFromPPtr_def)
-                apply (rule create_mapping_entries_corres)
-                 apply (simp add: mask_vmrights_corres)
-                apply (simp add: vm_attributes_corres)
-               apply (rule corres_splitEE)
-                  prefer 2
-                  apply (erule ensure_safe_mapping_corres)
-                 apply (rule corres_trivial)
-                 apply (rule corres_returnOk)
-                 apply (clarsimp simp: archinv_relation_def page_invocation_map_def)
-                apply (wpsimp wp: hoare_whenE_wp check_vp_wpR createMappingEntries_wf)+
-          apply (clarsimp simp: valid_cap_def)
-          apply (frule_tac vptr="hd args && user_vtop" in page_map_l4_pml4e_at_lookupI, assumption)
-          apply (clarsimp simp: vmsz_aligned_def pageBitsForSize_def is_aligned_pml4
-                         split: vmpage_size.splits)
-         apply (clarsimp simp: valid_cap'_def)
-        apply (simp add: mask_def)
-        apply (rule whenE_throwError_wp[unfolded validE_R_def])
-       apply (wp hoare_whenE_wp)+
-      apply (rule hoare_drop_imps)+
-      apply (simp add:mask_def not_less)
-      apply (wp hoare_drop_imps find_vspace_for_asid_lookup_slot[unfolded mask_def, simplified])+
-    apply (clarsimp simp: invs_def valid_state_def valid_pspace_def)
-   apply fastforce
-    \<comment> \<open>PageRemap\<close>
-  apply (cases "invocation_type l = ArchInvocationLabel X64PageRemap")
-   apply (case_tac "\<not>(1 < length args \<and> excaps \<noteq> [])")
-    subgoal by (auto split: list.split)
-   apply (simp add: Let_def split: list.split)
-   apply (case_tac args, simp)
-   apply (clarsimp simp: split_def)
-   apply (rename_tac w1 w2 w3)
-   apply (case_tac excaps', simp)
-   apply clarsimp
-   apply (rule corres_guard_imp)
-     apply (rule whenE_throwError_corres, simp, simp)
-     apply (rule corres_splitEE [where r' = "(=)"])
-        prefer 2
-        apply (clarsimp simp: list_all2_Cons2)
-        apply (case_tac "fst (hd excaps)", simp_all)[1]
-        apply clarsimp
-        apply (rename_tac arch_capa arch_capb)
-        apply (case_tac arch_capa, simp_all)[1]
-        apply (rename_tac opt')
-        apply (case_tac opt', simp_all)[1]
-        apply (rule corres_returnOkTT)
-        apply simp
-       apply (simp add: Let_def split: list.split)
-       apply (rule case_option_corresE)
-        apply (rule corres_trivial)
-        apply simp
-       apply simp
-       apply (rule corres_splitEE)
-          prefer 2
-          apply (rule corres_lookup_error, simp)
-          apply (rule find_vspace_for_asid_corres[OF refl])
-         apply (rule whenE_throwError_corres)
-           apply simp
-          apply simp
-         apply simp
-         apply (rule corres_splitEE)
-            prefer 2
-            apply (rule check_vp_corres)
-           apply (rule corres_splitEE)
-              prefer 2
-              apply (simp only: addrFromPPtr_def)
-              apply (rule create_mapping_entries_corres)
-               apply (simp add: mask_vmrights_corres)
-              apply (simp add: vm_attributes_corres)
-             apply (rule corres_splitEE[OF _ ensure_safe_mapping_corres])
-                apply (rule corres_trivial)
-                apply (rule corres_returnOk)
-                apply (clarsimp simp: archinv_relation_def page_invocation_map_def)
-               apply (wp createMappingEntries_wf | simp)+
-          apply (rule_tac Q'="\<lambda>rv s. valid_vspace_objs s \<and> pspace_aligned s \<and>
-                                (snd v') < pptr_base \<and> canonical_address (snd v') \<and>
-                                equal_kernel_mappings s \<and> valid_global_objs s \<and> valid_arch_state s \<and>
-                                \<comment> \<open>(\<exists>\<rhd> (lookup_pml4_slot (fst pa) (snd v') && ~~ mask pml4_bits)) s \<and>\<close>
-                                page_map_l4_at rv s \<and> (\<exists>\<rhd> rv) s"
-              in hoare_post_imp_R, wp)
-           apply (clarsimp simp: page_directory_at_aligned_pd_bits valid_global_objs_def)
-           apply (auto intro!: page_directory_pde_at_lookupI elim!: is_aligned_pml4)[1]
-          apply wp
-        apply (wpc | wp throwE_R | wp_once hoare_drop_imps)+
+     apply (rule_tac P="\<nexists>pm asid. pm_cap = cap.ArchObjectCap (arch_cap.PML4Cap pm (Some asid))"
+                   in corres_symmetric_bool_cases[where Q=\<top> and Q'=\<top>, OF refl])
+      apply (case_tac pm_cap; clarsimp; rename_tac pm_acap pm_acap'; case_tac pm_acap; clarsimp)
+     apply (rule corres_splitEE'[where r'="(=)" and P=\<top> and P'=\<top>])
+        apply (clarsimp simp: corres_returnOkTT)
+       apply (rule_tac F="pm_cap = cap.ArchObjectCap (arch_cap.PML4Cap (fst rv) (Some (snd rv)))"
+                in corres_gen_asm)
+       apply (clarsimp cong: option.case_cong)
+       apply (rename_tac vspace asid)
+       apply wpfix \<comment> \<open>get asid and vspace parameters in schematic preconditions\<close>
+       apply (rule_tac P=
+                "(opt = None \<and> (user_vtop < vaddr \<or> user_vtop < vaddr + 2 ^ pageBitsForSize sz))
+                 \<or> (\<exists>asid' vaddr'. opt = Some (asid', vaddr')
+                                   \<and> (asid' \<noteq> asid \<or> mt \<noteq> VMVSpaceMap \<or> vaddr' \<noteq> vaddr))"
+                in corres_symmetric_bool_cases[where Q=\<top> and Q'=\<top>, OF refl]; clarsimp)
+        apply (case_tac opt; clarsimp)
+        apply (case_tac "asid' \<noteq> asid"; clarsimp)
+        apply (case_tac "mt \<noteq> VMVSpaceMap"; clarsimp)
+       apply (rule corres_splitEE'[where r'=dc])
+          apply (case_tac opt; clarsimp simp: whenE_def)
+           apply (rule corres_returnOkTT, simp)
+          apply (rule corres_returnOkTT, simp)
+         apply (rule corres_splitEE'[OF corres_lookup_error[OF find_vspace_for_asid_corres]], simp)
+           apply (rule whenE_throwError_corres; simp)
+           apply (rule corres_splitEE'[where r'=dc, OF check_vp_corres])
+             apply (rule corres_splitEE'[OF create_mapping_entries_corres]
+                    ; simp add: mask_vmrights_corres vm_attributes_corres)
+               apply (rule corres_splitEE'[OF ensure_safe_mapping_corres], assumption)
+                 apply (rule corres_returnOkTT)
+                 \<comment> \<open>program split done, now prove resulting preconditions and Hoare triples\<close>
+                 apply (simp add: archinv_relation_def page_invocation_map_def)
+                 apply wpsimp+
+             apply (wp createMappingEntries_wf)
+            apply wpsimp+
+          apply (wp find_vspace_for_asid_wp)
+         apply (wp findVSpaceForASID_vs_at_wp)
+        apply wpsimp
+       apply wpsimp
+      apply wpsimp
+     apply wpsimp
+    apply (clarsimp simp: cte_wp_at_caps_of_state cong: conj_cong)
+    apply (rename_tac pm_ptr asid')
+    apply (prop_tac "is_aligned pm_ptr pml4_bits")
+     apply (clarsimp simp: valid_cap_simps cap_aligned_def pml4_bits_def)
+    apply (clarsimp simp: invs_implies)
+    apply (case_tac "asid' = asid"; clarsimp)
+    apply (prop_tac "0 < asid \<and> asid_wf asid \<and> asid \<noteq> 0", clarsimp simp: valid_cap_simps)
     apply clarsimp
-    apply (drule bspec [where x = "excaps ! 0"])
-     apply simp
-    apply (clarsimp simp: valid_cap_def wellformed_mapdata_def split: option.split)
-    apply (fastforce simp: invs_def valid_state_def valid_pspace_def mask_def)
-   apply (clarsimp split: option.split)
-   apply fastforce
+    apply (prop_tac "vspace_at_asid asid pm_ptr s \<longrightarrow> (\<exists>ref. (ref \<rhd> pm_ptr) s)")
+     apply (fastforce simp: vspace_at_asid_def)
+    apply (case_tac opt; clarsimp simp: valid_cap_simps)
+  using aligned_sum_le_user_vtop le_user_vtop_canonical_address le_user_vtop_less_pptr_base word_not_le
+    apply blast
+  apply fastforce
+
   \<comment> \<open>PageUnmap\<close>
   apply (simp split del: if_split)
   apply (cases "invocation_type l = ArchInvocationLabel X64PageUnmap")
    apply simp
    apply (rule corres_returnOk)
    apply (clarsimp simp: archinv_relation_def page_invocation_map_def)
+
   \<comment> \<open>PageGetAddress\<close>
   apply (cases "invocation_type l = ArchInvocationLabel X64PageGetAddress")
    apply simp
@@ -737,7 +662,7 @@ lemma decode_page_table_inv_corres:
     list_all2 (\<lambda>s s'. s' = cte_map s) (map snd excaps) (map snd excaps') \<rbrakk> \<Longrightarrow>
      corres (ser \<oplus> archinv_relation)
             (invs and valid_cap (cap.ArchObjectCap cap) and
-             cte_wp_at (is_arch_diminished (cap.ArchObjectCap cap)) slot and
+             cte_wp_at ((=) (cap.ArchObjectCap cap)) slot and
              (\<lambda>s. \<forall>x\<in>set excaps. s \<turnstile> fst x \<and> cte_wp_at (\<lambda>_. True) (snd x) s))
             (invs' and valid_cap' (capability.ArchObjectCap cap') and
              (\<lambda>s. \<forall>x\<in>set excaps'. valid_cap' (fst x) s \<and> cte_wp_at' (\<lambda>_. True) (snd x) s))
@@ -784,7 +709,7 @@ lemma decode_page_table_inv_corres:
                                    attribsFromWord_def Let_def)
             apply ((clarsimp cong: if_cong
                      | wp hoare_whenE_wp hoare_vcg_all_lift_R getPDE_wp get_pde_wp
-                     | wp_once hoare_drop_imps)+)[6]
+                     | wp (once) hoare_drop_imps)+)[6]
       apply (clarsimp intro!: validE_R_validE)
       apply (rule_tac Q'="\<lambda>rv s.  pspace_aligned s \<and> valid_vspace_objs s \<and> valid_arch_state s \<and>
                            equal_kernel_mappings s \<and> valid_global_objs s \<and>
@@ -792,7 +717,7 @@ lemma decode_page_table_inv_corres:
                            is_aligned rv pml4_bits"
                        in hoare_post_imp_R[rotated])
        apply fastforce
-      apply (wpsimp | wp_once hoare_drop_imps)+
+      apply (wpsimp | wp (once) hoare_drop_imps)+
     apply (fastforce simp: valid_cap_def mask_def)
    apply (clarsimp simp: valid_cap'_def)
    apply fastforce
@@ -812,21 +737,14 @@ lemma decode_page_table_inv_corres:
            apply simp
           apply (rule corres_trivial, simp add: returnOk_def archinv_relation_def
                                  page_table_invocation_map_def)
-         apply (wp getCTE_wp' | wp_once hoare_drop_imps)+
+         apply (wp getCTE_wp' | wp (once) hoare_drop_imps)+
       apply (clarsimp)
      apply (rule no_fail_pre, rule no_fail_getCTE)
      apply (erule conjunct2)
-    apply (clarsimp simp: cte_wp_at_caps_of_state is_arch_diminished_def
-                          cap_rights_update_def acap_rights_update_def)
-    apply (frule diminished_is_update[rotated])
-     apply (frule (2) caps_of_state_valid)
+    apply (clarsimp simp: cte_wp_at_caps_of_state cap_rights_update_def acap_rights_update_def)
     apply (clarsimp simp add: cap_rights_update_def acap_rights_update_def)
-   apply (clarsimp simp: cte_wp_at_ctes_of is_arch_diminished_def
-                         cap_rights_update_def acap_rights_update_def
+   apply (clarsimp simp: cte_wp_at_ctes_of cap_rights_update_def acap_rights_update_def
                          cte_wp_at_caps_of_state)
-   apply (frule diminished_is_update[rotated])
-    apply (frule (2) caps_of_state_valid)
-   apply (clarsimp simp add: cap_rights_update_def acap_rights_update_def)
    apply (drule pspace_relation_ctes_ofI[OF _ caps_of_state_cteD, rotated],
                 erule invs_pspace_aligned', clarsimp+)
    apply (simp add: isCap_simps)
@@ -839,7 +757,7 @@ lemma decode_page_directory_inv_corres:
     list_all2 (\<lambda>s s'. s' = cte_map s) (map snd excaps) (map snd excaps') \<rbrakk> \<Longrightarrow>
      corres (ser \<oplus> archinv_relation)
             (invs and valid_cap (cap.ArchObjectCap cap) and
-             cte_wp_at (is_arch_diminished (cap.ArchObjectCap cap)) slot and
+             cte_wp_at ((=) (cap.ArchObjectCap cap)) slot and
              (\<lambda>s. \<forall>x\<in>set excaps. s \<turnstile> fst x \<and> cte_wp_at (\<lambda>_. True) (snd x) s))
             (invs' and valid_cap' (capability.ArchObjectCap cap') and
              (\<lambda>s. \<forall>x\<in>set excaps'. valid_cap' (fst x) s \<and> cte_wp_at' (\<lambda>_. True) (snd x) s))
@@ -886,7 +804,7 @@ lemma decode_page_directory_inv_corres:
                                    attribsFromWord_def Let_def)
             apply ((clarsimp cong: if_cong
                         | wp hoare_whenE_wp hoare_vcg_all_lift_R getPDPTE_wp get_pdpte_wp
-                        | wp_once hoare_drop_imps)+)[6]
+                        | wp (once) hoare_drop_imps)+)[6]
       apply (clarsimp intro!: validE_R_validE)
       apply (rule_tac Q'="\<lambda>rv s.  pspace_aligned s \<and> valid_vspace_objs s \<and> valid_arch_state s \<and>
                            equal_kernel_mappings s \<and> valid_global_objs s \<and>
@@ -894,7 +812,7 @@ lemma decode_page_directory_inv_corres:
                            is_aligned rv pml4_bits"
                         in hoare_post_imp_R[rotated])
        apply fastforce
-      apply (wpsimp | wp_once hoare_drop_imps)+
+      apply (wpsimp | wp (once) hoare_drop_imps)+
     apply (fastforce simp: valid_cap_def mask_def)
    apply (clarsimp simp: valid_cap'_def)
    apply fastforce
@@ -914,21 +832,14 @@ lemma decode_page_directory_inv_corres:
            apply simp
           apply (rule corres_trivial, simp add: returnOk_def archinv_relation_def
                         page_directory_invocation_map_def)
-         apply (wp getCTE_wp' | wp_once hoare_drop_imps)+
+         apply (wp getCTE_wp' | wp (once) hoare_drop_imps)+
       apply (clarsimp)
      apply (rule no_fail_pre, rule no_fail_getCTE)
      apply (erule conjunct2)
-    apply (clarsimp simp: cte_wp_at_caps_of_state is_arch_diminished_def
-                          cap_rights_update_def acap_rights_update_def)
-    apply (frule diminished_is_update[rotated])
-     apply (frule (2) caps_of_state_valid)
+    apply (clarsimp simp: cte_wp_at_caps_of_state cap_rights_update_def acap_rights_update_def)
     apply (clarsimp simp add: cap_rights_update_def acap_rights_update_def)
-   apply (clarsimp simp: cte_wp_at_ctes_of is_arch_diminished_def
-                         cap_rights_update_def acap_rights_update_def
+   apply (clarsimp simp: cte_wp_at_ctes_of cap_rights_update_def acap_rights_update_def
                          cte_wp_at_caps_of_state)
-   apply (frule diminished_is_update[rotated])
-    apply (frule (2) caps_of_state_valid)
-   apply (clarsimp simp add: cap_rights_update_def acap_rights_update_def)
    apply (drule pspace_relation_ctes_ofI[OF _ caps_of_state_cteD, rotated],
       erule invs_pspace_aligned', clarsimp+)
    apply (simp add: isCap_simps)
@@ -941,7 +852,7 @@ lemma decode_pdpt_inv_corres:
     list_all2 (\<lambda>s s'. s' = cte_map s) (map snd excaps) (map snd excaps') \<rbrakk> \<Longrightarrow>
      corres (ser \<oplus> archinv_relation)
             (invs and valid_cap (cap.ArchObjectCap cap) and
-             cte_wp_at (is_arch_diminished (cap.ArchObjectCap cap)) slot and
+             cte_wp_at ((=) (cap.ArchObjectCap cap)) slot and
              (\<lambda>s. \<forall>x\<in>set excaps. s \<turnstile> fst x \<and> cte_wp_at (\<lambda>_. True) (snd x) s))
             (invs' and valid_cap' (capability.ArchObjectCap cap') and
              (\<lambda>s. \<forall>x\<in>set excaps'. valid_cap' (fst x) s \<and> cte_wp_at' (\<lambda>_. True) (snd x) s))
@@ -984,7 +895,7 @@ lemma decode_pdpt_inv_corres:
                                    attribsFromWord_def Let_def)
             apply ((clarsimp cong: if_cong
                     | wp hoare_whenE_wp hoare_vcg_all_lift_R getPML4E_wp get_pml4e_wp
-                    | wp_once hoare_drop_imps)+)
+                    | wp (once) hoare_drop_imps)+)
     apply (fastforce simp: valid_cap_def mask_def intro!: page_map_l4_pml4e_at_lookupI)
    apply (clarsimp simp: valid_cap'_def)
    apply fastforce
@@ -1004,21 +915,13 @@ lemma decode_pdpt_inv_corres:
            apply simp
           apply (rule corres_trivial, simp add: returnOk_def archinv_relation_def
                         pdpt_invocation_map_def)
-         apply (wp getCTE_wp' | wp_once hoare_drop_imps)+
+         apply (wp getCTE_wp' | wp (once) hoare_drop_imps)+
       apply (clarsimp)
      apply (rule no_fail_pre, rule no_fail_getCTE)
      apply (erule conjunct2)
-    apply (clarsimp simp: cte_wp_at_caps_of_state is_arch_diminished_def
-                          cap_rights_update_def acap_rights_update_def)
-    apply (frule diminished_is_update[rotated])
-     apply (frule (2) caps_of_state_valid)
-    apply (clarsimp simp add: cap_rights_update_def acap_rights_update_def)
-   apply (clarsimp simp: cte_wp_at_ctes_of is_arch_diminished_def
-                         cap_rights_update_def acap_rights_update_def
+    apply (clarsimp simp: cte_wp_at_caps_of_state cap_rights_update_def acap_rights_update_def)
+   apply (clarsimp simp: cte_wp_at_ctes_of cap_rights_update_def acap_rights_update_def
                          cte_wp_at_caps_of_state)
-   apply (frule diminished_is_update[rotated])
-    apply (frule (2) caps_of_state_valid)
-   apply (clarsimp simp add: cap_rights_update_def acap_rights_update_def)
    apply (drule pspace_relation_ctes_ofI[OF _ caps_of_state_cteD, rotated],
                    erule invs_pspace_aligned', clarsimp+)
    apply (simp add: isCap_simps)
@@ -1211,7 +1114,7 @@ shows
    corres
    (ser \<oplus> archinv_relation)
    (invs and valid_cap (cap.ArchObjectCap arch_cap) and
-        cte_wp_at (is_arch_diminished (cap.ArchObjectCap arch_cap)) slot and
+        cte_wp_at ((=) (cap.ArchObjectCap arch_cap)) slot and
      (\<lambda>s. \<forall>x\<in>set excaps. s \<turnstile> fst x \<and> cte_at (snd x) s))
    (invs' and valid_cap' (capability.ArchObjectCap arch_cap') and
      (\<lambda>s. \<forall>x\<in>set excaps'. s \<turnstile>' fst x \<and> cte_at' (snd x) s))
@@ -1431,34 +1334,9 @@ lemma port_out_corres[@lift_corres_args, corres]:
      apply wpsimp+
   done
 
-(* FIXME x64: move *)
-lemma no_fail_in8[wp]:
-  "no_fail \<top> (in8 a)"
-  by (wpsimp simp: in8_def wp: no_fail_machine_op_lift)
-
-lemma no_fail_in16[wp]:
-  "no_fail \<top> (in16 a)"
-  by (wpsimp simp: in16_def wp: no_fail_machine_op_lift)
-
-lemma no_fail_in32[wp]:
-  "no_fail \<top> (in32 a)"
-  by (wpsimp simp: in32_def wp: no_fail_machine_op_lift)
-
-lemma no_fail_out8[wp]:
-  "no_fail \<top> (out8 a w)"
-  by (wpsimp simp: out8_def)
-
-lemma no_fail_out16[wp]:
-  "no_fail \<top> (out16 a w)"
-  by (wpsimp simp: out16_def)
-
-lemma no_fail_out32[wp]:
-  "no_fail \<top> (out32 a w)"
-  by (wpsimp simp: out32_def)
-
 lemma perform_port_inv_corres:
   "\<lbrakk>archinv_relation ai ai'; ai = arch_invocation.InvokeIOPort x\<rbrakk>
-  \<Longrightarrow> corres (intr \<oplus> (=))
+  \<Longrightarrow> corres (dc \<oplus> (=))
         (einvs and ct_active and valid_arch_inv ai)
         (invs' and ct_active' and valid_arch_inv' ai')
         (liftE (perform_io_port_invocation x))
@@ -1492,7 +1370,7 @@ lemma valid_ioports_issuedD':
 
 lemma perform_ioport_control_inv_corres:
   "\<lbrakk>archinv_relation ai ai'; ai = arch_invocation.InvokeIOPortControl x\<rbrakk> \<Longrightarrow>
-   corres (intr \<oplus> (=))
+   corres (dc \<oplus> (=))
       (einvs and ct_active and valid_arch_inv ai)
       (invs' and ct_active' and valid_arch_inv' ai')
       (liftE (do perform_ioport_control_invocation x; return [] od))
@@ -1544,7 +1422,7 @@ lemma arch_ioport_inv_case_simp:
 
 lemma inv_arch_corres:
   "archinv_relation ai ai' \<Longrightarrow>
-   corres (intr \<oplus> (=))
+   corres (dc \<oplus> (=))
      (einvs and ct_active and valid_arch_inv ai)
      (invs' and ct_active' and valid_arch_inv' ai')
      (arch_perform_invocation ai) (Arch.performInvocation ai')"
@@ -1724,10 +1602,9 @@ lemma inv_ASIDPool: "inv ASIDPool = (\<lambda>v. case v of ASIDPool a \<Rightarr
   apply simp
   done
 
-lemma diminished_arch_update':
-  "diminished' (ArchObjectCap cp) (cteCap cte) \<Longrightarrow> is_arch_update' (ArchObjectCap cp) cte"
-  by (clarsimp simp: is_arch_update'_def isCap_simps
-                     diminished'_def)
+lemma eq_arch_update':
+  "ArchObjectCap cp = cteCap cte \<Longrightarrow> is_arch_update' (ArchObjectCap cp) cte"
+  by (clarsimp simp: is_arch_update'_def isCap_simps)
 
 lemma lookup_pdpt_slot_no_fail_corres[simp]:
   "lookupPDPTSlotFromPDPT pt vptr
@@ -1750,8 +1627,8 @@ lemma lookup_pt_slot_no_fail_corres[simp]:
 lemma decode_page_inv_wf[wp]:
   "cap = (arch_capability.PageCap word vmrights mt vmpage_size d option) \<Longrightarrow>
       \<lbrace>invs' and valid_cap' (capability.ArchObjectCap cap ) and
-        cte_wp_at' (diminished' (capability.ArchObjectCap cap) \<circ> cteCap) slot and
-        (\<lambda>s. \<forall>x\<in>set excaps. cte_wp_at' (diminished' (fst x) \<circ> cteCap) (snd x) s) and
+        cte_wp_at' ((=) (capability.ArchObjectCap cap) \<circ> cteCap) slot and
+        (\<lambda>s. \<forall>x\<in>set excaps. cte_wp_at' ((=) (fst x) \<circ> cteCap) (snd x) s) and
         sch_act_simple\<rbrace>
        decodeX64FrameInvocation label args slot cap excaps
        \<lbrace>valid_arch_inv'\<rbrace>, -"
@@ -1762,42 +1639,31 @@ lemma decode_page_inv_wf[wp]:
               cong: list.case_cong prod.case_cong)
    apply (rule hoare_pre)
     apply (wp createMappingEntries_wf checkVP_wpR whenE_throwError_wp hoare_vcg_const_imp_lift_R
-           |wpc|simp add:valid_arch_inv'_def valid_page_inv'_def | wp_once hoare_drop_imps)+
+           | wpc | simp add: valid_arch_inv'_def valid_page_inv'_def | wp (once) hoare_drop_imps)+
    apply (clarsimp simp: neq_Nil_conv invs_valid_objs' linorder_not_le
                            cte_wp_at_ctes_of)
    apply (drule ctes_of_valid', fastforce)+
-   apply (clarsimp simp: diminished_valid' [symmetric])
+   apply (drule_tac t="cteCap cte" in sym)
    apply (clarsimp simp: valid_cap'_def ptBits_def pageBits_def)
-   apply (clarsimp simp: is_arch_update'_def isCap_simps capAligned_def
-                           vmsz_aligned'_def
-                    dest!: diminished_capMaster)
+   apply (clarsimp simp: is_arch_update'_def isCap_simps capAligned_def vmsz_aligned_def)
    apply (rule conjI)
-    apply (erule is_aligned_addrFromPPtr_n, case_tac vmpage_size, simp_all add: bit_simps)[1]
-   apply (simp add: user_vtop_def X64.pptrBase_def X64.pptrUserTop_def not_less)
-   subgoal by (word_bitwise, auto)
-  apply (cases "invocation_type label = ArchInvocationLabel X64PageRemap")
-   apply (simp add: split_def invs_valid_objs' split del: if_split
-              cong: list.case_cong prod.case_cong)
-   apply (rule hoare_pre)
-    apply (wp createMappingEntries_wf checkVP_wpR whenE_throwError_wp hoare_vcg_const_imp_lift_R
-               |wpc|simp add:valid_arch_inv'_def valid_page_inv'_def
-               | wp_once hoare_drop_imps)+
-   apply (clarsimp simp: invs_valid_objs' linorder_not_le
-                           cte_wp_at_ctes_of)
-   apply (drule ctes_of_valid', fastforce)+
-   apply (clarsimp simp: diminished_valid' [symmetric])
-   apply (clarsimp simp: valid_cap'_def ptBits_def pageBits_def)
-   apply (clarsimp simp: is_arch_update'_def isCap_simps capAligned_def
-                           vmsz_aligned'_def pdBits_def pageBits_def vmsz_aligned_def
-                    dest!: diminished_capMaster)
-   apply (erule is_aligned_addrFromPPtr_n, case_tac vmpage_size, simp_all add: bit_simps)[1]
+    apply (clarsimp simp: valid_cap_simps)
+    apply (rule conjI)
+     apply (erule is_aligned_addrFromPPtr_n, case_tac vmpage_size; simp add: bit_simps)
+    apply (subgoal_tac "x < pptr_base", simp add: pptr_base_def)
+    apply (fastforce simp flip: word_le_not_less
+                         intro: le_user_vtop_less_pptr_base
+                          elim: word_add_increasing[where w="w-1" for w, simplified algebra_simps]
+                                is_aligned_no_overflow)
+   apply clarsimp
+   apply (erule is_aligned_addrFromPPtr_n, case_tac vmpage_size; simp add: bit_simps)
   apply (cases "invocation_type label = ArchInvocationLabel X64PageUnmap")
    apply (simp split del: if_split)
    apply (rule hoare_pre, wp)
    apply (clarsimp simp: valid_arch_inv'_def valid_page_inv'_def)
    apply (thin_tac "Ball S P" for S P)
    apply (erule cte_wp_at_weakenE')
-   apply (clarsimp simp: is_arch_update'_def isCap_simps dest!: diminished_capMaster)
+   apply (clarsimp simp: is_arch_update'_def isCap_simps)
   apply (cases "invocation_type label = ArchInvocationLabel X64PageGetAddress")
    apply (simp split del: if_split)
    apply (rule hoare_pre, wp)
@@ -1808,28 +1674,24 @@ lemma decode_page_inv_wf[wp]:
 lemma decode_page_table_inv_wf[wp]:
   "arch_cap = PageTableCap word option \<Longrightarrow>
        \<lbrace>invs' and valid_cap' (capability.ArchObjectCap arch_cap) and
-        cte_wp_at' (diminished' (capability.ArchObjectCap arch_cap) \<circ> cteCap) slot and
-        (\<lambda>s. \<forall>x\<in>set excaps. cte_wp_at' (diminished' (fst x) \<circ> cteCap) (snd x) s) and
+        cte_wp_at' ((=) (capability.ArchObjectCap arch_cap) \<circ> cteCap) slot and
+        (\<lambda>s. \<forall>x\<in>set excaps. cte_wp_at' ((=) (fst x) \<circ> cteCap) (snd x) s) and
         sch_act_simple\<rbrace>
        decodeX64PageTableInvocation label args slot arch_cap excaps
        \<lbrace>valid_arch_inv'\<rbrace>, - "
   apply (simp add: decodeX64PageTableInvocation_def Let_def isCap_simps split del: if_split cong: if_cong)
   apply (rule hoare_pre)
    apply ((wp whenE_throwError_wp isFinalCapability_inv getPDE_wp
-        | wpc
-        | simp add: valid_arch_inv'_def valid_pti'_def if_apply_def2
-        | wp_once hoare_drop_imps)+)
-  apply (clarsimp simp: linorder_not_le isCap_simps
-                        cte_wp_at_ctes_of diminished_arch_update')
-  apply (simp add: valid_cap'_def capAligned_def)
-  apply (rule conjI)
-   apply (clarsimp simp: is_arch_update'_def isCap_simps
-                  dest!: diminished_capMaster)
-  apply (clarsimp simp: neq_Nil_conv invs_valid_objs'
-                        ptBits_def pageBits_def is_aligned_addrFromPPtr_n)
+           | wpc
+           | simp add: valid_arch_inv'_def valid_pti'_def if_apply_def2
+           | wp (once) hoare_drop_imps)+)
+  apply (clarsimp simp: linorder_not_le isCap_simps cte_wp_at_ctes_of)
+  apply (frule eq_arch_update')
+  apply (case_tac option; clarsimp)
+  apply (drule_tac t="cteCap ctea" in sym, simp)
+  apply (clarsimp simp: is_arch_update'_def isCap_simps valid_cap'_def capAligned_def)
   apply (thin_tac "Ball S P" for S P)+
   apply (drule ctes_of_valid', fastforce)+
-  apply (clarsimp simp: diminished_valid' [symmetric])
   apply (clarsimp simp: valid_cap'_def bit_simps is_aligned_addrFromPPtr_n
                         invs_valid_objs' and_not_mask[symmetric])
   apply (clarsimp simp: mask_def X64.pptrBase_def X64.pptrUserTop_def user_vtop_def)
@@ -1840,28 +1702,24 @@ lemma decode_page_table_inv_wf[wp]:
 lemma decode_page_directory_inv_wf[wp]:
   "arch_cap = PageDirectoryCap word option \<Longrightarrow>
        \<lbrace>invs' and valid_cap' (capability.ArchObjectCap arch_cap) and
-        cte_wp_at' (diminished' (capability.ArchObjectCap arch_cap) \<circ> cteCap) slot and
-        (\<lambda>s. \<forall>x\<in>set excaps. cte_wp_at' (diminished' (fst x) \<circ> cteCap) (snd x) s) and
+        cte_wp_at' ((=) (capability.ArchObjectCap arch_cap) \<circ> cteCap) slot and
+        (\<lambda>s. \<forall>x\<in>set excaps. cte_wp_at' ((=) (fst x) \<circ> cteCap) (snd x) s) and
         sch_act_simple\<rbrace>
        decodeX64PageDirectoryInvocation label args slot arch_cap excaps
        \<lbrace>valid_arch_inv'\<rbrace>, - "
   apply (simp add: decodeX64PageDirectoryInvocation_def Let_def isCap_simps split del: if_split cong: if_cong)
   apply (rule hoare_pre)
    apply ((wp whenE_throwError_wp isFinalCapability_inv getPDPTE_wp
-        | wpc
-        | simp add: valid_arch_inv'_def valid_pdi'_def if_apply_def2
-        | wp_once hoare_drop_imps)+)
-  apply (clarsimp simp: linorder_not_le isCap_simps
-                        cte_wp_at_ctes_of diminished_arch_update')
-  apply (simp add: valid_cap'_def capAligned_def)
-  apply (rule conjI)
-   apply (clarsimp simp: is_arch_update'_def isCap_simps
-                  dest!: diminished_capMaster)
-  apply (clarsimp simp: neq_Nil_conv invs_valid_objs'
-                        pdBits_def pageBits_def is_aligned_addrFromPPtr_n)
+           | wpc
+           | simp add: valid_arch_inv'_def valid_pdi'_def if_apply_def2
+           | wp (once) hoare_drop_imps)+)
+  apply (clarsimp simp: linorder_not_le isCap_simps cte_wp_at_ctes_of)
+  apply (frule eq_arch_update')
+  apply (case_tac option; clarsimp)
+  apply (drule_tac t="cteCap ctea" in sym, simp)
+  apply (clarsimp simp: is_arch_update'_def isCap_simps valid_cap'_def capAligned_def)
   apply (thin_tac "Ball S P" for S P)+
   apply (drule ctes_of_valid', fastforce)+
-  apply (clarsimp simp: diminished_valid' [symmetric])
   apply (clarsimp simp: valid_cap'_def bit_simps is_aligned_addrFromPPtr_n
                         invs_valid_objs' and_not_mask[symmetric])
   apply (clarsimp simp: mask_def X64.pptrBase_def X64.pptrUserTop_def user_vtop_def)
@@ -1872,28 +1730,24 @@ lemma decode_page_directory_inv_wf[wp]:
 lemma decode_pdpt_inv_wf[wp]:
   "arch_cap = PDPointerTableCap word option \<Longrightarrow>
        \<lbrace>invs' and valid_cap' (capability.ArchObjectCap arch_cap) and
-        cte_wp_at' (diminished' (capability.ArchObjectCap arch_cap) \<circ> cteCap) slot and
-        (\<lambda>s. \<forall>x\<in>set excaps. cte_wp_at' (diminished' (fst x) \<circ> cteCap) (snd x) s) and
+        cte_wp_at' ((=) (capability.ArchObjectCap arch_cap) \<circ> cteCap) slot and
+        (\<lambda>s. \<forall>x\<in>set excaps. cte_wp_at' ((=) (fst x) \<circ> cteCap) (snd x) s) and
         sch_act_simple\<rbrace>
        decodeX64PDPointerTableInvocation label args slot arch_cap excaps
        \<lbrace>valid_arch_inv'\<rbrace>, - "
   apply (simp add: decodeX64PDPointerTableInvocation_def Let_def isCap_simps split del: if_split cong: if_cong)
   apply (rule hoare_pre)
    apply ((wp whenE_throwError_wp isFinalCapability_inv getPML4E_wp
-        | wpc
-        | simp add: valid_arch_inv'_def valid_pdpti'_def if_apply_def2
-        | wp_once hoare_drop_imps)+)
-  apply (clarsimp simp: linorder_not_le isCap_simps
-                        cte_wp_at_ctes_of diminished_arch_update')
-  apply (simp add: valid_cap'_def capAligned_def)
-  apply (rule conjI)
-   apply (clarsimp simp: is_arch_update'_def isCap_simps
-                  dest!: diminished_capMaster)
-  apply (clarsimp simp: neq_Nil_conv invs_valid_objs'
-                        pdBits_def pageBits_def is_aligned_addrFromPPtr_n)
+           | wpc
+           | simp add: valid_arch_inv'_def valid_pdpti'_def if_apply_def2
+           | wp (once) hoare_drop_imps)+)
+  apply (clarsimp simp: linorder_not_le isCap_simps cte_wp_at_ctes_of)
+  apply (frule eq_arch_update')
+  apply (case_tac option; clarsimp)
+  apply (drule_tac t="cteCap ctea" in sym, simp)
+  apply (clarsimp simp: is_arch_update'_def isCap_simps valid_cap'_def capAligned_def)
   apply (thin_tac "Ball S P" for S P)+
   apply (drule ctes_of_valid', fastforce)+
-  apply (clarsimp simp: diminished_valid' [symmetric])
   apply (clarsimp simp: valid_cap'_def bit_simps is_aligned_addrFromPPtr_n
                         invs_valid_objs' and_not_mask[symmetric])
   apply (clarsimp simp: mask_def X64.pptrBase_def X64.pptrUserTop_def user_vtop_def)
@@ -1926,26 +1780,15 @@ lemma decode_port_control_inv_wf:
               cong: list.case_cong prod.case_cong
           | wp whenE_throwError_wp ensureEmptySlot_stronger isIOPortRangeFree_wp
           | wpc
-          | wp_once hoare_drop_imps)+
+          | wp (once) hoare_drop_imps)+
   by (auto simp: invs_valid_objs')
-
-lemma diminished_IOPortControl':
-  "(diminished' (ArchObjectCap IOPortControlCap) cap') = (cap' = ArchObjectCap IOPortControlCap)"
-  apply (rule iffI)
-   apply (case_tac cap')
-    apply (clarsimp simp:isCap_simps maskCapRights_def diminished'_def split:if_split_asm)+
-   (* 6 subgoals *)
-   apply (rename_tac arch_capability R)
-   apply (case_tac arch_capability)
-    by ((assumption | clarsimp simp: isCap_simps X64_H.maskCapRights_def maskCapRights_def
-                          diminished'_def Let_def)+)
 
 
 lemma arch_decodeInvocation_wf[wp]:
   notes ensureSafeMapping_inv[wp del]
   shows "\<lbrace>invs' and valid_cap' (ArchObjectCap arch_cap) and
-    cte_wp_at' (diminished' (ArchObjectCap arch_cap) o cteCap) slot and
-    (\<lambda>s. \<forall>x \<in> set excaps. cte_wp_at' (diminished' (fst x) o cteCap) (snd x) s) and
+    cte_wp_at' ((=) (ArchObjectCap arch_cap) o cteCap) slot and
+    (\<lambda>s. \<forall>x \<in> set excaps. cte_wp_at' ((=) (fst x) o cteCap) (snd x) s) and
     (\<lambda>s. \<forall>x \<in> set excaps. \<forall>r \<in> cte_refs' (fst x) (irq_node' s). ex_cte_cap_to' r s) and
     (\<lambda>s. \<forall>x \<in> set excaps. s \<turnstile>' fst x) and
     sch_act_simple\<rbrace>
@@ -1963,7 +1806,7 @@ lemma arch_decodeInvocation_wf[wp]:
       apply (clarsimp simp: word_neq_0_conv valid_cap'_def valid_arch_inv'_def valid_apinv'_def)
       apply (rule conjI)
        apply (erule cte_wp_at_weakenE')
-       apply (clarsimp simp: diminished_isPML4Cap')
+       apply (simp, drule_tac t="cteCap c" in sym, simp)
       apply (subst (asm) conj_assoc [symmetric])
       apply (subst (asm) assocs_empty_dom_comp [symmetric])
       apply (drule dom_hd_assocsD)
@@ -2020,7 +1863,7 @@ lemma arch_decodeInvocation_wf[wp]:
                cong: if_cong
           split del: if_split)
     apply (wp decode_port_control_inv_wf, simp)
-    apply (clarsimp simp: cte_wp_at_ctes_of diminished_IOPortControl')
+    apply (clarsimp simp: cte_wp_at_ctes_of)
 
     \<comment> \<open>PageCap\<close>
         apply (simp add: decodeX64MMUInvocation_def isCap_simps X64_H.decodeInvocation_def Let_def isIOCap_def
@@ -2053,8 +1896,9 @@ crunch nosch[wp]: setMRs "\<lambda>s. P (ksSchedulerAction s)"
         mapM_wp'
    simp: split_def zipWithM_x_mapM)
 
-crunch nosch [wp]: performX64MMUInvocation, performX64PortInvocation "\<lambda>s. P (ksSchedulerAction s)"
-  (ignore: getObject setObject simp: crunch_simps
+crunches performX64MMUInvocation, performX64PortInvocation
+  for nosch [wp]: "\<lambda>s. P (ksSchedulerAction s)"
+  (simp: crunch_simps
    wp: crunch_wps getObject_cte_inv getASID_wp)
 
 lemmas setObject_cte_st_tcb_at' [wp] = setCTE_pred_tcb_at' [unfolded setCTE_def]
@@ -2062,8 +1906,7 @@ lemmas setObject_cte_st_tcb_at' [wp] = setCTE_pred_tcb_at' [unfolded setCTE_def]
 crunch st_tcb_at': performPageDirectoryInvocation, performPageTableInvocation,
                    performPageInvocation, performPDPTInvocation,
                    performASIDPoolInvocation, performX64PortInvocation "st_tcb_at' P t"
-  (ignore: getObject setObject
-   wp: crunch_wps getASID_wp getObject_cte_inv simp: crunch_simps)
+  (wp: crunch_wps getASID_wp getObject_cte_inv simp: crunch_simps)
 
 lemma performASIDControlInvocation_st_tcb_at':
   "\<lbrace>st_tcb_at' (P and (\<noteq>) Inactive and (\<noteq>) IdleThreadState) t and
@@ -2110,27 +1953,27 @@ lemma performASIDControlInvocation_st_tcb_at':
   done
 
 crunch aligned': "Arch.finaliseCap" pspace_aligned'
-  (ignore: getObject wp: crunch_wps getASID_wp simp: crunch_simps)
+  (wp: crunch_wps getASID_wp simp: crunch_simps)
 
 lemmas arch_finalise_cap_aligned' = finaliseCap_aligned'
 
 crunch distinct': "Arch.finaliseCap" pspace_distinct'
-  (ignore: getObject wp: crunch_wps getASID_wp simp: crunch_simps)
+  (wp: crunch_wps getASID_wp simp: crunch_simps)
 
 lemmas arch_finalise_cap_distinct' = finaliseCap_distinct'
 
 crunch nosch [wp]: "Arch.finaliseCap" "\<lambda>s. P (ksSchedulerAction s)"
-  (ignore: getObject wp: crunch_wps getASID_wp simp: crunch_simps updateObject_default_def)
+  (wp: crunch_wps getASID_wp simp: crunch_simps updateObject_default_def)
 
 
 crunch st_tcb_at' [wp]: "Arch.finaliseCap" "st_tcb_at' P t"
-  (ignore: getObject setObject wp: crunch_wps getASID_wp simp: crunch_simps)
+  (wp: crunch_wps getASID_wp simp: crunch_simps)
 
 crunch typ_at' [wp]: "Arch.finaliseCap" "\<lambda>s. P (typ_at' T p s)"
-  (ignore: getObject setObject wp: crunch_wps getASID_wp simp: crunch_simps)
+  (wp: crunch_wps getASID_wp simp: crunch_simps)
 
 crunch cte_wp_at':  "Arch.finaliseCap" "cte_wp_at' P p"
-  (ignore: getObject setObject wp: crunch_wps getASID_wp simp: crunch_simps)
+  (wp: crunch_wps getASID_wp simp: crunch_simps)
 
 lemma invs_asid_table_strengthen':
   "invs' s \<and> asid_pool_at' ap s \<and> asid \<le> 2 ^ asid_high_bits - 1 \<longrightarrow>

@@ -1,10 +1,8 @@
--- Copyright 2018, Data61, CSIRO
 --
--- This software may be distributed and modified according to the terms of
--- the GNU General Public License version 2. Note that NO WARRANTY is provided.
--- See "LICENSE_GPLv2.txt" for details.
+-- Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
 --
--- @TAG(DATA61_GPL)
+-- SPDX-License-Identifier: GPL-2.0-only
+--
 
 -- This module defines the machine-specific invocations for RISC-V.
 
@@ -45,8 +43,6 @@ data PageTableInvocation
 data PageInvocation
     = PageGetAddr {
         pageGetBasePtr :: PPtr Word }
-    | PageRemap {
-        pageRemapEntries :: (PTE, PPtr PTE) }
     | PageMap {
         pageMapCap :: Capability,
         pageMapCTSlot :: PPtr CTE,
@@ -73,11 +69,16 @@ data ASIDPoolInvocation
 
 {- Interrupt Control -}
 
--- on current RISCV platforms, we do not have proper interrupts
+-- The RISCV platform requires an interrupt control call to record whether
+-- the interrupt was edge or level-triggered.
 
 data IRQControlInvocation
-    = RISCVNoIRQControlInvocation
-    deriving Show
+    = IssueIRQHandler {
+        issueHandlerIRQ :: IRQ,
+        issueHandlerSlot,
+        issueHandlerControllerSlot :: PPtr CTE,
+        issueHandlerTrigger :: Bool }
+    deriving (Show, Eq)
 
 {- Additional Register Subsets -}
 

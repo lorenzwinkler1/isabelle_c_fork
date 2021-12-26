@@ -1,17 +1,15 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 (*<*)
 theory Chapter2_HoareHeap
 imports "AutoCorres.AutoCorres"
 begin
+
+external_file "mult_by_add.c"
 (*>*)
 
 section  \<open>More Complex Functions with AutoCorres\<close>
@@ -36,7 +34,7 @@ text \<open>
   Our C function \texttt{mult\_by\_add} implements a multiply operation
   by successive additions:
 
-\lstinputlisting[language=C, firstline=15]{../../mult_by_add.c}
+\lstinputlisting[language=C, firstline=11]{../../mult_by_add.c}
 
   We start by translating the program using the C parser and AutoCorres,
   and entering the generated locale \texttt{mult\_by\_add}.

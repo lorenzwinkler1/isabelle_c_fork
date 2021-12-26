@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory IpcCancel_C
@@ -334,10 +330,10 @@ lemma threadGet_vcg_corres_P:
 
 lemmas threadGet_vcg_corres = threadGet_vcg_corres_P[where P=\<top>]
 
-lemma isBlocked_ccorres [corres]:
+lemma isStopped_ccorres [corres]:
   "ccorres (\<lambda>r r'. r = to_bool r') ret__unsigned_long_'
   (tcb_at' thread) (UNIV \<inter> {s. thread_' s = tcb_ptr_to_ctcb_ptr thread})  []
-  (isBlocked thread) (Call isBlocked_'proc)"
+  (isStopped thread) (Call isStopped_'proc)"
   apply (cinit lift: thread_' simp: getThreadState_def)
   apply (rule ccorres_pre_threadGet)
    apply (rule ccorres_move_c_guard_tcb)
@@ -566,15 +562,6 @@ lemma ccorres_pre_getQueue:
    apply (simp add: maxDom_to_H maxPrio_to_H)+
   done
 
-(* FIXME: move *)
-lemma threadGet_wp:
-  "\<lbrace>\<lambda>s. \<forall>tcb. ko_at' tcb thread s \<longrightarrow> P (f tcb) s\<rbrace> threadGet f thread \<lbrace>P\<rbrace>"
-  apply (rule hoare_post_imp [OF _ tg_sp'])
-  apply clarsimp
-  apply (frule obj_at_ko_at')
-  apply (clarsimp elim: obj_atE')
-  done
-
 lemma state_relation_queue_update_helper':
   "\<lbrakk> (s, s') \<in> rf_sr;
      (\<forall>d p. (\<forall>t\<in>set (ksReadyQueues s (d, p)). obj_at' (inQ d p) t s)
@@ -737,14 +724,6 @@ lemma invert_l1index_spec:
   by vcg
      (simp add: word_sle_def sdiv_int_def sdiv_word_def smod_word_def smod_int_def)
 
-lemma unat_ucast_prio_shiftr_simp[simp]:
-  "unat (ucast (p::priority) >> n :: machine_word) = unat (p >> n)"
-  by (simp add: shiftr_div_2n')+
-
-lemma unat_ucast_prio_mask_simp[simp]:
-  "unat (ucast (p::priority) && mask m :: machine_word) = unat (p && mask m)"
-  by (metis ucast_and_mask unat_ucast_8_32)
-
 lemma unat_ucast_prio_L1_cmask_simp:
   "unat (ucast (p::priority) && 0x1F :: machine_word) = unat (p && 0x1F)"
   using unat_ucast_prio_mask_simp[where m=5]
@@ -781,11 +760,6 @@ lemma prio_unat_shiftr_wordRadix_helper': (* FIXME generalise *)
 lemma prio_ucast_shiftr_wordRadix_helper2:
   "(ucast (p::priority) >> wordRadix :: machine_word) < 0x20"
   by (rule order_less_trans[OF prio_ucast_shiftr_wordRadix_helper]; simp)
-
-lemma dom_less_0x10_helper:
-  "d \<le> maxDomain \<Longrightarrow> (ucast d :: machine_word) < 0x10"
-  unfolding maxDomain_def numDomains_def
-  by (clarsimp simp add: word_less_nat_alt unat_ucast_upcast is_up word_le_nat_alt)
 
 lemma cready_queues_index_to_C_ucast_helper:
   fixes p :: priority
@@ -1172,10 +1146,6 @@ lemma rf_sr_drop_bitmaps_dequeue_helper:
              carch_state_relation_def cmachine_state_relation_def
   by (clarsimp simp: rf_sr_cbitmap_L1_relation rf_sr_cbitmap_L2_relation)
 
-lemma filter_empty_unfiltered_contr:
-  "\<lbrakk> [x\<leftarrow>xs . x \<noteq> y] = [] ; x' \<in> set xs ; x' \<noteq> y \<rbrakk> \<Longrightarrow> False"
-  by (induct xs, auto split: if_split_asm)
-
 (* FIXME same proofs as bit_set, maybe can generalise? *)
 lemma cbitmap_L1_relation_bit_clear:
   fixes p :: priority
@@ -1216,11 +1186,6 @@ lemma cbitmap_L2_relationD:
     cbitmap2.[unat d].[i] = abitmap2 (d, i)"
   unfolding cbitmap_L2_relation_def l2BitmapSize_def'
   by clarsimp
-
-(* FIXME move *)
-lemma filter_noteq_op:
-  "[x \<leftarrow> xs . x \<noteq> y] = filter ((\<noteq>) y) xs"
-  by (induct xs) auto
 
 lemma cbitmap_L2_relation_bit_clear:
   fixes p :: priority
@@ -2158,8 +2123,8 @@ lemma possibleSwitchTo_ccorres:
   supply dc_simp [simp del]
   supply prio_and_dom_limit_helpers[simp]
   (* FIXME: these should likely be in simpset for CRefine, or even in general *)
-  supply from_bool_eq_if[simp] from_bool_eq_if'[simp] from_bool_0[simp] if_1_0_0[simp]
-         ccorres_IF_True[simp]
+  supply from_bool_eq_if[simp] from_bool_eq_if'[simp] from_bool_0[simp]
+         ccorres_IF_True[simp] if_cong[cong]
   apply (cinit lift: target_')
    apply (rule ccorres_move_c_guard_tcb)
    apply (rule ccorres_pre_curDomain, rename_tac curDom)
@@ -2210,7 +2175,7 @@ lemma scheduleTCB_ccorres':
        rescheduleRequired
   od)
   (Call scheduleTCB_'proc)"
-  apply (cinit' lift: tptr_' simp del: word_neq_0_conv)
+  apply (cinit' lift: tptr_')
    apply (rule ccorres_rhs_assoc2)+
    apply (rule_tac xf'="ret__int_'" in ccorres_split_nothrow_novcg)
        defer
@@ -2231,7 +2196,7 @@ lemma scheduleTCB_ccorres':
                                  \<and> (\<forall>t. ksSchedulerAction s = SwitchToThread t \<longrightarrow> tcb_at' t s)"
                            and P'=UNIV in ccorres_from_vcg)
            apply (rule allI, rule conseqPre, vcg)
-           apply (clarsimp simp: return_def if_1_0_0 split del: if_split)
+           apply (clarsimp simp: return_def split del: if_split)
            apply (clarsimp simp: from_bool_0 rf_sr_ksCurThread)
            apply (rule conjI)
             apply (clarsimp simp: st_tcb_at'_def)
@@ -2247,7 +2212,7 @@ lemma scheduleTCB_ccorres':
            apply (clarsimp simp: rf_sr_def cstate_relation_def Let_def
                                  cscheduler_action_relation_def)
           apply wp+
-     apply (simp add: isRunnable_def isBlocked_def)
+     apply (simp add: isRunnable_def isStopped_def)
     apply wp
    apply (simp add: guard_is_UNIV_def)
   apply clarsimp
@@ -2303,7 +2268,7 @@ lemma scheduleTCB_ccorres_valid_queues'_pre:
            apply (clarsimp simp: rf_sr_def cstate_relation_def cscheduler_action_relation_def
                            split: scheduler_action.split_asm)
           apply wp+
-     apply (simp add: isRunnable_def isBlocked_def)
+     apply (simp add: isRunnable_def isStopped_def)
     apply wp
    apply (simp add: guard_is_UNIV_def)
   apply (clarsimp simp: st_tcb_at'_def obj_at'_def)
@@ -2394,7 +2359,7 @@ lemma scheduleTCB_ccorres_valid_queues'_pre_simple:
            apply (clarsimp simp: rf_sr_def cstate_relation_def Let_def
                                  cscheduler_action_relation_def)
           apply wp+
-     apply (simp add: isRunnable_def isBlocked_def)
+     apply (simp add: isRunnable_def isStopped_def)
     apply wp
    apply (simp add: guard_is_UNIV_def)
   apply clarsimp
@@ -2894,100 +2859,6 @@ lemma getThreadState_ccorres_foo:
    apply (erule ko_at_projectKO_opt)
   apply (clarsimp simp: ctcb_relation_def obj_at'_def)
   done
-
-(*
-thm cancelIPC_body_def
-lemma cancelIPC_ccorres_reply_helper:
-  assumes cteDeleteOne_ccorres:
-  "\<And>w slot. ccorres dc xfdc
-   (invs' and cte_wp_at' (\<lambda>ct. w = -1 \<or> cteCap ct = NullCap
-        \<or> (\<forall>cap'. ccap_relation (cteCap ct) cap' \<longrightarrow> cap_get_tag cap' = w)) slot)
-   ({s. gs_get_assn cteDeleteOne_'proc (ghost'state_' (globals s)) = w}
-        \<inter> {s. slot_' s = Ptr slot}) []
-   (cteDeleteOne slot) (Call cteDeleteOne_'proc)"
-  shows
-  "ccorres dc xfdc (invs' and st_tcb_at' (isBlockedOnReply or isBlockedOnFault) thread)
-     UNIV hs
-     (do y \<leftarrow> threadSet (tcbFault_update empty) thread;
-         slot \<leftarrow> getThreadReplySlot thread;
-         callerCap \<leftarrow> liftM (\<lambda>x. mdbNext (cteMDBNode x)) (getCTE slot);
-         when (callerCap \<noteq> nullPointer)
-          (do y \<leftarrow> stateAssert (capHasProperty callerCap (\<lambda>cap. isReplyCap cap
-                                                        \<and> \<not> capReplyMaster cap)) [];
-              cteDeleteOne callerCap
-           od)
-      od)
-   (\<acute>ret__struct_fault_C :== CALL seL4_Fault_NullFault_new();;
-     Guard C_Guard {s. s \<Turnstile>\<^sub>c tptr_' s}
-       (Basic (\<lambda>s. s \<lparr>        (\<acute>t_hrs :== (hrs_mem_update (heap_update
-           (Ptr &(\<acute>tptr\<rightarrow>[''tcbFault_C''])) \<acute>ret__struct_fault_C)));;
-      (Guard MemorySafety
-               \<lbrace>ptr_add_assertion (cte_Ptr (ptr_val (tcb_ptr_to_ctcb_ptr thread) && 0xFFFFFE00))
-                 (sint Kernel_C.tcbReply) False (hrs_htd \<acute>t_hrs)\<rbrace>
-        (\<acute>slot :==
-         cte_Ptr
-          ((ptr_val (tcb_ptr_to_ctcb_ptr thread) && 0xFFFFFE00) +
-           of_int (sint Kernel_C.tcbReply) * of_nat (size_of TYPE(cte_C))));;
-       (Guard C_Guard {s. s \<Turnstile>\<^sub>c slot_' s}
-         (\<acute>ret__unsigned :== CALL mdb_node_get_mdbNext(h_val (hrs_mem \<acute>t_hrs)
-                  (mdb_Ptr &(\<acute>slot\<rightarrow>[''cteMDBNode_C'']))));;
-        (\<acute>callerCap___ptr_to_struct_cte_C :== cte_Ptr \<acute>ret__unsigned;;
-         IF \<acute>callerCap___ptr_to_struct_cte_C \<noteq> NULL THEN
-           Basic (globals_update (ghost'state_'_update
-              (ghost_assertion_data_set cteDeleteOne_'proc (ucast cap_reply_cap)
-                (\<lambda>x. apsnd (apsnd x)))));;
-           CALL cteDeleteOne(\<acute>callerCap___ptr_to_struct_cte_C)
-         FI))))"
-  apply (rule ccorres_guard_imp2)
-   apply (rule ccorres_gen_asm, drule_tac thread=thread in ptr_val_tcb_ptr_mask2)
-   apply (simp add: getThreadReplySlot_def del: Collect_const)
-   apply (rule ccorres_split_nothrow_novcg_dc)
-      apply (rule_tac P=\<top> in threadSet_ccorres_lemma2)
-       apply vcg
-      apply (clarsimp simp: typ_heap_simps)
-      apply (erule(2) rf_sr_tcb_update_no_queue, simp_all add: typ_heap_simps)[1]
-       apply (rule ball_tcb_cte_casesI, simp_all)[1]
-      apply (clarsimp simp: ctcb_relation_def seL4_Fault_lift_NullFault
-                            cfault_rel_def cthread_state_relation_def)
-      apply (case_tac "tcbState tcb", simp_all add: is_cap_fault_def)[1]
-     apply ctac
-       apply (simp (no_asm) only: liftM_def bind_assoc return_bind del: Collect_const)
-       apply (rule ccorres_pre_getCTE)
-       apply (rule_tac xf'=ret__unsigned_' and val="mdbNext (cteMDBNode x)"
-                      and R="cte_wp_at' ((=) x) rv and invs'"
-                       in ccorres_symb_exec_r_known_rv_UNIV[where R'=UNIV])
-          apply vcg
-          apply (clarsimp simp: cte_wp_at_ctes_of)
-          apply (erule(1) cmap_relationE1[OF cmap_relation_cte])
-          apply (clarsimp simp: typ_heap_simps)
-          apply (clarsimp simp: ccte_relation_def map_option_Some_eq2)
-         apply ceqv
-        apply csymbr
-        apply (rule ccorres_Cond_rhs)
-         apply (simp add: nullPointer_def when_def)
-         apply (rule ccorres_symb_exec_l[OF _ _ _ empty_fail_stateAssert])
-           apply (simp only: dc_def[symmetric])
-           apply (rule ccorres_symb_exec_r)
-             apply (ctac add: cteDeleteOne_ccorres[where w1="scast cap_reply_cap"])
-            apply vcg
-           apply (rule conseqPre, vcg, clarsimp simp: rf_sr_def
-              gs_set_assn_Delete_cstate_relation[unfolded o_def])
-          apply (wp | simp)+
-        apply (simp add: when_def nullPointer_def dc_def[symmetric])
-        apply (rule ccorres_return_Skip)
-       apply (simp add: guard_is_UNIV_def ghost_assertion_data_get_def
-                        ghost_assertion_data_set_def cap_tag_defs)
-      apply (simp add: locateSlot_conv, wp)
-     apply vcg
-    apply (rule_tac Q="\<lambda>rv. tcb_at' thread and invs'" in hoare_post_imp)
-     apply (clarsimp simp: cte_wp_at_ctes_of capHasProperty_def cap_get_tag_isCap ucast_id)
-    apply (wp hoare_vcg_all_lift threadSet_invs_trivial
-               | wp_once hoare_drop_imps | simp)+
-   apply (clarsimp simp: guard_is_UNIV_def tcbReplySlot_def
-                         Kernel_C.tcbReply_def mask_def tcbCNodeEntries_def)
-  apply (fastforce simp: pred_tcb_at' inQ_def tcb_aligned'[OF pred_tcb_at'])
-  done
-*)
 
 lemma ep_blocked_in_queueD_recv:
   "\<lbrakk>st_tcb_at' ((=) (Structures_H.thread_state.BlockedOnReceive x gr)) thread \<sigma>; ko_at' ep' x \<sigma>; invs' \<sigma>\<rbrakk> \<Longrightarrow> thread \<in> set (epQueue ep') \<and> isRecvEP ep'"

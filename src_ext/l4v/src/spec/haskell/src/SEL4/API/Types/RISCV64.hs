@@ -1,10 +1,8 @@
--- Copyright 2018, Data61, CSIRO
 --
--- This software may be distributed and modified according to the terms of
--- the GNU General Public License version 2. Note that NO WARRANTY is provided.
--- See "LICENSE_GPLv2.txt" for details.
+-- Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
 --
--- @TAG(DATA61_GPL)
+-- SPDX-License-Identifier: GPL-2.0-only
+--
 
 
 -- This module contains an instance of the machine-specific kernel API for the
@@ -12,8 +10,10 @@
 
 module SEL4.API.Types.RISCV64 where
 
-import SEL4.API.Types.Universal(APIObjectType, apiGetObjectSize)
+import SEL4.API.Types.Universal(APIObjectType(..),
+                                epSizeBits, ntfnSizeBits, cteSizeBits)
 import SEL4.Machine.Hardware.RISCV64
+import Data.WordLib(wordSizeCase)
 
 -- There are two page sizes on RISCV, and one extra size specific to 64-bit.
 -- We are keeping with the design spec naming convention here; in C they are
@@ -21,9 +21,9 @@ import SEL4.Machine.Hardware.RISCV64
 
 data ObjectType
     = APIObjectType APIObjectType
+    | HugePageObject
     | SmallPageObject
     | LargePageObject
-    | HugePageObject
     | PageTableObject
     deriving (Show, Eq)
 
@@ -57,6 +57,16 @@ toAPIType (APIObjectType a) = Just a
 toAPIType _ = Nothing
 
 pageType = SmallPageObject
+
+tcbBlockSizeBits :: Int
+tcbBlockSizeBits = 10
+
+apiGetObjectSize :: APIObjectType -> Int -> Int
+apiGetObjectSize Untyped size = size
+apiGetObjectSize TCBObject _ = tcbBlockSizeBits
+apiGetObjectSize EndpointObject _ = epSizeBits
+apiGetObjectSize NotificationObject _ = ntfnSizeBits
+apiGetObjectSize CapTableObject size = cteSizeBits + size
 
 getObjectSize :: ObjectType -> Int -> Int
 getObjectSize PageTableObject _ = ptBits

@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 section "Lemmas for Word Length 32"
@@ -285,6 +281,8 @@ lemma unat_of_int_32:
   apply (subst eq_nat_nat_iff, clarsimp+)
   apply (simp add: word_of_int uint_word_of_int)
   done
+
+lemmas word_ctz_not_minus_1_32 = word_ctz_not_minus_1[where 'a=32, simplified]
 
 (* Helper for packing then unpacking a 64-bit variable. *)
 lemma cast_chunk_assemble_id_64[simp]:

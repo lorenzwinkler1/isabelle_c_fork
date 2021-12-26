@@ -1,16 +1,10 @@
 (*
- * Copyright 2017, Data61, CSIRO
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(DATA61_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 chapter "Toplevel Refinement Statement"
-
-(* In progress c refinement *)
 
 theory Refine_C
 imports
@@ -23,7 +17,7 @@ imports
   "Refine.RAB_FN"
   "CLib.MonadicRewrite_C"
 
-  "../lib/CToCRefine"
+  CToCRefine
 begin
 
 context begin interpretation Arch . (*FIXME: arch_split*)
@@ -69,6 +63,7 @@ proof -
      apply (simp add: irqInvalid_def)
      apply (rule ccorres_symb_exec_r)
        apply (ctac (no_vcg) add: schedule_ccorres)
+        apply (rule ccorres_stateAssert_after)
         apply (rule ccorres_add_return2)
         apply (ctac (no_vcg) add: activateThread_ccorres)
          apply (rule_tac P=\<top> and P'=UNIV in ccorres_from_vcg_throws)
@@ -83,6 +78,7 @@ proof -
     apply (ctac (no_vcg) add: handleInterrupt_ccorres)
      apply (rule ccorres_add_return, ctac (no_vcg) add: Arch_finaliseInterrupt_ccorres)
       apply (ctac (no_vcg) add: schedule_ccorres)
+       apply (rule ccorres_stateAssert_after)
        apply (rule ccorres_add_return2)
        apply (ctac (no_vcg) add: activateThread_ccorres)
         apply (rule_tac P=\<top> and P'=UNIV in ccorres_from_vcg_throws)
@@ -110,6 +106,7 @@ lemma handleUnknownSyscall_ccorres:
      apply (rule ccorres_pre_getCurThread)
      apply (ctac (no_vcg) add: handleFault_ccorres)
       apply (ctac (no_vcg) add: schedule_ccorres)
+       apply (rule ccorres_stateAssert_after)
        apply (rule ccorres_add_return2)
        apply (ctac (no_vcg) add: activateThread_ccorres)
         apply (rule_tac P=\<top> and P'=UNIV in ccorres_from_vcg_throws)
@@ -165,6 +162,7 @@ lemma handleVMFaultEvent_ccorres:
       apply ceqv
      apply clarsimp
      apply (ctac (no_vcg) add: schedule_ccorres)
+      apply (rule ccorres_stateAssert_after)
       apply (rule ccorres_add_return2)
       apply (ctac (no_vcg) add: activateThread_ccorres)
        apply (rule_tac P=\<top> and P'=UNIV in ccorres_from_vcg_throws)
@@ -195,6 +193,7 @@ lemma handleUserLevelFault_ccorres:
      apply (rule ccorres_pre_getCurThread)
      apply (ctac (no_vcg) add: handleFault_ccorres)
       apply (ctac (no_vcg) add: schedule_ccorres)
+       apply (rule ccorres_stateAssert_after)
        apply (rule ccorres_add_return2)
        apply (ctac (no_vcg) add: activateThread_ccorres)
         apply (rule_tac P=\<top> and P'=UNIV in ccorres_from_vcg_throws)
@@ -414,6 +413,7 @@ lemma handleSyscall_ccorres:
       \<comment> \<open>rest of body\<close>
       apply ceqv
      apply (ctac (no_vcg) add: schedule_ccorres)
+      apply (rule ccorres_stateAssert_after)
       apply (rule ccorres_add_return2)
       apply (ctac (no_vcg) add: activateThread_ccorres)
        apply (rule_tac P=\<top> and P'=UNIV in ccorres_from_vcg_throws)
@@ -495,7 +495,7 @@ definition
   "all_invs' e \<equiv> \<lambda>s'. \<exists>s :: det_state.
     (s,s') \<in> state_relation \<and>
     (einvs s \<and> (e \<noteq> Interrupt \<longrightarrow> ct_running s) \<and> (ct_running s \<or> ct_idle s) \<and>
-      scheduler_action s = resume_cur_thread \<and> domain_time s \<noteq> 0) \<and>
+      scheduler_action s = resume_cur_thread \<and> domain_time s \<noteq> 0 \<and> valid_domain_list s) \<and>
     (invs' s' \<and>
       (e \<noteq> Interrupt \<longrightarrow> ct_running' s') \<and> (ct_running' s' \<or> ct_idle' s') \<and>
       ksSchedulerAction s' = ResumeCurrentThread  \<and> ksDomainTime s' \<noteq> 0)"
@@ -506,7 +506,7 @@ lemma no_fail_callKernel:
   apply (rule corres_nofail)
    apply (rule corres_guard_imp)
      apply (rule kernel_corres)
-    apply force
+    apply (force simp: word_neq_0_conv)
    apply (simp add: sch_act_simple_def)
   apply metis
   done
@@ -522,7 +522,11 @@ lemma handleHypervisorEvent_ccorres:
     apply (rule ccorres_symb_exec_l)
        apply (cases t; simp add: handleHypervisorFault_def)
        apply (ctac (no_vcg) add: schedule_ccorres)
-        apply (ctac (no_vcg) add: activateThread_ccorres)
+        apply (rule ccorres_stateAssert_after)
+        apply (rule ccorres_guard_imp[where A="A and P" and Q=A for A P])
+          apply (ctac (no_vcg) add: activateThread_ccorres)
+         apply simp
+        apply assumption
        apply (wp schedule_sch_act_wf schedule_invs'
               | strengthen invs_queues_imp invs_valid_objs_strengthen)+
     apply clarsimp+
@@ -608,12 +612,6 @@ lemma ccorres_get_registers:
                         "StrictC'_register_defs")
   done
 
-(* FIXME: move *)
-lemma st_tcb_at'_opeq_simp:
-  "st_tcb_at' ((=) Structures_H.thread_state.Running) (ksCurThread s) s
-    = st_tcb_at' (\<lambda>st. st = Structures_H.thread_state.Running) (ksCurThread s) s"
-  by (fastforce simp add: st_tcb_at'_def obj_at'_def)
-
 (* FIXME: fastpath
 lemma callKernel_withFastpath_corres_C:
   "corres_underlying rf_sr False True dc
@@ -662,10 +660,10 @@ lemma threadSet_all_invs_triv':
      apply (simp add: exst_same_def)
     apply (wp thread_set_invs_trivial thread_set_ct_running thread_set_not_state_valid_sched
               threadSet_invs_trivial threadSet_ct_running' static_imp_wp
-              thread_set_ct_idle
+              thread_set_ct_in_state
            | simp add: tcb_cap_cases_def tcb_arch_ref_def
            | rule threadSet_ct_in_state'
-           | wp_once hoare_vcg_disj_lift)+
+           | wp (once) hoare_vcg_disj_lift)+
   apply clarsimp
   apply (rule exI, rule conjI, assumption)
   apply (clarsimp simp: invs_def invs'_def cur_tcb_def cur_tcb'_def)
@@ -775,26 +773,6 @@ lemma full_invs_both:
   done
 end
 
-(* FIXME: move to somewhere sensible *)
-lemma dom_eq:
-  "dom um = dom um' \<longleftrightarrow> (\<forall>a. um a = None \<longleftrightarrow> um' a = None)"
-  apply (simp add: dom_def del: not_None_eq)
-  apply (rule iffI)
-   apply (rule allI)
-   apply (simp add: set_eq_iff)
-   apply (drule_tac x=a in spec)
-   apply auto
-done
-
-lemma dom_user_mem':
-  "dom (user_mem' s) = {p. typ_at' UserDataT (p && ~~ mask pageBits) s}"
-  by (clarsimp simp:user_mem'_def dom_def pointerInUserData_def split:if_splits)
-
-(* FIXME:move *)
-lemma dom_device_mem':
-  "dom (device_mem' s) = {p. typ_at' UserDataDeviceT (p && ~~ mask pageBits) s}"
-  by (clarsimp simp: device_mem'_def dom_def pointerInDeviceData_def split: if_splits)
-
 context kernel_m
 begin
 
@@ -832,6 +810,7 @@ lemma user_memory_update_corres_C:
      (\<lambda>s. pspace_aligned' s \<and> pspace_distinct' s \<and> dom um \<subseteq> dom (user_mem' s))
      \<top>
      (doMachineOp (user_memory_update um)) (setUserMem_C um)"
+  supply option.case_cong[cong]
   apply (clarsimp simp: corres_underlying_def)
   apply (rule conjI)
    prefer 2

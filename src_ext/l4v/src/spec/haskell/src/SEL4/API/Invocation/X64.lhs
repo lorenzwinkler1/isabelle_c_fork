@@ -1,10 +1,7 @@
+%
 % Copyright 2014, General Dynamics C4 Systems
 %
-% This software may be distributed and modified according to the terms of
-% the GNU General Public License version 2. Note that NO WARRANTY is provided.
-% See "LICENSE_GPLv2.txt" for details.
-%
-% @TAG(GD_GPL)
+% SPDX-License-Identifier: GPL-2.0-only
 %
 
 This module defines the machine-specific invocations for x64.
@@ -108,10 +105,6 @@ point to the invoked IO page table.
 > data PageInvocation
 >     = PageGetAddr {
 >         pageGetBasePtr :: PPtr Word }
->     | PageRemap {
->         pageRemapEntries :: (VMPageEntry, VMPageEntryPtr),
->         pageRemapASID :: ASID,
->         pageRemapVSpace :: PPtr PML4E }
 >     | PageMap {
 >         pageMapCap :: Capability,
 >         pageMapCTSlot :: PPtr CTE,

@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchInvariants_AI
-imports "../InvariantsPre_AI"
+imports InvariantsPre_AI
 begin
 
 \<comment> \<open>---------------------------------------------------------------------------\<close>
@@ -383,6 +379,38 @@ where
   "pde_ref pde \<equiv> case pde of
     PageTablePDE ptr\<Rightarrow> Some (ptrFromPAddr ptr)
   | _ \<Rightarrow> None"
+
+text
+\<open>Virtual address space look-ups
+In the invariants, (ref \<unrhd> p) is a predicate on states which asserts the existence of a path through
+the current virtual address space mappings, that is rooted in the global ASID table.
+
+The ref is of type "vs_ref list", and represents the path through through the virtual address space
+mappings. For example, it may look like this:
+
+[VSRef r3 (Some APageTable), VSRef r2 (Some APageDirectory), VSRef r1 (Some AASIDPool), VSRef r0 None]
+
+In this case:
+r0 is the index of an entry in the global ASID table,
+r1 is the index of an entry in the ASIDPool pointed to by r0,
+r2 is the index of a page directory entry in the page directory mapped to the ASID formed by r0 and r1,
+r3 is the index of a page table entry in the page table pointed to by r2.
+
+Then, ((ref \<unrhd> p) s) is an assertion that: in state s, p is a pointer (in the kernel address space)
+to a Page object mapped into the page table entry r3.
+
+In this example, r0 and r1 are the high and low bits of the ASID. Similarly, r2 and r3 form parts of
+the virtual address to which the page is mapped in this address space.
+
+Note that the path is ordered bottom-up, from the object under consideration, up to the global ASID
+table entry from which it can be traced.
+
+A "vs_ref list" need not always trace from a Page object, so for example, ([VSRef r0 None] \<unrhd> p) s)
+means: in state s, p is a pointer to an ASIDPool object, which was found in entry r0 of the global
+ASID table.
+
+There are also assertions of the form (ref \<rhd> p) which are similar, but don't trace any deeper than
+page directory entries.\<close>
 
 datatype vs_ref = VSRef word32 "aa_type option"
 
@@ -2269,6 +2297,10 @@ where
  "state_hyp_refs_of s \<equiv> \<lambda>x. case (kheap s x) of Some ko \<Rightarrow> hyp_refs_of ko | None \<Rightarrow> {}"
 
 
+lemma in_state_hyp_refs_of:
+  "ref \<in> state_hyp_refs_of s p \<longleftrightarrow> (\<exists>ko. kheap s p = Some ko \<and> ref \<in> hyp_refs_of ko)"
+  by (simp add: state_hyp_refs_of_def split: option.split)
+
 definition
   state_refs_of_a :: "'z::state_ext state \<Rightarrow> obj_ref \<Rightarrow> (obj_ref \<times> reftype) set"
 where
@@ -2522,6 +2554,24 @@ lemma arch_tcb_context_get_set[simp]:
   "arch_tcb_context_get (arch_tcb_context_set uc a_tcb) = uc"
   apply (simp add: arch_tcb_context_get_def arch_tcb_context_set_def)
   done
+
+lemma vs_lookup_trans_sub2:
+  assumes ko: "\<And>ko p. \<lbrakk> ko_at ko p s; vs_refs ko \<noteq> {} \<rbrakk> \<Longrightarrow> obj_at (\<lambda>ko'. vs_refs ko \<subseteq> vs_refs ko') p s'"
+  shows "vs_lookup_trans s \<subseteq> vs_lookup_trans s'"
+proof -
+  have "vs_lookup1 s \<subseteq> vs_lookup1 s'"
+    by (fastforce dest: ko elim: vs_lookup1_stateI2)
+  thus ?thesis by (rule rtrancl_mono)
+qed
+
+lemma vs_lookup_pages_trans_sub2:
+  assumes ko: "\<And>ko p. \<lbrakk> ko_at ko p s; vs_refs_pages ko \<noteq> {} \<rbrakk> \<Longrightarrow> obj_at (\<lambda>ko'. vs_refs_pages ko \<subseteq> vs_refs_pages ko') p s'"
+  shows "vs_lookup_pages_trans s \<subseteq> vs_lookup_pages_trans s'"
+proof -
+  have "vs_lookup_pages1 s \<subseteq> vs_lookup_pages1 s'"
+    by (fastforce dest: ko elim: vs_lookup_pages1_stateI2)
+  thus ?thesis by (rule rtrancl_mono)
+qed
 
 end
 

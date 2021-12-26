@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Schedule_DR
@@ -18,6 +14,7 @@ context begin interpretation Arch . (*FIXME: arch_split*)
 lemma getActiveTCBs_subset:
   "\<lbrakk> getActiveTCB x s' = Some y; invs s'; valid_etcbs s' \<rbrakk> \<Longrightarrow>
    x \<in> all_active_tcbs (transform s')"
+  supply option.case_cong[cong]
   apply (clarsimp simp: all_active_tcbs_def getActiveTCB_def)
   apply (clarsimp simp: transform_def transform_objects_def map_add_def domIff)
   apply (clarsimp dest!: get_tcb_SomeD split: option.splits if_split_asm)
@@ -166,6 +163,7 @@ lemma getActiveTCB_idle: "invs s \<Longrightarrow> getActiveTCB (idle_thread s) 
 lemma switch_to_thread_same_corres:
   "dcorres dc (\<lambda>s. x = y) (invs and (\<lambda>s. idle_thread s \<noteq> x) and valid_etcbs)
            (Schedule_D.switch_to_thread (Some y)) (Schedule_A.switch_to_thread x)"
+  supply if_cong[cong]
   apply (clarsimp simp: Schedule_D.switch_to_thread_def
                         Schedule_A.switch_to_thread_def)
   apply (rule corres_dummy_return_pl)
@@ -364,6 +362,7 @@ lemma schedule_choose_new_thread_dcorres:
         Schedule_D.schedule
         schedule_choose_new_thread"
   unfolding schedule_choose_new_thread_def
+  supply if_cong[cong]
   apply (clarsimp simp: guarded_switch_to_def bind_assoc choose_thread_def)
   apply (rule dcorres_symb_exec_r, rename_tac dom_t)
     apply (case_tac "dom_t \<noteq> 0")
@@ -572,6 +571,7 @@ lemma schedule_switch_thread_dcorres:
 
 lemma schedule_dcorres:
   "dcorres dc \<top> (invs and valid_sched and valid_etcbs) Schedule_D.schedule Schedule_A.schedule"
+  supply if_cong[cong]
   apply (clarsimp simp: Schedule_A.schedule_def)
   apply (rule dcorres_symb_exec_r)
     apply (rename_tac cur)
@@ -631,6 +631,7 @@ lemma transform_tcb_NextIP:
  *)
 lemma as_user_setNextPC_corres:
   "dcorres dc \<top> \<top> (return x) (as_user t (setNextPC pc))"
+  supply option.case_cong[cong]
   apply (clarsimp simp: corres_underlying_def gets_the_def
                    as_user_def setNextPC_def get_tcb_def
                    setRegister_def simpler_modify_def
@@ -651,6 +652,7 @@ lemma dcorres_dummy_set_thread_state_runnable:
   (not_idle_thread ptr and st_tcb_at (\<lambda>t. (infer_tcb_pending_op ptr t) = (infer_tcb_pending_op ptr st)) ptr)
   (return ())
   (set_thread_state ptr st)"
+  supply option.case_cong[cong] if_cong[cong]
   apply (rule wp_to_dcorres)
   apply (clarsimp simp:set_thread_state_def not_idle_thread_def set_object_def get_object_def | wp)+
   apply (clarsimp simp:transform_def transform_current_thread_def st_tcb_at_def obj_at_def

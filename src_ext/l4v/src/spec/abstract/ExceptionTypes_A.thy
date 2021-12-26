@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -54,10 +50,6 @@ datatype syscall_error
          | DeleteFirst
          | RevokeFirst
          | NotEnoughMemory data
-
-text \<open>Preemption in the system is caused by the arrival of hardware interrupts
-which are tagged with their hardware IRQ.\<close>
-datatype interrupt = Interrupted irq
 
 text \<open>Create a message from a system-call failure to be returned to the
 thread attempting the operation that failed.\<close>

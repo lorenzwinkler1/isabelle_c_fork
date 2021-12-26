@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Delete_C
@@ -142,6 +138,7 @@ lemma capRemovable_spec:
   "\<forall>cap s.  \<Gamma>\<turnstile> \<lbrace>s. ccap_relation cap \<acute>cap \<and> (isZombie cap \<or> cap = NullCap) \<and> capAligned cap\<rbrace>
      Call capRemovable_'proc
       {s'. ret__unsigned_long_' s' = from_bool (capRemovable cap (ptr_val (slot_' s)))}"
+  supply if_cong[cong]
   apply vcg
   apply (clarsimp simp: cap_get_tag_isCap(1-8)[THEN trans[OF eq_commute]])
   apply (simp add: capRemovable_def from_bool_def[where b=True] true_def)
@@ -161,6 +158,7 @@ lemma capCyclicZombie_spec:
   "\<forall>cap s.  \<Gamma>\<turnstile> \<lbrace>s. ccap_relation cap \<acute>cap \<and> isZombie cap \<and> capAligned cap\<rbrace>
      Call capCyclicZombie_'proc
       {s'. ret__unsigned_long_' s' = from_bool (capCyclicZombie cap (ptr_val (slot_' s)))}"
+  supply if_cong[cong]
   apply vcg
   apply (clarsimp simp: from_bool_0)
   apply (frule(1) cap_get_tag_isCap [THEN iffD2], simp)
@@ -714,7 +712,7 @@ lemma finaliseSlot_ccorres:
              apply (rule ccorres_drop_cutMon,
                     rule ccorres_split_throws)
               apply (rule_tac P="\<lambda>s. case (snd rvb) of
-                                        IRQHandlerCap irq \<Rightarrow> UCAST(10\<rightarrow>16) irq \<le> SCAST (32 signed\<rightarrow>16)Kernel_C.maxIRQ
+                                        IRQHandlerCap irq \<Rightarrow> UCAST(10\<rightarrow>machine_word_len) irq \<le> SCAST(32 signed\<rightarrow>machine_word_len) Kernel_C.maxIRQ
                                       | _ \<Rightarrow> True"
                               in ccorres_from_vcg_throws[where P'=UNIV])
               apply (rule allI, rule conseqPre, vcg)
@@ -859,7 +857,7 @@ lemma finaliseSlot_ccorres:
         apply (erule(1) cmap_relationE1 [OF cmap_relation_cte])
         apply (frule valid_global_refsD_with_objSize, clarsimp)
         apply (auto simp: typ_heap_simps dest!: ccte_relation_ccap_relation)[1]
-       apply (wp isFinalCapability_inv static_imp_wp | wp_once isFinal[where x=slot'])+
+       apply (wp isFinalCapability_inv static_imp_wp | wp (once) isFinal[where x=slot'])+
       apply vcg
      apply (rule conseqPre, vcg)
      apply clarsimp

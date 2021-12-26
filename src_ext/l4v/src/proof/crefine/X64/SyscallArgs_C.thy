@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory SyscallArgs_C
@@ -504,39 +500,6 @@ lemma invocationCatch_use_injection_handler:
             split: sum.split)
   done
 
-lemma injection_handler_returnOk:
-  "injection_handler injector (returnOk v) = returnOk v"
-  by (simp add: returnOk_liftE injection_liftE)
-
-lemma injection_handler_If:
-  "injection_handler injector (If P a b)
-     = If P (injection_handler injector a)
-            (injection_handler injector b)"
-  by (simp split: if_split)
-
-(* FIXME: duplicated in CSpace_All *)
-lemma injection_handler_liftM:
-  "injection_handler f
-    = liftM (\<lambda>v. case v of Inl ex \<Rightarrow> Inl (f ex) | Inr rv \<Rightarrow> Inr rv)"
-  apply (intro ext, simp add: injection_handler_def liftM_def
-                              handleE'_def)
-  apply (rule bind_apply_cong, rule refl)
-  apply (simp add: throwError_def split: sum.split)
-  done
-
-lemma injection_handler_throwError:
-  "injection_handler f (throwError v) = throwError (f v)"
-  by (simp add: injection_handler_def handleE'_def
-                throwError_bind)
-
-lemma injection_handler_whenE:
-  "injection_handler injf (whenE P f)
-    = whenE P (injection_handler injf f)"
-  by (simp add: whenE_def injection_handler_returnOk split: if_split)
-
-lemmas injection_handler_bindE = injection_bindE [OF refl refl]
-lemmas injection_handler_wp = injection_wp [OF refl]
-
 lemma ccorres_injection_handler_csum1:
   "ccorres (f \<currency> r) xf P P' hs a c
     \<Longrightarrow> ccorres
@@ -641,7 +604,7 @@ lemma nat_less_4_cases:
 lemma msgRegisters_scast:
   "n < unat (scast n_msgRegisters :: machine_word) \<Longrightarrow>
   unat (scast (index msgRegistersC n)::machine_word) = unat (index msgRegistersC n)"
-  apply (simp add: kernel_all_global_addresses.msgRegisters_def fupdate_def update_def n_msgRegisters_def fcp_beta
+  apply (simp add: kernel_all_global_addresses.msgRegisters_def fupdate_def update_def n_msgRegisters_def
                    Kernel_C.R10_def Kernel_C.R8_def Kernel_C.R9_def Kernel_C.R15_def)
   by (auto dest!: nat_less_4_cases)
 
@@ -787,9 +750,6 @@ lemma capFVMRights_range:
   by (simp add: cap_frame_cap_lift_def
                 cap_lift_def cap_tag_defs word_and_le1 mask_def)+
 
-lemma dumb_bool_for_all: "(\<forall>x. x) = False"
-  by auto
-
 lemma dumb_bool_split_for_vcg:
   "\<lbrace>d \<longrightarrow> \<acute>ret__unsigned_long \<noteq> 0\<rbrace> \<inter> \<lbrace>\<not> d \<longrightarrow> \<acute>ret__unsigned_long = 0\<rbrace>
   = \<lbrace>d = to_bool \<acute>ret__unsigned_long \<rbrace>"
@@ -848,7 +808,7 @@ lemma lookupIPCBuffer_ccorres[corres]:
                              Kernel_C.VMReadWrite_def
                       split: if_split)
            apply (frule cap_get_tag_isCap_unfolded_H_cap(18),simp)
-           apply (frule capFVMRights_range) thm pageBitsForSize_spec
+           apply (frule capFVMRights_range)
            apply (simp add: cap_frame_cap_lift)
            apply (clarsimp simp: cap_to_H_def vmrights_to_H_def to_bool_def
                                  word_le_make_less
@@ -873,7 +833,7 @@ lemma lookupIPCBuffer_ccorres[corres]:
           apply (ctac add: ccorres_return_C)
          apply clarsimp
         apply (frule cap_get_tag_isCap_unfolded_H_cap)
-        apply (clarsimp simp: if_1_0_0 Collect_const_mem isCap_simps word_less_nat_alt
+        apply (clarsimp simp: Collect_const_mem isCap_simps word_less_nat_alt
                               option_to_ptr_def from_bool_0 option_to_0_def ccap_relation_def
                               c_valid_cap_def cl_valid_cap_def cap_frame_cap_lift)
        apply (rule ccorres_cond_true_seq)
@@ -884,7 +844,7 @@ lemma lookupIPCBuffer_ccorres[corres]:
                              dumb_bool_for_all
                       split: capability.splits arch_capability.splits bool.splits)
       apply wpsimp
-     apply (clarsimp simp: if_1_0_0 Collect_const_mem)
+     apply (clarsimp simp: Collect_const_mem)
      apply (rule conjI)
       apply (clarsimp simp: isCap_simps word_less_nat_alt )
       apply (frule ccap_relation_page_is_device)
@@ -968,6 +928,7 @@ lemma getMRs_user_word:
       \<and> msgLength info \<le> msgMaxLength \<and> i >= scast n_msgRegisters\<rbrace>
   getMRs thread (Some buffer) info
   \<lbrace>\<lambda>xs. user_word_at (xs ! unat i) (buffer + (i * 8 + 8))\<rbrace>"
+  supply if_cong[cong]
   apply (rule hoare_assume_pre)
   apply (elim conjE)
   apply (thin_tac "valid_ipc_buffer_ptr' x y" for x y)
@@ -1092,13 +1053,12 @@ lemma getMRs_length:
   done
 
 lemma index_msgRegisters_less':
-  "n < 4 \<Longrightarrow> index msgRegistersC n < 0x17"
-  by (simp add: msgRegistersC_def fupdate_def Arrays.update_def
-                fcp_beta "StrictC'_register_defs")
+  "n < 4 \<Longrightarrow> index msgRegistersC n < 0x18"
+  by (simp add: msgRegistersC_def fupdate_def Arrays.update_def "StrictC'_register_defs")
 
 lemma index_msgRegisters_less:
-  "n < 4 \<Longrightarrow> index msgRegistersC n <s 0x17"
-  "n < 4 \<Longrightarrow> index msgRegistersC n < 0x17"
+  "n < 4 \<Longrightarrow> index msgRegistersC n <s 0x18"
+  "n < 4 \<Longrightarrow> index msgRegistersC n < 0x18"
   using index_msgRegisters_less'
   by (simp_all add: word_sless_msb_less)
 
@@ -1234,23 +1194,23 @@ lemma invocation_eq_use_type:
   "\<lbrakk> value \<equiv> (value' :: 32 signed word);
        unat (scast value' :: machine_word) < length (enum :: invocation_label list); (scast value' :: machine_word) \<noteq> 0 \<rbrakk>
      \<Longrightarrow> (label = (scast value)) = (invocation_type label = enum ! unat (scast value' :: machine_word))"
-  apply (fold invocation_type_eq, unfold invocationType_def)
+  apply (fold invocationType_eq, unfold invocationType_def)
   apply (simp add: maxBound_is_length Let_def toEnum_def
                    nth_eq_iff_index_eq nat_le_Suc_less_imp
             split: if_split)
   apply (intro impI conjI)
    apply (simp add: enum_invocation_label)
-  apply (subgoal_tac "InvalidInvocation = enum ! 0")
+  apply (subgoal_tac "GenInvocationLabel InvalidInvocation = enum ! 0")
    apply (erule ssubst, subst nth_eq_iff_index_eq, simp+)
    apply (clarsimp simp add: unat_eq_0)
-  apply (simp add: enum_invocation_label)
+  apply (simp add: enum_invocation_label enum_gen_invocation_labels)
   done
 
 lemmas all_invocation_label_defs = invocation_label_defs arch_invocation_label_defs sel4_arch_invocation_label_defs
 
 lemmas invocation_eq_use_types
     = all_invocation_label_defs[THEN invocation_eq_use_type, simplified,
-                            unfolded enum_invocation_label enum_arch_invocation_label, simplified]
+                                unfolded enum_invocation_label enum_gen_invocation_labels enum_arch_invocation_label, simplified]
 
 lemma ccorres_equals_throwError:
   "\<lbrakk> f = throwError v; ccorres_underlying sr Gamm rr xf arr axf P P' hs (throwError v) c \<rbrakk>

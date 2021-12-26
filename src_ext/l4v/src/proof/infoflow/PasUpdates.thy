@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 
@@ -42,9 +38,11 @@ crunch domain_fields[wp]: retype_region_ext,create_cap_ext,cap_insert_ext,ethrea
                           finalise_cap,cap_move,cap_swap,cap_delete,cancel_badged_sends,
                           cap_insert
                           "domain_fields P"
-  (   wp: syscall_valid select_wp crunch_wps rec_del_preservation cap_revoke_preservation modify_wp
-    simp: crunch_simps check_cap_at_def filterM_mapM unless_def
-  ignore: without_preemption filterM rec_del check_cap_at cap_revoke)
+  (    wp: syscall_valid select_wp crunch_wps rec_del_preservation cap_revoke_preservation modify_wp
+     simp: crunch_simps check_cap_at_def filterM_mapM unless_def
+   ignore: without_preemption filterM rec_del check_cap_at cap_revoke
+   ignore_del: retype_region_ext create_cap_ext cap_insert_ext ethread_set cap_move_ext
+               empty_slot_ext cap_swap_ext set_thread_state_ext tcb_sched_action reschedule_required)
 
 lemma cap_revoke_domain_fields[wp]:"\<lbrace>domain_fields P\<rbrace> cap_revoke a \<lbrace>\<lambda>_. domain_fields P\<rbrace>"
   by (rule cap_revoke_preservation2; wp)
@@ -55,12 +53,13 @@ lemma invoke_cnode_domain_fields[wp]: "\<lbrace>domain_fields P\<rbrace> invoke_
       | rule conjI)+
 
 crunch domain_fields[wp]:
-  set_domain,set_priority,set_extra_badge,
-  possible_switch_to,handle_send,handle_recv,handle_reply
+  set_domain,possible_switch_to,set_priority,set_extra_badge,
+  handle_send,handle_recv,handle_reply
   "domain_fields P"
   (wp: syscall_valid crunch_wps mapME_x_inv_wp
    simp: crunch_simps check_cap_at_def detype_def detype_ext_def mapM_x_defsym
    ignore: check_cap_at syscall
+   ignore_del: set_domain set_priority possible_switch_to
    rule: transfer_caps_loop_pres)
 
 section \<open>PAS wellformedness property for non-interference\<close>

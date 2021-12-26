@@ -1,11 +1,7 @@
 --
 -- Copyright 2014, General Dynamics C4 Systems
 --
--- This software may be distributed and modified according to the terms of
--- the GNU General Public License version 2. Note that NO WARRANTY is provided.
--- See "LICENSE_GPLv2.txt" for details.
---
--- @TAG(GD_GPL)
+-- SPDX-License-Identifier: GPL-2.0-only
 --
 
 name:                   SEL4
@@ -186,7 +182,7 @@ Library
                             SEL4.Machine.RegisterSet.RISCV64
                             SEL4.Machine.Hardware.RISCV64
 
-                            SEL4.Machine.Hardware.RISCV64.Spike
+                            SEL4.Machine.Hardware.RISCV64.HiFive
 
     hs-source-dirs:         src
     ghc-prof-options:       -auto-all -fprof-auto

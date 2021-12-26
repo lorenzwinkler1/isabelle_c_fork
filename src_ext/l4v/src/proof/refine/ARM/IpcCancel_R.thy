@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory IpcCancel_R
@@ -354,10 +350,6 @@ lemma cte_map_tcb_2:
   "cte_map (t, tcb_cnode_index 2) = t + 2*2^cte_level_bits"
   by (simp add: cte_map_def tcb_cnode_index_def to_bl_1)
 
-(* FIXME: Use one of these forms everywhere, rather than choosing at random. *)
-lemmas cte_index_repair = mult.commute[where a="(2::'a::len word) ^ cte_level_bits"]
-lemmas cte_index_repair_sym = cte_index_repair[symmetric]
-
 context begin interpretation Arch . (*FIXME: arch_split*)
 
 lemma cte_wp_at_master_reply_cap_to_ex_rights:
@@ -534,7 +526,7 @@ lemma (in delete_one) reply_cancel_ipc_corres:
   proof -
   interpret Arch . (*FIXME: arch_split*)
   show ?thesis
-  apply_trace (simp add: reply_cancel_ipc_def getThreadReplySlot_def
+  apply (simp add: reply_cancel_ipc_def getThreadReplySlot_def
                    locateSlot_conv liftM_def tcbReplySlot_def
               del: split_paired_Ex)
   apply (rule_tac Q="\<lambda>_. invs and valid_list and valid_sched and st_tcb_at awaiting_reply t"
@@ -552,7 +544,7 @@ lemma (in delete_one) reply_cancel_ipc_corres:
     apply (wp thread_set_invs_trivial thread_set_no_change_tcb_state
               threadSet_invs_trivial threadSet_pred_tcb_no_state thread_set_not_state_valid_sched
          | fastforce simp: tcb_cap_cases_def inQ_def
-         | wp_once sch_act_simple_lift)+
+         | wp (once) sch_act_simple_lift)+
   apply (rule corres_split')
      apply (rule corres_guard_imp)
        apply (rule get_cap_corres [where cslot_ptr="(t, tcb_cnode_index 2)",
@@ -645,7 +637,7 @@ lemma setNotification_utr[wp]:
   done
 
 crunch gsUntypedZeroRanges[wp]: setEndpoint "\<lambda>s. P (gsUntypedZeroRanges s)"
-  (ignore: setObject wp: setObject_ksPSpace_only updateObject_default_inv)
+  (wp: setObject_ksPSpace_only updateObject_default_inv)
 
 lemma setEndpoint_utr[wp]:
   "\<lbrace>untyped_ranges_zero'\<rbrace> setEndpoint p ep \<lbrace>\<lambda>rv. untyped_ranges_zero'\<rbrace>"
@@ -776,7 +768,7 @@ crunch ksQ[wp]: setEndpoint "\<lambda>s. P (ksReadyQueues s p)"
 crunch sch_act_not[wp]: setEndpoint "sch_act_not t"
 
 crunch ksCurDomain[wp]: setEndpoint "\<lambda>s. P (ksCurDomain s)"
-  (wp: setObject_ep_cur_domain ignore: setObject)
+  (wp: setObject_ep_cur_domain)
 
 lemma setEndpoint_ksDomSchedule[wp]:
   "\<lbrace>\<lambda>s. P (ksDomSchedule s)\<rbrace> setEndpoint ptr ep \<lbrace>\<lambda>_ s. P (ksDomSchedule s)\<rbrace>"
@@ -974,7 +966,8 @@ lemma sts_sch_act_not[wp]:
   apply (wp hoare_drop_imps | simp | wpcw)+
   done
 
-crunch sch_act_not[wp]: cancelSignal, setBoundNotification "sch_act_not t"
+crunches cancelSignal, setBoundNotification
+  for sch_act_not[wp]: "sch_act_not t"
   (wp: crunch_wps)
 
 lemma cancelSignal_tcb_at_runnable':
@@ -993,8 +986,9 @@ lemma cancelAllSignals_tcb_at_runnable':
   unfolding cancelAllSignals_def
   by (wpsimp wp: mapM_x_wp' sts_st_tcb' hoare_drop_imp)
 
-crunch st_tcb_at'[wp]: unbindNotification, bindNotification, unbindMaybeNotification "st_tcb_at' P p"
-(wp: threadSet_pred_tcb_no_state ignore: threadSet)
+crunches unbindNotification, bindNotification, unbindMaybeNotification
+  for st_tcb_at'[wp]: "st_tcb_at' P p"
+  (wp: threadSet_pred_tcb_no_state ignore: threadSet)
 
 lemma (in delete_one_conc_pre) finaliseCap_tcb_at_runnable':
   "\<lbrace>st_tcb_at' runnable' t\<rbrace> finaliseCap cap final True \<lbrace>\<lambda>_. st_tcb_at' runnable' t\<rbrace>"
@@ -1010,10 +1004,11 @@ crunch pred_tcb_at'[wp]: isFinalCapability "pred_tcb_at' proj st t"
 lemma (in delete_one_conc_pre) cteDeleteOne_tcb_at_runnable':
   "\<lbrace>st_tcb_at' runnable' t\<rbrace> cteDeleteOne callerCap \<lbrace>\<lambda>_. st_tcb_at' runnable' t\<rbrace>"
   apply (simp add: cteDeleteOne_def unless_def)
-  apply (wp finaliseCap_tcb_at_runnable' | clarsimp | wp_once hoare_drop_imps)+
+  apply (wp finaliseCap_tcb_at_runnable' | clarsimp | wp (once) hoare_drop_imps)+
   done
 
-crunch pred_tcb_at'[wp]: getThreadReplySlot, getEndpoint "pred_tcb_at' proj st t"
+crunches getThreadReplySlot, getEndpoint
+  for pred_tcb_at'[wp]: "pred_tcb_at' proj st t"
 
 lemma (in delete_one_conc_pre) cancelIPC_tcb_at_runnable':
   "\<lbrace>st_tcb_at' runnable' t'\<rbrace> cancelIPC t \<lbrace>\<lambda>_. st_tcb_at' runnable' t'\<rbrace>"
@@ -1249,8 +1244,6 @@ lemma tcbSchedDequeue_corres':
               apply (simp add: tcb_sched_dequeue_def)
               apply (rule setQueue_corres)
              apply (wp | simp add: etcb_relation_def)+
-   apply (force simp: etcb_at_def split: option.splits)
-  apply simp
   done
 
 lemma setQueue_valid_inQ_queues:
@@ -1378,7 +1371,7 @@ lemma set_ntfn_valid_inQ_queues[wp]:
     done
 
 crunch valid_inQ_queues[wp]: cancelSignal valid_inQ_queues
-  (ignore: updateObject setObject simp: updateObject_tcb_inv crunch_simps wp: crunch_wps)
+  (simp: updateObject_tcb_inv crunch_simps wp: crunch_wps)
 
 lemma (in delete_one_conc_pre) cancelIPC_valid_inQ_queues[wp]:
   "\<lbrace>valid_inQ_queues\<rbrace> cancelIPC t \<lbrace>\<lambda>_. valid_inQ_queues\<rbrace>"
@@ -1456,8 +1449,7 @@ lemma no_refs_simple_strg':
   by (fastforce elim!: pred_tcb'_weakenE)+
 
 crunch it[wp]: cancelSignal "\<lambda>s. P (ksIdleThread s)"
-  (wp: crunch_wps simp: crunch_simps
-        ignore: getObject setObject)
+  (wp: crunch_wps simp: crunch_simps)
 
 lemma (in delete_one_conc_pre) cancelIPC_it[wp]:
   "\<lbrace>\<lambda>s. P (ksIdleThread s)\<rbrace>
@@ -1722,7 +1714,7 @@ lemma (in delete_one_conc) suspend_invs'[wp]:
   "\<lbrace>invs' and sch_act_simple and tcb_at' t and (\<lambda>s. t \<noteq> ksIdleThread s)\<rbrace>
    ThreadDecls_H.suspend t \<lbrace>\<lambda>rv. invs'\<rbrace>"
   apply (simp add: suspend_def)
-  apply (wp_trace sts_tcbSchedDequeue_invs')
+  apply (wp sts_tcbSchedDequeue_invs')
       apply (simp add: updateRestartPC_def | strengthen no_refs_simple_strg')+
       prefer 2
     apply (wpsimp wp: hoare_drop_imps hoare_vcg_imp_lift'
@@ -2112,10 +2104,10 @@ lemma ep_q_refs_max:
   done
 
 crunch ct' [wp]: setEndpoint "\<lambda>s. P (ksCurThread s)"
-  (wp: setObject_ep_ct ignore: setObject)
+  (wp: setObject_ep_ct)
 
 crunch ct' [wp]: setNotification "\<lambda>s. P (ksCurThread s)"
-  (wp: setObject_ntfn_ct ignore: setObject)
+  (wp: setObject_ntfn_ct)
 
 lemma tcbSchedEnqueue_cur_tcb'[wp]:
   "\<lbrace>cur_tcb'\<rbrace> tcbSchedEnqueue t \<lbrace>\<lambda>_. cur_tcb'\<rbrace>"
@@ -2460,7 +2452,7 @@ lemma cancelAllIPC_unlive:
   apply (simp add: cancelAllIPC_def ep'_Idle_case_helper)
   apply (rule hoare_seq_ext [OF _ get_ep_sp'])
   apply (rule hoare_pre)
-   apply (wp_trace cancelAll_unlive_helper setEndpoint_ko_wp_at'
+   apply (wp cancelAll_unlive_helper setEndpoint_ko_wp_at'
              hoare_vcg_const_Ball_lift rescheduleRequired_unlive
              mapM_x_wp'
         | simp add: objBits_simps')+
@@ -2585,7 +2577,7 @@ lemma cancelBadgedSends_invs[wp]:
     apply (clarsimp simp: ep_redux_simps3 fun_upd_def[symmetric])
     apply (clarsimp simp add: valid_ep'_def split: list.split)
     apply blast
-   apply (wp valid_irq_node_lift irqs_masked_lift | wp_once sch_act_sane_lift)+
+   apply (wp valid_irq_node_lift irqs_masked_lift | wp (once) sch_act_sane_lift)+
   apply (clarsimp simp: invs'_def valid_state'_def
                         valid_ep'_def fun_upd_def[symmetric]
                         obj_at'_weakenE[OF _ TrueI])
@@ -2601,7 +2593,7 @@ lemma cancelBadgedSends_invs[wp]:
   done
 
 crunch state_refs_of[wp]: tcb_sched_action "\<lambda>s. P (state_refs_of s)"
-
+  (ignore_del: tcb_sched_action)
 
 lemma cancel_badged_sends_corres:
   "corres dc (invs and valid_sched and ep_at epptr) (invs' and ep_at' epptr)
@@ -2641,8 +2633,7 @@ lemma cancel_badged_sends_corres:
             apply (clarsimp simp: valid_tcb_state_def tcb_at_def st_tcb_def2
                                   st_tcb_at_refs_of_rev
                            dest!: state_refs_of_elemD elim!: tcb_at_is_etcb_at[rotated])
-            apply (simp add: is_tcb_def)
-           apply simp
+           apply (simp add: is_tcb_def)
           apply (wp hoare_vcg_const_Ball_lift gts_wp | clarsimp)+
             apply (wp gts_st_tcb_at hoare_vcg_const_Ball_lift hoare_vcg_imp_lift
                       weak_sch_act_wf_lift_linear mapM_wp'

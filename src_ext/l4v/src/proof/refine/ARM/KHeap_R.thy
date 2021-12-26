@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory KHeap_R
@@ -287,7 +283,7 @@ lemma setObject_typ_at_not:
   apply fastforce
   done
 
-lemma setObject_typ_at':
+lemma setObject_typ_at'[wp]:
   "\<lbrace>\<lambda>s. P (typ_at' T p' s)\<rbrace> setObject p v \<lbrace>\<lambda>r s. P (typ_at' T p' s)\<rbrace>"
   by (blast intro: P_bool_lift setObject_typ_at_inv setObject_typ_at_not)
 
@@ -627,14 +623,14 @@ lemma cte_wp_at_ctes_of:
    apply (simp add: dom_def field_simps)
    apply (erule mp)
    apply (rule ccontr, simp add: linorder_not_le)
-   apply (drule minus_one_helper3)
+   apply (drule word_le_minus_one_leq)
    apply clarsimp
    apply (simp add: field_simps)
   apply (clarsimp split: if_split_asm del: disjCI)
    apply (simp add: ps_clear_def3 field_simps)
-  apply (rule disjI2, rule exI[where x="(p - (p && ~~ mask 9))"])
+  apply (rule disjI2, rule exI[where x="p - (p && ~~ mask 9)"])
   apply (clarsimp simp: ps_clear_def3[where na=9] is_aligned_mask
-                        word_bw_assocs)
+                        word_bw_assocs field_simps)
   done
 
 lemma tcb_cte_cases_small:
@@ -709,14 +705,14 @@ lemma map_to_ctes_upd_tcb:
     apply (simp add: dom_def objBits_simps' mask_def field_simps)
     apply (erule mp)
     apply (rule ccontr, simp add: linorder_not_le)
-    apply (drule minus_one_helper3, simp)
+    apply (drule word_le_minus_one_leq, simp)
    apply (case_tac "tcb_cte_cases (x - p)")
     apply (simp split del: if_split cong: if_cong option.case_cong)
    apply (rule FalseE)
    apply (subst(asm) mask_in_range[where bits="objBitsKO v" for v])
     apply (simp add: objBitsKO_def)
    apply (subgoal_tac "x - p < 2 ^ tcbBlockSizeBits")
-    apply (frule minus_one_helper3)
+    apply (frule word_le_minus_one_leq)
     apply (frule(1) is_aligned_no_wrap')
     apply (drule word_plus_mono_right[where x=p])
      apply (simp only: field_simps)
@@ -944,7 +940,7 @@ lemma set_other_obj_corres:
   apply (rule conjI[rotated])
    apply (clarsimp simp add: ghost_relation_def)
    apply (erule_tac x=ptr in allE)+
-   apply_trace (clarsimp simp: obj_at_def a_type_def
+   apply (clarsimp simp: obj_at_def a_type_def
                    split: Structures_A.kernel_object.splits if_split_asm)
    apply (simp split: arch_kernel_obj.splits if_splits)
   apply (fold fun_upd_def)
@@ -1986,7 +1982,8 @@ lemma setObject_pspace_domain_valid[wp]:
   apply (clarsimp simp: lookupAround2_char1)
   done
 
-crunch pspace_domain_valid[wp]: setNotification, setEndpoint "pspace_domain_valid"
+crunches setNotification, setEndpoint
+  for pspace_domain_valid[wp]: "pspace_domain_valid"
 
 lemma ct_not_inQ_lift:
   assumes sch_act: "\<And>P. \<lbrace>\<lambda>s. P (ksSchedulerAction s)\<rbrace> f \<lbrace>\<lambda>_ s. P (ksSchedulerAction s)\<rbrace>"

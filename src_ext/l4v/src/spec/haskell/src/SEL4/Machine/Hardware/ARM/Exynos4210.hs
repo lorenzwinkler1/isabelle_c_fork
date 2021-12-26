@@ -1,11 +1,7 @@
 --
 -- Copyright 2014, General Dynamics C4 Systems
 --
--- This software may be distributed and modified according to the terms of
--- the GNU General Public License version 2. Note that NO WARRANTY is provided.
--- See "LICENSE_GPLv2.txt" for details.
---
--- @TAG(GD_GPL)
+-- SPDX-License-Identifier: GPL-2.0-only
 --
 
 {-# LANGUAGE EmptyDataDecls, ForeignFunctionInterface, GeneralizedNewtypeDeriving #-}
@@ -33,17 +29,11 @@ gicInterfaceBase = PAddr 0x10480000
 gicDistributorBase = PAddr 0x10490000
 mctBase = PAddr 0x10050000
 
-kernelBase :: VPtr
-kernelBase = VPtr 0xe0000000
+physBase :: PAddr
+physBase = PAddr 0x40000000
 
-physBase = 0x40000000
-physMappingOffset = 0xe0000000 - physBase
-
-ptrFromPAddr :: PAddr -> PPtr a
-ptrFromPAddr (PAddr addr) = PPtr $ addr + physMappingOffset
-
-addrFromPPtr :: PPtr a -> PAddr
-addrFromPPtr (PPtr ptr) = PAddr $ ptr - physMappingOffset
+pptrBase :: VPtr
+pptrBase = VPtr 0xe0000000
 
 pageColourBits :: Int
 pageColourBits = 0 -- qemu has no cache

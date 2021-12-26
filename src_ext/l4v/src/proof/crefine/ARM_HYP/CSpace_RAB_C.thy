@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory CSpace_RAB_C
@@ -83,7 +79,7 @@ next
   fix s s'
   assume "(s, s') \<in> rf_sr" and "(G and P) s" and "s' \<in> G'"
   thus "(G and (\<lambda>_. \<exists>s. P s)) s \<and> s' \<in> G'"
-    by (clarsimp elim!: exI)
+    by fastforce
 qed
 
 (* MOVE, generalise *)
@@ -104,10 +100,6 @@ lemma valid_cap_cte_at':
   apply (rule real_cte_at')
   apply (erule spec)
   done
-
-
-declare ucast_id [simp]
-declare resolveAddressBits.simps [simp del]
 
 
 lemma rightsFromWord_wordFromRights:
@@ -189,11 +181,11 @@ proof (cases "isCNodeCap cap'")
       \<comment> \<open>Exception stuff\<close>
     apply (rule ccorres_split_throws)
     apply (simp add: Collect_const cap_get_tag_isCap isCap_simps ccorres_cond_iffs
-                     resolveAddressBits.simps scast_id)
+                     resolveAddressBits.simps)
     apply (rule ccorres_from_vcg_throws [where P = \<top> and P' = UNIV])
     apply (rule allI)
     apply (rule conseqPre)
-    apply (simp add: throwError_def return_def split)
+    apply (simp add: throwError_def return_def)
     apply vcg
     apply (clarsimp simp add: exception_defs lookup_fault_lift_def)
     apply (simp split: if_split)
@@ -431,14 +423,14 @@ next
       apply (simp add: cap_simps)
       done
 
-    note if_cong[cong]
+    note if_cong[cong] option.case_cong[cong]
     show ?case
       using ind.prems
       apply -
       apply (rule iffD1 [OF ccorres_expand_while_iff])
       apply (subst resolveAddressBits.simps)
       apply (unfold case_into_if)
-      apply (simp add: Let_def ccorres_cond_iffs split del: if_split)
+      apply (simp add: Let_def ccorres_cond_iffs)
       apply (rule ccorres_rhs_assoc)+
       apply (cinitlift nodeCap_' n_bits_')
       apply (erule_tac t = nodeCapa in ssubst)
@@ -512,7 +504,7 @@ next
                apply assumption
               apply vcg
              apply (simp add: getSlotCap_def imp_conjR)
-             apply (wp getCTE_ctes_of | (wp_once hoare_drop_imps))+
+             apply (wp getCTE_ctes_of | (wp (once) hoare_drop_imps))+
             apply (clarsimp simp: Collect_const_mem if_then_simps lookup_fault_lifts cong: imp_cong conj_cong)
             apply vcg
            apply (vcg strip_guards=true)
@@ -602,14 +594,6 @@ lemma to_bool_false [simp]:
   "to_bool false = False"
   unfolding to_bool_def false_def
   by simp
-
-(* MOVE *)
-lemma tcb_aligned':
-  "tcb_at' t s \<Longrightarrow> is_aligned t tcbBlockSizeBits"
-  apply (drule obj_at_aligned')
-   apply (simp add: objBits_simps)
-  apply (simp add: objBits_simps)
-  done
 
 
 lemma tcb_ptr_to_ctcb_ptr_mask [simp]:

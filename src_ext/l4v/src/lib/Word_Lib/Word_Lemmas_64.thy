@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 section "Lemmas for Word Length 64"
@@ -130,18 +126,6 @@ lemma less_4_cases:
   "(x::word64) < 4 \<Longrightarrow> x=0 \<or> x=1 \<or> x=2 \<or> x=3"
   apply clarsimp
   apply (drule word_less_cases, erule disjE, simp, simp)+
-  done
-
-lemma unat_ucast_8_64:
-  fixes x :: "word8"
-  shows "unat (ucast x :: word64) = unat x"
-  unfolding ucast_def unat_def
-  apply (subst int_word_uint)
-  apply (subst mod_pos_pos_trivial)
-    apply simp
-   apply (rule lt2p_lem)
-   apply simp
-  apply simp
   done
 
 lemma if_then_1_else_0:
@@ -279,6 +263,8 @@ lemma unat_of_int_64:
   apply (subst eq_nat_nat_iff, clarsimp+)
   apply (simp add: word_of_int uint_word_of_int)
   done
+
+lemmas word_ctz_not_minus_1_64 = word_ctz_not_minus_1[where 'a=64, simplified]
 
 (* Helper for packing then unpacking a 64-bit variable. *)
 lemma cast_chunk_assemble_id_64[simp]:

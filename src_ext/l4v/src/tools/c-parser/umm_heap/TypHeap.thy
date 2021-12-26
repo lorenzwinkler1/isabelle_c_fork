@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 (* License: BSD, terms see file ./LICENSE *)
@@ -13,7 +9,7 @@
 theory TypHeap
 imports
   Vanilla32
-  "$L4V_ARCH/ArchArraysMemInstance"
+  ArchArraysMemInstance
   HeapRawState
   MapExtraTrans
 begin
@@ -858,12 +854,8 @@ proof -
      apply(subgoal_tac "k = 0")
       prefer 2
       apply(rule ccontr, simp)
-      apply(drule order_le_imp_less_or_eq[where x=t])
-      apply clarsimp
       apply(simp add: typ_slice_0_prefix)
      apply simp
-     apply(drule order_le_imp_less_or_eq[where x=t])
-     apply clarsimp
     (* given by the fd_tag_consistent condition *)
     apply(drule typ_slice_True_prefix)
     apply(clarsimp simp: field_of_def)

@@ -1,10 +1,7 @@
+%
 % Copyright 2014, General Dynamics C4 Systems
 %
-% This software may be distributed and modified according to the terms of
-% the GNU General Public License version 2. Note that NO WARRANTY is provided.
-% See "LICENSE_GPLv2.txt" for details.
-%
-% @TAG(GD_GPL)
+% SPDX-License-Identifier: GPL-2.0-only
 %
 
 This module defines the handling of the x64 hardware-defined page tables.
@@ -45,9 +42,6 @@ The x64-specific invocations are imported with the "ArchInv" prefix. This is nec
 \subsection{Constants}
 
 All virtual addresses above "pptrUserTop" cannot be mapped by user-level tasks. With the exception of one page, at "globalsBase", they cannot be read; the globals page is mapped read-only.
-
-> kernelBase :: VPtr
-> kernelBase = VPtr 0xffffffff80000000
 
 > globalsBase :: VPtr
 > globalsBase = VPtr 0xffffc000
@@ -527,19 +521,23 @@ Note that implementations with separate high and low memory regions may also wis
 > decodeX64FrameInvocation label args cte (cap@PageCap {}) extraCaps =
 >     case (invocationType label, args, extraCaps) of
 >         (ArchInvocationLabel X64PageMap, vaddr:rightsMask:attr:_, (vspaceCap,_):_) -> do
->             when (isJust $ capVPMappedAddress cap) $
->                 throw $ InvalidCapability 0
 >             (vspace,asid) <- case vspaceCap of
 >                 ArchObjectCap (PML4Cap {
 >                         capPML4MappedASID = Just asid,
 >                         capPML4BasePtr = vspace })
 >                     -> return (vspace, asid)
 >                 _ -> throw $ InvalidCapability 1
+>             case capVPMappedAddress cap of
+>                 Just (asid', vaddr') -> do
+>                     when (asid' /= asid) $ throw $ InvalidCapability 1
+>                     when (capVPMapType cap /= VMVSpaceMap) $ throw IllegalOperation
+>                     when (vaddr' /= VPtr vaddr) $ throw $ InvalidArgument 0
+>                 Nothing -> do
+>                     let vtop = vaddr + bit (pageBitsForSize $ capVPSize cap)
+>                     when (VPtr vaddr > VPtr userVTop || VPtr vtop > VPtr userVTop) $
+>                         throw $ InvalidArgument 0
 >             vspaceCheck <- lookupErrorOnFailure False $ findVSpaceForASID asid
 >             when (vspaceCheck /= vspace) $ throw $ InvalidCapability 1
->             let vtop = vaddr + bit (pageBitsForSize $ capVPSize cap)
->             when (VPtr vaddr > VPtr userVTop || VPtr vtop > VPtr userVTop) $
->                 throw $ InvalidArgument 0
 >             let vmRights = maskVMRights (capVPRights cap) $
 >                     rightsFromWord rightsMask
 >             checkVPAlignment (capVPSize cap) (VPtr vaddr)
@@ -553,30 +551,6 @@ Note that implementations with separate high and low memory regions may also wis
 >                 pageMapEntries = entries,
 >                 pageMapVSpace = vspace }
 >         (ArchInvocationLabel X64PageMap, _, _) -> throw TruncatedMessage
->         (ArchInvocationLabel X64PageRemap, rightsMask:attr:_, (vspaceCap,_):_) -> do
->             when (capVPMapType cap /= VMVSpaceMap) $ throw IllegalOperation
->             (vspace,asid) <- case vspaceCap of
->                 ArchObjectCap (PML4Cap {
->                         capPML4MappedASID = Just asid,
->                         capPML4BasePtr = vspace })
->                     -> return (vspace,asid)
->                 _ -> throw $ InvalidCapability 1
->             (asidCheck, vaddr) <- case capVPMappedAddress cap of
->                 Just v -> return v
->                 _ -> throw $ InvalidCapability 0
->             vspaceCheck <- lookupErrorOnFailure False $ findVSpaceForASID asidCheck
->             when (vspaceCheck /= vspace || asid /= asidCheck) $ throw $ InvalidCapability 1
->             let vmRights = maskVMRights (capVPRights cap) $
->                     rightsFromWord rightsMask
->             checkVPAlignment (capVPSize cap) vaddr
->             entries <- createMappingEntries (addrFromPPtr $ capVPBasePtr cap)
->                 vaddr (capVPSize cap) vmRights (attribsFromWord attr) vspace
->             ensureSafeMapping entries
->             return $ InvokePage $ PageRemap {
->                 pageRemapEntries = entries,
->                 pageRemapASID = asid,
->                 pageRemapVSpace = vspace }
->         (ArchInvocationLabel X64PageRemap, _, _) -> throw TruncatedMessage
 >         (ArchInvocationLabel X64PageUnmap, _, _) -> -- case capVPMapType cap of
 >--             VMIOSpaceMap -> decodeX64IOFrameInvocation label args cte cap extraCaps
 >--             _ ->
@@ -1166,14 +1140,6 @@ Checking virtual address for page size dependent alignment:
 >         _ -> fail "impossible"
 >     asid <- case cap of
 >         ArchObjectCap (PageCap _ _ _ _ _ (Just (as, _))) -> return as
->         _ -> fail "impossible"
->     invalidatePageStructureCacheASID (addrFromPPtr vspace) asid
->
-> performPageInvocation (PageRemap entries asid vspace) = do
->     case entries of
->         (VMPTE pte, VMPTEPtr slot) -> storePTE slot pte
->         (VMPDE pde, VMPDEPtr slot) -> storePDE slot pde
->         (VMPDPTE pdpte, VMPDPTEPtr slot) -> storePDPTE slot pdpte
 >         _ -> fail "impossible"
 >     invalidatePageStructureCacheASID (addrFromPPtr vspace) asid
 >

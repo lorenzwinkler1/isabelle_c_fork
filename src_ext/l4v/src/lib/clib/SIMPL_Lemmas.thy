@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 theory SIMPL_Lemmas
@@ -171,8 +167,8 @@ lemma ceqv_sym [sym]:
 lemma exec_eq_is_valid_eq0:
   fixes P :: "'a set"
   assumes eq: "\<And>t t'. (\<Gamma> \<turnstile> \<langle>a, Normal t\<rangle> \<Rightarrow> t') = (\<Gamma> \<turnstile> \<langle>a', Normal t\<rangle> \<Rightarrow> t')"
-  and     vl: "\<Gamma> \<turnstile> P a Q"
-  shows   "\<Gamma> \<turnstile> P a' Q"
+  and     vl: "\<Gamma>\<turnstile>\<^bsub>/F\<^esub> P a Q,A"
+  shows   "\<Gamma>\<turnstile>\<^bsub>/F\<^esub> P a' Q,A"
   using vl
   apply -
   apply (drule hoare_sound)
@@ -188,7 +184,7 @@ lemma exec_eq_is_valid_eq0:
 lemma exec_eq_is_valid_eq:
   fixes P :: "'a set"
   assumes eq: "\<And>t t'. (\<Gamma> \<turnstile> \<langle>a, Normal t\<rangle> \<Rightarrow> t') = (\<Gamma> \<turnstile> \<langle>a', Normal t\<rangle> \<Rightarrow> t')"
-  shows     vl: "(\<Gamma> \<turnstile> P a Q) = (\<Gamma> \<turnstile> P a' Q)"
+  shows     vl: "hoarep \<Gamma> {} F P a Q A = hoarep \<Gamma> {} F P a' Q A"
   apply rule
    apply (erule exec_eq_is_valid_eq0 [OF eq])
   apply (erule exec_eq_is_valid_eq0 [OF eq [symmetric]])

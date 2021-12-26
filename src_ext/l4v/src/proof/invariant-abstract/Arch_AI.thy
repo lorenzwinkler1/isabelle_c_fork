@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -13,7 +9,7 @@ Top level architecture related proofs.
 *)
 
 theory Arch_AI
-imports "./$L4V_ARCH/ArchUntyped_AI" "./$L4V_ARCH/ArchFinalise_AI"
+imports ArchUntyped_AI ArchFinalise_AI
 begin
 
 declare detype_arch_state[simp]
@@ -194,13 +190,6 @@ lemma max_index_upd_invs_simple:
 lemma sts_pspace_no_overlap [wp]:
   "\<lbrace>pspace_no_overlap S\<rbrace> set_thread_state t st \<lbrace>\<lambda>rv. pspace_no_overlap S\<rbrace>"
   by (wp pspace_no_overlap_typ_at_lift)
-
-
-lemma diminished_cte_wp_at_valid_cap:
-  "cte_wp_at (diminished c) p s \<Longrightarrow> valid_objs s \<Longrightarrow> s \<turnstile> c"
-  apply (drule(1) cte_wp_at_valid_objs_valid_cap)
-  apply (clarsimp simp: diminished_def)
-  done
 
 
 lemma delete_objects_st_tcb_at:

@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchCNodeInv_AI
-imports "../CNodeInv_AI"
+imports CNodeInv_AI
 begin
 
 context Arch begin global_naming X64
@@ -915,7 +911,7 @@ next
     apply simp
     apply (fold o_def)
     apply (rule hoare_pre_spec_validE)
-     apply (simp del: o_apply | wp_once cap_swap_fd_rvk_prog)+
+     apply (simp del: o_apply | wp (once) cap_swap_fd_rvk_prog)+
     apply (clarsimp simp: cte_wp_at_caps_of_state cap_to_rpo_def)
     done
 next

@@ -1,19 +1,16 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Noninterference
-imports    "Noninterference_Base"
-           "Noninterference_Base_Alternatives"
-    "Scheduler_IF"
-    "ADT_IF"
-    "Access.ADT_AC"
+imports
+  Noninterference_Base
+  Noninterference_Base_Alternatives
+  Scheduler_IF
+  ADT_IF
+  Access.ADT_AC
 begin
 
 text \<open>
@@ -372,14 +369,13 @@ lemma integrity_irq_state_independent:
   by (auto simp: irq_state_independent_def integrity_def)
 
 lemma pas_refined_irq_state_independent:
-  "irq_state_independent
-         (\<lambda>sa. pas_refined aag s)"
-  by (auto simp: irq_state_independent_def)
+  "irq_state_independent (\<lambda>sa. pas_refined aag s)"
+  by (rule irq_state_independent_irq_masks)
 
 lemma irq_update_pspace_respects_device_region[simp]:
   "pspace_respects_device_region (s\<lparr>machine_state := irq_state_update f sa\<rparr>)
   = pspace_respects_device_region (s\<lparr>machine_state := sa\<rparr>)"
-  by (clarsimp simp: pspace_respects_device_region_def user_mem_def device_mem_def)
+  by (clarsimp simp: pspace_respects_device_region_def user_mem_def device_mem_def cong: if_cong)
 
 lemma irq_update_cap_refs_respects_device_region[simp]:
   "cap_refs_respects_device_region (s\<lparr>machine_state := irq_state_update f sa\<rparr>)
@@ -453,7 +449,7 @@ lemma kernel_entry_if_integrity:
    apply(wp thread_set_integrity_autarch thread_set_pas_refined
            guarded_pas_domain_lift thread_set_invs_trivial thread_set_not_state_valid_sched
           | simp add: tcb_cap_cases_def schact_is_rct_def arch_tcb_update_aux2 tcb_arch_ref_def)+
-   apply(wp_once prop_of_two_valid[where f="ct_active" and g="cur_thread"])
+   apply(wp (once) prop_of_two_valid[where f="ct_active" and g="cur_thread"])
      apply (wp | simp)+
    apply(wp thread_set_tcb_context_update_wp)+
   apply(clarsimp simp: schact_is_rct_def)
@@ -706,14 +702,14 @@ lemma schedule_cur_domain:
    schedule
   \<lbrace>\<lambda> r s. P (cur_domain s)\<rbrace>" (is "\<lbrace>?PRE\<rbrace> _ \<lbrace>_\<rbrace>")
   supply ethread_get_wp[wp del] hoare_pre_cont[where a=next_domain, wp add]
-  supply if_split[split del]
+  supply if_split[split del] if_cong[cong]
   apply (simp add: schedule_def schedule_choose_new_thread_def | wp | wpc)+
                apply (rule_tac Q="\<lambda>_. ?PRE" in hoare_strengthen_post)
-                apply (simp | wp gts_wp | wp_once hoare_drop_imps)+
+                apply (simp | wp gts_wp | wp (once) hoare_drop_imps)+
                apply (rule_tac Q="\<lambda>_. ?PRE" in hoare_strengthen_post)
-                apply (simp | wp gts_wp | wp_once hoare_drop_imps)+
+                apply (simp | wp gts_wp | wp (once) hoare_drop_imps)+
       apply (rule_tac Q="\<lambda>_. ?PRE" in hoare_strengthen_post)
-       apply (simp | wp gts_wp | wp_once hoare_drop_imps)+
+       apply (simp | wp gts_wp | wp (once) hoare_drop_imps)+
   apply (clarsimp split: if_split)
   done
 
@@ -722,14 +718,14 @@ lemma schedule_domain_fields:
    schedule
   \<lbrace>\<lambda> r. domain_fields P\<rbrace>"  (is "\<lbrace>?PRE\<rbrace> _ \<lbrace>_\<rbrace>")
   supply ethread_get_wp[wp del] hoare_pre_cont[where a=next_domain, wp add]
-  supply if_split[split del]
+  supply if_split[split del] if_cong[cong]
   apply (simp add: schedule_def schedule_choose_new_thread_def | wp | wpc)+
                apply (rule_tac Q="\<lambda>_. ?PRE" in hoare_strengthen_post)
-                apply (simp | wp gts_wp | wp_once hoare_drop_imps)+
+                apply (simp | wp gts_wp | wp (once) hoare_drop_imps)+
                apply (rule_tac Q="\<lambda>_. ?PRE" in hoare_strengthen_post)
-                apply (simp | wp gts_wp | wp_once hoare_drop_imps)+
+                apply (simp | wp gts_wp | wp (once) hoare_drop_imps)+
       apply (rule_tac Q="\<lambda>_. ?PRE" in hoare_strengthen_post)
-       apply (simp | wp gts_wp | wp_once hoare_drop_imps)+
+       apply (simp | wp gts_wp | wp (once) hoare_drop_imps)+
   apply (clarsimp split: if_split)
   done
 
@@ -2332,13 +2328,13 @@ lemma set_tcb_queue_reads_respects_g':
                (\<lambda>s s'. affects_equiv aag l s s' \<and> exclusive_state_equiv s s') \<top>
                (set_tcb_queue d prio queu)"
   unfolding equiv_valid_def2 equiv_valid_2_def
+  supply if_cong[cong]
   apply (clarsimp simp: set_tcb_queue_def bind_def modify_def put_def get_def)
-  apply ((rule conjI
-         | rule affects_equiv_ready_queues_update reads_equiv_ready_queues_update, assumption
-         | clarsimp simp: reads_equiv_g_def
-         | fastforce elim!: affects_equivE reads_equivE
-                     simp: equiv_for_def globals_equiv_def idle_equiv_def)+)
-  done
+  by ((rule conjI
+       | rule affects_equiv_ready_queues_update reads_equiv_ready_queues_update, assumption
+       | clarsimp simp: reads_equiv_g_def
+       | fastforce elim!: affects_equivE reads_equivE
+                   simp: equiv_for_def globals_equiv_def idle_equiv_def)+)
 
 (* consider rewriting the return-value assumption using equiv_valid_rv_inv *)
 lemma ev2_invisible':
@@ -2663,7 +2659,7 @@ lemma schedule_reads_respects_g:
                                    tcb_sched_action_reads_respects_g
                                    tcb_sched_action_enqueue_valid_blocked_except
                                    get_thread_state_reads_respects_g
-                        | wp_once hoare_drop_imp)+
+                        | wp (once) hoare_drop_imp)+
 
   apply (clarsimp simp: invs_valid_idle)
   apply (intro allI conjI impI ; (elim conjE)?
@@ -3882,7 +3878,7 @@ lemma preemption_interrupt_scheduler_invisible:
                      | simp  add: imp_conjR arch_tcb_update_aux2
                      | elim conjE
                      | intro conjI
-                     | wp_once hoare_drop_imps)+
+                     | wp (once) hoare_drop_imps)+
            apply (subst thread_set_as_user2)
            apply (wp guarded_pas_domain_lift)
           apply ((simp add:  arch_tcb_update_aux2 | wp | force)+)[7]
@@ -3913,7 +3909,7 @@ lemma handle_preemption_reads_respects_scheduler:
   apply (simp add: handle_preemption_if_def)
   apply (wp when_ev handle_interrupt_reads_respects_scheduler
             dmo_getActiveIRQ_return_axiom[simplified try_some_magic]
-         dmo_getActive_IRQ_reads_respect_scheduler | simp add: imp_conjR| wp_once hoare_drop_imps)+
+         dmo_getActive_IRQ_reads_respect_scheduler | simp add: imp_conjR| wp (once) hoare_drop_imps)+
   apply force
   done
 
@@ -3948,7 +3944,7 @@ lemma kernel_entry_scheduler_equiv_2:
                      dmo_getActive_IRQ_reads_respect_scheduler
                  | wpc
                  | simp add: imp_conjR all_conj_distrib  arch_tcb_update_aux2
-                 | wp_once hoare_drop_imps)+
+                 | wp (once) hoare_drop_imps)+
            apply (rule context_update_cur_thread_snippit)
          apply (wp thread_set_invs_trivial guarded_pas_domain_lift
                    thread_set_pas_refined thread_set_not_state_valid_sched
@@ -3968,14 +3964,14 @@ lemma kernel_entry_if_reads_respects_scheduler:
   apply (simp add: kernel_entry_if_def)
   apply (simp add: bind_assoc[symmetric])
   apply (rule bind_ev_pre)
-     apply wp_once
+     apply wp
     apply (rule bind_ev_pre)
        apply ((wp del: no_irq
                   add: when_ev handle_interrupt_reads_respects_scheduler[where st=st]
                        dmo_getActive_IRQ_reads_respect_scheduler liftE_ev
               | simp add: imp_conjR all_conj_distrib
               | wpc
-              | wp_once hoare_drop_imps)+)[1]
+              | wp (once) hoare_drop_imps)+)[1]
       apply (rule reads_respects_scheduler_cases')
          prefer 3
          apply (rule reads_respects_scheduler_unobservable'')

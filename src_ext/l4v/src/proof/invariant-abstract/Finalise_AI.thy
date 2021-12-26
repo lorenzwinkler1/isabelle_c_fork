@@ -1,18 +1,14 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Finalise_AI
 imports
-  "./$L4V_ARCH/ArchIpcCancel_AI"
-  "./$L4V_ARCH/ArchInterruptAcc_AI"
-  "./$L4V_ARCH/ArchRetype_AI"
+  ArchIpcCancel_AI
+  ArchInterruptAcc_AI
+  ArchRetype_AI
 begin
 
 definition
@@ -123,16 +119,6 @@ locale Finalise_AI_1 =
     \<lbrace>no_cap_to_obj_with_diff_ref cap S :: 'a state \<Rightarrow> bool\<rbrace>
        suspend t
      \<lbrace>\<lambda>rv. no_cap_to_obj_with_diff_ref cap S\<rbrace>"
-  assumes finalise_cap_replaceable:
-    "\<And> cap x sl.
-    \<lbrace>\<lambda>(s :: 'a state). s \<turnstile> cap \<and> x = is_final_cap' cap s \<and> valid_mdb s
-          \<and> cte_wp_at ((=) cap) sl s \<and> valid_objs s \<and> sym_refs (state_refs_of s)
-          \<and> (cap_irqs cap \<noteq> {} \<longrightarrow> if_unsafe_then_cap s \<and> valid_global_refs s)
-          \<and> (is_arch_cap cap \<longrightarrow> pspace_aligned s \<and>
-                                 valid_vspace_objs s \<and>
-                                 valid_arch_state s)\<rbrace>
-       finalise_cap cap x
-     \<lbrace>\<lambda>rv s. replaceable s sl (fst rv) cap\<rbrace>"
   assumes deleting_irq_handler_cte_preserved:
   "\<And> P p irq.\<lbrakk> \<And>cap. P cap \<Longrightarrow> \<not> can_fast_finalise cap \<rbrakk>
     \<Longrightarrow> \<lbrace>cte_wp_at P p\<rbrace>
@@ -223,7 +209,7 @@ lemma empty_slot_valid_objs[wp]:
    apply (wp set_cap_valid_objs set_cdt_valid_objs set_cdt_valid_cap
                  | simp add: trans_state_update[symmetric] del: trans_state_update| wpcw
                  | strengthen emptyable_valid_NullCap_strg
-                 | wp_once hoare_drop_imps)+
+                 | wp (once) hoare_drop_imps)+
   done
 
 lemmas empty_slot_valid_cap[wp] = valid_cap_typ [OF empty_slot_typ_at]

@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchEmptyFail_AI
-imports "../EmptyFail_AI"
+imports EmptyFail_AI
 begin
 
 context Arch begin global_naming X64
@@ -63,7 +59,8 @@ crunch (empty_fail) empty_fail[wp]:
 
 lemma decode_tcb_invocation_empty_fail[wp]:
   "empty_fail (decode_tcb_invocation a b (ThreadCap p) d e)"
-  by (simp add: decode_tcb_invocation_def split: invocation_label.splits | wp | intro conjI impI)+
+  by (simp add: decode_tcb_invocation_def split: gen_invocation_labels.splits invocation_label.splits
+      | wp | intro conjI impI)+
 
 crunch (empty_fail) empty_fail[wp]: find_vspace_for_asid, check_vp_alignment,
                    ensure_safe_mapping, get_asid_pool, lookup_pt_slot, get_pt,
@@ -192,6 +189,10 @@ global_interpretation EmptyFail_AI_schedule?: EmptyFail_AI_schedule
   qed
 
 context Arch begin global_naming X64
+
+crunch (empty_fail) empty_fail[wp,EmptyFail_AI_assms]: possible_switch_to
+  (ignore_del: possible_switch_to)
+
 crunch (empty_fail) empty_fail[wp, EmptyFail_AI_assms]: handle_event, activate_thread
   (simp: cap.splits arch_cap.splits split_def invocation_label.splits Let_def
          kernel_object.splits arch_kernel_obj.splits option.splits pde.splits pte.splits

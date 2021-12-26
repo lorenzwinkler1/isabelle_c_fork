@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Access
@@ -1239,10 +1235,7 @@ lemma tro_tcb_unbind':
   apply (rule tro_tcb_unbind;fastforce)
   done
 
-(* FIXME MOVE to HOL standard libray (or Lib) *)
-lemma rtranclp_transp[simp,intro!]:
-  "transp R\<^sup>*\<^sup>*"
-  by (rule transpI) (rule rtranclp_trans)
+lemmas rtranclp_transp[intro!] = transp_rtranclp
 
 lemma tro_transp[intro!]:
   "transp (integrity_obj aag activate es subjects)"

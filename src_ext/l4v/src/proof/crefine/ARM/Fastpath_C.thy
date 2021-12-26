@@ -1,12 +1,7 @@
-
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Fastpath_C
@@ -80,7 +75,9 @@ definition
 
       asUser dest $ zipWithM_x setRegister
                [ARM_H.badgeRegister, ARM_H.msgInfoRegister]
-               [capEPBadge epCap, wordFromMessageInfo (mi\<lparr> msgCapsUnwrapped := 0 \<rparr>)]
+               [capEPBadge epCap, wordFromMessageInfo (mi\<lparr> msgCapsUnwrapped := 0 \<rparr>)];
+
+      stateAssert kernelExitAssertions []
     od
 
   odE <catch> (\<lambda>_. callKernel (SyscallEvent sysc))
@@ -154,7 +151,9 @@ definition
 
       asUser caller $ zipWithM_x setRegister
                [ARM_H.badgeRegister, ARM_H.msgInfoRegister]
-               [0, wordFromMessageInfo (mi\<lparr> msgCapsUnwrapped := 0 \<rparr>)]
+               [0, wordFromMessageInfo (mi\<lparr> msgCapsUnwrapped := 0 \<rparr>)];
+
+      stateAssert kernelExitAssertions []
     od
 
   odE <catch> (\<lambda>_. callKernel (SyscallEvent sysc))
@@ -217,7 +216,7 @@ declare comp_apply [simp del]
 crunch tcbContext[wp]: deleteCallerCap "obj_at' (\<lambda>tcb. P ((atcbContextGet o tcbArch) tcb)) t"
   (wp: setEndpoint_obj_at_tcb' setBoundNotification_tcbContext
        setNotification_tcb crunch_wps seThreadState_tcbContext
-   ignore: getObject setObject simp: crunch_simps unless_def)
+   simp: crunch_simps unless_def)
 declare comp_apply [simp]
 
 
@@ -399,9 +398,10 @@ lemma lookup_fp_ccorres':
 
     have cap_get_tag_update_1:
       "\<And>f cap. cap_get_tag (cap_C.words_C_update (\<lambda>w. Arrays.update w (Suc 0) (f w)) cap) = cap_get_tag cap"
-      by (simp add: cap_get_tag_def)
+      by (simp add: cap_get_tag_def cong: if_cong)
 
     show ?case
+    supply if_cong[cong] option.case_cong[cong]
     apply (cinitlift cap_' bits_')
     apply (rename_tac cbits ccap)
     apply (elim conjE)
@@ -1882,6 +1882,7 @@ proof -
   (* FIXME indentation is wonky in this proof, fix will come in a future patch, hopefully when
      automatic indentation is improved *)
   show ?thesis
+  supply if_cong[cong] option.case_cong[cong]
   apply (cinit lift: cptr_' msgInfo_')
      apply (simp add: catch_liftE_bindE unlessE_throw_catch_If
                       unifyFailure_catch_If catch_liftE
@@ -2339,24 +2340,26 @@ proof -
                                                        cvariable_relation_upd_const ko_at_projectKO_opt)
                                      apply ceqv
                                     apply (simp only: bind_assoc[symmetric])
-                                    apply (rule ccorres_split_nothrow_novcg_dc)
+                                    apply (rule ccorres_stateAssert_after)
+                                     apply (rule ccorres_split_nothrow_novcg_dc)
+                                        apply simp
+                                        apply (rule ccorres_call,
+                                               rule_tac v=shw_asid and pd="capUntypedPtr (cteCap pd_cap)"
+                                                     in switchToThread_fp_ccorres,
+                                               simp+)[1]
+                                       apply (rule_tac P="\<lambda>s. ksCurThread s = hd (epQueue send_ep)"
+                                                    in ccorres_cross_over_guard)
+                                       apply csymbr
+                                       apply csymbr
+                                       apply (rule ccorres_call_hSkip)
+                                         apply (fold dc_def)[1]
+                                         apply (rule fastpath_restore_ccorres)
+                                        apply simp
                                        apply simp
-                                       apply (rule ccorres_call,
-                                              rule_tac v=shw_asid and pd="capUntypedPtr (cteCap pd_cap)"
-                                                    in switchToThread_fp_ccorres,
-                                              simp+)[1]
-                                      apply (rule_tac P="\<lambda>s. ksCurThread s = hd (epQueue send_ep)"
-                                                   in ccorres_cross_over_guard)
-                                      apply csymbr
-                                      apply csymbr
-                                      apply (rule ccorres_call_hSkip)
-                                        apply (fold dc_def)[1]
-                                        apply (rule fastpath_restore_ccorres)
-                                       apply simp
-                                      apply simp
-                                     apply (simp add: setCurThread_def)
-                                     apply wp
-                                     apply (rule_tac P=\<top> in hoare_triv, simp)
+                                      apply (simp add: setCurThread_def)
+                                      apply wp
+                                      apply (rule_tac P=\<top> in hoare_triv, simp)
+                                     apply simp
                                     apply (simp add: imp_conjL rf_sr_ksCurThread del: all_imp_to_ex)
                                     apply (clarsimp simp: ccap_relation_ep_helpers guard_is_UNIV_def
                                                           mi_from_H_def)
@@ -2378,8 +2381,8 @@ proof -
                               apply (vcg exspec=mdb_node_ptr_mset_mdbNext_mdbRevocable_mdbFirstBadged_modifies)
                              apply (simp add: o_def)
                              apply (wp | simp
-                                        | wp_once updateMDB_weak_cte_wp_at
-                                        | wp_once updateMDB_cte_wp_at_other)+
+                                        | wp (once) updateMDB_weak_cte_wp_at
+                                        | wp (once) updateMDB_cte_wp_at_other)+
                             apply (vcg exspec=mdb_node_ptr_set_mdbPrev_np_modifies)
                            apply (wp updateCap_cte_wp_at_cteMDBNode
                                      updateCap_cte_wp_at_cases
@@ -2435,8 +2438,8 @@ proof -
                             exspec=cap_endpoint_cap_get_capCanGrantReply_modifies)
                   apply clarsimp
                   (* throw away results of isHighestPrio and the fastfail shortcut *)
-                  apply (wp_once hoare_drop_imp, wp)
-                  apply (wp_once hoare_drop_imp, wp)
+                  apply (wp (once) hoare_drop_imp, wp)
+                  apply (wp (once) hoare_drop_imp, wp)
                  apply simp
                  apply (vcg exspec=isHighestPrio_modifies)
                 apply clarsimp
@@ -2697,6 +2700,8 @@ lemma fastpath_reply_recv_ccorres:
      automatic indentation is improved *)
   show ?thesis
   using [[goals_limit = 1]]
+  supply option.case_cong_weak[cong del]
+  supply if_cong[cong]
   apply (cinit lift: cptr_' msgInfo_')
      apply (simp add: catch_liftE_bindE unlessE_throw_catch_If
                       unifyFailure_catch_If catch_liftE
@@ -3101,23 +3106,25 @@ lemma fastpath_reply_recv_ccorres:
                                                      cvariable_relation_upd_const ko_at_projectKO_opt)
                                    apply ceqv
                                   apply (simp only: bind_assoc[symmetric])
-                                  apply (rule ccorres_split_nothrow_novcg_dc)
-                                     apply (rule ccorres_call,
-                                            rule_tac v=shw_asid and pd="capUntypedPtr (cteCap pd_cap)"
-                                                  in switchToThread_fp_ccorres,
-                                            simp+)[1]
-                                    apply (rule_tac P="\<lambda>s. ksCurThread s = capTCBPtr (cteCap caller_cap)"
-                                                 in ccorres_cross_over_guard)
-                                    apply csymbr
-                                    apply csymbr
-                                    apply (rule ccorres_call_hSkip)
-                                      apply (fold dc_def)[1]
-                                      apply (rule fastpath_restore_ccorres)
+                                  apply (rule ccorres_stateAssert_after)
+                                   apply (rule ccorres_split_nothrow_novcg_dc)
+                                      apply (rule ccorres_call,
+                                             rule_tac v=shw_asid and pd="capUntypedPtr (cteCap pd_cap)"
+                                                   in switchToThread_fp_ccorres,
+                                             simp+)[1]
+                                     apply (rule_tac P="\<lambda>s. ksCurThread s = capTCBPtr (cteCap caller_cap)"
+                                                  in ccorres_cross_over_guard)
+                                     apply csymbr
+                                     apply csymbr
+                                     apply (rule ccorres_call_hSkip)
+                                       apply (fold dc_def)[1]
+                                       apply (rule fastpath_restore_ccorres)
+                                      apply simp
                                      apply simp
-                                    apply simp
-                                   apply (simp add: setCurThread_def)
-                                   apply wp
-                                   apply (rule_tac P=\<top> in hoare_triv, simp)
+                                    apply (simp add: setCurThread_def)
+                                    apply wp
+                                    apply (rule_tac P=\<top> in hoare_triv, simp)
+                                   apply simp
                                   apply (simp add: imp_conjL rf_sr_ksCurThread del: all_imp_to_ex)
                                   apply (clarsimp simp: ccap_relation_ep_helpers guard_is_UNIV_def
                                                         mi_from_H_def)
@@ -3137,8 +3144,8 @@ lemma fastpath_reply_recv_ccorres:
                             apply vcg
                            apply (simp add: o_def)
                            apply (wp | simp
-                                      | wp_once updateMDB_weak_cte_wp_at
-                                      | wp_once updateMDB_cte_wp_at_other)+
+                                      | wp (once) updateMDB_weak_cte_wp_at
+                                      | wp (once) updateMDB_cte_wp_at_other)+
                           apply (vcg exspec=mdb_node_ptr_mset_mdbNext_mdbRevocable_mdbFirstBadged_modifies)
                          apply simp
                          apply (wp getCTE_wp')
@@ -3164,9 +3171,9 @@ lemma fastpath_reply_recv_ccorres:
                     apply simp
                     apply wp[1]
                       apply clarsimp
-                      apply (wp_once hoare_drop_imp)
+                      apply (wp (once) hoare_drop_imp)
                       apply wp
-                      apply (wp_once hoare_drop_imps)
+                      apply (wp (once) hoare_drop_imps)
                       apply wp
                      apply (simp del: Collect_const)
                      apply clarsimp
@@ -3256,7 +3263,7 @@ lemma fastpath_reply_recv_ccorres:
      apply (safe del: notI disjE)[1]
        apply (simp add: isSendEP_def valid_ep'_def tcb_at_invs'
                  split: Structures_H.endpoint.split_asm)
-       apply (rule subst[OF epQueue.simps(1)],
+       apply (rule subst[OF endpoint.sel(1)],
               erule st_tcb_at_not_in_ep_queue[where P="(=) Running", rotated],
               clarsimp+)
        apply (simp add: obj_at_tcbs_of st_tcb_at_tcbs_of)
@@ -3490,21 +3497,26 @@ lemma setCTE_obj_at'_tcbIPCBuffer:
   unfolding setCTE_def
   by (rule setObject_cte_obj_at_tcb', simp+)
 
-crunch obj_at'_tcbIPCBuffer[wp]: cteInsert, asUser "obj_at' (\<lambda>tcb. P (tcbIPCBuffer tcb)) t"
+context
+notes if_cong[cong]
+begin
+crunches cteInsert, asUser
+  for obj_at'_tcbIPCBuffer[wp]: "obj_at' (\<lambda>tcb. P (tcbIPCBuffer tcb)) t"
   (wp: setCTE_obj_at'_queued crunch_wps threadSet_obj_at'_really_strongest)
+end
 
 crunch ksReadyQueues_inv[wp]: cteInsert "\<lambda>s. P (ksReadyQueues s)"
   (wp: hoare_drop_imps)
 
-crunch ksReadyQueuesL1Bitmap_inv[wp]: cteInsert,threadSet,asUser,emptySlot "\<lambda>s. P (ksReadyQueuesL1Bitmap s)"
-  (wp: hoare_drop_imps)
-crunch ksReadyQueuesL2Bitmap_inv[wp]: cteInsert,threadSet,asUser,emptySlot "\<lambda>s. P (ksReadyQueuesL2Bitmap s)"
+crunches cteInsert, threadSet, asUser, emptySlot
+  for ksReadyQueuesL1Bitmap_inv[wp]: "\<lambda>s. P (ksReadyQueuesL1Bitmap s)"
+  and ksReadyQueuesL2Bitmap_inv[wp]: "\<lambda>s. P (ksReadyQueuesL2Bitmap s)"
   (wp: hoare_drop_imps)
 
 crunch ksReadyQueuesL1Bitmap_inv[wp]: setEndpoint "\<lambda>s. P (ksReadyQueuesL1Bitmap s)"
-  (wp: setObject_ksPSpace_only updateObject_default_inv ignore: setObject)
+  (wp: setObject_ksPSpace_only updateObject_default_inv)
 crunch ksReadyQueuesL2Bitmap_inv[wp]: setEndpoint "\<lambda>s. P (ksReadyQueuesL2Bitmap s)"
-  (wp: setObject_ksPSpace_only updateObject_default_inv ignore: setObject)
+  (wp: setObject_ksPSpace_only updateObject_default_inv)
 
 lemma setThreadState_runnable_bitmap_inv:
   "runnable' ts \<Longrightarrow>
@@ -3519,6 +3531,7 @@ lemma fastpath_callKernel_SysCall_corres:
                 and (\<lambda>s. ksSchedulerAction s = ResumeCurrentThread)
                 and (\<lambda>s. ksDomainTime s \<noteq> 0))
      (callKernel (SyscallEvent SysCall)) (fastpaths SysCall)"
+  supply if_cong[cong]
   apply (rule monadic_rewrite_introduce_alternative)
    apply (simp add: callKernel_def)
   apply (rule monadic_rewrite_imp)
@@ -3653,12 +3666,12 @@ lemma fastpath_callKernel_SysCall_corres:
                           apply (rule monadic_rewrite_bind_tail)
                            apply (rule monadic_rewrite_bind)
                              apply (rule switchToThread_rewrite)
-                            apply (rule activateThread_simple_rewrite)
-                           apply wp_once
-                            apply wp_once
-                            apply (wp_once setCurThread_ct_in_state)
-                           apply ((rule Arch_switchToThread_pred_tcb'
-                                      | simp only: st_tcb_at'_def[symmetric])+)[1]
+                            apply (rule monadic_rewrite_bind)
+                              apply (rule activateThread_simple_rewrite)
+                             apply (rule monadic_rewrite_refl)
+                            apply wp
+                           apply (wp setCurThread_ct_in_state)
+                          apply (simp only: st_tcb_at'_def[symmetric])
                           apply (wp, clarsimp simp: cur_tcb'_def ct_in_state'_def)
                          apply (simp add: getThreadCallerSlot_def getThreadReplySlot_def
                                           locateSlot_conv ct_in_state'_def cur_tcb'_def)
@@ -3694,7 +3707,7 @@ lemma fastpath_callKernel_SysCall_corres:
                                   lookupBitmapPriority_lift
                                   setThreadState_runnable_bitmap_inv
                                 | simp add: setMessageInfo_def
-                                | wp_once hoare_vcg_disj_lift)+)
+                                | wp (once) hoare_vcg_disj_lift)+)
 
                    apply (simp add: setThreadState_runnable_simp
                                     getThreadCallerSlot_def getThreadReplySlot_def
@@ -3712,10 +3725,10 @@ lemma fastpath_callKernel_SysCall_corres:
                  apply (rule monadic_rewrite_trans[OF _ monadic_rewrite_transverse])
                    apply (rule_tac v=destState in monadic_rewrite_getThreadState
                           | rule monadic_rewrite_bind monadic_rewrite_refl)+
-                                 apply (wp mapM_x_wp' getObject_inv | wpc | simp | wp_once hoare_drop_imps)+
+                                 apply (wp mapM_x_wp' getObject_inv | wpc | simp | wp (once) hoare_drop_imps)+
                   apply (rule_tac v=destState in monadic_rewrite_getThreadState
                           | rule monadic_rewrite_bind monadic_rewrite_refl)+
-                            apply (wp mapM_x_wp' getObject_inv | wpc | simp | wp_once hoare_drop_imps)+
+                            apply (wp mapM_x_wp' getObject_inv | wpc | simp | wp (once) hoare_drop_imps)+
 
                   apply (rule_tac P="inj (case_bool thread (hd (epQueue send_ep)))"
                                  in monadic_rewrite_gen_asm)
@@ -3726,6 +3739,8 @@ lemma fastpath_callKernel_SysCall_corres:
                                   bool.simps setRegister_simple
                                   setVMRoot_isolatable[THEN thread_actions_isolatableD] setVMRoot_isolatable
                                   doMachineOp_isolatable[THEN thread_actions_isolatableD] doMachineOp_isolatable
+                                  kernelExitAssertions_isolatable[THEN thread_actions_isolatableD]
+                                  kernelExitAssertions_isolatable
                                   zipWithM_setRegister_simple
                                   thread_actions_isolatable_bind
                               | assumption
@@ -3992,7 +4007,8 @@ crunch obj_at_ep[wp]: emptySlot "obj_at' (P :: endpoint \<Rightarrow> bool) p"
 crunch nosch[wp]: emptySlot "\<lambda>s. P (ksSchedulerAction s)"
 
 context begin interpretation Arch .
-crunch gsCNodes[wp]: emptySlot, asUser "\<lambda>s. P (gsCNodes s)"
+crunches emptySlot, asUser
+  for gsCNodes[wp]: "\<lambda>s. P (gsCNodes s)"
   (wp: crunch_wps)
 end
 
@@ -4201,14 +4217,11 @@ lemma modify_setEndpoint_pivot[unfolded K_bind_def]:
 lemma setEndpoint_clearUntypedFreeIndex_pivot[unfolded K_bind_def]:
   "do setEndpoint p val; v <- clearUntypedFreeIndex slot; f od
      = do v <- clearUntypedFreeIndex slot; setEndpoint p val; f od"
-  by (simp add: clearUntypedFreeIndex_def bind_assoc
-                getSlotCap_def
-                setEndpoint_getCTE_pivot
-                updateTrackedFreeIndex_def
-                modify_setEndpoint_pivot
+  supply option.case_cong_weak[cong del]
+  by (simp add: clearUntypedFreeIndex_def bind_assoc getSlotCap_def setEndpoint_getCTE_pivot
+                updateTrackedFreeIndex_def modify_setEndpoint_pivot
          split: capability.split
-          | rule bind_cong[OF refl] allI impI
-                 bind_apply_cong[OF refl])+
+      | rule bind_cong[OF refl] allI impI bind_apply_cong[OF refl])+
 
 lemma emptySlot_setEndpoint_pivot[unfolded K_bind_def]:
   "(do emptySlot slot NullCap; setEndpoint p val; f od) =
@@ -4354,9 +4367,10 @@ lemma all_prio_not_inQ_not_tcbQueued: "\<lbrakk> obj_at' (\<lambda>a. (\<forall>
   apply (clarsimp simp: obj_at'_def inQ_def)
 done
 
-crunch ntfn_obj_at[wp]: setThreadState, emptySlot, asUser "obj_at' (P::(Structures_H.notification \<Rightarrow> bool)) ntfnptr"
-  (ignore: getObject setObject wp: obj_at_setObject2 crunch_wps
-     simp: crunch_simps updateObject_default_def in_monad)
+crunches setThreadState, emptySlot, asUser
+  for ntfn_obj_at[wp]: "obj_at' (P::(Structures_H.notification \<Rightarrow> bool)) ntfnptr"
+  (wp: obj_at_setObject2 crunch_wps
+   simp: crunch_simps updateObject_default_def in_monad)
 
 lemma st_tcb_at_is_Reply_imp_not_tcbQueued: "\<And>s t.\<lbrakk> invs' s; st_tcb_at' isReply t s\<rbrakk> \<Longrightarrow> obj_at' (\<lambda>a. \<not> tcbQueued a) t s"
   apply (clarsimp simp: invs'_def valid_state'_def valid_queues_def st_tcb_at'_def valid_queues_no_bitmap_def)
@@ -4433,24 +4447,19 @@ lemma tcbSchedEnqueue_tcbIPCBuffer:
 crunch obj_at'_tcbIPCBuffer[wp]: rescheduleRequired "obj_at' (\<lambda>tcb. P (tcbIPCBuffer tcb)) t"
   (wp: crunch_wps tcbSchedEnqueue_tcbIPCBuffer simp: rescheduleRequired_def)
 
+context
+notes if_cong[cong]
+begin
 crunch obj_at'_tcbIPCBuffer[wp]: setThreadState "obj_at' (\<lambda>tcb. P (tcbIPCBuffer tcb)) t"
   (wp: crunch_wps threadSet_obj_at'_really_strongest)
 
-crunch obj_at'_tcbIPCBuffer[wp]: getCTE "obj_at' (\<lambda>tcb. P (tcbIPCBuffer tcb)) t"
-  (wp: setCTE_obj_at'_queued crunch_wps threadSet_obj_at'_really_strongest)
+crunch obj_at'_tcbIPCBuffer[wp]: handleFault "obj_at' (\<lambda>tcb. P (tcbIPCBuffer tcb)) t"
+  (wp: crunch_wps constOnFailure_wp tcbSchedEnqueue_tcbIPCBuffer threadSet_obj_at'_really_strongest
+   simp: zipWithM_x_mapM)
+end
 
 crunch obj_at'_tcbIPCBuffer[wp]: emptySlot "obj_at' (\<lambda>tcb. P (tcbIPCBuffer tcb)) t"
   (wp: crunch_wps)
-
-crunch obj_at'_tcbIPCBuffer[wp]: transferCapsToSlots "obj_at' (\<lambda>tcb. P (tcbIPCBuffer tcb)) t"
-  (wp: crunch_wps transferCapsToSlots_pres1 simp: crunch_simps ignore: constOnFailure)
-
-crunch obj_at'_tcbIPCBuffer[wp]: asUser "obj_at' (\<lambda>tcb. P (tcbIPCBuffer tcb)) t"
-  (wp: crunch_wps)
-
-crunch obj_at'_tcbIPCBuffer[wp]: handleFault "obj_at' (\<lambda>tcb. P (tcbIPCBuffer tcb)) t"
-  (wp: crunch_wps constOnFailure_wp tcbSchedEnqueue_tcbIPCBuffer threadSet_obj_at'_really_strongest
-    simp: zipWithM_x_mapM ignore: sequenceE mapME getObject setObject)
 
 lemma fastpath_callKernel_SysReplyRecv_corres:
   "monadic_rewrite True False
@@ -4458,8 +4467,10 @@ lemma fastpath_callKernel_SysReplyRecv_corres:
          and cnode_caps_gsCNodes')
      (callKernel (SyscallEvent SysReplyRecv)) (fastpaths SysReplyRecv)"
   including no_pre
+  supply option.case_cong_weak[cong del]
+  supply if_cong[cong]
   apply (rule monadic_rewrite_introduce_alternative)
-   apply ( simp add: callKernel_def)
+   apply (simp add: callKernel_def)
   apply (rule monadic_rewrite_imp)
    apply (simp add: handleEvent_def handleReply_def
                     handleRecv_def liftE_bindE_handle liftE_handle
@@ -4574,11 +4585,11 @@ lemma fastpath_callKernel_SysReplyRecv_corres:
 
                       apply (rule monadic_rewrite_bind monadic_rewrite_refl)+
                       apply (wp mapM_x_wp' getObject_inv | wpc | simp add:
-                        | wp_once hoare_drop_imps )+
+                        | wp (once) hoare_drop_imps )+
 
                       apply (rule monadic_rewrite_bind monadic_rewrite_refl)+
                       apply (wp setCTE_obj_at'_tcbIPCBuffer assert_inv mapM_x_wp' getObject_inv | wpc | simp
-                        | wp_once hoare_drop_imps )+
+                        | wp (once) hoare_drop_imps )+
 
                    apply (rule monadic_rewrite_trans)
                     apply (rule monadic_rewrite_trans)
@@ -4600,7 +4611,7 @@ lemma fastpath_callKernel_SysReplyRecv_corres:
                                 lookupBitmapPriority_lift
                                 setThreadState_runnable_bitmap_inv
                            | simp add: setMessageInfo_def setThreadState_runnable_simp
-                           | wp_once hoare_vcg_disj_lift)+)[1]
+                           | wp (once) hoare_vcg_disj_lift)+)[1]
                     apply (simp add: setMessageInfo_def)
                     apply (rule monadic_rewrite_bind_tail)
                     apply (rename_tac unblocked)
@@ -4646,7 +4657,10 @@ lemma fastpath_callKernel_SysReplyRecv_corres:
                                       and t'=thread
                                        in schedule_known_rewrite)
                          apply (rule monadic_rewrite_weaken[where E=True and F=True], simp)
-                         apply (rule activateThread_simple_rewrite)
+                         apply (rule monadic_rewrite_bind)
+                           apply (rule activateThread_simple_rewrite)
+                          apply (rule monadic_rewrite_refl)
+                         apply wp
                         apply wp
                          apply (simp add: ct_in_state'_def, simp add: ct_in_state'_def[symmetric])
                          apply ((wp setCurThread_ct_in_state[folded st_tcb_at'_def]
@@ -4715,10 +4729,10 @@ lemma fastpath_callKernel_SysReplyRecv_corres:
 
                       apply (rule monadic_rewrite_bind monadic_rewrite_refl)+
                       apply (wp mapM_x_wp' handleFault_obj_at'_tcbIPCBuffer getObject_inv | wpc | simp
-                        | wp_once hoare_drop_imps )+
+                        | wp (once) hoare_drop_imps )+
                       apply (rule monadic_rewrite_bind monadic_rewrite_refl)+
                       apply (wp setCTE_obj_at'_tcbIPCBuffer assert_inv mapM_x_wp' getObject_inv | wpc | simp
-                        | wp_once hoare_drop_imps )+
+                        | wp (once) hoare_drop_imps )+
 
                    apply (simp add: bind_assoc catch_liftE
                                     receiveIPC_def Let_def liftM_def
@@ -4739,6 +4753,8 @@ lemma fastpath_callKernel_SysReplyRecv_corres:
                                   setCTE_isolatable
                                   setVMRoot_isolatable[THEN thread_actions_isolatableD] setVMRoot_isolatable
                                   doMachineOp_isolatable[THEN thread_actions_isolatableD] doMachineOp_isolatable
+                                  kernelExitAssertions_isolatable[THEN thread_actions_isolatableD]
+                                  kernelExitAssertions_isolatable
                            | assumption
                            | wp assert_inv)+
                     apply (simp only: )

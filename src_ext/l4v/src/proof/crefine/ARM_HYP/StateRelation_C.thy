@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory StateRelation_C
@@ -250,8 +246,8 @@ fun
   | "register_from_H ARM_HYP.LR = scast Kernel_C.LR"
   | "register_from_H ARM_HYP.NextIP = scast Kernel_C.NextIP"
   | "register_from_H ARM_HYP.CPSR = scast Kernel_C.CPSR"
-  | "register_from_H ARM_HYP.TLS_BASE = scast Kernel_C.TLS_BASE"
   | "register_from_H ARM_HYP.TPIDRURW = scast Kernel_C.TPIDRURW"
+  | "register_from_H ARM_HYP.TPIDRURO = scast Kernel_C.TPIDRURO"
   | "register_from_H ARM_HYP.FaultIP = scast Kernel_C.FaultIP"
 
 definition
@@ -343,6 +339,8 @@ where
           = Some (ArchFault (VGICMaintenance (if seL4_Fault_VGICMaintenance_CL.idxValid_CL vf = 1
                                               then Some (seL4_Fault_VGICMaintenance_CL.idx_CL vf)
                                               else None)))"
+  | "fault_to_H (SeL4_Fault_VPPIEvent irq) lf
+          = Some (ArchFault (VPPIEvent (ucast (seL4_Fault_VPPIEvent_CL.irq_w_CL irq))))"
 
 definition
   cfault_rel :: "Fault_H.fault option \<Rightarrow> seL4_Fault_CL option \<Rightarrow> lookup_fault_CL option \<Rightarrow> bool"
@@ -382,7 +380,7 @@ definition
   cendpoint_relation :: "tcb_C typ_heap \<Rightarrow> Structures_H.endpoint \<Rightarrow> endpoint_C \<Rightarrow> bool"
 where
   "cendpoint_relation h ntfn cep \<equiv>
-     let cstate = state_CL (endpoint_lift cep);
+     let cstate = endpoint_CL.state_CL (endpoint_lift cep);
          chead  = (Ptr o epQueue_head_CL o endpoint_lift) cep;
          cend   = (Ptr o epQueue_tail_CL o endpoint_lift) cep in
        case ntfn of
@@ -500,6 +498,11 @@ where
   "cvcpu_regs_relation vcpu cvcpu \<equiv>
     \<forall>r. regs_C cvcpu.[fromEnum r] = vcpuRegs vcpu r"
 
+definition cvcpu_vppi_masked_relation :: "vcpu \<Rightarrow> vcpu_C \<Rightarrow> bool" where
+  "cvcpu_vppi_masked_relation vcpu cvcpu \<equiv>
+     \<forall>vppi. (vppi_masked_C cvcpu).[fromEnum vppi]
+            = from_bool (vcpuVPPIMasked vcpu vppi)"
+
 definition
   virq_to_H :: "virq_C \<Rightarrow> virq"
 where
@@ -522,7 +525,9 @@ where
   "cvcpu_relation vcpu cvcpu \<equiv>
      vcpuTCB_C cvcpu = option_to_ctcb_ptr (vcpuTCBPtr vcpu)
      \<and> cvcpu_regs_relation vcpu cvcpu
-     \<and> cvgic_relation (vcpuVGIC vcpu) (vgic_C cvcpu)"
+     \<and> cvgic_relation (vcpuVGIC vcpu) (vgic_C cvcpu)
+     \<and> cvcpu_vppi_masked_relation vcpu cvcpu
+     \<and> last_pcount_C (virtTimer_C cvcpu) = vtimerLastPCount (vcpuVTimer vcpu)"
 
 definition
   cuser_user_data_relation :: "(10 word \<Rightarrow> word32) \<Rightarrow> user_data_C \<Rightarrow> bool"
@@ -766,7 +771,7 @@ where
        h_t_valid (hrs_htd (t_hrs_' cstate)) c_guard armUSGlobalPD_Ptr \<and>
        ptr_span armUSGlobalPD_Ptr \<subseteq> kernel_data_refs \<and>
        htd_safe domain (hrs_htd (t_hrs_' cstate)) \<and>
-       kernel_data_refs = (- domain) \<and>
+       -domain \<subseteq> kernel_data_refs \<and>
        globals_list_distinct (- kernel_data_refs) symbol_table globals_list \<and>
        cdom_schedule_relation (ksDomSchedule astate)
                               Kernel_C.kernel_all_global_addresses.ksDomSchedule \<and>
@@ -792,6 +797,7 @@ fun
   "arch_fault_to_fault_tag (VMFault a b) = scast seL4_Fault_VMFault"
 | "arch_fault_to_fault_tag (VCPUFault a) = scast seL4_Fault_VCPUFault"
 | "arch_fault_to_fault_tag (VGICMaintenance a) = scast seL4_Fault_VGICMaintenance"
+| "arch_fault_to_fault_tag (VPPIEvent a) = scast seL4_Fault_VPPIEvent"
 end
 
 fun
@@ -809,6 +815,7 @@ lemmas seL4_Faults = seL4_Fault_UserException_def
 lemmas seL4_Arch_Faults = seL4_Fault_VMFault_def
                           seL4_Fault_VCPUFault_def
                           seL4_Fault_VGICMaintenance_def
+                          seL4_Fault_VPPIEvent_def
 
 (* Return relations *)
 

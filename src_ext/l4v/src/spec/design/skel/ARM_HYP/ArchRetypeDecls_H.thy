@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 chapter "Retyping Objects"
@@ -13,10 +9,10 @@ chapter "Retyping Objects"
 theory ArchRetypeDecls_H
 imports
   ArchLabelFuns_H
-  "../FaultMonad_H"
-  "../EndpointDecls_H"
-  "../KernelInitMonad_H"
-  "../PSpaceFuns_H"
+  FaultMonad_H
+  EndpointDecls_H
+  KernelInitMonad_H
+  PSpaceFuns_H
   ArchObjInsts_H
 begin
 context Arch begin global_naming ARM_HYP_H
@@ -27,5 +23,18 @@ context Arch begin global_naming ARM_HYP_H
 
 #INCLUDE_HASKELL SEL4/Object/ObjectType/ARM.lhs CONTEXT ARM_HYP_H Arch.Types=ArchTypes_H ArchInv= decls_only
 
+(* Defined differently and/or delayed on different architectures *)
+definition
+  canonicalAddressAssert :: "machine_word => bool" where
+  canonicalAddressAssert_def[simp]:
+  "canonicalAddressAssert p = True"
+
 end
+
+(* Defined differently and/or delayed on different architectures *)
+definition
+  canonicalAddressAssert :: "machine_word => bool" where
+  canonicalAddressAssert_def[simp]:
+  "canonicalAddressAssert p = True"
+
 end

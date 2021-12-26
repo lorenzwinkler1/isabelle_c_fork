@@ -1,11 +1,7 @@
 %
 % Copyright 2014, General Dynamics C4 Systems
 %
-% This software may be distributed and modified according to the terms of
-% the GNU General Public License version 2. Note that NO WARRANTY is provided.
-% See "LICENSE_GPLv2.txt" for details.
-%
-% @TAG(GD_GPL)
+% SPDX-License-Identifier: GPL-2.0-only
 %
 
 This module defines the machine-specific interrupt handling routines.
@@ -27,6 +23,7 @@ This module defines the machine-specific interrupt handling routines.
 > import SEL4.API.Failures
 > import SEL4.API.Types
 > import SEL4.API.InvocationLabels
+> import SEL4.API.Invocation
 > import SEL4.API.Invocation.ARM as ArchInv
 > import SEL4.API.InvocationLabels.ARM as ArchLabels
 > import {-# SOURCE #-} SEL4.Object.Interrupt (setIRQState, isIRQActive)
@@ -34,8 +31,8 @@ This module defines the machine-specific interrupt handling routines.
 > import {-# SOURCE #-} SEL4.Object.CNode
 > import qualified SEL4.Machine.Hardware.ARM as Arch
 #ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
-> import SEL4.Object.VCPU.TARGET (vgicMaintenance)
-> import SEL4.Machine.Hardware.ARM.PLATFORM (irqVGICMaintenance, irqSMMU)
+> import SEL4.Object.VCPU.TARGET (vgicMaintenance, vppiEvent, irqVPPIEventIndex)
+> import SEL4.Machine.Hardware.ARM.PLATFORM (irqVGICMaintenance, irqVTimerEvent, irqSMMU)
 #endif
 
 \end{impdetails}
@@ -66,14 +63,21 @@ This module defines the machine-specific interrupt handling routines.
 >     cteInsert (IRQHandlerCap (IRQ irq)) srcSlot destSlot
 >     return ()
 
+> invokeIRQHandler :: IRQHandlerInvocation -> Kernel ()
+> invokeIRQHandler (AckIRQ irq) = doMachineOp $ maskInterrupt False irq
+> invokeIRQHandler _ = return ()
+
+> maskIrqSignal :: IRQ -> Kernel ()
+> maskIrqSignal irq = doMachineOp $ maskInterrupt True irq
+
 > checkIRQ :: Word -> KernelF SyscallError ()
 > checkIRQ irq = rangeCheck irq (fromEnum minIRQ) (fromEnum maxIRQ)
 
 > handleReservedIRQ :: IRQ -> Kernel ()
 > handleReservedIRQ irq = do
 #ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
->     -- case irq of IRQ irqVGICMaintenance -> vgicMaintenance -- FIXME how to properly handle IRQ for haskell translator here?
 >     when (fromEnum irq == fromEnum irqVGICMaintenance) vgicMaintenance
+>     when (irqVPPIEventIndex irq /= Nothing) $ vppiEvent irq
 >     return ()
 #else
 >     return () -- handleReservedIRQ does nothing on ARM
@@ -83,6 +87,7 @@ This module defines the machine-specific interrupt handling routines.
 > initInterruptController = do
 #ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
 >     setIRQState IRQReserved $ IRQ irqVGICMaintenance
+>     setIRQState IRQReserved $ IRQ irqVTimerEvent
 #endif
 #ifdef CONFIG_SMMU
 >     setIRQState IRQReserved $ IRQ irqSMMU

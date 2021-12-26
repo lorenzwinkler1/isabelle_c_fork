@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchDeterministic_AI
-imports "../Deterministic_AI"
+imports Deterministic_AI
 begin
 
 context Arch begin global_naming ARM_HYP
@@ -17,7 +13,7 @@ context Arch begin global_naming ARM_HYP
 named_theorems Deterministic_AI_assms
 
 crunch valid_list[wp, Deterministic_AI_assms]:
- vcpu_save, vcpu_enable, vcpu_disable, vcpu_restore, arch_tcb_set_ipc_buffer, arch_get_sanitise_register_info, arch_post_modify_registers valid_list
+ vcpu_save, vcpu_enable, vcpu_disable, vcpu_restore, arch_get_sanitise_register_info, arch_post_modify_registers valid_list
   (wp: crunch_wps simp: unless_def crunch_simps)
 
 lemma vcpu_switch_valid_list[wp, Deterministic_AI_assms]:
@@ -40,6 +36,8 @@ global_interpretation Deterministic_AI_1?: Deterministic_AI_1
   qed
 
 context Arch begin global_naming ARM_HYP
+
+declare arch_invoke_irq_handler_valid_list[Deterministic_AI_assms]
 
 crunch valid_list[wp]: invalidate_tlb_by_asid valid_list
   (wp: crunch_wps preemption_point_inv' simp: crunch_simps filterM_mapM unless_def
@@ -81,21 +79,20 @@ lemma handle_vm_fault_valid_list[wp, Deterministic_AI_assms]:
   apply (wp|simp)+
   done
 
-lemma vgic_maintenance_valid_list[wp]:
-  "\<lbrace>valid_list\<rbrace> vgic_maintenance \<lbrace>\<lambda>_. valid_list\<rbrace>"
-  unfolding vgic_maintenance_def by (wpsimp wp: hoare_drop_imps)
+crunches vgic_maintenance, vppi_event
+  for valid_list[wp]: valid_list
+  (wp: hoare_drop_imps)
 
 lemma handle_interrupt_valid_list[wp, Deterministic_AI_assms]:
   "\<lbrace>valid_list\<rbrace> handle_interrupt irq \<lbrace>\<lambda>_.valid_list\<rbrace>"
   unfolding handle_interrupt_def ackInterrupt_def handle_reserved_irq_def
-  by (wpsimp wp: hoare_drop_imps)
+  by (wpsimp wp: hoare_drop_imps simp: arch_mask_irq_signal_def)
 
 crunch valid_list[wp, Deterministic_AI_assms]: handle_send,handle_reply valid_list
 
 crunch valid_list[wp, Deterministic_AI_assms]: handle_hypervisor_fault valid_list
 
 end
-
 global_interpretation Deterministic_AI_2?: Deterministic_AI_2
   proof goal_cases
   interpret Arch .

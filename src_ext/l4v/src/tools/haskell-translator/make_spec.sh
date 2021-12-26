@@ -1,12 +1,8 @@
 #!/bin/bash
 #
-# Copyright 2014, NICTA
+# Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
 #
-# This software may be distributed and modified according to the terms of
-# the BSD 2-Clause license. Note that NO WARRANTY is provided.
-# See "LICENSE_BSD2.txt" for details.
-#
-# @TAG(NICTA_BSD)
+# SPDX-License-Identifier: BSD-2-Clause
 #
 
 set -e
@@ -80,7 +76,7 @@ function cpp_opts () {
             L4CPP="-DPLATFORM=TK1 -DPLATFORM_TK1 -DTARGET=ARM -DTARGET_ARM -DCONFIG_ARM_HYPERVISOR_SUPPORT"
             ;;
         RISCV64)
-            L4CPP="-DPLATFORM=Spike -DPLATFORM_Spike -DTARGET=RISCV64 -DTARGET_RISCV64"
+            L4CPP="-DPLATFORM=HiFive -DPLATFORM_HiFive -DTARGET=RISCV64 -DTARGET_RISCV64"
             ;;
         *)
             echo "Warning: No CPP configuration for achitecture ${1}"
@@ -129,7 +125,7 @@ do
     send_filenames $ARCH > $TMPFILE
     cpp_opts $ARCH
     cd $TRANSLATOR
-    python pars_skl.py $TMPFILE
+    python3 pars_skl.py $TMPFILE
 done
 
 for ARCH in ${ARCHES[@]}

@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -14,7 +10,7 @@ Refinement for handleEvent and syscalls
 
 theory ArchSyscall_AI
 imports
-  "../Syscall_AI"
+  Syscall_AI
 begin
 
 context Arch begin global_naming ARM_HYP
@@ -46,13 +42,12 @@ lemma table_cap_ref_mask_cap [Syscall_AI_assms]:
                          cap_rights_update_def arch_cap_fun_lift_def
                     split:cap.splits arch_cap.splits)
 
-lemma diminished_no_cap_to_obj_with_diff_ref [Syscall_AI_assms]:
-  "\<lbrakk> cte_wp_at (diminished cap) p s; valid_arch_caps s \<rbrakk>
+lemma eq_no_cap_to_obj_with_diff_ref [Syscall_AI_assms]:
+  "\<lbrakk> cte_wp_at ((=) cap) p s; valid_arch_caps s \<rbrakk>
       \<Longrightarrow> no_cap_to_obj_with_diff_ref cap S s"
   apply (clarsimp simp: cte_wp_at_caps_of_state valid_arch_caps_def)
   apply (frule(1) unique_table_refs_no_cap_asidD)
-  apply (clarsimp simp add: no_cap_to_obj_with_diff_ref_def
-    table_cap_ref_mask_cap diminished_def Ball_def)
+  apply (clarsimp simp add: no_cap_to_obj_with_diff_ref_def)
   done
 
 lemma getDFSR_invs[wp]:

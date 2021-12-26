@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchTcb_AI
-imports "../Tcb_AI"
+imports Tcb_AI
 begin
 
 context Arch begin global_naming ARM
@@ -242,6 +238,7 @@ lemma tc_invs[Tcb_AI_asms]:
   apply (simp add: split_def set_mcpriority_def cong: option.case_cong)
   apply (rule hoare_vcg_precond_imp)
    apply wp
+      (* takes long: *)
       apply ((simp only: simp_thms
         | rule wp_split_const_if wp_split_const_if_R
                    hoare_vcg_all_lift_R

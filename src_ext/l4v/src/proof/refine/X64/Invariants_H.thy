@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Invariants_H
@@ -401,10 +397,6 @@ lemmas vspace_table_at'_defs
 abbreviation
   "asid_pool_at' \<equiv> typ_at' (ArchT ASIDPoolT)"
 
-(* FIXME: duplicated with vmsz_aligned *)
-definition
-  "vmsz_aligned' ref sz \<equiv> is_aligned ref (pageBitsForSize sz)"
-
 primrec
   zombieCTEs :: "zombie_type \<Rightarrow> nat"
 where
@@ -443,7 +435,7 @@ where valid_cap'_def:
     (\<forall>p < 2 ^ (pageBitsForSize sz - pageBits). typ_at' (if d then UserDataDeviceT else UserDataT)
     (ref + p * 2 ^ pageBits) s) \<and>
     (case mapdata of None \<Rightarrow> (t=VMNoMap) | Some (asid, ref) \<Rightarrow>
-            (t = VMVSpaceMap) \<and> 0 < asid \<and> asid_wf asid \<and> vmsz_aligned' ref sz \<and> ref < pptrBase)
+            (t = VMVSpaceMap) \<and> 0 < asid \<and> asid_wf asid \<and> vmsz_aligned ref sz \<and> ref < pptrBase)
   | PageTableCap ref mapdata \<Rightarrow>
     page_table_at' ref s \<and>
     (case mapdata of None \<Rightarrow> True | Some (asid, ref) \<Rightarrow>
@@ -461,7 +453,7 @@ where valid_cap'_def:
   | IOPortControlCap \<Rightarrow> True))"
 
 abbreviation (input)
-  valid_cap'_syn :: "kernel_state \<Rightarrow> capability \<Rightarrow> bool" ("_ \<turnstile>' _" [60, 60] 61)
+  valid_cap'_syn :: "kernel_state \<Rightarrow> capability \<Rightarrow> bool" ("_ \<turnstile>'' _" [60, 60] 61)
 where
   "s \<turnstile>' c \<equiv> valid_cap' c s"
 
@@ -1808,6 +1800,7 @@ lemma obj_at'_pspaceI:
 
 lemma cte_wp_at'_pspaceI:
   "\<lbrakk>cte_wp_at' P p s; ksPSpace s = ksPSpace s'\<rbrakk> \<Longrightarrow> cte_wp_at' P p s'"
+  supply if_cong[cong]
   apply (clarsimp simp add: cte_wp_at'_def getObject_def)
   apply (drule equalityD2)
   apply (clarsimp simp: in_monad loadObject_cte gets_def
@@ -1884,7 +1877,7 @@ lemma valid_mdb'_pspaceI:
 
 lemma state_refs_of'_pspaceI:
   "P (state_refs_of' s) \<Longrightarrow> ksPSpace s = ksPSpace s' \<Longrightarrow> P (state_refs_of' s')"
-  unfolding state_refs_of'_def ps_clear_def by simp
+  unfolding state_refs_of'_def ps_clear_def by (simp cong: option.case_cong)
 
 lemma valid_pspace':
   "valid_pspace' s \<Longrightarrow> ksPSpace s = ksPSpace s' \<Longrightarrow> valid_pspace' s'"
@@ -2021,7 +2014,7 @@ lemma ps_clearI:
   apply (subgoal_tac "p \<le> p + 1")
    apply (simp add: ps_clear_def2)
    apply (rule ccontr, erule nonemptyE, clarsimp)
-   apply (drule minus_one_helper[where x="z + 1" for z])
+   apply (drule word_leq_le_minus_one[where x="z + 1" for z])
     apply clarsimp
    apply simp
   apply (erule is_aligned_get_word_bits)
@@ -2060,7 +2053,7 @@ lemma ps_clear_lookupAround2:
          drule word_l_diffs(2),
          fastforce simp only: field_simps)
   apply (rule ccontr, simp add: linorder_not_le)
-  apply (drule minus_one_helper3, fastforce)
+  apply (drule word_le_minus_one_leq, fastforce)
   done
 
 lemma in_magnitude_check:
@@ -2075,7 +2068,7 @@ lemma in_magnitude_check:
     apply simp
    apply (erule(1) ps_clearI)
    apply (simp add: linorder_not_less)
-   apply (drule minus_one_helper[where x="2 ^ n"])
+   apply (drule word_leq_le_minus_one[where x="2 ^ n"])
     apply (clarsimp simp: power_overflow)
    apply (drule word_l_diffs)
     apply simp
@@ -2107,14 +2100,14 @@ lemma in_magnitude_check3:
     apply (drule(1) range_convergence2)
     apply (erule(1) ps_clearI)
     apply (simp add: linorder_not_less)
-    apply (drule minus_one_helper[where x="2 ^ n" for n], simp)
+    apply (drule word_leq_le_minus_one[where x="2 ^ n" for n], simp)
     apply (drule word_l_diffs, simp)
     apply (simp add: field_simps)
    apply (simp add: power_overflow)
   apply (clarsimp split: if_split_asm)
   apply (erule(1) ps_clear_lookupAround2)
     apply simp
-   apply (drule minus_one_helper3[where x="y - x"])
+   apply (drule word_le_minus_one_leq[where x="y - x"])
    apply (drule word_plus_mono_right[where x=x and y="y - x"])
     apply (erule is_aligned_get_word_bits)
      apply (simp add: field_simps is_aligned_no_overflow)
@@ -2147,7 +2140,7 @@ lemma tcb_space_clear:
    apply (frule(1) is_aligned_no_wrap'[rotated, rotated])
    apply (simp add: word_bits_conv objBits_defs)
    apply (erule notE, subst field_simps, rule word_plus_mono_right)
-    apply (drule minus_one_helper3,simp,erule is_aligned_no_wrap')
+    apply (drule word_le_minus_one_leq,simp,erule is_aligned_no_wrap')
    apply (simp add: word_bits_conv)
   apply (simp add: objBits_defs)
   apply (rule_tac x="y - x" in exI)
@@ -2223,7 +2216,7 @@ lemma cte_wp_at_cases':
               split: option.split_asm)
      apply (clarsimp simp: bind_def tcb_cte_cases_def split: if_split_asm)
     apply (clarsimp simp: bind_def tcb_cte_cases_def iffD2[OF linorder_not_less]
-                          when_False return_def
+                          return_def
                    split: if_split_asm)
    apply (subgoal_tac "p - n \<le> (p - n) + n", simp)
    apply (erule is_aligned_no_wrap')
@@ -2317,6 +2310,7 @@ lemma locateSlot_conv:
                                 isCNodeCap_def capUntypedPtr_def stateAssert_def
                                 bind_assoc exec_get locateSlotTCB_def
                                 objBits_simps
+                         cong: option.case_cong
                          split: zombie_type.split)
   done
 
@@ -3577,7 +3571,7 @@ lemma in_kernel_mappings_neq_mask:
    \<Longrightarrow> ptr && ~~ mask sz \<in> kernel_mappings"
   apply (clarsimp simp: kernel_mappings_def untypedBits_defs pptr_base_def
                         X64.pptrBase_def)
-  by (word_bitwise, clarsimp simp: neg_mask_bang word_size)
+  by (word_bitwise, clarsimp simp: neg_mask_test_bit word_size)
 
 lemma invs_pspace_in_kernel_mappings'[elim!]:
   "invs' s \<Longrightarrow> pspace_in_kernel_mappings' s"
@@ -3628,8 +3622,7 @@ method normalise_obj_at' =
 
 end
 
-add_upd_simps "invs' (gsUntypedZeroRanges_update f s)
-    \<and> valid_queues (gsUntypedZeroRanges_update f s)"
+add_upd_simps "invs' (gsUntypedZeroRanges_update f s)"
   (obj_at'_real_def)
 declare upd_simps[simp]
 

@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 chapter \<open>Abstract datatype for the executable specification\<close>
@@ -216,7 +212,7 @@ lemma
     using pspace_aligned'
     apply (simp add: pspace_aligned'_def dom_def)
     apply (erule_tac x=y in allE)
-    apply (simp add: objBitsKO_def archObjSize_def is_aligned_neg_mask_eq pteBits_def
+    apply (simp add: objBitsKO_def archObjSize_def pteBits_def
                      and_not_mask[symmetric] AND_NOT_mask_plus_AND_mask_eq)
    using fst_pde
    apply (erule_tac x=y in allE)
@@ -229,7 +225,7 @@ lemma
    using pspace_aligned'
    apply (simp add: pspace_aligned'_def dom_def)
    apply (erule_tac x=y in allE)
-   apply (simp add: objBitsKO_def archObjSize_def is_aligned_neg_mask_eq pdeBits_def
+   apply (simp add: objBitsKO_def archObjSize_def pdeBits_def
                     and_not_mask[symmetric] AND_NOT_mask_plus_AND_mask_eq)
   apply (simp split: option.splits Structures_H.kernel_object.splits)
   apply (intro allI)
@@ -1092,7 +1088,7 @@ proof -
    apply (frule_tac b=b and c=cte_level_bits in bin_to_bl_of_bl_eq)
      apply (fastforce simp: cte_level_bits_def objBits_defs)+
   apply (case_tac "b = [False, False, False]")
-   apply (simp add: is_aligned_neg_mask_eq)
+   apply simp
   apply (frule_tac b=b and c=cte_level_bits in bin_to_bl_of_bl_eq)
     apply (fastforce simp: tcb_cap_cases_length cte_level_bits_def objBits_defs)+
   apply (subgoal_tac "ksPSpace s' (cte_map (a, b)) = None")

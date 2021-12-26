@@ -1,13 +1,7 @@
 (*
- * Copyright 2018, Data61
- * Commonwealth Scientific and Industrial Research Organisation (CSIRO)
- * ABN 41 687 119 230.
-
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
-
- * @TAG(DATA61_BSD)
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 (* Basic tests for the @{inline_tactic} and @{inline_method} antiquotations. *)
@@ -61,9 +55,9 @@ lemma
    apply (tactic \<open>@{inline_tactic fastforce}\<close>)
   apply (tactic \<open>stored_tactic\<close>)
    apply (tactic \<open>@{inline_tactic "clarsimp simp only:"} THEN @{inline_tactic "simp"}\<close>)
-  apply (tactic \<open>Method.NO_CONTEXT_TACTIC @{context}
+  apply (tactic \<open>NO_CONTEXT_TACTIC @{context}
                     (@{inline_method "clarsimp simp add: mult_2"} [])\<close>)
-  apply (tactic \<open>Method.NO_CONTEXT_TACTIC @{context} (stored_method [])\<close>)
+  apply (tactic \<open>NO_CONTEXT_TACTIC @{context} (stored_method [])\<close>)
    apply (tactic \<open>@{inline_tactic "metis trans_less_add2 lessI less_trans"}\<close>)
   apply (tactic \<open>@{inline_tactic "fastforce simp only: mult_2[symmetric] power_Suc[symmetric]
                                             intro: less_imp_le"}\<close>)

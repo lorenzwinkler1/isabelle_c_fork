@@ -1,11 +1,7 @@
 (*
- * Copyright 2018, Data61
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(DATA61_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 theory Word_Lemmas_32_Internal
@@ -120,5 +116,8 @@ lemmas scast_specific_plus32 =
 lemmas scast_specific_plus32_signed =
   scast_of_nat_unsigned_to_signed_add[where 'a=32 and x="word_ctz x" and y="0x20" for x,
                                       simplified]
+
+lemma neq_0_unat: "x \<noteq> 0 \<Longrightarrow> 0 < unat x" for x::machine_word
+  by (simp add: unat_gt_0)
 
 end

@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -14,10 +10,10 @@ Invariant preservation for all syscalls.
 
 theory Syscall_AI
 imports
-  "./$L4V_ARCH/ArchBCorres2_AI"
-  "./$L4V_ARCH/ArchTcb_AI"
-  "./$L4V_ARCH/ArchArch_AI"
-  "./$L4V_ARCH/ArchInterrupt_AI"
+  ArchBCorres2_AI
+  ArchTcb_AI
+  ArchArch_AI
+  ArchInterrupt_AI
 begin
 
 context begin interpretation Arch .
@@ -27,6 +23,7 @@ requalify_facts
   data_to_cptr_def
   arch_post_cap_deletion_cur_thread
   arch_post_cap_deletion_state_refs_of
+  arch_invoke_irq_handler_typ_at
 end
 
 lemmas [wp] =
@@ -46,7 +43,7 @@ lemma schedule_invs[wp]: "\<lbrace>invs\<rbrace> (Schedule_A.schedule :: (unit,d
           | wpc
           | clarsimp simp: guarded_switch_to_def get_tcb_def choose_thread_def ethread_get_def
                            ethread_get_when_def
-          | wp_once hoare_drop_imps
+          | wp (once) hoare_drop_imps
           | simp add: schedule_choose_new_thread_def if_apply_def2)+
   done
 
@@ -87,7 +84,7 @@ lemma schedule_ct_activateable[wp]:
       (* switch to thread *)
       apply wpsimp
               apply (simp add: set_scheduler_action_def)
-              apply (simp | wp gts_wp | wp_once hoare_drop_imps)+
+              apply (simp | wp gts_wp | wp (once) hoare_drop_imps)+
   apply (frule invs_valid_idle)
   apply (clarsimp simp: ct_in_state_def pred_tcb_at_def obj_at_def valid_idle_def)
   done
@@ -341,7 +338,7 @@ lemma (in Systemcall_AI_Pre) handle_fault_reply_cte_wp_at:
       done
     show ?thesis
       apply (case_tac f; clarsimp simp: as_user_def)
-       apply (wp set_object_wp thread_get_wp' | simp add: split_def NC | wp_once hoare_drop_imps)+
+       apply (wp set_object_wp thread_get_wp' | simp add: split_def NC | wp (once) hoare_drop_imps)+
       done
   qed
 
@@ -471,9 +468,9 @@ locale Syscall_AI = Systemcall_AI_Pre:Systemcall_AI_Pre _ state_ext_t
     "\<And>rs cap. obj_refs (cap_rights_update rs cap) = obj_refs cap"
   assumes table_cap_ref_mask_cap:
     "\<And>R cap. table_cap_ref (mask_cap R cap) = table_cap_ref cap"
-  assumes diminished_no_cap_to_obj_with_diff_ref:
+  assumes eq_no_cap_to_obj_with_diff_ref:
     "\<And>cap p (s::'state_ext state) S.
-      \<lbrakk> cte_wp_at (diminished cap) p s; valid_arch_caps s \<rbrakk>
+      \<lbrakk> cte_wp_at ((=) cap) p s; valid_arch_caps s \<rbrakk>
         \<Longrightarrow> no_cap_to_obj_with_diff_ref cap S s"
   assumes hv_invs[wp]:
     "\<And>t' flt. \<lbrace>invs :: 'state_ext state \<Rightarrow> bool\<rbrace> handle_vm_fault t' flt \<lbrace>\<lambda>r. invs\<rbrace>"
@@ -507,7 +504,7 @@ lemma pinv_tcb[wp]:
   apply (case_tac i, simp_all split:option.splits,
     (wp invoke_arch_tcb
               | simp | clarsimp elim!: st_tcb_at_tcb_at
-              | wp_once tcb_at_typ_at)+
+              | wp (once) tcb_at_typ_at)+
     )
   done
 
@@ -610,33 +607,12 @@ lemma decode_inv_inv[wp]:
     (wpsimp wp: decode_tcb_inv_inv decode_domain_inv_inv)+)
   done
 
-lemma diminished_Untyped [simp]:
-  "diminished (cap.UntypedCap d x xa idx) = (\<lambda>c. c = cap.UntypedCap d x xa idx)"
-  apply (rule ext)
-  apply (case_tac c,
-         auto simp: diminished_def cap_rights_update_def mask_cap_def split:bool.splits)
-  done
-
-lemma diminished_Reply:
-  "diminished (cap.ReplyCap x y R) cap \<Longrightarrow> \<exists> R'. cap = cap.ReplyCap x y R'"
-  by (cases cap,
-         auto simp: diminished_def cap_rights_update_def mask_cap_def split: bool.splits)
-
-lemma diminished_IRQHandler [simp]:
-  "diminished (cap.IRQHandlerCap irq) = (\<lambda>c. c = cap.IRQHandlerCap irq)"
-  apply (rule ext)
-  apply (case_tac c,
-         auto simp: diminished_def cap_rights_update_def mask_cap_def split:bool.splits)
-  done
-
-lemma cnode_diminished_strg:
-  "(\<exists>ptr. cte_wp_at (diminished cap) ptr s)
+lemma cnode_eq_strg:
+  "(\<exists>ptr. cte_wp_at ((=) cap) ptr s)
     \<longrightarrow> (is_cnode_cap cap \<longrightarrow> (\<forall>ref \<in> cte_refs cap (interrupt_irq_node s).
                                     ex_cte_cap_wp_to is_cnode_cap ref s))"
   apply (clarsimp simp: ex_cte_cap_wp_to_def)
-  apply (intro exI, erule cte_wp_at_weakenE)
-  apply (clarsimp simp: diminished_def)
-  done
+  by (intro exI, erule cte_wp_at_weakenE, simp)
 
 
 lemma invs_valid_arch_caps[elim!]:
@@ -647,34 +623,32 @@ lemma invs_valid_arch_caps[elim!]:
 context Syscall_AI begin
 
 lemma decode_inv_wf[wp]:
-  "\<lbrace>valid_cap cap and invs and cte_wp_at (diminished cap) slot
+  "\<lbrace>valid_cap cap and invs and cte_wp_at ((=) cap) slot
+           and real_cte_at slot
            and ex_cte_cap_to slot
            and (\<lambda>s::'state_ext state. \<forall>r\<in>zobj_refs cap. ex_nonz_cap_to r s)
            and (\<lambda>s. \<forall>r\<in>cte_refs cap (interrupt_irq_node s). ex_cte_cap_to r s)
            and (\<lambda>s. \<forall>cap \<in> set excaps. \<forall>r\<in>cte_refs (fst cap) (interrupt_irq_node s). ex_cte_cap_to r s)
            and (\<lambda>s. \<forall>x \<in> set excaps. s \<turnstile> (fst x))
            and (\<lambda>s. \<forall>x \<in> set excaps. \<forall>r\<in>zobj_refs (fst x). ex_nonz_cap_to r s)
-           and (\<lambda>s. \<forall>x \<in> set excaps. cte_wp_at (diminished (fst x)) (snd x) s)
+           and (\<lambda>s. \<forall>x \<in> set excaps. cte_wp_at ((=) (fst x)) (snd x) s)
            and (\<lambda>s. \<forall>x \<in> set excaps. real_cte_at (snd x) s)
            and (\<lambda>s. \<forall>x \<in> set excaps. ex_cte_cap_wp_to is_cnode_cap (snd x) s)
            and (\<lambda>s. \<forall>x \<in> set excaps. cte_wp_at (interrupt_derived (fst x)) (snd x) s)\<rbrace>
      decode_invocation label args cap_index slot cap excaps
    \<lbrace>valid_invocation\<rbrace>,-"
-  apply (simp add: decode_invocation_def
-             cong: cap.case_cong if_cong
-                split del: if_split)
+  apply (simp add: decode_invocation_def cong: cap.case_cong if_cong split del: if_split)
   apply (rule hoare_pre)
    apply (wp Tcb_AI.decode_tcb_inv_wf decode_domain_inv_wf[simplified split_def] | wpc |
           simp add: o_def uncurry_def split_def del: is_cnode_cap.simps cte_refs.simps)+
-  apply (strengthen cnode_diminished_strg)
+  apply (strengthen cnode_eq_strg)
   apply (clarsimp simp: valid_cap_def cte_wp_at_eq_simp is_cap_simps
-             cap_rights_update_def ex_cte_cap_wp_to_weakenE[OF _ TrueI]
-             cte_wp_at_caps_of_state
-           split: cap.splits option.splits)
-        apply (thin_tac " \<forall>x\<in>set excaps. P x \<and> Q x" for P Q)+
-        apply (drule (1) bspec)+
-        apply (subst split_paired_Ex[symmetric], rule exI, simp)
-       using diminished_Reply apply fastforce
+                        cap_rights_update_def ex_cte_cap_wp_to_weakenE[OF _ TrueI]
+                        cte_wp_at_caps_of_state
+                 split: cap.splits option.splits)
+       apply (thin_tac " \<forall>x\<in>set excaps. P x \<and> Q x" for P Q)+
+       apply (drule (1) bspec)+
+       apply (subst split_paired_Ex[symmetric], rule exI, simp)
       apply (thin_tac " \<forall>x\<in>set excaps. P x \<and> Q x" for P Q)+
       apply (rule conjI)
        apply (subst split_paired_Ex[symmetric], rule_tac x=slot in exI, simp)
@@ -684,17 +658,13 @@ lemma decode_inv_wf[wp]:
      apply (thin_tac " \<forall>x\<in>set excaps. P x \<and> Q x" for P Q)+
      apply (drule (1) bspec)+
      apply (clarsimp simp add: ex_cte_cap_wp_to_weakenE[OF _ TrueI])
-     apply (rule diminished_no_cap_to_obj_with_diff_ref)
+     apply (rule eq_no_cap_to_obj_with_diff_ref)
       apply (fastforce simp add: cte_wp_at_caps_of_state)
      apply (simp add: invs_valid_arch_caps)
     apply (simp add: invs_valid_objs invs_valid_global_refs)
    apply (thin_tac " \<forall>x\<in>set excaps. P x \<and> Q x" for P Q)+
-   apply (rule conjI)
-    apply clarsimp
-    apply (drule (1) bspec)+
-    apply (subst split_paired_Ex[symmetric], rule exI, simp)
-   apply (clarsimp simp add: diminished_def mask_cap_def cap_rights_update_def
-                   split: cap.splits bool.splits)
+   apply (drule (1) bspec)+
+   apply (subst split_paired_Ex[symmetric], rule exI, simp)
   apply (thin_tac " \<forall>x\<in>set excaps. P x \<and> Q x" for P Q)+
   apply (subst split_paired_Ex[symmetric], rule exI, simp)
   done
@@ -726,6 +696,10 @@ lemma lcs_cte_at[wp]:
   apply (simp add: lookup_cap_and_slot_def split_def)
   apply (wp | simp)+
   done
+
+lemma lcs_real_cte_at[wp]:
+  "\<lbrace>valid_objs\<rbrace> lookup_cap_and_slot t xs \<lbrace>\<lambda>rv. real_cte_at (snd rv)\<rbrace>,-"
+  by (wpsimp simp: lookup_cap_and_slot_def split_def)
 
 lemma lec_ex_cap_to [wp]:
   "\<lbrace>invs\<rbrace>
@@ -919,24 +893,13 @@ lemma lec_derived[wp]:
 lemma lookup_cap_and_slot_dimished [wp]:
   "\<lbrace>valid_objs\<rbrace>
     lookup_cap_and_slot thread cptr
-   \<lbrace>\<lambda>x. cte_wp_at (diminished (fst x)) (snd x)\<rbrace>, -"
-  apply (simp add: lookup_cap_and_slot_def split_def)
-  apply (wp get_cap_wp)
-   apply (rule hoare_post_imp_R [where Q'="\<lambda>_. valid_objs"])
-    apply wp
-   apply simp
-   apply (clarsimp simp: cte_wp_at_caps_of_state diminished_def)
-   apply (rule exI, rule cap_mask_UNIV[symmetric])
-   apply (drule (1) caps_of_state_valid_cap, simp add: valid_cap_def2)
-  apply simp
-  done
+   \<lbrace>\<lambda>x. cte_wp_at ((=) (fst x)) (snd x)\<rbrace>, -"
+  by (wpsimp wp: get_cap_wp simp: lookup_cap_and_slot_def)
 
-lemma lookup_extra_caps_diminished [wp]:
+lemma lookup_extra_caps_eq [wp]:
   "\<lbrace>valid_objs\<rbrace> lookup_extra_caps thread xb info
-  \<lbrace>\<lambda>rv s. (\<forall>x\<in>set rv. cte_wp_at (diminished (fst x)) (snd x) s)\<rbrace>,-"
-  apply (simp add: lookup_extra_caps_def)
-  apply (wp mapME_set|simp)+
-  done
+  \<lbrace>\<lambda>rv s. (\<forall>x\<in>set rv. cte_wp_at ((=) (fst x)) (snd x) s)\<rbrace>,-"
+  by (wpsimp wp: mapME_set simp: lookup_extra_caps_def)
 
 
 (*FIXME: move to NonDetMonadVCG.valid_validE_R *)
@@ -1150,7 +1113,7 @@ lemma hw_invs[wp]: "\<lbrace>invs and ct_active\<rbrace> handle_recv is_blocking
      apply ((wp hoare_vcg_all_lift_R lookup_cap_ex_cap
           | simp add: obj_at_def
           | simp add: conj_disj_distribL ball_conj_distrib
-          | wp_once hoare_drop_imps)+)
+          | wp (once) hoare_drop_imps)+)
   apply (simp add: ct_in_state_def)
   apply (fold obj_at_def)
   apply (fastforce elim!: invs_valid_tcb_ctable st_tcb_ex_cap)
@@ -1448,7 +1411,7 @@ lemma receive_ipc_st_tcb_at_runnable:
               apply (wp hoare_drop_imps)
              apply wpc
                     apply ((wp gts_wp gbn_wp  hoare_vcg_all_lift sts_st_tcb_at_other | wpc
-                           | simp add: do_nbrecv_failed_transfer_def | wp_once hoare_drop_imps)+)[8]
+                           | simp add: do_nbrecv_failed_transfer_def | wp (once) hoare_drop_imps)+)[8]
             apply clarsimp
             apply (wp gts_wp)
            apply (wp hoare_drop_imps hoare_vcg_all_lift)[1]
@@ -1482,7 +1445,7 @@ lemma send_fault_ipc_st_tcb_at_runnable:
                 apply (wp send_ipc_st_tcb_at_runnable thread_set_no_change_tcb_state thread_set_refs_trivial
                           hoare_vcg_all_lift_R thread_get_wp
                         | clarsimp
-                        | wp_once hoare_drop_imps)+
+                        | wp (once) hoare_drop_imps)+
   apply (clarsimp simp:  pred_tcb_at_def obj_at_def is_tcb)
   done
 

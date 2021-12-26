@@ -1,18 +1,15 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 theory WP
 imports
-  "WP_Pre"
-  "WPFix"
-  "../../Apply_Debug"
+  WP_Pre
+  WPFix
+  Apply_Debug
+  MLUtils
 begin
 
 definition
@@ -36,21 +33,11 @@ lemma conj_TrueI2: "P \<Longrightarrow> P \<and> True" by simp
 
 ML_file "WP-method.ML"
 
-declare [[wp_warn_unused = false]]
+declare [[wp_trace = false, wp_trace_instantiation = false]]
 
 setup WeakestPre.setup
 
-method_setup wp = \<open>WeakestPre.apply_rules_args false\<close>
+method_setup wp = \<open>WeakestPre.apply_wp_args\<close>
   "applies weakest precondition rules"
-
-method_setup wp_once = \<open>WeakestPre.apply_once_args false\<close>
-  "applies one weakest precondition rule"
-
-method_setup wp_trace = \<open>WeakestPre.apply_rules_args true\<close>
-  "applies weakest precondition rules with tracing"
-
-method_setup wp_once_trace = \<open>WeakestPre.apply_once_args true\<close>
-  "applies one weakest precondition rule with tracing"
-
 
 end

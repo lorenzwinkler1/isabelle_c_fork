@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchFinalise_AI
-imports "../Finalise_AI"
+imports Finalise_AI
 begin
 
 context Arch begin
@@ -527,13 +523,14 @@ lemma suspend_unlive':
   apply simp
   done
 
-lemma (* finalise_cap_replaceable *) [Finalise_AI_asms]:
+lemma finalise_cap_replaceable [Finalise_AI_asms]:
   "\<lbrace>\<lambda>s. s \<turnstile> cap \<and> x = is_final_cap' cap s \<and> valid_mdb s
         \<and> cte_wp_at ((=) cap) sl s \<and> valid_objs s \<and> sym_refs (state_refs_of s)
         \<and> (cap_irqs cap \<noteq> {} \<longrightarrow> if_unsafe_then_cap s \<and> valid_global_refs s)
         \<and> (is_arch_cap cap \<longrightarrow> pspace_aligned s \<and>
                                valid_vspace_objs s \<and>
-                               valid_arch_state s)\<rbrace>
+                               valid_arch_state s \<and>
+                               valid_arch_caps s)\<rbrace>
      finalise_cap cap x
    \<lbrace>\<lambda>rv s. replaceable s sl (fst rv) cap\<rbrace>"
   apply (cases "is_arch_cap cap")
@@ -568,12 +565,12 @@ lemma (* finalise_cap_replaceable *) [Finalise_AI_asms]:
       | rule conjI
       | erule cte_wp_at_weakenE tcb_cap_valid_imp'[rule_format, rotated -1]
       | erule(1) no_cap_to_obj_with_diff_ref_finalI_ARCH
-      | (wp_once hoare_drop_imps,
-          wp_once cancel_all_ipc_unlive[unfolded o_def]
+      | (wp (once) hoare_drop_imps,
+          wp (once) cancel_all_ipc_unlive[unfolded o_def]
               cancel_all_signals_unlive[unfolded o_def])
-      | ((wp_once hoare_drop_imps)?,
-         (wp_once hoare_drop_imps)?,
-         wp_once deleting_irq_handler_empty)
+      | ((wp (once) hoare_drop_imps)?,
+         (wp (once) hoare_drop_imps)?,
+         wp (once) deleting_irq_handler_empty)
       | wpc
       | simp add: valid_cap_simps is_nondevice_page_cap_simps)+)
   done
@@ -1092,7 +1089,7 @@ lemma word32_ucast_enumerates_word8:
    apply (simp add: word_shift_by_2)
   apply (clarsimp simp: pt_bits_def pageBits_def)
   apply (rule order_trans)
-   apply (rule minus_one_helper3)
+   apply (rule word_le_minus_one_leq)
    apply (rule ucast_less)
    apply simp+
   done

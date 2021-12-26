@@ -1,17 +1,13 @@
 (*
- * Copyright 2018, Data61, CSIRO
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(DATA61_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 chapter "RISCV64 Object Invocations"
 
 theory ArchInvocation_A
-imports "../Structures_A"
+imports Structures_A
 begin
 
 context Arch begin global_naming RISCV64_A
@@ -39,8 +35,6 @@ datatype page_invocation =
       (pg_inv_cap : arch_cap)
       (pg_inv_cslot : cslot_ptr)
       (pg_inv_entries : "pte \<times> obj_ref")
-  | PageRemap
-      (pg_inv_entries : "pte \<times> obj_ref")
   | PageUnmap
       (pg_inv_cap : arch_cap)
       (pg_inv_cslot : cslot_ptr)
@@ -61,7 +55,7 @@ definition ArchDefaultExtraRegisters :: arch_copy_register_sets
   "ArchDefaultExtraRegisters = RISCVNoExtraRegisters"
 
 datatype arch_irq_control_invocation =
-    RISCVNoIRQControlInvocation
+    RISCVIRQControlInvocation irq cslot_ptr cslot_ptr bool
 
 end
 end

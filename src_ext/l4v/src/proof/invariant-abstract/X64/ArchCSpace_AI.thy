@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -13,7 +9,7 @@ X64-specific CSpace invariants
 *)
 
 theory ArchCSpace_AI
-imports "../CSpace_AI"
+imports CSpace_AI
 begin
 
 context Arch begin global_naming X64
@@ -128,6 +124,15 @@ lemma set_free_index_invs [CSpace_AI_assms]:
   apply (drule_tac x = ref in orthD2[rotated])
    apply (simp add: cap_range_def)+
   done
+
+lemma unique_table_refs_upd_eqD:
+  "\<lbrakk>ms a = Some b; obj_refs b = obj_refs b'; table_cap_ref b = table_cap_ref b'\<rbrakk>
+   \<Longrightarrow> unique_table_refs (ms (a \<mapsto> b')) = unique_table_refs ms"
+  unfolding unique_table_refs_def
+  (* match up p and p' on both sides of equality *)
+  apply (rule all_cong[where Q=\<top>, simplified])
+  apply (rule all_cong[where Q=\<top>, simplified])
+  by auto
 
 lemma set_untyped_cap_as_full_valid_arch_caps [CSpace_AI_assms]:
   "\<lbrace>valid_arch_caps and cte_wp_at ((=) src_cap) src\<rbrace>
@@ -637,7 +642,7 @@ lemma cap_insert_simple_invs:
   cap_insert cap src dest \<lbrace>\<lambda>rv. invs\<rbrace>"
   apply (simp add: invs_def valid_state_def valid_pspace_def)
   apply (rule hoare_pre)
-   apply (wp_trace cap_insert_simple_mdb cap_insert_iflive
+   apply (wp cap_insert_simple_mdb cap_insert_iflive
              cap_insert_zombies cap_insert_ifunsafe cap_insert_simple_ioports
              cap_insert_valid_global_refs cap_insert_idle
              valid_irq_node_typ cap_insert_simple_arch_caps_no_ap)

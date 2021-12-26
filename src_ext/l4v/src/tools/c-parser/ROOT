@@ -1,28 +1,32 @@
 (*
  * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 chapter "C-Parser"
 
-session "Simpl-VCG" = Word_Lib +
+session "Simpl-VCG" in Simpl = Word_Lib +
   sessions
     "HOL-Statespace"
   theories
-    "Simpl/Vcg"
+    "Vcg"
 
 session CParser = "Simpl-VCG" +
+  options [document = pdf, document_output = "../../../../../C11-BackEnds/AutoCorres_wrapper/output/document/3"]
   sessions
     (* To optimize the overall compilation time, the session taking the longest time to compile is put as a direct dependence of CParser, instead of being listed here. *)
     "HOL-Library"
     "HOL-Word"
     "Lib"
     Isabelle_C
+  directories
+    "../../../../../C11-BackEnds/AutoCorres_wrapper/src/compiler"
+    "umm_heap"
+    "umm_heap/$L4V_ARCH"
   theories
     "CTranslation"
+  document_files
+    "root.tex"
+    "root.bib"

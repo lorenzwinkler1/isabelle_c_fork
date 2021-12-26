@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -149,7 +145,7 @@ lemma cnode_invok_case_cleanup:
         \<Longrightarrow> (case i of CNodeRevoke \<Rightarrow> P | CNodeDelete \<Rightarrow> Q | CNodeCancelBadgedSends \<Rightarrow> R
                  | CNodeRotate \<Rightarrow> S | CNodeSaveCaller \<Rightarrow> T
                  | _ \<Rightarrow> U) = U"
-  by (simp split: invocation_label.split)
+  by (simp split: gen_invocation_labels.split)
 
 lemma cancelSendRightsEq:
   "cap_relation cap cap' \<Longrightarrow> hasCancelSendRights cap' = has_cancel_send_rights cap"
@@ -189,12 +185,12 @@ lemma dec_cnode_inv_corres:
                         apply auto[1]
                        apply (rule_tac r'="\<lambda>a b. fst b = rights_mask_map (fst a)
                                                \<and> snd b = fst (snd a)
-                                               \<and> snd (snd a) = (invocation_type (mi_label mi)
+                                               \<and> snd (snd a) = (gen_invocation_type (mi_label mi)
                                                      \<in> {CNodeMove, CNodeMutate})"
                                   in corres_splitEE)
                            prefer 2
                            apply (rule corres_trivial)
-                           subgoal by (auto split: list.split invocation_label.split,
+                           subgoal by (auto split: list.split gen_invocation_labels.split,
                                        auto simp: returnOk_def all_rights_def
                                                   rightsFromWord_correspondence)
                           apply (rule_tac r'=cap_relation in corres_splitEE)
@@ -450,7 +446,7 @@ lemma decodeCNodeInv_wf[wp]:
                apply (rule deriveCap_Null_helper)
                apply (simp add: imp_conjR)
                apply ((wp deriveCap_derived deriveCap_untyped_derived
-                 | wp_once hoare_drop_imps)+)[1]
+                 | wp (once) hoare_drop_imps)+)[1]
               apply (wp whenE_throwError_wp getCTE_wp | wpc | simp(no_asm))+
            apply (rule_tac Q'="\<lambda>rv. invs' and cte_wp_at' (\<lambda>cte. cteCap cte = NullCap) destSlot
                                           and ex_cte_cap_to' destSlot"
@@ -464,7 +460,7 @@ lemma decodeCNodeInv_wf[wp]:
                             untyped_derived_eq_updateCapData
                             untyped_derived_eq_refl)
            apply (auto simp:isCap_simps updateCapData_def)[1]
-          apply (wp ensureEmptySlot_stronger | simp | wp_once hoare_drop_imps)+
+          apply (wp ensureEmptySlot_stronger | simp | wp (once) hoare_drop_imps)+
        \<comment> \<open>Revoke\<close>
        apply (simp add: decodeCNodeInvocation_def isCNodeCap_CNodeCap split_def
                         unlessE_whenE
@@ -483,7 +479,7 @@ lemma decodeCNodeInv_wf[wp]:
      apply (simp add: decodeCNodeInvocation_def isCNodeCap_CNodeCap split_def
                       unlessE_whenE)
      apply (rule hoare_pre)
-      apply (wp lsfco_cte_at' | simp | wp_once hoare_drop_imps)+
+      apply (wp lsfco_cte_at' | simp | wp (once) hoare_drop_imps)+
     \<comment> \<open>CancelBadgedSends\<close>
     apply (simp add: decodeCNodeInvocation_def isCNodeCap_CNodeCap split_def
                      unlessE_whenE)
@@ -864,7 +860,7 @@ lemma modify_map_next_trancl:
 proof (cases "m ptr")
   case None
   thus ?thesis using nxt
-    by (simp add: modify_map_def) (simp add: None [symmetric] fun_upd_triv)
+    by (simp add: modify_map_def)
 next
   case (Some cte)
   let ?m = "m(ptr \<mapsto> f cte)"
@@ -895,7 +891,7 @@ lemma modify_map_next_trancl2:
 proof (cases "m ptr")
   case None
   thus ?thesis using nxt
-    by (simp add: modify_map_def) (simp add: None [symmetric] fun_upd_triv)
+    by (simp add: modify_map_def)
 next
   case (Some cte)
   let ?m = "m(ptr \<mapsto> f cte)"
@@ -931,7 +927,7 @@ lemma modify_map_dlist:
 proof (cases "m ptr")
   case None
   thus ?thesis using nxt
-    by (simp add: modify_map_def) (simp add: None [symmetric] fun_upd_triv)
+    by (simp add: modify_map_def)
 next
   case (Some ptrcte)
   let ?m = "m(ptr \<mapsto> f ptrcte)"
@@ -999,7 +995,7 @@ lemma modify_map_dlist2:
 proof (cases "m ptr")
   case None
   thus ?thesis using nxt
-    by (simp add: modify_map_def) (simp add: None [symmetric] fun_upd_triv)
+    by (simp add: modify_map_def)
 next
   case (Some ptrcte)
   let ?m = "modify_map m ptr f"
@@ -1139,7 +1135,7 @@ proof
   proof (cases "m ptr")
     case None
     thus ?thesis
-      by (simp add: modify_map_def, rule subst, subst fun_upd_triv) (rule x0)
+      by (simp add: modify_map_def) (rule x0)
   next
     case (Some cte)
     show ?thesis
@@ -2096,7 +2092,7 @@ proof -
 
       hence d2n: "dest2_node = dest_node"
         unfolding dest2_node_def using dsneq
-        by (simp, cases dest_node, simp)
+        by simp
 
       from trancl obtain d where dnext: "m \<turnstile> d \<leadsto> src" and ncd: "m \<turnstile> c \<leadsto>\<^sup>* d"
         by (clarsimp dest!: tranclD2)
@@ -2707,7 +2703,6 @@ lemma (in mdb_swap) n_dest:
    apply (simp add: modify_map_same modify_map_other)
    apply (cases src_node, simp)
   apply (simp add: modify_map_same modify_map_other)
-  apply (cases src_node, simp)
   done
 
 lemma (in mdb_swap) n_dest_prev:
@@ -5699,7 +5694,7 @@ lemma shrink_zombie_invs':
    apply (clarsimp simp: valid_cap'_def capAligned_def)
   apply clarsimp
   apply (rule ccontr, erule notE, rule imageI)
-  apply (drule minus_one_helper3)
+  apply (drule word_le_minus_one_leq)
   apply (rule ccontr, simp add: linorder_not_less mult.commute mult.left_commute)
   done
 
@@ -6041,8 +6036,9 @@ lemma updateTrackedFreeIndex_no_cte_prop[wp]:
   apply (clarsimp simp: no_cte_prop_def finalise_prop_stuff_def)
   done
 
-crunch no_cte_prop[wp]: emptySlot, capSwapForDelete "no_cte_prop P"
-  (ignore: doMachineOp wp: dmo_maskInterrupt_no_cte_prop)
+crunches emptySlot, capSwapForDelete
+  for no_cte_prop[wp]: "no_cte_prop P"
+  (wp: dmo_maskInterrupt_no_cte_prop ignore: doMachineOp)
 
 lemma reduceZombie_invs'':
   assumes fin:
@@ -6178,9 +6174,9 @@ proof (induct arbitrary: P p rule: finalise_spec_induct2)
   have R: "\<And>n. n \<noteq> 0 \<Longrightarrow> {0 .. n - 1} = {0 ..< n :: word32}"
     apply safe
      apply simp
-     apply (erule(1) minus_one_helper5)
+     apply (erule(1) word_leq_minus_one_le)
     apply simp
-    apply (erule minus_one_helper3)
+    apply (erule word_le_minus_one_leq)
     done
   have final_IRQHandler_no_copy:
     "\<And>irq sl sl' s. \<lbrakk> isFinal (IRQHandlerCap irq) sl (cteCaps_of s); sl \<noteq> sl' \<rbrakk> \<Longrightarrow> cteCaps_of s sl' \<noteq> Some (IRQHandlerCap irq)"
@@ -6270,7 +6266,7 @@ proof (induct arbitrary: P p rule: finalise_spec_induct2)
         apply clarsimp
        apply (case_tac "cteCap rv",
               simp_all add: isCap_simps final_matters'_def)[1]
-      apply (wp isFinalCapability_inv static_imp_wp | simp | wp_once isFinal[where x=sl])+
+      apply (wp isFinalCapability_inv static_imp_wp | simp | wp (once) isFinal[where x=sl])+
      apply (wp getCTE_wp')
     apply (clarsimp simp: cte_wp_at_ctes_of)
     apply (rule conjI, clarsimp simp: removeable'_def)
@@ -6516,8 +6512,7 @@ lemma cteDelete_sch_act_simple:
 crunch st_tcb_at'[wp]: emptySlot "st_tcb_at' P t" (simp: case_Null_If)
 
 crunch st_tcb_at'[wp]: "Arch.finaliseCap", unbindMaybeNotification, prepareThreadDelete "st_tcb_at' P t"
-  (ignore: getObject setObject simp: crunch_simps
-   wp: crunch_wps getObject_inv loadObject_default_inv)
+  (simp: crunch_simps wp: crunch_wps getObject_inv loadObject_default_inv)
 end
 
 
@@ -6625,12 +6620,16 @@ lemmas storePDE_cteCaps_of[wp] = ctes_of_cteCaps_of_lift [OF storePDE_ctes]
 
 context begin interpretation Arch . (*FIXME: arch_split*)
 
+context
+notes option.case_cong_weak[cong]
+begin
 crunch rvk_prog': finaliseCap
     "\<lambda>s. revoke_progress_ord m (\<lambda>x. option_map capToRPO (cteCaps_of s x))"
   (wp: crunch_wps emptySlot_rvk_prog' threadSet_ctesCaps_of
        getObject_inv loadObject_default_inv
    simp: crunch_simps unless_def o_def
-   ignore: setObject setCTE threadSet)
+   ignore: setCTE threadSet)
+end
 
 lemmas finalise_induct3 = finaliseSlot'.induct[where P=
     "\<lambda>sl exp s. P sl (finaliseSlot' sl exp) s" for P]
@@ -6936,7 +6935,7 @@ lemmas rec_del_valid_list_irq_state_independent[wp] =
 
 lemma rec_del_corres:
   "\<forall>C \<in> rec_del_concrete args.
-   spec_corres s (intr \<oplus> (case args of
+   spec_corres s (dc \<oplus> (case args of
                             FinaliseSlotCall _ _ \<Rightarrow> (\<lambda>r r'. fst r = fst r'
                                                            \<and> cap_relation (snd r) (snd r') )
                           | _ \<Rightarrow> dc))
@@ -6966,7 +6965,7 @@ proof (induct rule: rec_del.induct,
                           split_def)
     apply (rule spec_corres_guard_imp)
       apply (rule spec_corres_splitE)
-         apply (rule "1.hyps"[simplified rec_del_concrete_unfold])
+         apply (rule "1.hyps"[simplified rec_del_concrete_unfold dc_def])
         apply (rule drop_spec_corres)
         apply (simp(no_asm) add: dc_def[symmetric] liftME_def[symmetric]
                                  whenE_liftE)
@@ -7341,7 +7340,7 @@ next
 qed
 
 lemma cap_delete_corres:
-  "corres (intr \<oplus> dc)
+  "corres (dc \<oplus> dc)
       (einvs and simple_sched_action and cte_at ptr and emptyable ptr)
       (invs' and sch_act_simple and cte_at' (cte_map ptr))
       (cap_delete ptr) (cteDelete (cte_map ptr) True)"
@@ -7547,12 +7546,6 @@ lemma cap_revoke_mdb_stuff1:
   apply clarsimp
   done
 
-(* FIXME: move *)
-lemma next_child_child_set:
-  "\<lbrakk>next_child slot (cdt_list s) = Some child; valid_list s\<rbrakk>
-    \<Longrightarrow> child \<in> (case next_child slot (cdt_list s) of None \<Rightarrow> {} | Some n \<Rightarrow> {n})"
-  by (simp add: next_child_def)
-
 lemma cap_revoke_mdb_stuff4:
   "\<lbrakk> (s, s') \<in> state_relation; cte_wp_at ((=) cap) p s;
      cte_wp_at' ((=) cte) (cte_map p) s'; invs s; valid_list s; invs' s';
@@ -7586,7 +7579,7 @@ lemma cap_revoke_mdb_stuff4:
        done
 
 lemma cap_revoke_corres':
-  "spec_corres s (intr \<oplus> dc)
+  "spec_corres s (dc \<oplus> dc)
       (einvs and simple_sched_action and cte_at ptr)
       (invs' and sch_act_simple and cte_at' (cte_map ptr))
       (cap_revoke ptr) (\<lambda>s. cteRevoke (cte_map ptr) s)"
@@ -7746,7 +7739,7 @@ lemma threadSet_st_tcb_at2:
   done
 
 crunch st_tcb_at_simplish[wp]: "cancelBadgedSends" "st_tcb_at' (\<lambda>st. P st \<or> simple' st) t"
-  (ignore: getObject setObject filterM
+  (ignore: filterM
        wp: crunch_wps threadSet_st_tcb_at2
      simp: crunch_simps filterM_mapM makeObject_tcb unless_def)
 
@@ -8617,7 +8610,7 @@ declare corres_False' [simp]
 
 lemma inv_cnode_corres:
   "cnodeinv_relation ci ci' \<Longrightarrow>
-   corres (intr \<oplus> dc)
+   corres (dc \<oplus> dc)
      (einvs and simple_sched_action and valid_cnode_inv ci)
      (invs' and sch_act_simple and valid_cnode_inv' ci')
      (invoke_cnode ci) (invokeCNode ci')"
@@ -8821,8 +8814,7 @@ crunch irq_states' [wp]: finaliseCap valid_irq_states'
        no_irq_invalidateLocalTLB_ASID no_irq_setHardwareASID
        no_irq_set_current_pd no_irq_invalidateLocalTLB_VAASID
        no_irq_cleanByVA_PoU
-   simp: crunch_simps armv_contextSwitch_HWASID_def o_def setCurrentPD_to_abs
-   ignore: getObject setObject)
+   simp: crunch_simps armv_contextSwitch_HWASID_def o_def setCurrentPD_to_abs)
 
 lemma finaliseSlot_IRQInactive':
   "s \<turnstile> \<lbrace>valid_irq_states'\<rbrace> finaliseSlot' a b

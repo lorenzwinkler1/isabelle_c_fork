@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -13,7 +9,7 @@ CSpace refinement
 *)
 
 theory CSpace_AI
-imports "./$L4V_ARCH/ArchCSpacePre_AI"
+imports ArchCSpacePre_AI
 begin
 
 context begin interpretation Arch .
@@ -3696,49 +3692,6 @@ lemma is_derived_obj_refs:
     split: if_split_asm dest!:cap_master_cap_eqDs)
   apply (clarsimp simp: cap_master_cap_def)
   apply (auto split: cap.split_asm dest: master_arch_cap_obj_refs)
-  done
-
-
-lemma unique_table_refs_upd_eqD:
-  "\<lbrakk>ms a = Some b; obj_refs b = obj_refs b'; table_cap_ref b = table_cap_ref b'\<rbrakk>
-   \<Longrightarrow> unique_table_refs (ms (a \<mapsto> b')) = unique_table_refs (ms)"
-  unfolding unique_table_refs_def
-  apply (rule iffI)
-   apply (intro allI impI)
-   apply (case_tac "p=p'")
-    apply simp
-   apply (case_tac "a=p")
-    apply (erule_tac x=p in allE)
-    apply (erule_tac x=p' in allE)
-    apply (erule_tac x=b' in allE)
-    apply simp
-   apply (case_tac "a=p'")
-    apply (erule_tac x=p in allE)
-    apply (erule_tac x=p' in allE)
-    apply (erule_tac x=cap in allE)
-    apply simp
-   apply (erule_tac x=p in allE)
-   apply (erule_tac x=p' in allE)
-   apply (erule_tac x=cap in allE)
-   apply simp
-  apply (intro allI impI)
-  apply (case_tac "p=p'")
-   apply (thin_tac " \<forall>p. P p" for P)
-   apply simp
-  apply (case_tac "a=p")
-   apply (erule_tac x=p in allE)
-   apply (erule_tac x=p' in allE)
-   apply (erule_tac x=b in allE)
-   apply simp
-  apply (case_tac "a=p'")
-   apply (erule_tac x=p in allE)
-   apply (erule_tac x=p' in allE)
-   apply (erule_tac x=cap in allE)
-   apply simp
-  apply (erule_tac x=p in allE)
-  apply (erule_tac x=p' in allE)
-  apply (erule_tac x=cap in allE)
-  apply simp
   done
 
 

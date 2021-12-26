@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -13,8 +9,9 @@ Lemmas on arch get/set object etc
 *)
 
 theory ArchAcc_AI
-imports "../SubMonad_AI"
- "Lib.Crunch_Instances_NonDet"
+imports
+  SubMonad_AI
+  "Lib.Crunch_Instances_NonDet"
 begin
 
 context Arch begin global_naming ARM_HYP
@@ -402,7 +399,7 @@ lemma pde_at_aligned_vptr:  (* ARMHYP *) (* 0x3C \<rightarrow> 0x78?, 24 \<right
       apply (simp add: pd_bits_def)
      apply (clarsimp simp: pd_bits_def pde_bits_def upto_enum_step_def word_shift_by_n[of _ 3, simplified])
      apply (rule shiftl_less_t2n[where m=7, simplified])
-      apply (rule minus_one_helper5)
+      apply (rule word_leq_minus_one_le)
        apply simp+
     apply (rule sym, rule add_mask_lower_bits)
      apply (simp add: vspace_bits_defs)
@@ -1943,6 +1940,11 @@ lemma set_asid_pool_vspace_objs_unmap':
   apply fastforce
   done
 
+lemma valid_vspace_obj_same_type:
+  "\<lbrakk>valid_vspace_obj ao s;  kheap s p = Some ko; a_type ko' = a_type ko\<rbrakk>
+  \<Longrightarrow> valid_vspace_obj ao (s\<lparr>kheap := kheap s(p \<mapsto> ko')\<rparr>)"
+    apply (rule hoare_to_pure_kheap_upd[OF valid_vspace_obj_typ])
+    by (auto simp: obj_at_def)
 
 lemma set_asid_pool_vspace_objs_unmap:
   "\<lbrace>valid_vspace_objs and ko_at (ArchObj (ASIDPool ap)) p\<rbrace>
@@ -2559,8 +2561,8 @@ lemma is_aligned_addrFromPPtr_n:
   "\<lbrakk> is_aligned p n; n \<le> 28 \<rbrakk> \<Longrightarrow> is_aligned (Platform.ARM_HYP.addrFromPPtr p) n"
   apply (simp add: Platform.ARM_HYP.addrFromPPtr_def)
   apply (erule aligned_sub_aligned, simp_all)
-  apply (simp add: physMappingOffset_def physBase_def
-                   kernelBase_addr_def pageBits_def)
+  apply (simp add: pptrBaseOffset_def physBase_def
+                   pptrBase_def pageBits_def)
   apply (erule is_aligned_weaken[rotated])
   apply (simp add: is_aligned_def)
   done
@@ -2572,8 +2574,8 @@ lemma is_aligned_addrFromPPtr:
 lemma is_aligned_ptrFromPAddr_n:
   "\<lbrakk>is_aligned x sz; sz\<le> 28\<rbrakk>
   \<Longrightarrow> is_aligned (ptrFromPAddr x) sz"
-  apply (simp add:ptrFromPAddr_def physMappingOffset_def
-    kernelBase_addr_def physBase_def)
+  apply (simp add:ptrFromPAddr_def pptrBaseOffset_def
+    pptrBase_def physBase_def)
   apply (erule aligned_add_aligned)
    apply (erule is_aligned_weaken[rotated])
    apply (simp add:is_aligned_def)
@@ -2687,39 +2689,31 @@ lemma lookup_pd_slot_add_eq:
     proof -
     have H: "(0xF::word32) < 2 ^ 4"  by simp
     from prems show ?thesis
-    apply (subst (asm) word_plus_and_or_coroll)
-     apply (rule word_eqI)
-     apply (thin_tac "is_aligned pd _")
-     apply (clarsimp simp: word_size nth_shiftl nth_shiftr is_aligned_nth)
-     subgoal for n
-       apply (spec "18 + n")
-       apply (frule test_bit_size[where n="18 + n"])
-       apply (simp add: word_size)
+      apply (subst (asm) word_plus_and_or_coroll)
+       apply (rule word_eqI)
+       apply (thin_tac "is_aligned pd _")
+       apply (clarsimp simp: word_size nth_shiftl nth_shiftr is_aligned_nth)
+       subgoal for n
+         apply (spec "18 + n")
+         apply (frule test_bit_size[where n="18 + n"])
+         apply (simp add: word_size)
+         apply (insert H)[1]
+         apply (drule (1) order_le_less_trans)
+         apply (drule bang_is_le)
+         apply (drule_tac z="2 ^ 4" in order_le_less_trans, assumption)
+         by (drule word_power_increasing; simp?)
+      apply simp
+      apply (clarsimp simp: word_size nth_shiftl nth_shiftr is_aligned_nth)
+      apply (erule disjE)
        apply (insert H)[1]
        apply (drule (1) order_le_less_trans)
        apply (drule bang_is_le)
        apply (drule_tac z="2 ^ 4" in order_le_less_trans, assumption)
-       apply (drule word_power_increasing)
-          apply simp
-         apply simp
-        apply simp
-       by arith
-    apply simp
-    apply (clarsimp simp: word_size nth_shiftl nth_shiftr is_aligned_nth)
-    apply (erule disjE)
-     apply (insert H)[1]
-     apply (drule (1) order_le_less_trans)
-     apply (drule bang_is_le)
-     apply (drule_tac z="2 ^ 4" in order_le_less_trans, assumption)
-     apply (drule word_power_increasing)
-        apply simp
-       apply simp
-      apply simp
-     apply arith
-    apply (spec "18 + n'")
-    apply (frule test_bit_size[where n="18 + n'"])
-    by (simp add: word_size)
-    qed
+       apply (drule word_power_increasing; simp?)
+      apply (spec "18 + n'")
+      apply (frule test_bit_size[where n="18 + n'"])
+      by (simp add: word_size)
+  qed
 done
 
 
@@ -3187,16 +3181,12 @@ lemma machine_op_lift_device_state[wp]:
                      select_def ignore_failure_def select_f_def
               split: if_splits)
 
-crunch device_state_inv[wp]: invalidateLocalTLB_ASID "\<lambda>ms. P (device_state ms)"
-crunch device_state_inv[wp]: invalidateLocalTLB_VAASID "\<lambda>ms. P (device_state ms)"
-crunch device_state_inv[wp]: setHardwareASID "\<lambda>ms. P (device_state ms)"
-crunch device_state_inv[wp]: isb "\<lambda>ms. P (device_state ms)"
-crunch device_state_inv[wp]: dsb "\<lambda>ms. P (device_state ms)"
-crunch device_state_inv[wp]: set_current_pd "\<lambda>ms. P (device_state ms)"
-  (simp: setCurrentPDPL2_def)
-crunch device_state_inv[wp]: storeWord "\<lambda>ms. P (device_state ms)"
-crunch device_state_inv[wp]: cleanByVA_PoU "\<lambda>ms. P (device_state ms)"
-crunch device_state_inv[wp]: cleanL2Range "\<lambda>ms. P (device_state ms)"
+crunches invalidateLocalTLB_ASID, invalidateLocalTLB_VAASID, setHardwareASID, isb, dsb,
+         set_current_pd, storeWord, cleanByVA_PoU, cleanL2Range
+  for device_state_inv[wp]: "\<lambda>ms. P (device_state ms)"
+  (simp: setCurrentPDPL2_def
+   ignore_del: invalidateLocalTLB_ASID invalidateLocalTLB_VAASID setHardwareASID isb
+               dsb storeWord cleanByVA_PoU cleanL2Range)
 
 lemma as_user_inv:
   assumes x: "\<And>P. \<lbrace>P\<rbrace> f \<lbrace>\<lambda>x. P\<rbrace>"

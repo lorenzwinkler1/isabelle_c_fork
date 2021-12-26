@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -14,7 +10,7 @@
 
 chapter CAmkES
 
-session CamkesAdlSpec (Camkes) in "adl-spec" = HOL +
+session CamkesAdlSpec (Camkes) in "adl-spec" = Access +
   options [document = pdf]
   theories
     "Wellformed_CAMKES"
@@ -25,7 +21,6 @@ session CamkesAdlSpec (Camkes) in "adl-spec" = HOL +
     "imgs/dataport.pdf"
     "imgs/echo.pdf"
     "imgs/event.pdf"
-    "imgs/NICTA_logo.pdf"
     "imgs/terminal.pdf"
     "intro.tex"
     "root.tex"
@@ -35,7 +30,7 @@ session CamkesAdlSpec (Camkes) in "adl-spec" = HOL +
 (* Base session for CAmkES<->CapDL reasoning. This session is intended to be simply a combination
  * of CamkesAdlSpec and DSpec, and is defined because we can't easily depend on both.
  *)
-session CamkesCdlBase (Camkes) in "adl-spec" = DPolicy +
+session CamkesCdlBase (Camkes) = DPolicy +
   sessions
     DSpec
     CamkesAdlSpec
@@ -49,11 +44,17 @@ session CamkesCdlBase (Camkes) in "adl-spec" = DPolicy +
 (* CAmkES<->CapDL reasoning. *)
 session CamkesCdlRefine (Camkes) in "cdl-refine" = CamkesCdlBase +
   theories
-    Generator_CAMKES_CDL
     Policy_CAMKES_CDL
+    Eval_CAMKES_CDL
 
 session CamkesGlueSpec (Camkes) in "glue-spec" = HOL +
   options [document = pdf]
+  directories
+    "example-procedure"
+    "example-event"
+    "example-dataport"
+    "example-untrusted"
+    "example-trusted"
   theories
     Abbreviations
     CIMP
@@ -70,7 +71,6 @@ session CamkesGlueSpec (Camkes) in "glue-spec" = HOL +
     "event.camkes"
     "imgs/echo.pdf"
     "imgs/filter.pdf"
-    "imgs/NICTA_logo.pdf"
     "imgs/thydeps.pdf"
     "intro.tex"
     "root.bib"
@@ -99,6 +99,5 @@ session CamkesGlueProofs (Camkes) in "glue-proofs" = AutoCorres +
     "root.tex"
     "simple.camkes"
     "to-echo-int.c"
-    "imgs/NICTA_logo.pdf"
     "comment.sty"
     "ulem.sty"

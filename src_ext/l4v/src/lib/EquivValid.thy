@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 (*
@@ -270,6 +266,30 @@ lemma modify_ev2:
   "equiv_valid_2 I A B R P P' (modify f) (modify f')"
   apply(clarsimp simp: equiv_valid_2_def in_monad)
   using assms by auto
+
+lemma modify_ev:
+  "equiv_valid I A B
+     (\<lambda> s. \<forall> s t. I s t \<and> A s t \<longrightarrow> I (f s) (f t) \<and> B (f s) (f t))
+     (modify f)"
+  apply(clarsimp simp:equiv_valid_def2)
+  apply(rule modify_ev2)
+  by auto
+
+lemma modify_ev':
+  "equiv_valid I A B
+     (\<lambda> s. \<forall> t. I s t \<and> A s t \<longrightarrow> I (f s) (f t) \<and> B (f s) (f t))
+     (modify f)"
+  apply(clarsimp simp:equiv_valid_def2)
+  apply(rule modify_ev2)
+  by auto
+
+lemma modify_ev'':
+  assumes "\<And> s t. \<lbrakk>I s t; A s t; P s; P t\<rbrakk> \<Longrightarrow> I (f s) (f t) \<and> B (f s) (f t)"
+  shows "equiv_valid I A B P (modify f)"
+  apply(clarsimp simp:equiv_valid_def2)
+  apply(rule modify_ev2)
+  using assms by auto
+
 
 lemma put_ev2:
   assumes "\<And> s t. \<lbrakk>I s t; A s t; P s; P' t\<rbrakk> \<Longrightarrow> R () () \<and> I x x' \<and> B x x'"

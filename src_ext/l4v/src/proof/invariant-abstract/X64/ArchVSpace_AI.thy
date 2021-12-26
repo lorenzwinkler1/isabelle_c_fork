@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -13,7 +9,7 @@ X64-specific VSpace invariants
 *)
 
 theory ArchVSpace_AI
-imports "../VSpacePre_AI"
+imports VSpacePre_AI
 begin
 
 context Arch begin global_naming X64
@@ -304,9 +300,6 @@ lemma ex_asid_high_bits_plus:
    prefer 2
    apply fastforce
   apply (clarsimp simp: linorder_not_less)
-  apply (rule conjI)
-   prefer 2
-   apply arith
   apply (subgoal_tac "n < 12", simp)
   apply (clarsimp simp add: linorder_not_le [symmetric])
   done
@@ -322,9 +315,6 @@ lemma asid_high_bits_shl:
   apply (rule context_conjI)
    apply (clarsimp simp add: linorder_not_less [symmetric])
   apply simp
-  apply (rule conjI)
-   prefer 2
-   apply simp
   apply (subgoal_tac "n < 12", simp)
   apply (clarsimp simp add: linorder_not_le [symmetric])
   done
@@ -644,7 +634,7 @@ lemma lookup_pd_slot_is_aligned:
   apply (simp add: lookup_pd_slot_def)
   apply (rule hoare_pre)
    apply (wp get_pdpte_wp hoare_vcg_all_lift_R | wpc | simp)+
-   apply (wp_once hoare_drop_imps)
+   apply (wp (once) hoare_drop_imps)
    apply (wp hoare_vcg_all_lift_R hoare_vcg_ex_lift_R)
   apply (clarsimp simp: get_pd_index_def bit_simps)
   apply (subgoal_tac "is_aligned (ptrFromPAddr x) word_size_bits")
@@ -709,21 +699,18 @@ definition
 definition
   "valid_page_inv page_inv \<equiv> case page_inv of
     PageMap cap ptr m vspace \<Rightarrow>
-      cte_wp_at (is_arch_update cap and ((=) None \<circ> vs_cap_ref)) ptr
+      cte_wp_at (is_arch_update cap) ptr
+      and (cte_wp_at (\<lambda>c. vs_cap_ref c = None) ptr or (\<lambda>s. cte_wp_at (\<lambda>c. same_refs m c s) ptr s))
       and cte_wp_at is_pg_cap ptr
       and (\<lambda>s. same_refs m cap s)
       and valid_slots m
       and valid_cap cap
       and K (is_pg_cap cap \<and> empty_refs m)
       and (\<lambda>s. \<exists>slot. cte_wp_at (parent_for_refs m) slot s)
-  | PageRemap m asid vspace\<Rightarrow>
-      valid_slots m and K (empty_refs m)
-      and (\<lambda>s. \<exists>slot. cte_wp_at (parent_for_refs m) slot s)
-      and (\<lambda>s. \<exists>slot. cte_wp_at (\<lambda>cap. same_refs m cap s) slot s)
   | PageUnmap cap ptr \<Rightarrow>
      \<lambda>s. \<exists>d r R maptyp sz m. cap = PageCap d r R maptyp sz m \<and>
          case_option True (valid_unmap sz) m \<and>
-         cte_wp_at (is_arch_diminished (cap.ArchObjectCap cap)) ptr s \<and>
+         cte_wp_at ((=) (cap.ArchObjectCap cap)) ptr s \<and>
          s \<turnstile> (cap.ArchObjectCap cap)
   | PageGetAddr ptr \<Rightarrow> \<top>"
 
@@ -792,7 +779,7 @@ definition
                  \<and> vs_cap_ref cap = Some (VSRef ((p && mask pd_bits >> word_size_bits) && mask ptTranslationBits) (Some APageDirectory) # ref))
         and K (is_pt_cap cap)
    | PageTableUnmap cap ptr \<Rightarrow>
-     cte_wp_at (\<lambda>c. is_arch_diminished cap c) ptr and valid_cap cap
+     cte_wp_at ((=) cap) ptr and valid_cap cap
        and is_final_cap' cap
        and K (is_pt_cap cap)"
 
@@ -814,7 +801,7 @@ definition
                        (Some APDPointerTable) # ref))
         and K (is_pd_cap cap)
     | PageDirectoryUnmap cap cptr \<Rightarrow>
-      cte_wp_at (\<lambda>c. is_arch_diminished cap c) cptr and valid_cap cap and is_final_cap' cap and K (is_pd_cap cap)"
+      cte_wp_at ((=) cap) cptr and valid_cap cap and is_final_cap' cap and K (is_pd_cap cap)"
 
 definition
   "valid_pdpti pdpti \<equiv> case pdpti of
@@ -834,7 +821,7 @@ definition
                  \<and> hd (the (vs_cap_ref cap)) \<notin> kernel_vsrefs)
         and K (is_pdpt_cap cap)
     | PDPTUnmap cap cptr \<Rightarrow>
-      cte_wp_at (\<lambda>c. is_arch_diminished cap c) cptr and valid_cap cap and is_final_cap' cap and K (is_pdpt_cap cap)"
+      cte_wp_at ((=) cap) cptr and valid_cap cap and is_final_cap' cap and K (is_pdpt_cap cap)"
 
 
 lemmas mapM_x_wp_inv_weak = mapM_x_wp_inv[OF hoare_weaken_pre]
@@ -2550,7 +2537,7 @@ lemma unmap_pt_invs[wp]:
   apply (rule hoare_gen_asm)
   apply (simp add: unmap_page_table_def)
   apply (rule hoare_pre)
-   apply (wp_trace store_pde_invs do_machine_op_global_refs_inv get_pde_wp
+   apply (wp store_pde_invs do_machine_op_global_refs_inv get_pde_wp
              hoare_vcg_all_lift find_vspace_for_asid_lots
         | wpc | simp add: flush_all_def pdpte_ref_pages_def
         | strengthen imp_consequent )+
@@ -3022,54 +3009,55 @@ lemma perform_page_directory_invocation_invs[wp]:
   apply (cases pdi)
    apply (rename_tac cap cslot_ptr pdpte obj_ref vspace)
    apply (rule hoare_pre)
-   apply (clarsimp simp: perform_page_directory_invocation_def)
-   apply (wp hoare_vcg_const_imp_lift hoare_vcg_all_lift  hoare_vcg_conj_lift
-             store_pdpte_invs arch_update_cap_invs_map
+    apply (clarsimp simp: perform_page_directory_invocation_def)
+    apply (wp hoare_vcg_const_imp_lift hoare_vcg_all_lift hoare_vcg_conj_lift
+              store_pdpte_invs arch_update_cap_invs_map
            | strengthen obj_at_empty_refs_strg
-           | simp add: empty_table.arch_only del:  split_paired_All | wps
-           | rule set_cap.aobj_at |wpc)+
-     apply (rule set_cap_cte_wp_at_ex[simplified])
-    apply wp+
-    apply (clarsimp simp: valid_pdi_def is_arch_update_def cte_wp_at_caps_of_state
-                          vs_cap_ref_of_table_capNone
-                      simp del:  split_paired_All)
-    apply (frule vs_lookup_pages_vs_lookupI)
-     apply (rule conjI)
-      apply (clarsimp dest!: same_master_cap_same_types simp: vs_cap_ref_of_table_capNone)
-     apply (intro conjI allI)
-      apply clarsimp
-      apply (drule_tac ref = ref in valid_vs_lookupD)
-       apply fastforce
-      apply (rule ccontr, clarsimp)
-      apply (frule_tac cap = x and cap' = cap in unique_table_caps_pdptD2[OF _ _ _ _ obj_refs_eqI invs_unique_table_caps])
-          apply assumption+
-       apply (erule caps_of_state_valid, fastforce)
+           | simp add: empty_table.arch_only del: split_paired_All | wps
+           | rule set_cap.aobj_at | wpc)+
+      apply (rule set_cap_cte_wp_at_ex[simplified])
+     apply wp+
+   apply (clarsimp simp: valid_pdi_def is_arch_update_def cte_wp_at_caps_of_state
+                         vs_cap_ref_of_table_capNone
+               simp del: split_paired_All)
+   apply (frule vs_lookup_pages_vs_lookupI)
+   apply (rule conjI)
+    apply (clarsimp dest!: same_master_cap_same_types simp: vs_cap_ref_of_table_capNone)
+   apply (intro conjI allI)
+    apply clarsimp
+    apply (drule_tac ref = ref in valid_vs_lookupD)
+     apply fastforce
+    apply (rule ccontr, clarsimp)
+    apply (frule_tac cap = x and cap' = cap in unique_table_caps_pdptD2[OF _ _ _ _ obj_refs_eqI invs_unique_table_caps])
+            apply assumption+
       apply (erule caps_of_state_valid, fastforce)
-     apply (clarsimp simp: is_cap_simps cap_asid_def vs_cap_ref_def split: option.split_asm)
-    apply (clarsimp simp: is_cap_simps)
-    apply (rule ref_is_unique)
+     apply (erule caps_of_state_valid, fastforce)
+    apply (clarsimp simp: is_cap_simps cap_asid_def vs_cap_ref_def split: option.split_asm)
+   apply (clarsimp simp: is_cap_simps)
+   apply (rule ref_is_unique)
           apply simp
          apply (erule(1) vs_lookup_vs_lookup_pagesI)
           apply fastforce+
-         apply (simp add:global_refs_def)
+        apply (simp add: global_refs_def)
         apply (fastforce simp: second_level_tables_def)+
-   apply (clarsimp dest!:invs_valid_objs valid_objs_caps)
+   apply (clarsimp dest!: invs_valid_objs valid_objs_caps)
   apply (rename_tac cap cslot)
   apply (clarsimp simp: perform_page_directory_invocation_def)
   apply (rule hoare_name_pre_state)
   apply (clarsimp simp: valid_pdi_def is_cap_simps)
   apply (rule hoare_pre)
    apply (wpc | clarsimp simp: cte_wp_at_caps_of_state | wp arch_update_cap_invs_unmap_page_directory get_cap_wp)+
-    apply (rule_tac P = "is_pd_cap cap" in hoare_gen_asm)
-    apply (rule_tac Q = "\<lambda>r. cte_wp_at ((=) cap) (a,b) and invs and is_final_cap' cap
+    apply (rule_tac P = "is_pd_cap (ArchObjectCap (PageDirectoryCap p (Some (x1, x2a))))" in hoare_gen_asm)
+    apply (rule_tac Q = "\<lambda>r. cte_wp_at ((=) (ArchObjectCap (PageDirectoryCap p (Some (x1, x2a))))) (a,b)
+                             and invs and is_final_cap' (ArchObjectCap (PageDirectoryCap p (Some (x1, x2a))))
                              and (\<lambda>s. (the (vs_cap_ref (ArchObjectCap (PageDirectoryCap p (Some (x1, x2a))))), p) \<notin> vs_lookup_pages s)
-                             and obj_at (empty_table {}) (the (aobj_ref (update_map_data (Structures_A.the_arch_cap cap) None None)))"
+                             and obj_at (empty_table {}) (the (aobj_ref (update_map_data
+                                   (Structures_A.the_arch_cap (ArchObjectCap (PageDirectoryCap p (Some (x1, x2a))))) None None)))"
                              in hoare_post_imp)
      apply (clarsimp simp: cte_wp_at_caps_of_state is_cap_simps update_map_data_def
                            is_arch_update_def cap_master_cap_simps)
      apply (clarsimp dest!: caps_of_state_valid_cap[OF _ invs_valid_objs] split: option.split_asm
-                      simp: is_arch_diminished_def diminished_def mask_cap_def cap_rights_update_def
-                            acap_rights_update_def vs_cap_ref_simps)
+                      simp: mask_cap_def cap_rights_update_def acap_rights_update_def vs_cap_ref_simps)
     apply (wp hoare_vcg_conj_lift)
         apply (wp mapM_x_wp, force)
        apply (rule mapM_x_swp_store_pde_invs_unmap[unfolded swp_def])
@@ -3077,25 +3065,19 @@ lemma perform_page_directory_invocation_invs[wp]:
       apply force
      apply (wp store_invalid_pde_vs_lookup_pages_shrink)
     apply (wp mapM_x_swp_store_empty_pd[unfolded swp_def])
-   apply (clarsimp simp: cte_wp_at_caps_of_state vs_cap_ref_def is_arch_diminished_def
-                         is_cap_simps diminished_def mask_cap_def)
-   apply (clarsimp simp: cap_rights_update_def
-                         acap_rights_update_def
-                  split: cap.split_asm arch_cap.split_asm)
+   apply (clarsimp simp: cte_wp_at_caps_of_state vs_cap_ref_def
+                         is_cap_simps mask_cap_def)
    apply (wp unmap_pd_vs_lookup_pages)
   apply (clarsimp simp: is_final_cap'_def2 gen_obj_refs_def acap_rights_update_def cte_wp_at_caps_of_state
-                        is_arch_diminished_def diminished_def mask_cap_def
-                  del: )
+                        mask_cap_def)
   apply (clarsimp simp: cap_rights_update_def acap_rights_update_def is_arch_update_def is_cap_simps
-                        update_map_data_def vs_cap_ref_simps invs_psp_aligned pd_bits_def
-                 split: cap.split_asm arch_cap.split_asm)
-  apply (intro conjI impI)
-    apply fastforce
+                        update_map_data_def vs_cap_ref_simps invs_psp_aligned pd_bits_def)
+  apply (rule conjI)
    apply (clarsimp simp: valid_cap_def)
    apply (drule valid_table_caps_pdD, force)
    apply (clarsimp simp: obj_at_def empty_table_def)
-  apply (strengthen  range_neg_mask_strengthen[mk_strg] vtable_range_univ[THEN subset_refl_subst, mk_strg])
-    apply (frule valid_global_refsD2, force)
+  apply (strengthen range_neg_mask_strengthen[mk_strg] vtable_range_univ[THEN subset_refl_subst, mk_strg])
+  apply (frule valid_global_refsD2, force)
   apply (clarsimp simp: valid_cap_def wellformed_mapdata_def image_def le_mask_iff_lt_2n cap_aligned_def
                         cap_range_def invs_vspace_objs pd_bits_def vtable_range_univ invs_arch_state)
   done
@@ -3109,54 +3091,55 @@ lemma perform_page_table_invocation_invs[wp]:
   apply (cases pti)
    apply (rename_tac cap cslot_ptr pdpte obj_ref vspace)
    apply (rule hoare_pre)
-   apply (clarsimp simp: perform_page_table_invocation_def)
-   apply (wp hoare_vcg_const_imp_lift hoare_vcg_all_lift  hoare_vcg_conj_lift
-             store_pde_invs arch_update_cap_invs_map
+    apply (clarsimp simp: perform_page_table_invocation_def)
+    apply (wp hoare_vcg_const_imp_lift hoare_vcg_all_lift  hoare_vcg_conj_lift
+              store_pde_invs arch_update_cap_invs_map
            | strengthen obj_at_empty_refs_strg
            | simp add: empty_table.arch_only del: split_paired_all split_paired_All | wps
            | wp set_cap.aobj_at | wpc)+
-     apply (rule set_cap_cte_wp_at_ex[simplified])
-    apply (wp)+
-    apply (clarsimp simp: valid_pti_def is_arch_update_def cte_wp_at_caps_of_state
-                          vs_cap_ref_of_table_capNone
-                      simp del:  split_paired_All)
-    apply (frule vs_lookup_pages_vs_lookupI)
-     apply (rule conjI)
-      apply (clarsimp dest!: same_master_cap_same_types simp: vs_cap_ref_of_table_capNone)
-     apply (intro conjI allI)
-      apply clarsimp
-      apply (drule_tac ref = ref in valid_vs_lookupD)
-       apply fastforce
-      apply (rule ccontr, clarsimp)
-      apply (frule_tac cap = x and cap' = cap in unique_table_caps_pdD2[OF _ _ _ _ obj_refs_eqI invs_unique_table_caps])
-          apply assumption+
-       apply (erule caps_of_state_valid, fastforce)
+      apply (rule set_cap_cte_wp_at_ex[simplified])
+     apply wp+
+   apply (clarsimp simp: valid_pti_def is_arch_update_def cte_wp_at_caps_of_state
+                         vs_cap_ref_of_table_capNone
+               simp del: split_paired_All)
+   apply (frule vs_lookup_pages_vs_lookupI)
+   apply (rule conjI)
+    apply (clarsimp dest!: same_master_cap_same_types simp: vs_cap_ref_of_table_capNone)
+   apply (intro conjI allI)
+    apply clarsimp
+    apply (drule_tac ref = ref in valid_vs_lookupD)
+     apply fastforce
+    apply (rule ccontr, clarsimp)
+    apply (frule_tac cap = x and cap' = cap in unique_table_caps_pdD2[OF _ _ _ _ obj_refs_eqI invs_unique_table_caps])
+            apply assumption+
       apply (erule caps_of_state_valid, fastforce)
-     apply (clarsimp simp: is_cap_simps cap_asid_def vs_cap_ref_def split: option.split_asm)
-    apply (clarsimp simp: is_cap_simps)
-    apply (rule ref_is_unique)
+     apply (erule caps_of_state_valid, fastforce)
+    apply (clarsimp simp: is_cap_simps cap_asid_def vs_cap_ref_def split: option.split_asm)
+   apply (clarsimp simp: is_cap_simps)
+   apply (rule ref_is_unique)
           apply simp
          apply (erule(1) vs_lookup_vs_lookup_pagesI)
           apply fastforce+
-         apply (simp add:global_refs_def)
+        apply (simp add:global_refs_def)
         apply (fastforce simp: second_level_tables_def)+
-   apply (clarsimp dest!:invs_valid_objs valid_objs_caps)
+   apply (clarsimp dest!: invs_valid_objs valid_objs_caps)
   apply (rename_tac cap cslot)
   apply (clarsimp simp: perform_page_table_invocation_def)
   apply (rule hoare_name_pre_state)
   apply (clarsimp simp: valid_pti_def is_cap_simps)
   apply (rule hoare_pre)
    apply (wpc | clarsimp simp: cte_wp_at_caps_of_state | wp arch_update_cap_invs_unmap_page_table get_cap_wp)+
-    apply (rule_tac P = "is_pt_cap cap" in hoare_gen_asm)
-    apply (rule_tac Q = "\<lambda>r. cte_wp_at ((=) cap) (a,b) and invs and is_final_cap' cap
+    apply (rule_tac P = "is_pt_cap (ArchObjectCap (PageTableCap p (Some (x1, x2a))))" in hoare_gen_asm)
+    apply (rule_tac Q = "\<lambda>r. cte_wp_at ((=) (ArchObjectCap (PageTableCap p (Some (x1, x2a))))) (a,b)
+                             and invs and is_final_cap' (ArchObjectCap (PageTableCap p (Some (x1, x2a))))
                              and (\<lambda>s. (the (vs_cap_ref (ArchObjectCap (PageTableCap p (Some (x1, x2a))))), p) \<notin> vs_lookup_pages s)
-                             and obj_at (empty_table {}) (the (aobj_ref (update_map_data (Structures_A.the_arch_cap cap) None None)))"
+                             and obj_at (empty_table {}) (the (aobj_ref (update_map_data
+                                   (Structures_A.the_arch_cap (ArchObjectCap (PageTableCap p (Some (x1, x2a))))) None None)))"
                              in hoare_post_imp)
      apply (clarsimp simp: cte_wp_at_caps_of_state is_cap_simps update_map_data_def
                            is_arch_update_def cap_master_cap_simps)
      apply (clarsimp dest!: caps_of_state_valid_cap[OF _ invs_valid_objs] split: option.split_asm
-                      simp: is_arch_diminished_def diminished_def mask_cap_def cap_rights_update_def
-                            acap_rights_update_def vs_cap_ref_simps)
+                      simp: mask_cap_def cap_rights_update_def acap_rights_update_def vs_cap_ref_simps)
     apply (wp hoare_vcg_conj_lift)
         apply (wp mapM_x_wp, force)
        apply (rule mapM_x_swp_store_pte_invs_unmap[unfolded swp_def])
@@ -3164,25 +3147,19 @@ lemma perform_page_table_invocation_invs[wp]:
       apply force
      apply (wp store_invalid_pte_vs_lookup_pages_shrink)
     apply (wp mapM_x_swp_store_empty_pt[unfolded swp_def])
-   apply (clarsimp simp: cte_wp_at_caps_of_state vs_cap_ref_def is_arch_diminished_def
-                         is_cap_simps diminished_def mask_cap_def)
-   apply (clarsimp simp: cap_rights_update_def
-                         acap_rights_update_def
-                  split: cap.split_asm arch_cap.split_asm)
+   apply (clarsimp simp: cte_wp_at_caps_of_state vs_cap_ref_def is_cap_simps mask_cap_def)
    apply (wp unmap_pt_vs_lookup_pages unmap_page_table_caps_of_state)
   apply (clarsimp simp: is_final_cap'_def2 gen_obj_refs_def acap_rights_update_def cte_wp_at_caps_of_state
-                        is_arch_diminished_def diminished_def mask_cap_def
-                  del: )
+                        mask_cap_def)
   apply (clarsimp simp: cap_rights_update_def acap_rights_update_def is_arch_update_def is_cap_simps
                         update_map_data_def vs_cap_ref_simps invs_psp_aligned pt_bits_def
                  split: cap.split_asm arch_cap.split_asm)
-  apply (intro conjI impI)
-    apply fastforce
+  apply (rule conjI)
    apply (clarsimp simp: valid_cap_def)
    apply (drule valid_table_caps_empty_ptD, force)
    apply (clarsimp simp: obj_at_def empty_table_def)
   apply (strengthen  range_neg_mask_strengthen[mk_strg])
-    apply (frule valid_global_refsD2, force)
+  apply (frule valid_global_refsD2, force)
   apply (clarsimp simp: valid_cap_def wellformed_mapdata_def image_def le_mask_iff_lt_2n cap_range_def
                         invs_vspace_objs vtable_range_univ invs_arch_state cap_aligned_def)
   done
@@ -3213,7 +3190,6 @@ lemma valid_global_refs_pdptD:
   apply (clarsimp simp: cap_range_def global_refs_def second_level_tables_def)
   done
 
-(* FIXME x64: indenting *)
 lemma perform_pdpt_invocation_invs[wp]:
   "\<lbrace>invs and valid_pdpti pdpti\<rbrace>
      perform_pdpt_invocation pdpti
@@ -3221,42 +3197,42 @@ lemma perform_pdpt_invocation_invs[wp]:
   apply (cases pdpti)
    apply (rename_tac cap cslot_ptr pml4e obj_ref vspace)
    apply (rule hoare_pre)
-   apply (clarsimp simp: perform_pdpt_invocation_def)
-   apply (wp hoare_vcg_const_imp_lift hoare_vcg_all_lift  hoare_vcg_conj_lift
-             store_pml4e_invs arch_update_cap_invs_map
+    apply (clarsimp simp: perform_pdpt_invocation_def)
+    apply (wp hoare_vcg_const_imp_lift hoare_vcg_all_lift  hoare_vcg_conj_lift
+              store_pml4e_invs arch_update_cap_invs_map
            | strengthen obj_at_empty_refs_strg
            | simp add: empty_table.arch_only del: split_paired_all split_paired_All | wps
-           | rule set_cap.aobj_at |wpc)+
-     apply (rule set_cap_cte_wp_at_ex[simplified])
+           | rule set_cap.aobj_at | wpc)+
+       apply (rule set_cap_cte_wp_at_ex[simplified])
       apply (wp hoare_vcg_all_lift set_cap.aobj_at, simp)
      apply wp+
    apply (clarsimp simp: valid_pdpti_def is_arch_update_def cte_wp_at_caps_of_state
-                          vs_cap_ref_of_table_capNone
-                      simp del:  split_paired_All)
+                         vs_cap_ref_of_table_capNone
+               simp del: split_paired_All)
    apply (frule vs_lookup_pages_vs_lookupI)
-     apply (rule conjI)
-      apply (clarsimp dest!: same_master_cap_same_types simp: vs_cap_ref_of_table_capNone)
+   apply (rule conjI)
+    apply (clarsimp dest!: same_master_cap_same_types simp: vs_cap_ref_of_table_capNone)
    apply (rule conjI)
     apply (frule same_master_cap_same_types)
     apply (clarsimp simp: is_cap_simps cap_master_cap_def kernel_vsrefs_kernel_mapping_slots
                    dest!: valid_global_refs_pdptD[OF _ invs_valid_global_refs])
    apply (intro conjI allI)
-      apply clarsimp
-      apply (drule_tac ref = ref in valid_vs_lookupD)
-       apply fastforce
-      apply (rule ccontr, clarsimp)
-      apply (frule_tac cap = x and cap' = cap in unique_table_caps_pml4D2[OF _ _ _ _ obj_refs_eqI invs_unique_table_caps])
-          apply assumption+
+     apply clarsimp
+     apply (drule_tac ref = ref in valid_vs_lookupD)
+      apply fastforce
+     apply (rule ccontr, clarsimp)
+     apply (frule_tac cap = x and cap' = cap in unique_table_caps_pml4D2[OF _ _ _ _ obj_refs_eqI invs_unique_table_caps])
+             apply assumption+
        apply (erule caps_of_state_valid, fastforce)
       apply (erule caps_of_state_valid, fastforce)
      apply (clarsimp simp: is_cap_simps cap_asid_def vs_cap_ref_def split: option.split_asm)
     apply (clarsimp simp: is_cap_simps)
     apply (rule ref_is_unique)
-          apply simp
-         apply (erule(1) vs_lookup_vs_lookup_pagesI)
-          apply fastforce+
+           apply simp
+          apply (erule(1) vs_lookup_vs_lookup_pagesI)
+           apply fastforce+
          apply (simp add:global_refs_def)
-        apply (fastforce simp: second_level_tables_def)+
+         apply (fastforce simp: second_level_tables_def)+
     apply (clarsimp dest!:invs_valid_objs valid_objs_caps)
    apply (clarsimp simp: kernel_vsrefs_kernel_mapping_slots)
   apply (rename_tac cap cslot)
@@ -3265,16 +3241,17 @@ lemma perform_pdpt_invocation_invs[wp]:
   apply (clarsimp simp: valid_pdpti_def is_cap_simps)
   apply (rule hoare_pre)
    apply (wpc | clarsimp simp: cte_wp_at_caps_of_state | wp arch_update_cap_invs_unmap_pd_pointer_table get_cap_wp)+
-    apply (rule_tac P = "is_pdpt_cap cap" in hoare_gen_asm)
-    apply (rule_tac Q = "\<lambda>r. cte_wp_at ((=) cap) (a,b) and invs and is_final_cap' cap
+    apply (rule_tac P = "is_pdpt_cap (ArchObjectCap (PDPointerTableCap p (Some (x1, x2a))))" in hoare_gen_asm)
+    apply (rule_tac Q = "\<lambda>r. cte_wp_at ((=) (ArchObjectCap (PDPointerTableCap p (Some (x1, x2a))))) (a,b)
+                             and invs and is_final_cap' (ArchObjectCap (PDPointerTableCap p (Some (x1, x2a))))
                              and (\<lambda>s. (the (vs_cap_ref (ArchObjectCap (PDPointerTableCap p (Some (x1, x2a))))), p) \<notin> vs_lookup_pages s)
-                             and obj_at (empty_table {}) (the (aobj_ref (update_map_data (Structures_A.the_arch_cap cap) None None)))"
+                             and obj_at (empty_table {}) (the (aobj_ref (update_map_data
+                                   (Structures_A.the_arch_cap (ArchObjectCap (PDPointerTableCap p (Some (x1, x2a))))) None None)))"
                              in hoare_post_imp)
      apply (clarsimp simp: cte_wp_at_caps_of_state is_cap_simps update_map_data_def
                            is_arch_update_def cap_master_cap_simps)
      apply (clarsimp dest!: caps_of_state_valid_cap[OF _ invs_valid_objs] split: option.split_asm
-                      simp: is_arch_diminished_def diminished_def mask_cap_def cap_rights_update_def
-                            acap_rights_update_def vs_cap_ref_simps)
+                      simp: mask_cap_def cap_rights_update_def acap_rights_update_def vs_cap_ref_simps)
     apply (wp hoare_vcg_conj_lift)
         apply (wp mapM_x_wp, force)
        apply (rule mapM_x_swp_store_pdpte_invs_unmap[unfolded swp_def])
@@ -3282,25 +3259,20 @@ lemma perform_pdpt_invocation_invs[wp]:
       apply force
      apply (wp store_invalid_pdpte_vs_lookup_pages_shrink)
     apply (wp mapM_x_swp_store_empty_pdpt[unfolded swp_def])
-   apply (clarsimp simp: cte_wp_at_caps_of_state vs_cap_ref_def is_arch_diminished_def
-                         is_cap_simps diminished_def mask_cap_def)
-   apply (clarsimp simp: cap_rights_update_def
-                         acap_rights_update_def
-                  split: cap.split_asm arch_cap.split_asm)
+   apply (clarsimp simp: cte_wp_at_caps_of_state vs_cap_ref_def is_cap_simps mask_cap_def)
    apply (wp unmap_pdpt_vs_lookup_pages)
   apply (clarsimp simp: is_final_cap'_def2 gen_obj_refs_Int acap_rights_update_def cte_wp_at_caps_of_state
-                        is_arch_diminished_def diminished_def mask_cap_def)
+                        mask_cap_def)
   apply (clarsimp simp: cap_rights_update_def acap_rights_update_def is_arch_update_def is_cap_simps
                         update_map_data_def vs_cap_ref_simps invs_psp_aligned pd_bits_def
                  split: cap.split_asm arch_cap.split_asm)
   apply (intro conjI impI)
-    apply fastforce
    apply (clarsimp simp: valid_cap_def)
    apply (drule valid_table_caps_pdptD, force)
    apply (clarsimp simp: obj_at_def empty_table_def)
   apply (simp add: pdpt_bits_def)
   apply (strengthen range_neg_mask_strengthen[mk_strg] vtable_range_univ[THEN subset_refl_subst, mk_strg])
-    apply (frule valid_global_refsD2, force)
+  apply (frule valid_global_refsD2, force)
   apply (clarsimp simp: valid_cap_def wellformed_mapdata_def image_def le_mask_iff_lt_2n cap_aligned_def
                         cap_range_def invs_vspace_objs pdpt_bits_def vtable_range_univ invs_arch_state)
   done
@@ -3402,7 +3374,7 @@ lemma unmap_page_invs[wp]:
                      not_in_global_refs_vs_lookup invs_valid_vs_lookup
                       invs_valid_global_refs
            invs_arch_state invs_valid_global_objs | clarsimp simp: conj_comms
-        | wp_once hoare_drop_imps)+)
+        | wp (once) hoare_drop_imps)+)
   apply (auto simp: vspace_at_asid_def is_aligned_pml4[simplified] invs_vspace_objs
                     invs_psp_aligned lookup_pml4_slot_eq pml4e_ref_def)
   done
@@ -3436,180 +3408,165 @@ lemma unmap_page_unmapped:
     by (wpsimp wp: unmap_page_vs_lookup_pages_small unmap_page_vs_lookup_pages_large
                       unmap_page_vs_lookup_pages_huge)+
 
+lemma set_cap_obj_at_vs_refs_pages[wp]:
+  "set_cap p cap \<lbrace>obj_at (\<lambda>ko. vs_refs_pages ko = {}) ptr\<rbrace>"
+  by (wpsimp wp: set_cap.aobj_at simp: vs_refs_pages_empty.arch_only)
+
+lemmas invs_implies =
+  invs_equal_kernel_mappings
+  invs_arch_state
+  invs_valid_asid_map
+  invs_valid_global_objs
+  invs_valid_ioports
+  invs_valid_vs_lookup
+  invs_vspace_objs
+  invs_psp_aligned
+  invs_distinct
+  invs_cur
+  invs_iflive
+  invs_ifunsafe
+  invs_valid_global_refs
+  invs_valid_idle
+  invs_valid_irq_node
+  invs_valid_irq_states
+  invs_mdb
+  invs_valid_objs
+  invs_valid_pspace
+  invs_valid_reply_caps
+  invs_valid_reply_masters
+  invs_valid_stateI
+  invs_zombies
+  invs_unique_table_caps
+  invs_unique_refs
+  invs_hyp_sym_refs
+  invs_sym_refs
+  invs_valid_asid_table
+  tcb_at_invs
+  invs_valid_kernel_mappings
+
+lemma vs_cap_ref_None:
+  "vs_cap_ref (ArchObjectCap (PageCap dev pg_ptr rghts maptype pg_sz mapdata)) = None \<longleftrightarrow> mapdata = None"
+  by (cases mapdata; clarsimp simp: vs_cap_ref_def split: vmpage_size.splits)
+
 lemma perform_page_invs [wp]:
   "\<lbrace>invs and valid_page_inv page_inv\<rbrace> perform_page_invocation page_inv \<lbrace>\<lambda>_. invs\<rbrace>"
   apply (simp add: perform_page_invocation_def)
   apply (cases page_inv, simp_all)
-     \<comment> \<open>PageMap\<close>
-     apply (rename_tac cap cslot_ptr sum)
-     apply clarsimp
-     apply (rule hoare_pre)
-      apply (wp  store_pte_invs store_pde_invs store_pdpte_invs
-                 hoare_vcg_const_imp_lift hoare_vcg_all_lift set_cap_arch_obj arch_update_cap_invs_map
-             | wpc
-             | simp add: pte_check_if_mapped_def pde_check_if_mapped_def del: fun_upd_apply split_paired_Ex
-            )+
-       apply (wp_trace set_cap_cte_wp_at_ex hoare_vcg_imp_lift hoare_vcg_all_lift arch_update_cap_invs_map
-                 set_cap.aobj_at[OF vs_refs_pages_empty.arch_only] | wps)+
-     apply (clarsimp simp: valid_page_inv_def cte_wp_at_caps_of_state valid_slots_def is_cap_simps parent_for_refs_def
-                           empty_refs_def same_refs_def pt_bits_def is_arch_update_def cap_master_cap_def
-                    split: vm_page_entry.splits
-                    simp del: split_paired_Ex split_paired_All
-              | strengthen not_in_global_refs_vs_lookup invs_valid_global_refs invs_arch_state invs_valid_vs_lookup
-                           invs_valid_global_objs)+
-       apply (intro conjI impI allI)
-         apply (clarsimp simp del: split_paired_Ex split_paired_All)
-         apply (frule(2) unique_table_caps_ptD[OF _ _ _ _ _ _ invs_unique_table_caps], simp add: is_cap_simps, fastforce simp: is_cap_simps)
-           apply (clarsimp dest!: caps_of_state_valid[OF _ invs_valid_objs] is_aligned_pt[OF _ invs_psp_aligned]
-                            simp: obj_refs_def valid_cap_def pt_bits_def is_aligned_neg_mask_eq)
-          apply simp
-         apply clarsimp
-        apply (rule ref_is_unique[OF  _ vs_lookup_vs_lookup_pagesI reachable_page_table_not_global])
-          apply ((fastforce simp: local.invs_valid_kernel_mappings elim:valid_objs_caps[OF invs_valid_objs])+)[16]
-       apply (drule_tac x = ref in spec)
-       apply (clarsimp simp: vs_cap_ref_def pde_ref_pages_def split: pde.splits)
-       apply (clarsimp simp: valid_pde_def split: pde.splits
-                      split: vmpage_size.splits option.split_asm pde.splits)
-       apply (intro conjI impI allI)
-          apply fastforce
-         apply (clarsimp simp del: split_paired_Ex split_paired_All)
-         apply (frule(2) unique_table_caps_pdD[OF _ _ _ _ _ _ invs_unique_table_caps], simp add: is_cap_simps, fastforce simp: is_cap_simps)
-           apply (clarsimp dest!: caps_of_state_valid[OF _ invs_valid_objs] is_aligned_pd[OF _ invs_psp_aligned]
-                            simp: obj_refs_def valid_cap_def pt_bits_def is_aligned_neg_mask_eq)
-          apply simp
-         apply clarsimp
-        apply (rule ref_is_unique[OF  _ vs_lookup_vs_lookup_pagesI reachable_page_table_not_global])
-          apply ((fastforce simp: local.invs_valid_kernel_mappings elim:valid_objs_caps[OF invs_valid_objs])+)[16]
-       apply (frule(1) caps_of_state_valid[OF _ invs_valid_objs])
-       apply (drule valid_global_refsD2, fastforce)
-      apply (clarsimp dest!: is_aligned_pd[OF _ invs_psp_aligned]
-                       simp: is_aligned_neg_mask_eq cap_range_def valid_cap_def)
-     apply (clarsimp dest!: empty_refs_pageCapD)
+    \<comment> \<open>PageMap\<close>
+    apply (rename_tac cap cslot_ptr sum)
+    apply clarsimp
+    apply (rule hoare_pre)
+     apply (wpsimp wp: store_pte_invs store_pde_invs store_pdpte_invs hoare_vcg_const_imp_lift
+                       hoare_vcg_all_lift set_cap_arch_obj arch_update_cap_invs_map
+                 simp: pte_check_if_mapped_def pde_check_if_mapped_def
+             simp_del: fun_upd_apply split_paired_Ex)
+        apply (wp set_cap_cte_wp_at_ex hoare_vcg_imp_lift hoare_vcg_all_lift arch_update_cap_invs_map
+                  set_cap.aobj_at[OF vs_refs_pages_empty.arch_only] | wps)+
+    apply (clarsimp simp: valid_page_inv_def cte_wp_at_caps_of_state valid_slots_def is_cap_simps
+                          parent_for_refs_def empty_refs_def same_refs_def pt_bits_def
+                          is_arch_update_def cap_master_cap_def
+                   split: vm_page_entry.splits
+                simp del: split_paired_Ex split_paired_All
+           | strengthen not_in_global_refs_vs_lookup invs_valid_global_refs invs_arch_state
+             invs_valid_vs_lookup invs_valid_global_objs)+
+      apply (rule conjI, fastforce)
       apply (intro conjI impI allI)
-       apply (clarsimp simp del: split_paired_Ex split_paired_All)
-       apply (frule(2) unique_table_caps_pdptD[OF _ _ _ _ _ _ invs_unique_table_caps], simp add: is_cap_simps, fastforce simp: is_cap_simps)
-         apply (clarsimp dest!: caps_of_state_valid[OF _ invs_valid_objs] is_aligned_pdpt[OF _ invs_psp_aligned]
-                          simp: obj_refs_def valid_cap_def pdpt_bits_def is_aligned_neg_mask_eq)
-        apply simp
-       apply clarsimp
-      apply (rule ref_is_unique[OF  _ vs_lookup_vs_lookup_pagesI reachable_page_table_not_global])
-                    apply ((fastforce simp: local.invs_valid_kernel_mappings elim:valid_objs_caps[OF invs_valid_objs])+)[16]
-      apply (frule(1) caps_of_state_valid[OF _ invs_valid_objs, where c = "(ArchObjectCap (PDPointerTableCap pc asid))" for pc asid])
-      apply (drule valid_global_refsD2[where cap = "(ArchObjectCap (PDPointerTableCap pc asid))" for pc asid], fastforce)
-      apply (clarsimp dest!: is_aligned_pdpt[OF _ invs_psp_aligned]
-                       simp: is_aligned_neg_mask_eq cap_range_def valid_cap_def cap_aligned_def)
-     \<comment> \<open>PageReMap\<close>
-     apply (rename_tac sum)
-     apply clarsimp
-     apply (rule hoare_pre)
-      apply (wp  store_pte_invs store_pde_invs store_pdpte_invs
-                 hoare_vcg_const_imp_lift hoare_vcg_all_lift set_cap_arch_obj arch_update_cap_invs_map
-             | wpc
-             | simp add: pte_check_if_mapped_def pde_check_if_mapped_def del: fun_upd_apply split_paired_Ex
-            )+
-     apply (clarsimp simp: valid_page_inv_def cte_wp_at_caps_of_state valid_slots_def is_cap_simps parent_for_refs_def
-                           empty_refs_def same_refs_def pt_bits_def is_arch_update_def cap_master_cap_def
-                    split: vm_page_entry.splits
-                    simp del: split_paired_Ex split_paired_All
-              | strengthen not_in_global_refs_vs_lookup invs_valid_global_refs invs_arch_state invs_valid_vs_lookup
-                           invs_valid_global_objs)+
-      apply (intro conjI impI allI)
-         apply (rule ccontr)
-         apply (clarsimp simp del: split_paired_Ex split_paired_All)
-         apply (frule(2) unique_table_caps_ptD[OF _ _ _ _ _ _ invs_unique_table_caps], simp add: is_cap_simps, fastforce simp: is_cap_simps)
-           apply (clarsimp dest!: caps_of_state_valid[OF _ invs_valid_objs] is_aligned_pt[OF _ invs_psp_aligned]
-                            simp: obj_refs_def valid_cap_def pt_bits_def is_aligned_neg_mask_eq)
-          apply simp
-         apply clarsimp
-       apply (drule_tac x = ref in spec)
-       apply (drule vs_lookup_vs_lookup_pagesI')
+        apply (clarsimp simp del: split_paired_Ex split_paired_All)
+        apply (frule(2) unique_table_caps_ptD[OF _ _ _ _ _ _ invs_unique_table_caps],
+               simp add: is_cap_simps, fastforce simp: is_cap_simps)
           apply (clarsimp dest!: caps_of_state_valid[OF _ invs_valid_objs]
-                           simp: valid_cap_simps cap_asid_def pt_bits_def
-                          split: option.split_asm)
-         apply force
-        apply force
-       apply clarsimp
-       apply (drule ref_is_unique[OF  _ _ reachable_page_table_not_global])
-                  apply ((fastforce simp: local.invs_valid_kernel_mappings elim:valid_objs_caps[OF invs_valid_objs])+)[13]
+                                 is_aligned_pt[OF _ invs_psp_aligned]
+                           simp: obj_refs_def valid_cap_def pt_bits_def)
+         apply simp
+        apply clarsimp
+       apply (rule ref_is_unique[OF  _ vs_lookup_vs_lookup_pagesI reachable_page_table_not_global])
+                     apply ((fastforce simp: local.invs_valid_kernel_mappings
+                                       elim: valid_objs_caps[OF invs_valid_objs])+)[16]
      apply (drule_tac x = ref in spec)
-     apply (clarsimp simp: vs_cap_ref_simps pde_ref_def split: pde.splits)
-     apply (intro conjI impI allI)
-        apply fastforce
-       apply (rule ccontr)
-       apply (clarsimp simp del: split_paired_Ex split_paired_All)
-       apply (frule(2) unique_table_caps_pdD[OF _ _ _ _ _ _ invs_unique_table_caps], simp add: is_cap_simps, fastforce simp: is_cap_simps)
-         apply (clarsimp dest!: caps_of_state_valid[OF _ invs_valid_objs] is_aligned_pd[OF _ invs_psp_aligned]
-                          simp: obj_refs_def valid_cap_def pt_bits_def is_aligned_neg_mask_eq)
-        apply simp
-       apply clarsimp
-       apply (drule vs_lookup_vs_lookup_pagesI')
-         apply (clarsimp dest!: caps_of_state_valid[OF _ invs_valid_objs]
-                           simp: valid_cap_simps cap_asid_def pt_bits_def
-                          split: option.split_asm)
-       apply force
-      apply force
-     apply (drule ref_is_unique[OF  _ _ reachable_page_table_not_global])
-                apply ((fastforce simp: local.invs_valid_kernel_mappings elim: valid_objs_caps[OF invs_valid_objs]
-                       | strengthen reachable_page_table_not_global[mk_strg])+)[13]
-     apply (frule(1) caps_of_state_valid[OF _ invs_valid_objs])
-     apply (drule valid_global_refsD2, fastforce)
+     apply (clarsimp simp: vs_cap_ref_def pde_ref_pages_def split: pde.splits)
+     apply (clarsimp simp: valid_pde_def split: pde.splits
+                    split: vmpage_size.splits option.split_asm pde.splits)
+      apply (intro conjI impI allI)
+         apply fastforce
+        apply (clarsimp simp del: split_paired_Ex split_paired_All)
+        apply (frule(2) unique_table_caps_pdD[OF _ _ _ _ _ _ invs_unique_table_caps],
+               simp add: is_cap_simps, fastforce simp: is_cap_simps)
+          apply (clarsimp dest!: caps_of_state_valid[OF _ invs_valid_objs] is_aligned_pd[OF _ invs_psp_aligned]
+                           simp: obj_refs_def valid_cap_def pt_bits_def)
+         apply simp
+        apply clarsimp
+       apply (rule ref_is_unique[OF  _ vs_lookup_vs_lookup_pagesI reachable_page_table_not_global])
+                     apply ((fastforce simp: local.invs_valid_kernel_mappings
+                                       elim: valid_objs_caps[OF invs_valid_objs])+)[16]
+      apply (frule(1) caps_of_state_valid[OF _ invs_valid_objs])
+      apply (match premises in P: \<open>caps_of_state _ _ = Some (ArchObjectCap (PageDirectoryCap _ _))\<close>
+              \<Rightarrow> \<open>rule revcut_rl[OF valid_global_refsD2[OF P]]\<close>, fastforce)
+      apply (clarsimp dest!: is_aligned_pd[OF _ invs_psp_aligned]
+                       simp: cap_range_def valid_cap_def)
+     apply (simp add: empty_ref_pageD)
+     apply (match premises in P: \<open>caps_of_state _ _ = Some (ArchObjectCap (PageDirectoryCap _ _))\<close>
+             \<Rightarrow> \<open>rule revcut_rl[OF valid_global_refsD2[OF P]]\<close>, fastforce)
      apply (clarsimp dest!: is_aligned_pd[OF _ invs_psp_aligned]
-                       simp: is_aligned_neg_mask_eq cap_range_def valid_cap_def)
-    apply (drule_tac x = ref in spec)
-    apply (clarsimp simp: vs_cap_ref_simps pdpte_ref_def pdpte_ref_pages_def split: pdpte.splits)
+                      simp: cap_range_def valid_cap_def)
+     apply (rule conjI)
+      apply (rename_tac pd_cap_cnode pd_cap_idx pd_asid pd_map_data pg_rghts pg_map_ty
+                        map_asid map_vaddr pde_paddr pde_attrs pde_rghts pg_asid pg_vaddr)
+      apply (intro allI impI, rename_tac pd_cap_cnode' pd_cap_idx' pd_cap')
+      apply (case_tac pd_cap'; clarsimp; rename_tac pd_acap'; case_tac pd_acap'; clarsimp)
+      apply (frule_tac ptr="(pd_cap_cnode, pd_cap_idx)" and ptr'="(pd_cap_cnode', pd_cap_idx')"
+             in unique_table_capsD[OF invs_unique_table_caps]; assumption?; clarsimp simp: is_cap_simps)
+     apply (clarsimp, frule (1) vs_lookup_invs_ref_is_unique[OF vs_lookup_vs_lookup_pagesI]
+            ; assumption?; clarsimp)
+    apply (rule conjI, fastforce)
+    apply (clarsimp dest!: empty_refs_pageCapD)
     apply (intro conjI impI allI)
-       apply fastforce
-      apply (rule ccontr)
       apply (clarsimp simp del: split_paired_Ex split_paired_All)
-      apply (frule(2) unique_table_caps_pdptD[OF _ _ _ _ _ _ invs_unique_table_caps], simp add: is_cap_simps, fastforce simp: is_cap_simps)
-        apply (clarsimp dest!: caps_of_state_valid[OF _ invs_valid_objs] is_aligned_pdpt[OF _ invs_psp_aligned]
-                         simp: obj_refs_def valid_cap_def pdpt_bits_def is_aligned_neg_mask_eq)
+      apply (frule(2) unique_table_caps_pdptD[OF _ _ _ _ _ _ invs_unique_table_caps],
+             simp add: is_cap_simps, fastforce simp: is_cap_simps)
+        apply (clarsimp dest!: caps_of_state_valid[OF _ invs_valid_objs]
+                               is_aligned_pdpt[OF _ invs_psp_aligned]
+                         simp: obj_refs_def valid_cap_def pdpt_bits_def)
        apply simp
       apply clarsimp
-     apply (drule vs_lookup_vs_lookup_pagesI')
-        apply (clarsimp dest!: caps_of_state_valid[OF _ invs_valid_objs]
-                           simp: valid_cap_simps cap_asid_def pdpt_bits_def
-                          split: option.split_asm)
-       apply force
-      apply force
-     apply (drule ref_is_unique[OF  _ _ reachable_page_table_not_global])
-                apply ((fastforce simp: local.invs_valid_kernel_mappings elim: valid_objs_caps[OF invs_valid_objs]
-                       | strengthen reachable_page_table_not_global[mk_strg])+)[13]
-     apply (frule(1) caps_of_state_valid[OF _ invs_valid_objs])
-     apply (drule valid_global_refsD2, fastforce)
-     apply (clarsimp dest!: is_aligned_pdpt[OF _ invs_psp_aligned]
-                       simp: is_aligned_neg_mask_eq cap_range_def valid_cap_def)
-    \<comment> \<open>PageUnmap\<close>
-    apply (rename_tac arch_cap cslot_ptr)
-    apply (rule hoare_pre)
-     apply (wp dmo_invs arch_update_cap_invs_unmap_page get_cap_wp
-          | wpc | simp add: perform_page_invocation_unmap_def)+
-      apply (rule_tac Q="\<lambda>_ s. invs s \<and>
-                               cte_wp_at (\<lambda>c. is_pg_cap c \<and>
-                                 (\<forall>ref. vs_cap_ref c = Some ref \<longrightarrow>
-                                        \<not> (ref \<unrhd> obj_ref_of c) s)) cslot_ptr s"
-                   in hoare_strengthen_post)
-       prefer 2
-       apply (clarsimp simp: cte_wp_at_caps_of_state is_cap_simps
-                             update_map_data_def
-                             is_arch_update_def cap_master_cap_simps)
-       apply (drule caps_of_state_valid, fastforce)
-       apply (clarsimp simp: valid_cap_def cap_aligned_def vs_cap_ref_def
-                      split: option.splits vmpage_size.splits cap.splits)
-      apply (simp add: cte_wp_at_caps_of_state)
-      apply (wp unmap_page_invs hoare_vcg_ex_lift hoare_vcg_all_lift hoare_vcg_imp_lift
-                unmap_page_unmapped)+
+     apply (rule ref_is_unique[OF _ vs_lookup_vs_lookup_pagesI reachable_page_table_not_global])
+                   apply ((fastforce simp: local.invs_valid_kernel_mappings
+                                     elim: valid_objs_caps[OF invs_valid_objs])+)[16]
+    apply (frule(1) caps_of_state_valid[
+                      OF _ invs_valid_objs,
+                      where c = "(ArchObjectCap (PDPointerTableCap pc asid))" for pc asid])
+    apply (drule valid_global_refsD2[
+                   where cap = "(ArchObjectCap (PDPointerTableCap pc asid))" for pc asid], fastforce)
+    apply (clarsimp dest!: is_aligned_pdpt[OF _ invs_psp_aligned]
+                     simp: cap_range_def valid_cap_def cap_aligned_def)
+  \<comment> \<open>PageUnmap\<close>
+   apply (rename_tac arch_cap cslot_ptr)
+   apply (rule hoare_pre)
+    apply (wp dmo_invs arch_update_cap_invs_unmap_page get_cap_wp
+         | wpc | simp add: perform_page_invocation_unmap_def)+
+        apply (rule_tac Q="\<lambda>_ s. invs s \<and>
+                                 cte_wp_at (\<lambda>c. is_pg_cap c \<and>
+                                   (\<forall>ref. vs_cap_ref c = Some ref \<longrightarrow>
+                                          \<not> (ref \<unrhd> obj_ref_of c) s)) cslot_ptr s"
+                     in hoare_strengthen_post)
+         prefer 2
+         apply (clarsimp simp: cte_wp_at_caps_of_state is_cap_simps
+                               update_map_data_def
+                               is_arch_update_def cap_master_cap_simps)
+         apply (drule caps_of_state_valid, fastforce)
+         apply (clarsimp simp: valid_cap_def cap_aligned_def vs_cap_ref_def
+                        split: option.splits vmpage_size.splits cap.splits)
+        apply (simp add: cte_wp_at_caps_of_state)
+        apply (wp unmap_page_invs hoare_vcg_ex_lift hoare_vcg_all_lift hoare_vcg_imp_lift
+                  unmap_page_unmapped)+
    apply (clarsimp simp: valid_page_inv_def cte_wp_at_caps_of_state)
-   apply (clarsimp simp: is_arch_diminished_def)
-   apply (drule (2) diminished_is_update')
    apply (clarsimp simp: is_cap_simps cap_master_cap_simps is_arch_update_def
                          update_map_data_def cap_rights_update_def
                          acap_rights_update_def)
    using valid_validate_vm_rights[simplified valid_vm_rights_def]
    apply (auto simp: valid_cap_simps cap_aligned_def mask_def vs_cap_ref_def data_at_def
               split: vmpage_size.splits option.splits if_splits)[1]
-   apply (clarsimp simp: valid_page_inv_def cte_wp_at_caps_of_state valid_cap_def mask_def)
-  \<comment> \<open>PageFlush\<close>
+  apply (clarsimp simp: valid_page_inv_def cte_wp_at_caps_of_state valid_cap_def mask_def)
+  \<comment> \<open>PageGetAddr\<close>
   apply wp
   apply (simp add: valid_page_inv_def tcb_at_invs)
   done
@@ -3924,26 +3881,6 @@ context
   assumes vsc: "is_vspace_table_cap c"
 begin
 
-lemma diminished_table_cap_refl: "diminished c c"
-  using vsc
-  apply (simp add: diminished_def mask_cap_def; cases c; simp add: is_cap_simps)
-  apply (rename_tac ac; case_tac ac; simp add: cap_rights_update_def acap_rights_update_def)
-  done
-
-lemma diminished_table_cap_iff_eq: "diminished c c' \<longleftrightarrow> c = c'"
-  apply (rule iffI; (drule sym; simp add: diminished_table_cap_refl)?)
-  using vsc
-  apply (cases c; simp add: is_cap_simps;
-         rename_tac ac; case_tac ac; clarsimp simp: is_cap_simps)
-  apply (all \<open>thin_tac "c = _"\<close>)
-  apply (all \<open>clarsimp simp: diminished_def; rule sym; drule sym; simp\<close>)
-  apply (all \<open>cases c'; simp add: mask_cap_def cap_rights_update_def acap_rights_update_def;
-         rename_tac ac'; case_tac ac'; simp\<close>)
-  done
-
-lemma diminished_table_cap_eq: "diminished c = ((=) c)"
-  by (rule ext, rule diminished_table_cap_iff_eq)
-
 end
 
 context begin
@@ -3955,10 +3892,14 @@ private lemma is_vspace_table_cap:
   "is_vspace_table_cap (ArchObjectCap (PML4Cap ptr asid))"
   by (auto simp: is_cap_simps)
 
-lemmas diminished_table_cap_simps
-  = is_vspace_table_cap[THEN diminished_table_cap_eq]
-
 end
+
+lemma valid_vspace_obj_default:
+  assumes tyunt: "ty \<noteq> Structures_A.apiobject_type.Untyped"
+  shows "ArchObj ao = default_object ty dev us \<Longrightarrow> valid_vspace_obj ao s'"
+  apply (cases ty, simp_all add: default_object_def tyunt)
+  apply (simp add: valid_vspace_obj_default')
+  done
 
 end
 end

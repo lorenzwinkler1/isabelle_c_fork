@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory StateRelation_C
@@ -236,8 +232,8 @@ fun
   | "register_from_H ARM.LR = scast Kernel_C.LR"
   | "register_from_H ARM.NextIP = scast Kernel_C.NextIP"
   | "register_from_H ARM.CPSR = scast Kernel_C.CPSR"
-  | "register_from_H ARM.TLS_BASE = scast Kernel_C.TLS_BASE"
   | "register_from_H ARM.TPIDRURW = scast Kernel_C.TPIDRURW"
+  | "register_from_H ARM.TPIDRURO = scast Kernel_C.TPIDRURO"
   | "register_from_H ARM.FaultIP = scast Kernel_C.FaultIP"
 
 definition
@@ -357,7 +353,7 @@ definition
   cendpoint_relation :: "tcb_C typ_heap \<Rightarrow> Structures_H.endpoint \<Rightarrow> endpoint_C \<Rightarrow> bool"
 where
   "cendpoint_relation h ntfn cep \<equiv>
-     let cstate = state_CL (endpoint_lift cep);
+     let cstate = endpoint_CL.state_CL (endpoint_lift cep);
          chead  = (Ptr o epQueue_head_CL o endpoint_lift) cep;
          cend   = (Ptr o epQueue_tail_CL o endpoint_lift) cep in
        case ntfn of
@@ -484,7 +480,7 @@ where
      \<rparr>)
   | SmallPagePTE frame cacheable global xn rights \<Rightarrow>
     cpte' = Some (Pte_pte_small
-     \<lparr> address_CL = frame,
+     \<lparr> pte_pte_small_CL.address_CL = frame,
        nG_CL = of_bool (~global),
        S_CL = s_from_cacheable cacheable,
        APX_CL = 0,
@@ -742,7 +738,7 @@ where
        h_t_valid (hrs_htd (t_hrs_' cstate)) c_guard armKSGlobalPD_Ptr \<and>
        ptr_span armKSGlobalPD_Ptr \<subseteq> kernel_data_refs \<and>
        htd_safe domain (hrs_htd (t_hrs_' cstate)) \<and>
-       kernel_data_refs = (- domain) \<and>
+       -domain \<subseteq> kernel_data_refs \<and>
        globals_list_distinct (- kernel_data_refs) symbol_table globals_list \<and>
        cdom_schedule_relation (ksDomSchedule astate)
                               Kernel_C.kernel_all_global_addresses.ksDomSchedule \<and>

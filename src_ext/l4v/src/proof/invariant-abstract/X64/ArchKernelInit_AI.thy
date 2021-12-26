@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (* Kernel init refinement. Currently axiomatised.
@@ -13,9 +9,9 @@
 
 theory ArchKernelInit_AI
 imports
-  "../ADT_AI"
-  "../Tcb_AI"
-  "../Arch_AI"
+  ADT_AI
+  Tcb_AI
+  Arch_AI
 begin
 
 context Arch begin global_naming X64 (*FIXME: arch_split*)
@@ -99,7 +95,7 @@ proof -
                 \<le> init_irq_node_ptr + 2 ^ 13 - 1"
     apply (simp only: add_diff_eq[symmetric])
     apply (rule word_add_le_mono2)
-     apply (rule minus_one_helper3, rule shiftl_less_t2n[OF P])
+     apply (rule word_le_minus_one_leq, rule shiftl_less_t2n[OF P])
      apply simp
     apply (simp add: kernel_base_def
       cte_level_bits_def word_bits_def init_irq_node_ptr_def)

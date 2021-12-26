@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Syscall_AC
@@ -113,18 +109,6 @@ lemma perform_invocation_respects:
 
 declare AllowSend_def[simp] AllowRecv_def[simp]
 
-lemma diminshed_IRQControlCap_eq:
-  "diminished IRQControlCap = ((=) IRQControlCap)"
-  apply (rule ext)
-  apply (case_tac x, auto simp: diminished_def mask_cap_def cap_rights_update_def split:bool.splits)
-  done
-
-lemma diminished_DomainCap_eq:
-  "diminished DomainCap = ((=) DomainCap)"
-  apply (rule ext)
-  apply (case_tac x, auto simp: diminished_def mask_cap_def cap_rights_update_def split:bool.splits)
-  done
-
 lemma hoare_conjunct1_R:
   "\<lbrace> P \<rbrace> f \<lbrace> \<lambda> r s. Q r s \<and> Q' r s\<rbrace>,- \<Longrightarrow> \<lbrace> P \<rbrace> f \<lbrace> Q \<rbrace>,-"
   apply(auto intro: hoare_post_imp_R)
@@ -136,14 +120,14 @@ lemma hoare_conjunct2_R:
   done
 
 lemma decode_invocation_authorised:
-  "\<lbrace>pas_refined aag and valid_cap cap and invs and ct_active and cte_wp_at (diminished cap) slot
+  "\<lbrace>pas_refined aag and valid_cap cap and invs and ct_active and cte_wp_at ((=) cap) slot
            and ex_cte_cap_to slot
            and (\<lambda>s. \<forall>r\<in>zobj_refs cap. ex_nonz_cap_to r s)
            and (\<lambda>s. \<forall>r\<in>cte_refs cap (interrupt_irq_node s). ex_cte_cap_to r s)
            and (\<lambda>s. \<forall>cap \<in> set excaps. \<forall>r\<in>cte_refs (fst cap) (interrupt_irq_node s). ex_cte_cap_to r s)
            and (\<lambda>s. \<forall>x \<in> set excaps. s \<turnstile> (fst x))
            and (\<lambda>s. \<forall>x \<in> set excaps. \<forall>r\<in>zobj_refs (fst x). ex_nonz_cap_to r s)
-           and (\<lambda>s. \<forall>x \<in> set excaps. cte_wp_at (diminished (fst x)) (snd x) s)
+           and (\<lambda>s. \<forall>x \<in> set excaps. cte_wp_at ((=) (fst x)) (snd x) s)
            and (\<lambda>s. \<forall>x \<in> set excaps. real_cte_at (snd x) s)
            and (\<lambda>s. \<forall>x \<in> set excaps. ex_cte_cap_wp_to is_cnode_cap (snd x) s)
            and (\<lambda>s. \<forall>x \<in> set excaps. cte_wp_at (interrupt_derived (fst x)) (snd x) s)
@@ -161,10 +145,10 @@ lemma decode_invocation_authorised:
               decode_cnode_inv_authorised
               decode_tcb_invocation_authorised decode_tcb_inv_wf
               decode_arch_invocation_authorised
-              | strengthen cnode_diminished_strg
+              | strengthen cnode_eq_strg
               | wpc | simp add: comp_def authorised_invocation_def decode_invocation_def
                         split del: if_split del: hoare_True_E_R
-              | wp_once hoare_FalseE_R)+
+              | wp (once) hoare_FalseE_R)+
 
   apply (clarsimp simp: aag_has_Control_iff_owns split_def aag_cap_auth_def)
   apply (cases cap, simp_all)
@@ -178,17 +162,16 @@ lemma decode_invocation_authorised:
        apply (clarsimp simp: cap_auth_conferred_def cap_rights_to_auth_def
                              pas_refined_Control[symmetric] reply_cap_rights_to_auth_def)
 
-      apply ((clarsimp simp: valid_cap_def cte_wp_at_eq_simp
-                            is_cap_simps pas_refined_all_auth_is_owns
+      apply ((clarsimp simp: valid_cap_def is_cap_simps pas_refined_all_auth_is_owns
                             ex_cte_cap_wp_to_weakenE[OF _ TrueI]
                             cap_auth_conferred_def cap_rights_to_auth_def
                | rule conjI | (subst split_paired_Ex[symmetric], erule exI)
                | erule cte_wp_at_weakenE
                | drule(1) bspec
-               | erule diminished_no_cap_to_obj_with_diff_ref)+)[1]
-     apply (simp only: domain_sep_inv_def diminished_DomainCap_eq)
+               | erule eq_no_cap_to_obj_with_diff_ref)+)[1]
+     apply (simp only: domain_sep_inv_def)
     apply (rule impI, erule subst, rule pas_refined_sita_mem [OF sita_controlled],
-           auto simp: cte_wp_at_caps_of_state diminshed_IRQControlCap_eq)[1]
+           auto simp: cte_wp_at_caps_of_state)[1]
 
    apply (clarsimp simp add: cap_links_irq_def )
    apply (drule (1) pas_refined_Control, simp)
@@ -510,7 +493,7 @@ lemma handle_interrupt_integrity_autarch:
   apply (simp add: handle_interrupt_def  cong: irq_state.case_cong maskInterrupt_def
                    ackInterrupt_def resetTimer_def )
   apply (rule conjI; rule impI; rule hoare_pre)
-  apply (wp_once send_signal_respects get_cap_auth_wp [where aag = aag] dmo_mol_respects
+  apply (wp (once) send_signal_respects get_cap_auth_wp [where aag = aag] dmo_mol_respects
        | simp add: get_irq_slot_def get_irq_state_def ackInterrupt_def resetTimer_def
                    handle_reserved_irq_def
        | wp dmo_no_mem_respects
@@ -540,7 +523,7 @@ lemma handle_interrupt_integrity:
   apply (simp add: handle_interrupt_def maskInterrupt_def ackInterrupt_def resetTimer_def
              cong: irq_state.case_cong bind_cong)
   apply (rule conjI; rule impI; rule hoare_pre)
-  apply (wp_once send_signal_respects get_cap_wp dmo_mol_respects dmo_no_mem_respects
+  apply (wp (once) send_signal_respects get_cap_wp dmo_mol_respects dmo_no_mem_respects
        | wpc
        | simp add: get_irq_slot_def get_irq_state_def ackInterrupt_def resetTimer_def
                    handle_reserved_irq_def)+
@@ -671,12 +654,6 @@ lemma handle_event_integrity:
            | fastforce)+
    done
 
-definition consistent_tpidrurw_at
-  where
-  "consistent_tpidrurw_at \<equiv>
-     obj_at (\<lambda>ko. \<exists>tcb. ko = TCB tcb
-                        \<and> arch_tcb_context_get (tcb_arch tcb) TPIDRURW = tcb_ipc_buffer tcb)"
-
 lemma set_thread_state_restart_to_running_respects:
   "\<lbrace>integrity aag X st and st_tcb_at ((=) Structures_A.Restart) thread
           and K (pasMayActivate aag)\<rbrace>
@@ -730,8 +707,6 @@ lemma activate_thread_pas_refined:
              | wpc | simp)+
   done
 
-definition "current_ipc_buffer_register s \<equiv> arch_tcb_context_get (tcb_arch (the (get_tcb (cur_thread s) s))) TPIDRURW"
-
 lemma integrity_exclusive_state [iff]:
   "integrity aag X st (s\<lparr>machine_state := machine_state s \<lparr>exclusive_state := es \<rparr>\<rparr>)
    = integrity aag X st s"
@@ -749,43 +724,6 @@ lemma dmo_clearExMonitor_respects_globals[wp]:
 lemma integrity_cur_thread [iff]:
   "integrity aag X st (s\<lparr>cur_thread := v\<rparr>) = integrity aag X st s"
   unfolding integrity_def by simp
-
-lemma current_ipc_buffer_register_cong[cong]:
-  "\<lbrakk>cur_thread s = cur_thread s'; kheap s = kheap s'\<rbrakk>
-    \<Longrightarrow> current_ipc_buffer_register s = current_ipc_buffer_register s'"
-  by (simp add:current_ipc_buffer_register_def get_tcb_def)
-
-
-crunch current_ipc_buffer_register [wp]: store_hw_asid "\<lambda>s. P (current_ipc_buffer_register s)"
-   (simp: crunch_simps current_ipc_buffer_register_def get_tcb_def)
-
-crunch current_ipc_buffer_register [wp]: invalidate_hw_asid_entry "\<lambda>s. P (current_ipc_buffer_register s)"
-   (simp: crunch_simps current_ipc_buffer_register_def get_tcb_def)
-
-crunch current_ipc_buffer_register [wp]: invalidate_asid "\<lambda>s. P (current_ipc_buffer_register s)"
-   (simp: crunch_simps current_ipc_buffer_register_def get_tcb_def)
-
-crunch current_ipc_buffer_register [wp]: do_machine_op "\<lambda>s. P (current_ipc_buffer_register s)"
-   (simp: crunch_simps current_ipc_buffer_register_def get_tcb_def)
-
-crunch current_ipc_buffer_register [wp]: find_free_hw_asid "\<lambda>s. P (current_ipc_buffer_register s)"
-   (simp: crunch_simps  get_tcb_def )
-
-crunch current_ipc_buffer_register [wp]: load_hw_asid "\<lambda>s. P (current_ipc_buffer_register s)"
-   (simp: crunch_simps current_ipc_buffer_register_def get_tcb_def)
-
-crunch current_ipc_buffer_register [wp]: get_hw_asid "\<lambda>s. P (current_ipc_buffer_register s)"
-   (simp: crunch_simps)
-
-crunch current_ipc_buffer_register [wp]: arm_context_switch "\<lambda>s. P (current_ipc_buffer_register s)"
-   (simp: crunch_simps)
-
-crunch current_ipc_buffer_register [wp]: set_vm_root "\<lambda>s. P (current_ipc_buffer_register s)"
-   (simp: crunch_simps)
-
-
-crunch current_ipc_buffer_register [wp]: next_domain "\<lambda>s. P (current_ipc_buffer_register s)"
-   (simp: crunch_simps)
 
 lemma tcb_sched_action_dequeue_integrity_pasMayEditReadyQueues:
   "\<lbrace>integrity aag X st and pas_refined aag and K (pasMayEditReadyQueues aag)\<rbrace>
@@ -930,9 +868,6 @@ lemma next_domain_valid_sched:
   apply (simp add:valid_blocked_2_def)
   done
 
-crunch current_ipc_buffer_register [wp]: tcb_sched_action "\<lambda>s. P (current_ipc_buffer_register s)"
-   (wp: crunch_wps without_preemption_wp simp: crunch_simps current_ipc_buffer_register_def get_tcb_def)
-
 text \<open>
 We need to use the domain of t instead of @{term "is_subject aag t"}
 because t's domain may contain multiple labels. See the comment for
@@ -1012,7 +947,7 @@ lemma schedule_integrity_pasMayEditReadyQueues:
                         guarded_switch_to_lift switch_to_thread_respects_pasMayEditReadyQueues)+
             (* is_highest_prio *)
             apply (simp add: wrap_is_highest_prio_def)
-            apply ((wp_once hoare_drop_imp)+)[1]
+            apply ((wp (once) hoare_drop_imp)+)[1]
            apply (wpsimp wp: tcb_sched_action_enqueue_valid_blocked_except hoare_vcg_imp_lift' gts_wp)+
   apply (clarsimp simp: if_apply_def2 cong: imp_cong conj_cong)
 
@@ -1078,250 +1013,6 @@ crunch arch_state [wp]: invoke_untyped "\<lambda>s. P (arch_state s)"
      simp: crunch_simps sequence_x_mapM_x
      ignore: do_machine_op freeMemory clearMemory)
 
-lemma set_cap_current_ipc_buffer_register[wp]:
-  "\<lbrace>\<lambda>s. P (current_ipc_buffer_register s)\<rbrace> set_cap ptr c \<lbrace>\<lambda>r s. P (current_ipc_buffer_register s)\<rbrace>"
-  apply (cases c)
-  apply (clarsimp simp: set_cap_def get_object_def set_object_def valid_def put_def
-                        gets_def assert_def bind_def get_def return_def fail_def
-                 split: option.splits kernel_object.splits)
-  apply (auto simp: current_ipc_buffer_register_def get_tcb_def)
-  done
-
-crunch current_ipc_buffer_register [wp]: "set_thread_state_ext" "\<lambda>s. P (current_ipc_buffer_register s)"
-
-lemma set_thread_state_current_ipc_buffer_register[wp]:
-  "\<lbrace>\<lambda>s. P (current_ipc_buffer_register s)\<rbrace> set_thread_state t b  \<lbrace>\<lambda>r s. P (current_ipc_buffer_register s)\<rbrace>"
-  apply (clarsimp simp: set_thread_state_def)
-  apply (wp dxo_wp_weak)
-    apply (simp add: trans_state_def)
-   apply (clarsimp simp: set_thread_state_def get_object_def set_object_def valid_def put_def
-                         gets_def assert_def bind_def get_def return_def fail_def
-                  split: option.splits kernel_object.splits)
-   apply simp
-  apply wp
-  apply (auto simp: current_ipc_buffer_register_def get_tcb_def)
-  done
-
-lemma set_simple_ko_current_ipc_buffer_register[wp]:
-  "\<lbrace>\<lambda>s. P (current_ipc_buffer_register s)\<rbrace> set_simple_ko f t ep  \<lbrace>\<lambda>r s. P (current_ipc_buffer_register s)\<rbrace>"
-  apply (simp add: set_simple_ko_def)
-  including unfold_objects
-  apply (wpsimp wp: set_object_wp_strong)
-  apply (auto simp: a_type_def partial_inv_def current_ipc_buffer_register_def get_tcb_def
-             split: kernel_object.split_asm if_splits)
-  done
-
-lemma update_tcb_current_ipc_buffer_register:
-  "\<lbrakk>get_tcb t s = Some tcb; P (current_ipc_buffer_register s);
-    arch_tcb_context_get (tcb_arch tcb) TPIDRURW = arch_tcb_context_get (tcb_arch tcb') TPIDRURW\<rbrakk>
-       \<Longrightarrow> P (current_ipc_buffer_register (s\<lparr>kheap := kheap s(t \<mapsto> TCB tcb')\<rparr>))"
-  apply (erule arg_cong[where f = P,THEN iffD1,rotated])
-  apply (simp add: current_ipc_buffer_register_def get_tcb_def)
-  done
-
-lemma unbind_maybe_notification_current_ipc_buffer_register[wp]:
-  "\<lbrace>\<lambda>s. P (current_ipc_buffer_register s)\<rbrace> unbind_maybe_notification t  \<lbrace>\<lambda>r s. P (current_ipc_buffer_register s)\<rbrace>"
-  apply (clarsimp simp: unbind_maybe_notification_def  )
-  apply (wp dxo_wp_weak | wpc)+
-     apply (simp add: trans_state_def set_bound_notification_def)
-     apply (clarsimp simp: set_thread_state_def get_object_def set_object_def valid_def put_def
-                           gets_def assert_def bind_def get_def return_def fail_def gets_the_def
-                           assert_opt_def
-                    split: option.splits kernel_object.splits)
-     apply (erule update_tcb_current_ipc_buffer_register)
-      apply assumption
-     apply simp
-    apply (wp get_object_wp | simp add: get_simple_ko_def | wpc)+
-  done
-
-lemma set_bounded_notification_current_ipc_buffer_register[wp]:
-  "\<lbrace>\<lambda>s. P (current_ipc_buffer_register s)\<rbrace> set_bound_notification t ep  \<lbrace>\<lambda>r s. P (current_ipc_buffer_register s)\<rbrace>"
-  apply (clarsimp simp: set_bound_notification_def  )
-  apply (wp dxo_wp_weak | wpc)+
-     apply (clarsimp simp: set_thread_state_def get_object_def set_object_def valid_def put_def
-                           gets_def assert_def bind_def get_def return_def fail_def gets_the_def
-                           assert_opt_def
-                    split: option.splits kernel_object.splits)
-     apply simp
-    apply (wp get_object_wp | simp add: get_simple_ko_def | wpc)+
-  apply (auto simp: obj_at_def current_ipc_buffer_register_def get_tcb_def split: kernel_object.split_asm)
-  done
-
-lemma set_pd_current_ipc_buffer_register[wp]:
-  "\<lbrace>\<lambda>s. P (current_ipc_buffer_register s)\<rbrace> set_pd ptr pd \<lbrace>\<lambda>r s. P (current_ipc_buffer_register s)\<rbrace>"
-  apply (clarsimp simp: set_pd_def)
-  apply (wpsimp wp: set_object_wp_strong)
-  apply (auto simp: obj_at_def current_ipc_buffer_register_def get_tcb_def
-             split: kernel_object.split_asm)
-  done
-
-lemma set_pt_current_ipc_buffer_register[wp]:
-  "\<lbrace>\<lambda>s. P (current_ipc_buffer_register s)\<rbrace> set_pt ptr pt \<lbrace>\<lambda>r s. P (current_ipc_buffer_register s)\<rbrace>"
-  apply (clarsimp simp: set_pt_def)
-  apply (wpsimp wp: set_object_wp_strong)
-  apply (auto simp: obj_at_def current_ipc_buffer_register_def get_tcb_def
-             split: kernel_object.split_asm)
-  done
-
-crunch current_ipc_buffer_register [wp]: post_cap_deletion, cap_delete_one "\<lambda>s. P (current_ipc_buffer_register s)"
-  (wp: crunch_wps without_preemption_wp syscall_valid do_machine_op_arch
-       hoare_unless_wp dxo_wp_weak
-   simp: crunch_simps mapM_x_wp
-   ignore: do_machine_op clearMemory empty_slot_ext tcb_sched_action reschedule_required)
-
-lemma dxo_current_ipc_buffer_register[wp]:
-  "\<lbrace>\<lambda>s. P (current_ipc_buffer_register s)\<rbrace> do_extended_op eop  \<lbrace>\<lambda>r s. P (current_ipc_buffer_register s)\<rbrace>"
-  by (simp | wp dxo_wp_weak)+
-
-lemma dxo_current_ipc_buffer_register_kheap_upd:
-  "\<lbrace>\<lambda>s. P (current_ipc_buffer_register (s\<lparr>kheap:=kh\<rparr>))\<rbrace> do_extended_op eop  \<lbrace>\<lambda>r s. P (current_ipc_buffer_register (s\<lparr>kheap:=kh\<rparr>))\<rbrace>"
-  including no_pre
-  apply (simp | wp dxo_wp_weak)+
-  apply (rule arg_cong[where f = P])
-  apply (simp add: trans_state_def current_ipc_buffer_register_def get_tcb_def)
-  done
-
-crunch current_ipc_buffer_register [wp]: "deleting_irq_handler" "\<lambda>s. P (current_ipc_buffer_register s)"
-  (wp: crunch_wps mapM_x_wp)
-
-
-lemma current_ipc_buffer_register_cdt_ortho[simp]:
-  "current_ipc_buffer_register (cdt_update f s) = current_ipc_buffer_register s"
-  by (simp add: current_ipc_buffer_register_def)
-
-
-(* FIXME: Crunch fails for the following simple valid rules *)
-lemma cap_swap_current_ipc_buffer_register[wp]:
-  "\<lbrace>\<lambda>s. P (current_ipc_buffer_register s)\<rbrace> cap_swap a b c d  \<lbrace>\<lambda>r s. P (current_ipc_buffer_register s)\<rbrace>"
-  unfolding cap_swap_def set_cdt_def by wpsimp
-
-
-crunch current_ipc_buffer_register [wp]: "cap_swap_for_delete" "\<lambda>s. P (current_ipc_buffer_register s)"
-  (wp: dxo_wp_weak dxo_current_ipc_buffer_register)
-
-(* FIXME: Crunch fails for the following simple valid rules *)
-lemma create_cap_current_ipc_buffer_register[wp]:
-  "\<lbrace>\<lambda>s. P (current_ipc_buffer_register s)\<rbrace> create_cap a b c d e  \<lbrace>\<lambda>r s. P (current_ipc_buffer_register s)\<rbrace>"
-  apply (rule hoare_pre)
-  by (simp add: create_cap_def | wp | wpc)+
-
-crunch current_ipc_buffer_register [wp]: store_pde "\<lambda>s. P (current_ipc_buffer_register s)"
-  (wp: crunch_wps)
-
-crunch current_ipc_buffer_register [wp]: init_arch_objects "\<lambda>s. P (current_ipc_buffer_register s)"
-  (wp: crunch_wps without_preemption_wp hoare_unless_wp
-   simp: crunch_simps
-   ignore: do_machine_op clearMemory freeMemory)
-
-lemma current_ipc_buffer_register_weak_intro:
-  assumes valid: "\<And>P. \<lbrace>\<lambda>s. obj_at P (cur_thread s) s \<and> Q s\<rbrace> f \<lbrace>\<lambda>_ s. obj_at P (cur_thread s) s\<rbrace>"
-  shows "\<lbrace>\<lambda>s. P (current_ipc_buffer_register s) \<and> cur_tcb s \<and> Q s \<rbrace> f  \<lbrace>\<lambda>r s. P (current_ipc_buffer_register s)\<rbrace>"
-  apply (clarsimp simp: valid_def current_ipc_buffer_register_def)
-  apply (drule use_valid)
-    apply (rule_tac P = "\<lambda>ko. case ko of TCB t \<Rightarrow> P (arch_tcb_context_get (tcb_arch t) TPIDRURW) | _ \<Rightarrow> False" in valid)
-   apply (clarsimp simp: cur_tcb_def tcb_at_def)
-  apply (clarsimp simp: obj_at_def)
-  apply (clarsimp split: kernel_object.split_asm)
-  apply (clarsimp simp: get_tcb_def)
-  done
-
-
-(* FIXME: Crunch fails for the following simple valid rules *)
-lemma retype_region_current_ipc_buffer_register:
-  "\<lbrace>\<lambda>s. P (current_ipc_buffer_register s) \<and> pspace_no_overlap (up_aligned_area ptr sz) s
-    \<and> valid_pspace s \<and> cur_tcb s \<and> range_cover ptr sz (obj_bits_api ty us) n\<rbrace>
-    retype_region ptr n us ty dev \<lbrace>\<lambda>r s. P (current_ipc_buffer_register s)\<rbrace>"
-  apply (rule hoare_pre)
-   apply (wp current_ipc_buffer_register_weak_intro)
-   apply (rule  hoare_pre)
-    apply wps
-    apply (wp Retype_AI.retype_region_obj_at_other2)
-   apply (erule conjE, erule conjI, assumption)
-  apply clarsimp
-  apply (drule(2) pspace_no_overlap_into_Int_none)
-  apply (fastforce simp: cur_tcb_def obj_at_def)
-  done
-
-lemma cancel_signal_current_ipc_buffer_register[wp]:
-  "\<lbrace>\<lambda>s. P (current_ipc_buffer_register s)\<rbrace> cancel_signal a b \<lbrace>\<lambda>r s. P (current_ipc_buffer_register s)\<rbrace>"
-  including no_pre
-  apply (clarsimp simp: cancel_signal_def get_simple_ko_def)
-  apply (wp | wpc)+
-  apply (clarsimp simp:  get_object_def set_object_def valid_def put_def
-                        gets_def assert_def bind_def get_def return_def fail_def gets_the_def
-                        assert_opt_def
-                 split: option.splits kernel_object.splits)
-  done
-
-crunch current_ipc_buffer_register [wp]: blocked_cancel_ipc "\<lambda>s. P (current_ipc_buffer_register s)"
-  (wp: crunch_wps)
-
-lemma reply_cancel_ipc_current_ipc_buffer_register[wp]:
-  "\<lbrace>\<lambda>s. P (current_ipc_buffer_register s)\<rbrace> reply_cancel_ipc a \<lbrace>\<lambda>r s. P (current_ipc_buffer_register s)\<rbrace>"
-  including no_pre
-  apply (clarsimp simp: reply_cancel_ipc_def)
-  apply (wp select_wp| wpc)+
-  apply (rule_tac Q = "\<lambda>r s. P (current_ipc_buffer_register s)" in hoare_post_imp)
-   apply simp
-  apply (clarsimp simp: get_object_def set_object_def valid_def put_def
-                        gets_def assert_def bind_def get_def return_def
-                        fail_def gets_the_def
-                        thread_set_def assert_opt_def get_tcb_def
-                 split: option.splits kernel_object.splits)
-  apply (clarsimp simp: current_ipc_buffer_register_def get_tcb_def)
-  done
-
-lemma set_asid_pool_current_ipc_buffer_register[wp]:
-  "\<lbrace>\<lambda>s. P (current_ipc_buffer_register s)\<rbrace> set_asid_pool a b \<lbrace>\<lambda>r s. P (current_ipc_buffer_register s)\<rbrace>"
-  apply (simp add: set_asid_pool_def)
-  apply (wpsimp wp: set_object_wp_strong
-              simp: current_ipc_buffer_register_def get_tcb_def obj_at_def
-             split: kernel_object.splits)
-  done
-
-lemma set_tcb_context_current_ipc_buffer_register:
-  "\<lbrace>\<lambda>s. (f = cur_thread s \<longrightarrow> (P (cxt TPIDRURW) = P (arch_tcb_context_get (tcb_arch tcb) TPIDRURW) \<and>
-        obj_at (\<lambda>obj. obj = TCB tcb) f s)) \<and> P (current_ipc_buffer_register s)\<rbrace>
-     set_object f (TCB (tcb\<lparr>tcb_arch := arch_tcb_context_set cxt (tcb_arch tcb)\<rparr>))
-   \<lbrace>\<lambda>_ s. P (current_ipc_buffer_register s)\<rbrace>"
-  apply (wpsimp wp: set_object_wp)
-  by (auto simp: current_ipc_buffer_register_def get_tcb_def obj_at_def)
-
-lemma as_user_current_ipc_buffer_register[wp]:
-  assumes uc: "\<And>P. \<lbrace>\<lambda>s. P (s TPIDRURW)\<rbrace> a \<lbrace>\<lambda>r s. P (s TPIDRURW)\<rbrace>"
-  shows "\<lbrace>\<lambda>s. P (current_ipc_buffer_register s)\<rbrace> as_user f a
-  \<lbrace>\<lambda>_ s. P (current_ipc_buffer_register s)\<rbrace>"
-  apply (simp add: as_user_def)
-  apply (wp select_f_wp set_tcb_context_current_ipc_buffer_register | wpc | simp)+
-  apply (clarsimp dest!: get_tcb_SomeD)
-  apply (simp add: obj_at_def get_tcb_def)
-  apply (drule use_valid[OF _ uc])
-   apply (clarsimp simp: current_ipc_buffer_register_def get_tcb_def)
-   apply assumption
-  apply (clarsimp simp: current_ipc_buffer_register_def get_tcb_def)
-  done
-
-crunch current_ipc_buffer_register [wp]: finalise_cap "\<lambda>s. P (current_ipc_buffer_register s)"
-   (wp: crunch_wps without_preemption_wp syscall_valid do_machine_op_arch
-        hoare_unless_wp select_wp
-    simp: crunch_simps setRegister_def getRegister_def
-          ARM.faultRegister_def ARM.nextInstructionRegister_def
-    ignore: do_machine_op clearMemory empty_slot_ext reschedule_required
-            tcb_sched_action set_object as_user)
-
-lemma rec_del_current_ipc_buffer_register [wp]:
-  "invariant (rec_del call) (\<lambda>s. P (current_ipc_buffer_register s))"
-  by (rule rec_del_preservation; wpsimp wp: preemption_point_inv)
-
-crunch current_ipc_buffer_register [wp]: cap_delete "\<lambda>s. P (current_ipc_buffer_register s)"
-   (wp: crunch_wps simp: crunch_simps)
-
-lemma cap_revoke_current_ipc_buffer_register [wp]:
-  "invariant (cap_revoke slot) (\<lambda>s. P (current_ipc_buffer_register s))"
-  apply (rule validE_valid)
-  apply (rule cap_revoke_preservation; wpsimp wp: preemption_point_inv)
-  done
-
 end
 
 crunch_ignore (add:
@@ -1332,117 +1023,11 @@ crunch_ignore (add:
 
 context begin interpretation Arch . (*FIXME: arch_split*)
 
-crunch current_ipc_buffer_register [wp]: cap_insert "\<lambda>s. P (current_ipc_buffer_register s)"
-   (wp: crunch_wps simp: crunch_simps)
-
-crunch current_ipc_buffer_register [wp]: cap_move "\<lambda>s. P (current_ipc_buffer_register s)"
-   (wp: crunch_wps simp: crunch_simps)
-
-crunch current_ipc_buffer_register [wp]: set_extra_badge "\<lambda>s. P (current_ipc_buffer_register s)"
-   (wp: crunch_wps simp: crunch_simps)
-
-lemma transfer_caps_loop_current_ipc_buffer_register:
-  "\<lbrace>\<lambda>s. P (current_ipc_buffer_register s)\<rbrace> transfer_caps_loop ep buffer n caps slots mi \<lbrace>\<lambda>r s. P (current_ipc_buffer_register s)\<rbrace>"
-  by (wp transfer_caps_loop_pres)
-
-crunch current_ipc_buffer_register [wp]: transfer_caps "\<lambda>s. P (current_ipc_buffer_register s)"
-
-lemma set_register_tpidrurw_inv[wp]:
-  "r \<noteq> TPIDRURW \<Longrightarrow> \<lbrace>\<lambda>s. P (s TPIDRURW)\<rbrace> setRegister r v\<lbrace>\<lambda>r s. P (s TPIDRURW)\<rbrace>"
-  by (simp add: setRegister_def simpler_modify_def valid_def)
-
-crunch tpidrurw_inv [wp]: getRegister "\<lambda>s. P (s TPIDRURW)"
-
-crunch current_ipc_buffer_register [wp]: handle_interrupt "\<lambda>s. P (current_ipc_buffer_register s)"
-  (wp: crunch_wps simp: badge_register_def badgeRegister_def )
-
-lemma TPIDRURW_notin_msg_registers[simp]:
- "TPIDRURW \<notin> set (take r msgRegisters)"
- "TPIDRURW \<notin> set syscallMessage"
- "TPIDRURW \<notin> set exceptionMessage"
- "TPIDRURW \<notin> set gpRegisters"
- "TPIDRURW \<notin> set frameRegisters"
-  apply (auto simp: msgRegisters_def frameRegisters_def gpRegisters_def
-                    syscallMessage_def exceptionMessage_def)
-  apply (rule ccontr)
-  apply clarsimp
-  apply (drule in_set_takeD)
-  apply (simp_all add: upto_enum_red image_def)
-  apply (auto simp add: toEnum_eq_to_fromEnum_eq fromEnum_def enum_register maxBound_def
-              dest!: toEnum_eq_to_fromEnum_eq[THEN iffD1,rotated,OF sym])
-  done
-
 lemma zet_zip_contrapos:
   "fst t \<notin> set xs  \<Longrightarrow> t \<notin> set (zip xs ys)"
   apply (rule ccontr)
   apply (simp add: set_zip_helper)
   done
-
-lemma set_mrs_current_ipc_buffer_register:
-  "\<lbrace>(\<lambda>s. P (current_ipc_buffer_register s))\<rbrace> set_mrs a b c \<lbrace>\<lambda>_ s. P (current_ipc_buffer_register s)\<rbrace>"
-  apply (simp add: set_mrs_def msg_registers_def)
-  apply (subst zipWithM_x_mapM_x)
-  apply (rule hoare_pre)
-   apply (wp mapM_x_wp[where S = UNIV] | wpc | simp)+
-      apply (rule hoare_pre)
-       apply (wp set_object_wp | wpc | simp)+
-  apply (auto simp: current_ipc_buffer_register_def arch_tcb_set_registers_def
-                    arch_tcb_get_registers_def get_tcb_def)
-  done
-
-lemma thread_set_current_ipc_buffer_register:
-  assumes tpidrurw_inv: "\<And>y. P (arch_tcb_context_get (tcb_arch (r y)) TPIDRURW) = P (arch_tcb_context_get (tcb_arch y) TPIDRURW)"
-  shows "\<lbrace>(\<lambda>s. P (current_ipc_buffer_register s))\<rbrace> thread_set r ptr \<lbrace>\<lambda>_ s. P (current_ipc_buffer_register s)\<rbrace>"
-  apply (simp add:thread_set_def)
-  apply (wp set_object_wp)
-  apply (auto simp: current_ipc_buffer_register_def get_tcb_def tpidrurw_inv)
-  done
-
-lemma checked_cap_current_ipc_buffer_register_inv:
-  "\<lbrace>(\<lambda>s. P (current_ipc_buffer_register s))\<rbrace>
-    check_cap_at a b (check_cap_at c d (cap_insert a b e))
-   \<lbrace>\<lambda>_ s. P (current_ipc_buffer_register s)\<rbrace>"
-   by (simp add:check_cap_at_def | wp hoare_vcg_if_lift2 hoare_drop_imps)+
-
-lemma [simp]:
-  "badge_register \<noteq> TPIDRURW" "msg_info_register \<noteq> TPIDRURW"
-  by (auto simp add:badgeRegister_def badge_register_def msg_info_register_def msgInfoRegister_def)
-
-crunch current_ipc_buffer_register [wp]: setup_caller_cap "\<lambda>s. P (current_ipc_buffer_register s)"
-  (wp: crunch_wps simp: crunch_simps )
-
-crunch current_ipc_buffer_register [wp]: set_message_info "\<lambda>s. P (current_ipc_buffer_register s)"
-  (wp: crunch_wps simp: crunch_simps )
-
-crunch current_ipc_buffer_register [wp]: do_ipc_transfer "\<lambda>s. P (current_ipc_buffer_register s)"
-  (wp: crunch_wps simp: crunch_simps msg_registers_def
-  ignore: set_object as_user)
-
-crunch current_ipc_buffer_register [wp]: send_ipc "\<lambda>s. P (current_ipc_buffer_register s)"
-  (wp: crunch_wps simp: crunch_simps )
-
-crunch current_ipc_buffer_register [wp]: send_fault_ipc "\<lambda>s. P (current_ipc_buffer_register s)"
-  (wp: crunch_wps thread_set_current_ipc_buffer_register simp: crunch_simps ignore: thread_set )
-
-crunch current_ipc_buffer_register [wp]: handle_fault "\<lambda>s. P (current_ipc_buffer_register s)"
-  (wp: crunch_wps simp: crunch_simps )
-
-crunch current_ipc_buffer_register [wp]: reply_from_kernel "\<lambda>s. P (current_ipc_buffer_register s)"
-  (wp: crunch_wps simp: crunch_simps )
-
-crunch current_ipc_buffer_register [wp]: do_reply_transfer "\<lambda>s. P (current_ipc_buffer_register s)"
-  ( wp: crunch_wps thread_set_current_ipc_buffer_register simp: crunch_simps zet_zip_contrapos
-    ignore: do_extended_op thread_set
-            tcb_fault_update)
-
-crunch current_ipc_buffer_register [wp]: invoke_domain "\<lambda>s. P (current_ipc_buffer_register s)"
-  ( wp: crunch_wps simp: crunch_simps ignore: do_extended_op check_cap_at)
-
-crunch current_ipc_buffer_register [wp]: cancel_badged_sends "\<lambda>s. P (current_ipc_buffer_register s)"
-  ( wp: crunch_wps filterM_preserved simp: crunch_simps ignore: do_extended_op)
-
-crunch current_ipc_buffer_register [wp]: finalise_slot "\<lambda>s. P (current_ipc_buffer_register s)"
-  ( wp: crunch_wps filterM_preserved hoare_unless_wp simp: crunch_simps ignore: do_extended_op)
 
 lemma ct_active_update[simp]:
   "ct_active (s\<lparr>cdt := b\<rparr>) = ct_active s"
@@ -1525,14 +1110,6 @@ crunch ct_active [wp]: post_cap_deletion, empty_slot "ct_active"
   ( wp: crunch_wps filterM_preserved hoare_unless_wp
     simp: crunch_simps ignore: do_extended_op)
 
-lemma thread_set_non_current_current_ipc_buffer_register:
-  "\<lbrace>\<lambda>s. ptr \<noteq> cur_thread s \<and> P (current_ipc_buffer_register s)\<rbrace>
-    thread_set f ptr
-   \<lbrace>\<lambda>_ s. P (current_ipc_buffer_register s) \<rbrace>"
-  apply (simp add: thread_set_def | wp set_object_wp)+
-  apply (auto simp: get_tcb_def current_ipc_buffer_register_def)
-  done
-
 crunch cur_thread[wp]: cap_swap_for_delete,finalise_cap "\<lambda>s. P (cur_thread s)" (wp: select_wp dxo_wp_weak crunch_wps simp: crunch_simps )
 
 lemma irq_state_indepenedent_cur_thread[simp]: "irq_state_independent_A (\<lambda>s. P (cur_thread s))"
@@ -1565,7 +1142,7 @@ crunch cur_thread[wp]: handle_event "\<lambda>s. P (cur_thread s)"
 
 crunches ethread_set, timer_tick, possible_switch_to, handle_interrupt
   for pas_cur_domain[wp]: "pas_cur_domain pas"
-  (wp: crunch_wps simp: crunch_simps)
+  (wp: crunch_wps simp: crunch_simps ignore_del: ethread_set timer_tick possible_switch_to)
 
 lemma dxo_idle_thread[wp]:
   "\<lbrace>\<lambda>s. P (idle_thread s) \<rbrace> do_extended_op f \<lbrace>\<lambda>_ s. P (idle_thread s)\<rbrace>"
@@ -1579,11 +1156,7 @@ lemma preemption_point_idle_thread[wp]:
   by (wpsimp wp: OR_choiceE_weak_wp simp: irq_state_independent_def)
 
 (* following idle_thread and cur_domain proofs clagged from infoflow/PasUpdates.thy *)
-crunch idle_thread[wp]: cap_swap_for_delete,finalise_cap,cap_move,cap_swap,cap_delete,cancel_badged_sends
-  "\<lambda>s. P (idle_thread s)"
-  ( wp: syscall_valid crunch_wps rec_del_preservation cap_revoke_preservation modify_wp dxo_wp_weak
-    simp: crunch_simps check_cap_at_def filterM_mapM unless_def
-    ignore: without_preemption filterM rec_del check_cap_at cap_revoke )
+crunch idle_thread'[wp]: cap_delete "\<lambda>s. P (idle_thread s)"
 
 lemma cap_revoke_idle_thread[wp]:"\<lbrace>\<lambda>s. P (idle_thread s)\<rbrace> cap_revoke a \<lbrace>\<lambda>r s. P (idle_thread s)\<rbrace>"
   by (rule cap_revoke_preservation2; wp)
@@ -1600,12 +1173,12 @@ crunch idle_thread[wp]: handle_event "\<lambda>s::det_state. P (idle_thread s)"
    ignore: check_cap_at syscall)
 
 crunch cur_domain[wp]:
-  transfer_caps_loop, ethread_set, thread_set_priority, set_priority,
+  transfer_caps_loop, ethread_set, possible_switch_to, thread_set_priority, set_priority,
   set_domain, invoke_domain, cap_move_ext, timer_tick,
   cap_move, cancel_badged_sends, possible_switch_to
   "\<lambda>s. P (cur_domain s)"
-  (wp: crunch_wps simp: crunch_simps filterM_mapM
-   rule: transfer_caps_loop_pres)
+  (wp: crunch_wps simp: crunch_simps filterM_mapM rule: transfer_caps_loop_pres
+   ignore_del: ethread_set set_priority set_domain cap_move_ext timer_tick possible_switch_to)
 
 lemma invoke_cnode_cur_domain[wp]: "\<lbrace>\<lambda>s. P (cur_domain s)\<rbrace> invoke_cnode a \<lbrace>\<lambda>r s. P (cur_domain s)\<rbrace>"
   apply (simp add: invoke_cnode_def)
@@ -1626,9 +1199,6 @@ lemma handle_interrupt_guarded_pas_domain[wp]:
   "\<lbrace>guarded_pas_domain aag\<rbrace> handle_interrupt blah \<lbrace>\<lambda>_. guarded_pas_domain aag\<rbrace>"
   by (wp guarded_pas_domain_lift)
 
-lemma current_ipc_buffer_register_irq_state_update: "current_ipc_buffer_register (s\<lparr>machine_state := machine_state s \<lparr>irq_state := Suc (irq_state (machine_state s))\<rparr>\<rparr>) = current_ipc_buffer_register s"
-by (clarsimp simp: current_ipc_buffer_register_def get_tcb_def)
-
 lemma call_kernel_integrity':
   "st \<turnstile> \<lbrace>einvs and pas_refined aag and is_subject aag \<circ> cur_thread and schact_is_rct and guarded_pas_domain aag
                     and domain_sep_inv (pasMaySendIrqs aag) st'
@@ -1639,9 +1209,9 @@ lemma call_kernel_integrity':
   apply (simp add: call_kernel_def getActiveIRQ_def )
   apply (simp only: spec_valid_def)
   apply (wp activate_thread_respects schedule_integrity_pasMayEditReadyQueues
-            handle_interrupt_integrity handle_interrupt_current_ipc_buffer_register
+            handle_interrupt_integrity
             dmo_wp alternative_wp select_wp handle_interrupt_pas_refined
-         | simp add: current_ipc_buffer_register_irq_state_update)+
+         | simp )+
    apply (rule hoare_post_impErr,
           rule_tac Q = "integrity aag X st and pas_refined aag and einvs and guarded_pas_domain aag and domain_sep_inv (pasMaySendIrqs aag) st'
                         and is_subject aag \<circ> cur_thread
@@ -1651,7 +1221,6 @@ lemma call_kernel_integrity':
               handle_event_domain_sep_inv handle_event_valid_sched | simp)+
     apply(fastforce simp: domain_sep_inv_def guarded_pas_domain_def)+
   done
-
 
 lemma call_kernel_integrity:
   "\<lbrace>pas_refined pas and einvs
@@ -1667,7 +1236,6 @@ lemma call_kernel_integrity:
    apply clarsimp
   apply assumption
   done
-
 
 lemma call_kernel_pas_refined:
   "\<lbrace>einvs and pas_refined aag and is_subject aag \<circ> cur_thread and guarded_pas_domain aag

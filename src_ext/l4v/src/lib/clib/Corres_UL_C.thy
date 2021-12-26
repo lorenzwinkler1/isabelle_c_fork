@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 (* This theory is a general framework for refinement on C programs.
@@ -130,6 +126,14 @@ lemma ccorresI':
    apply simp
   apply simp
   done
+
+text \<open>A congruence rule for the program part of correspondence functions (prevents schematic
+      rewriting).\<close>
+lemma ccorres_prog_only_cong:
+  "\<lbrakk> m=m'; c=c' \<rbrakk> \<Longrightarrow>
+   ccorres_underlying srel \<Gamma> rrel xf arrel axf G G' hs m c =
+   ccorres_underlying srel \<Gamma> rrel xf arrel axf G G' hs m' c'"
+  by simp
 
 lemma exec_handlers_Cons_le[simplified]:
   "\<Gamma> \<turnstile>\<^sub>h \<langle>h # hs, s'\<rangle> \<Rightarrow> (n, t) \<Longrightarrow> n \<le> length (tl (h # hs))"

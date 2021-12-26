@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Detype_AI
-imports "./$L4V_ARCH/ArchRetype_AI"
+imports ArchRetype_AI
 begin
 
 context begin interpretation Arch .
@@ -415,16 +411,6 @@ lemma no_obj_refs:
   apply (simp add:cap_range_def)
   apply blast
   done
-
-lemma unique_table_refs:
-    "\<And>cps P. unique_table_refs cps
-             \<Longrightarrow> unique_table_refs (\<lambda>x. if P x then None else cps x)"
-    apply (simp only: unique_table_refs_def option.simps
-                      simp_thms
-               split: if_split)
-    apply blast
-    done
-
 
 lemma valid_pspace: "valid_pspace s" using invs
   by (simp add: invs_def valid_state_def)

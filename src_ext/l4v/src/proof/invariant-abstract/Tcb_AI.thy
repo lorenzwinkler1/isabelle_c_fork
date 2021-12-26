@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Tcb_AI
-imports "./$L4V_ARCH/ArchCNodeInv_AI"
+imports ArchCNodeInv_AI
 begin
 
 context begin interpretation Arch .
@@ -863,7 +859,7 @@ lemma decode_readreg_inv:
   "\<lbrace>P\<rbrace> decode_read_registers args (cap.ThreadCap t) \<lbrace>\<lambda>rv. P\<rbrace>"
   apply (rule hoare_pre)
    apply (simp add: decode_read_registers_def whenE_def | rule conjI | clarsimp
-          | wp_once | wpcw)+
+          | wp (once) | wpcw)+
   done
 
 lemma decode_writereg_inv:
@@ -871,7 +867,7 @@ lemma decode_writereg_inv:
   apply (rule hoare_pre)
    apply (simp   add: decode_write_registers_def whenE_def
            split del: if_split
-          | wp_once | wpcw)+
+          | wp (once) | wpcw)+
   done
 
 lemma decode_copyreg_inv:
@@ -879,7 +875,7 @@ lemma decode_copyreg_inv:
   apply (rule hoare_pre)
    apply (simp   add: decode_copy_registers_def whenE_def
            split del: if_split
-          | wp_once | wpcw)+
+          | wp (once) | wpcw)+
   done
 
 lemma decode_set_tls_base_inv:
@@ -887,7 +883,7 @@ lemma decode_set_tls_base_inv:
   apply (rule hoare_pre)
    apply (simp   add: decode_set_tls_base_def whenE_def
            split del: if_split
-          | wp_once | wpcw)+
+          | wp (once) | wpcw)+
   done
 
 lemma (in Tcb_AI) decode_readreg_wf:

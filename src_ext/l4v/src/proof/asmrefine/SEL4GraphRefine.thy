@@ -1,12 +1,7 @@
 (*
- * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory SEL4GraphRefine
@@ -14,13 +9,13 @@ imports
   "AsmRefine.ProveGraphRefine"
   "CSpec.Substitute"
   "SEL4GlobalsSwap"
-  "SEL4SimplExport"
+  "SimplExport.SEL4SimplExport"
 begin
 
 declare ptr_add_assertion_uint [simp del]
 
 ML \<open>
-val funs = ParseGraph.funs @{theory} "CFunDump.txt"
+val funs = ParseGraph.funs @{theory} CFunDump_filename
 \<close>
 
 ML \<open>
@@ -32,22 +27,21 @@ fun define_all funs = fold (fn s => let val s' = Long_Name.base_name s
 
 ML \<open>
 val csenv = let
-    val the_csenv = CalculateState.get_csenv @{theory} "../../spec/cspec/c/build/$L4V_ARCH/kernel_all.c_pp" |> the
+    val the_csenv = CalculateState.get_csenv @{theory} "../c/build/$L4V_ARCH/kernel_all.c_pp" |> the
   in fn () => the_csenv end
 \<close>
 
 consts
   encode_machine_state :: "machine_state \<Rightarrow> unit \<times> nat"
 
-local_setup \<open>add_field_h_val_rewrites #> add_field_to_bytes_rewrites\<close>
-
 context graph_refine_locale begin
 
-ML \<open>SimplToGraphProof.globals_swap
- := (fn t => @{term "globals_swap t_hrs_' t_hrs_'_update symbol_table globals_list"} $ t)
+local_setup \<open>
+  add_field_h_val_rewrites
+  #> add_field_to_bytes_rewrites
+  #> add_field_offset_rewrites
+  #> add_globals_swap_rewrites @{thms kernel_all_global_addresses.global_data_mems}
 \<close>
-
-local_setup \<open>add_globals_swap_rewrites @{thms kernel_all_global_addresses.global_data_mems}\<close>
 
 definition
   simpl_invariant :: "globals myvars set"
@@ -66,11 +60,37 @@ lemma snd_snd_gs_new_frames_new_cnodes[simp]:
   "snd (snd ((if P then f else g) gs)) = (if P then snd (snd (f gs)) else snd (snd (g gs)))"
   by (simp_all add: gs_new_frames_def gs_new_cnodes_def gs_clear_region_def)
 
+ML \<open>
+val broken = ["Kernel_C.reserve_region", "Kernel_C.merge_regions", "Kernel_C.arch_init_freemem"];
+val slow = ["Kernel_C.init_freemem"];
+
+val dbg = ProveSimplToGraphGoals.new_debug
+  {
+    \<comment>\<open> VER-1166 \<close>
+    skips = broken @ slow,
+    only = [],
+    timeout = NONE
+  };
+\<close>
+
 (* If this fails, it can be debugged with the assistance of the
    script in TestGraphRefine.thy *)
+ML \<open>
+ProveSimplToGraphGoals.test_all_graph_refine_proofs_parallel
+    funs (csenv ()) @{context} dbg;
+\<close>
 
-ML \<open>ProveSimplToGraphGoals.test_all_graph_refine_proofs_parallel
-    funs (csenv ()) @{context}\<close>
+ML \<open>
+val _ = ProveSimplToGraphGoals.print dbg "failures:" #failures;
+\<close>
+
+ML \<open>
+val _ = ProveSimplToGraphGoals.print dbg "timeouts:" #timeouts;
+\<close>
+
+ML \<open>
+val _ = ProveSimplToGraphGoals.print dbg "successes:" #successes;
+\<close>
 
 end
 

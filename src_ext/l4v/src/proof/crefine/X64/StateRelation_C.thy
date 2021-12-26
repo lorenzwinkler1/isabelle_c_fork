@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory StateRelation_C
@@ -317,10 +313,11 @@ fun
   | "register_from_H X64.CS = scast Kernel_C.CS"
   | "register_from_H X64.SS = scast Kernel_C.SS"
   | "register_from_H X64.ErrorRegister = scast Kernel_C.Error"
-  | "register_from_H X64.TLS_BASE = scast Kernel_C.TLS_BASE"
+  | "register_from_H X64.FS_BASE = scast Kernel_C.FS_BASE"
+  | "register_from_H X64.GS_BASE = scast Kernel_C.GS_BASE"
 
 definition
-  cregs_relation :: "(MachineTypes.register \<Rightarrow> machine_word) \<Rightarrow> machine_word[23] \<Rightarrow> bool"
+  cregs_relation :: "(MachineTypes.register \<Rightarrow> machine_word) \<Rightarrow> machine_word[24] \<Rightarrow> bool"
 where
   "cregs_relation Hregs Cregs \<equiv>  \<forall>r. Hregs r = Cregs.[unat (register_from_H r)]"
 
@@ -952,7 +949,7 @@ where
        h_t_valid (hrs_htd (t_hrs_' cstate)) c_guard x64KSSKIMPML4_Ptr \<and>
        ptr_span x64KSSKIMPML4_Ptr \<subseteq> kernel_data_refs \<and>
        htd_safe domain (hrs_htd (t_hrs_' cstate)) \<and>
-       kernel_data_refs = (- domain) \<and>
+       -domain \<subseteq> kernel_data_refs \<and>
        globals_list_distinct (- kernel_data_refs) symbol_table globals_list \<and>
        cdom_schedule_relation (ksDomSchedule astate)
                               Kernel_C.kernel_all_global_addresses.ksDomSchedule \<and>

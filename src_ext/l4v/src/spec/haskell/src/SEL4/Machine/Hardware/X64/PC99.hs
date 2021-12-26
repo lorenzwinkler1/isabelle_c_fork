@@ -1,11 +1,7 @@
 --
 -- Copyright 2014, General Dynamics C4 Systems
 --
--- This software may be distributed and modified according to the terms of
--- the GNU General Public License version 2. Note that NO WARRANTY is provided.
--- See "LICENSE_GPLv2.txt" for details.
---
--- @TAG(GD_GPL)
+-- SPDX-License-Identifier: GPL-2.0-only
 --
 
 {-# LANGUAGE EmptyDataDecls, ForeignFunctionInterface, GeneralizedNewtypeDeriving #-}
@@ -31,23 +27,24 @@ instance Bounded IRQ where
 newtype PAddr = PAddr { fromPAddr :: Word }
     deriving (Integral, Real, Show, Eq, Num, Bits, FiniteBits, Ord, Enum, Bounded)
 
+
 pptrUserTop :: VPtr
 pptrUserTop = VPtr 0x00007fffffffffff
 
-pptrBase :: Word
-pptrBase = 0xffffff8000000000
+paddrBase :: PAddr
+paddrBase = PAddr 0x0
 
-kpptrBase :: Word
-kpptrBase = 0xffffffff80000000
+pptrBase :: VPtr
+pptrBase = VPtr 0xffffff8000000000
 
-ptrFromPAddr :: PAddr -> PPtr a
-ptrFromPAddr (PAddr addr) = PPtr $ addr + pptrBase
+pptrTop :: VPtr
+pptrTop = VPtr 0xffffffff80000000
 
-addrFromPPtr :: PPtr a -> PAddr
-addrFromPPtr (PPtr ptr) = PAddr $ ptr - pptrBase
+kernelELFPAddrBase :: PAddr
+kernelELFPAddrBase = PAddr 0x00100000
 
-addrFromKPPtr :: PPtr a -> PAddr
-addrFromKPPtr (PPtr ptr) = PAddr $ ptr - kpptrBase
+kernelELFBase :: VPtr
+kernelELFBase = VPtr $ fromVPtr pptrTop + (fromPAddr kernelELFPAddrBase)
 
 pageColourBits :: Int
 pageColourBits = 0 -- qemu has no cache

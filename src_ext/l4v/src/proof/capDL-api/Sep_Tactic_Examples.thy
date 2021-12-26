@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Sep_Tactic_Examples
@@ -30,8 +26,6 @@ term "P \<longrightarrow>* Q"
 lemma frame_rule:
   "\<And>R. \<lbrace>P\<rbrace> f \<lbrace>\<lambda>_. Q\<rbrace> \<Longrightarrow> \<lbrace>P \<and>* R\<rbrace> f \<lbrace>\<lambda>_. Q \<and>* R\<rbrace>"
   oops
-
-thm swap_cap_wp[no_vars]
 
 lemma
  "\<lbrace><dest \<mapsto>c - \<and>* src \<mapsto>c cap \<and>* R>\<rbrace>
@@ -177,8 +171,6 @@ lemma "P s \<Longrightarrow> (Q \<longrightarrow>* (P \<and>* Q)) s"
   apply (assumption)
   done
 
-thm sep_mp[no_vars] sep_curry[rotated, no_vars]
-
 
 (* wp tactic testing *)
 
@@ -188,7 +180,7 @@ thm sep_mp[no_vars] sep_curry[rotated, no_vars]
 method_setup debug = \<open>
   Attrib.thms >> (fn _ => fn ctxt =>
    let
-     val wp_pre_tac = SELECT_GOAL (Method.NO_CONTEXT_TACTIC ctxt
+     val wp_pre_tac = SELECT_GOAL (NO_CONTEXT_TACTIC ctxt
                       (Method_Closure.apply_method ctxt @{method wp_pre} [] [] [] ctxt []))
    in
      SIMPLE_METHOD' (CHANGED o wp_pre_tac)

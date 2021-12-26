@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Delete_C
@@ -148,6 +144,7 @@ lemma capRemovable_spec:
   "\<forall>cap s.  \<Gamma>\<turnstile> \<lbrace>s. ccap_relation cap \<acute>cap \<and> (isZombie cap \<or> cap = NullCap) \<and> capAligned cap\<rbrace>
      Call capRemovable_'proc
       {s'. ret__unsigned_long_' s' = from_bool (capRemovable cap (ptr_val (slot_' s)))}"
+  supply if_cong[cong]
   apply vcg
   apply (clarsimp simp: cap_get_tag_isCap(1-8)[THEN trans[OF eq_commute]])
   apply (simp add: capRemovable_def from_bool_def[where b=True] true_def)
@@ -158,7 +155,7 @@ lemma capRemovable_spec:
   apply (frule cap_get_tag_to_H, erule(1) cap_get_tag_isCap[THEN iffD2])
   apply (case_tac slot)
   apply (clarsimp simp: get_capZombiePtr_CL_def Let_def get_capZombieBits_CL_def
-                        isCap_simps unat_eq_0 unat_eq_1
+                        isCap_simps unat_eq_1
                         less_mask_eq ccap_zombie_radix_less2
              split: if_split_asm)
   done
@@ -167,8 +164,9 @@ lemma capCyclicZombie_spec:
   "\<forall>cap s.  \<Gamma>\<turnstile> \<lbrace>s. ccap_relation cap \<acute>cap \<and> isZombie cap \<and> capAligned cap\<rbrace>
      Call capCyclicZombie_'proc
       {s'. ret__unsigned_long_' s' = from_bool (capCyclicZombie cap (ptr_val (slot_' s)))}"
+  supply if_cong[cong]
   apply vcg
-  apply (clarsimp simp: if_1_0_0 from_bool_0)
+  apply (clarsimp simp: from_bool_0)
   apply (frule(1) cap_get_tag_isCap [THEN iffD2], simp)
   apply (subst eq_commute, subst from_bool_eq_if)
   apply (simp add: ccap_zombie_radix_less4)
@@ -916,7 +914,7 @@ lemma finaliseSlot_ccorres:
         apply (erule(1) cmap_relationE1 [OF cmap_relation_cte])
         apply (frule valid_global_refsD_with_objSize, clarsimp)
         apply (auto simp: typ_heap_simps dest!: ccte_relation_ccap_relation)[1]
-       apply (wp isFinalCapability_inv static_imp_wp | wp_once isFinal[where x=slot'])+
+       apply (wp isFinalCapability_inv static_imp_wp | wp (once) isFinal[where x=slot'])+
       apply vcg
      apply (rule conseqPre, vcg)
      apply clarsimp
@@ -1004,7 +1002,7 @@ lemma cteRevoke_ccorres1:
         apply csymbr
         apply (rule ccorres_cutMon)
         apply (simp add: whenE_def cutMon_walk_if cutMon_walk_bindE
-                         from_bool_0 if_1_0_0
+                         from_bool_0
                     del: Collect_const cong: if_cong call_ignore_cong)
         apply (rule ccorres_if_lhs)
          apply (rule ccorres_cond_true)

@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory SEL4GlobalsSwap
@@ -126,6 +122,12 @@ lemma t_hrs_'_update_hmu_triv[simp]:
   "f (hrs_mem (t_hrs_' gs)) = hrs_mem (t_hrs_' gs)
     \<Longrightarrow> t_hrs_'_update (hrs_mem_update f) gs = gs"
   by (cases gs, auto simp add: hrs_mem_update_def hrs_mem_def)
+
+(* This is needed during graph_refine_proof_tacs, but t_hrs_' isn't accessible in that context. *)
+lemma t_hrs_'_heap_update_id[simp]:
+  fixes p :: "'a::packed_type ptr"
+  shows "t_hrs_'_update (hrs_mem_update (heap_update p ((h_val (hrs_mem (t_hrs_' s)) p)))) s = s"
+  by (simp add: heap_update_id)
 
 end
 

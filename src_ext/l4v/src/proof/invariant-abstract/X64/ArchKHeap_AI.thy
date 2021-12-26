@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchKHeap_AI
-imports "../KHeapPre_AI"
+imports KHeapPre_AI
 begin
 
 context Arch begin global_naming X64
@@ -832,6 +828,7 @@ lemma cap_is_device_obj_is_device[simp]:
          split: apiobject_type.splits aobject_type.splits)
 
 crunch device_state_inv: storeWord "\<lambda>ms. P (device_state ms)"
+  (ignore_del: storeWord)
 
 (* some hyp_ref invariants *)
 

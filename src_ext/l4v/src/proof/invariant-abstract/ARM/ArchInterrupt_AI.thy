@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchInterrupt_AI
-imports "../Interrupt_AI"
+imports Interrupt_AI
 begin
 
 context Arch begin global_naming ARM
@@ -48,7 +44,7 @@ lemma decode_irq_control_valid [Interrupt_AI_asms]:
                    arch_decode_irq_control_invocation_def
                  split del: if_split cong: if_cong)
   apply (wpsimp wp: ensure_empty_stronger simp: cte_wp_at_eq_simp arch_irq_control_inv_valid_def
-        | wp_once hoare_drop_imps)+
+        | wp (once) hoare_drop_imps)+
   apply (clarsimp simp: linorder_not_less word_le_nat_alt unat_ucast maxIRQ_def)
   apply (cases caps ; fastforce simp: cte_wp_at_eq_simp)
 done
@@ -99,6 +95,8 @@ lemma (* set_irq_state_valid_cap *)[Interrupt_AI_asms]:
   done
 
 crunch valid_global_refs[Interrupt_AI_asms]: set_irq_state "valid_global_refs"
+
+crunch typ_at[wp]: arch_invoke_irq_handler "\<lambda>s. P (typ_at T p s)"
 
 lemma invoke_irq_handler_invs'[Interrupt_AI_asms]:
   assumes dmo_ex_inv[wp]: "\<And>f. \<lbrace>invs and ex_inv\<rbrace> do_machine_op f \<lbrace>\<lambda>rv::unit. ex_inv\<rbrace>"
@@ -202,11 +200,12 @@ lemma empty_fail_maskInterrupt_ARCH[Interrupt_AI_asms]:
 
 lemma (* handle_interrupt_invs *) [Interrupt_AI_asms]:
   "\<lbrace>invs\<rbrace> handle_interrupt irq \<lbrace>\<lambda>_. invs\<rbrace>"
-  apply (simp add: handle_interrupt_def  )
+  apply (simp add: handle_interrupt_def)
   apply (rule conjI; rule impI)
   apply (simp add: do_machine_op_bind empty_fail_ackInterrupt_ARCH empty_fail_maskInterrupt_ARCH)
-     apply (wp dmo_maskInterrupt_invs maskInterrupt_invs_ARCH dmo_ackInterrupt send_signal_interrupt_states | wpc | simp)+
-     apply (wp get_cap_wp send_signal_interrupt_states )
+     apply (wp dmo_maskInterrupt_invs maskInterrupt_invs_ARCH dmo_ackInterrupt send_signal_interrupt_states
+            | wpc | simp add: arch_mask_irq_signal_def)+
+     apply (wp get_cap_wp send_signal_interrupt_states)
     apply (rule_tac Q="\<lambda>rv. invs and (\<lambda>s. st = interrupt_states s irq)" in hoare_post_imp)
      apply (clarsimp simp: ex_nonz_cap_to_def invs_valid_objs)
      apply (intro allI exI, erule cte_wp_at_weakenE)

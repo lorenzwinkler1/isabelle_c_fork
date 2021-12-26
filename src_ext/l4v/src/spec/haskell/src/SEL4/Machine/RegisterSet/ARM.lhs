@@ -1,11 +1,7 @@
 %
 % Copyright 2014, General Dynamics C4 Systems
 %
-% This software may be distributed and modified according to the terms of
-% the GNU General Public License version 2. Note that NO WARRANTY is provided.
-% See "LICENSE_GPLv2.txt" for details.
-%
-% @TAG(GD_GPL)
+% SPDX-License-Identifier: GPL-2.0-only
 %
 
 \begin{impdetails}
@@ -30,7 +26,7 @@ This module defines the ARM register set.
 
 > data Register =
 >     R0 | R1 | R2 | R3 | R4 | R5 | R6 | R7 | R8 | R9 | SL | FP | IP | SP |
->     LR | NextIP | FaultIP | CPSR | TLS_BASE | TPIDRURW
+>     LR | NextIP | FaultIP | CPSR | TPIDRURW | TPIDRURO
 >     deriving (Eq, Enum, Bounded, Ord, Ix, Show)
 
 > type Word = Data.Word.Word32
@@ -42,10 +38,10 @@ This module defines the ARM register set.
 > faultRegister = FaultIP
 > nextInstructionRegister = NextIP
 > frameRegisters = FaultIP : SP : CPSR : [R0, R1] ++ [R8 .. IP]
-> gpRegisters = [R2, R3, R4, R5, R6, R7, LR]
+> gpRegisters = [R2, R3, R4, R5, R6, R7, LR, TPIDRURW, TPIDRURO]
 > exceptionMessage = [FaultIP, SP, CPSR]
 > syscallMessage = [R0 .. R7] ++ [FaultIP, SP, LR, CPSR]
-> tlsBaseRegister = TLS_BASE
+> tlsBaseRegister = TPIDRURW
 
 #ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
 > elr_hyp = NextIP
@@ -70,8 +66,6 @@ This module defines the ARM register set.
 >     | VCPURegCIDR
 >     | VCPURegTPIDRPRW
 >     | VCPURegFPEXC
->     | VCPURegCNTVTVAL
->     | VCPURegCNTVCTL
 >     | VCPURegLRsvc
 >     | VCPURegSPsvc
 >     | VCPURegLRabt
@@ -92,10 +86,19 @@ This module defines the ARM register set.
 >     | VCPURegSPSRund
 >     | VCPURegSPSRirq
 >     | VCPURegSPSRfiq
+>     | VCPURegCNTV_CTL
+>     | VCPURegCNTV_CVALhigh
+>     | VCPURegCNTV_CVALlow
+>     | VCPURegCNTVOFFhigh
+>     | VCPURegCNTVOFFlow
 >     deriving (Eq, Enum, Bounded, Ord, Ix, Show)
 
 > vcpuRegNum :: Int
 > vcpuRegNum = fromEnum (maxBound :: VCPUReg)
+
+> vcpuRegSavedWhenDisabled :: VCPUReg -> Bool
+> vcpuRegSavedWhenDisabled VCPURegSCTLR = True
+> vcpuRegSavedWhenDisabled _ = False
 
 #endif
 

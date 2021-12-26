@@ -1,12 +1,8 @@
 (*
  * Portions Copyright 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 theory L2Defs
@@ -258,7 +254,7 @@ lemma L2corres_while:
   apply (clarsimp simp: L2corres_def L2_while_def L1_while_def)
   apply (rule corresXF_guard_imp)
   apply (rule corresXF_while [
-         where' P="\<lambda>r s. P (ret s) s" and C'=c and "C"="\<lambda>_. c'" and A=A and B="\<lambda>_. B"
+         where P="\<lambda>r s. P (ret s) s" and C'=c and "C"="\<lambda>_. c'" and A=A and B="\<lambda>_. B"
          and ret="\<lambda>r s. ret s" and ex="\<lambda>r s. ex s" and st=st and y=x and x="()" and P'="\<lambda>r s. Q x s"])
        apply (rule corresXF_guard_imp)
         apply (rule body_corres [unfolded L2corres_def])

@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -751,8 +747,7 @@ lemma ghost_relation_typ_at:
    (\<forall>a n. typ_at (ACapTable n) a s = (cns a = Some n))"
    apply (rule eq_reflection)
    apply (clarsimp simp: ghost_relation_def typ_at_eq_kheap_obj data_at_def)
-   apply (intro conjI impI iffI allI,simp_all)
-    apply (auto elim!: allE)
+   apply (intro conjI impI iffI allI; force)
    done
 
 end

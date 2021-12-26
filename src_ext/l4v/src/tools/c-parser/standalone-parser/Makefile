@@ -1,11 +1,7 @@
 #
-# Copyright 2016, Data61, CSIRO
+# Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
 #
-# This software may be distributed and modified according to the terms of
-# the BSD 2-Clause license. Note that NO WARRANTY is provided.
-# See "LICENSE_BSD2.txt" for details.
-#
-# @TAG(DATA61_BSD)
+# SPDX-License-Identifier: BSD-2-Clause
 #
 
 # note this makefile will not work entirely correctly if invoked in the local
@@ -45,14 +41,6 @@ standalone-cparser stp_all: $(STPARSERS)
 standalone-tokenizer stp_all: $(TOKENIZERS)
 
 include $(STP_PFX)/../Makefile
-
-# This is only used for ARM_HYP and ARM since the former is a copy of the latter
-UMM_HEAP_ARM_HYP=$(realpath $(STP_PFX)/../umm_heap)/ARM_HYP
-UMM_HEAP_ARM=$(realpath $(STP_PFX)/../umm_heap/ARM)
-
-$(UMM_HEAP_ARM_HYP)/% : $(UMM_HEAP_ARM)/%
-	mkdir -p $(UMM_HEAP_ARM_HYP)
-	cp -p $< $@
 
 STP_CLEAN_TARGETS := $(STPARSERS) $(TOKENIZERS) $(STP_PFX)/c-parser.o $(STP_PFX)/table.ML
 
@@ -145,6 +133,5 @@ clean: stp_clean
 
 stp_clean:
 	-/bin/rm -f $(STP_CLEAN_TARGETS)
-	-/bin/rm -fr $(UMM_HEAP_ARM_HYP)
 
 endif

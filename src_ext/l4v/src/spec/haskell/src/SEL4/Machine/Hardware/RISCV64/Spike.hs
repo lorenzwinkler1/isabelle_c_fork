@@ -1,14 +1,12 @@
--- Copyright 2018, Data61, CSIRO
 --
--- This software may be distributed and modified according to the terms of
--- the GNU General Public License version 2. Note that NO WARRANTY is provided.
--- See "LICENSE_GPLv2.txt" for details.
+-- Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
 --
--- @TAG(DATA61_GPL)
+-- SPDX-License-Identifier: GPL-2.0-only
+--
 
 {-# LANGUAGE EmptyDataDecls, ForeignFunctionInterface, GeneralizedNewtypeDeriving #-}
 
-module SEL4.Machine.Hardware.RISCV64.Spike where
+module SEL4.Machine.Hardware.RISCV64.HiFive where
 
 import Prelude hiding (Word)
 import SEL4.Machine.RegisterSet
@@ -24,38 +22,19 @@ newtype IRQ = IRQ Word32
 
 instance Bounded IRQ where
     minBound = IRQ 0
-    maxBound = IRQ 5 -- no external interrupts supported yet on spike
+    maxBound = IRQ 53
 
 newtype PAddr = PAddr { fromPAddr :: Word }
     deriving (Integral, Real, Show, Eq, Num, Bits, FiniteBits, Ord, Enum, Bounded)
 
-kernelBase :: VPtr
-kernelBase = VPtr 0xFFFFFFFF80000000
-
-physBase = 0x0 -- called PADDR_BASE in C
-physMappingOffset = fromVPtr pptrBase - physBase -- called BASE_OFFSET in C
-paddrLoad = 0xC0000000
-kernelBaseOffset = fromVPtr kernelBase - paddrLoad
-
-ptrFromPAddr :: PAddr -> PPtr a
-ptrFromPAddr (PAddr addr) = PPtr $ addr + physMappingOffset
-
-addrFromPPtr :: PPtr a -> PAddr
-addrFromPPtr (PPtr ptr) = PAddr $ ptr - physMappingOffset
-
-addrFromKPPtr :: PPtr a -> PAddr
-addrFromKPPtr (PPtr ptr) = PAddr $ ptr - kernelBaseOffset
+physBase :: PAddr
+physBase = PAddr 0x80000000
 
 pageColourBits :: Int
 pageColourBits = error "unused on this architecture"
 
-{- stubs -}
-
-pptrBase :: VPtr
-pptrBase = VPtr 0xFFFFFFC000000000
-
-pptrUserTop :: VPtr
-pptrUserTop = pptrBase
+irqInvalid :: IRQ
+irqInvalid = IRQ 0
 
 {- simulator callback stubs - we do not plan to support the simulator on this
    platform -}

@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Finalise_AC
@@ -672,7 +668,7 @@ lemma finalise_cap_auth':
   apply (rule hoare_gen_asm)
   apply (cases cap, simp_all add: arch_finalise_cap_def split del: if_split)
   apply (wp
-    | simp add: comp_def hoare_post_taut [where P = \<top>] del: hoare_post_taut split del: if_split
+    | simp add: comp_def hoare_post_taut [where P = \<top>] split del: if_split
     | fastforce simp:  aag_cap_auth_Zombie aag_cap_auth_CNode aag_cap_auth_Thread
     )+
   apply (rule hoare_pre)
@@ -1079,7 +1075,7 @@ proof (induct rule: cap_revoke.induct[where ?a1.0=s])
      apply (wp "1.hyps")
             apply ((wp preemption_point_inv' | simp add: integrity_subjects_def pas_refined_def)+)[1]
            apply (wp select_ext_weak_wp cap_delete_respects cap_delete_pas_refined
-                 | simp split del: if_split | wp_once hoare_vcg_const_imp_lift hoare_drop_imps)+
+                 | simp split del: if_split | wp (once) hoare_vcg_const_imp_lift hoare_drop_imps)+
     by (auto simp: emptyable_def descendants_of_def
              dest: reply_slot_not_descendant
             intro: cca_owned)
@@ -1351,7 +1347,7 @@ lemma invoke_cnode_pas_refined:
              get_cap_wp cap_move_empty_src_slot
              | wpc
              | simp split del: if_split
-             | wp_once cap_move_cte_wp_at_separation)+
+             | wp (once) cap_move_cte_wp_at_separation)+
   by (cases ci;
       simp add: authorised_cnode_inv_def
                 cnode_inv_auth_derivations_def integrity_def;

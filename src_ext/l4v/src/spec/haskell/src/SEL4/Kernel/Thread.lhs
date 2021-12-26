@@ -1,11 +1,7 @@
 %
 % Copyright 2014, General Dynamics C4 Systems
 %
-% This software may be distributed and modified according to the terms of
-% the GNU General Public License version 2. Note that NO WARRANTY is provided.
-% See "LICENSE_GPLv2.txt" for details.
-%
-% @TAG(GD_GPL)
+% SPDX-License-Identifier: GPL-2.0-only
 %
 
 This module contains the scheduler, and miscellaneous functions that manipulate thread state.
@@ -95,8 +91,8 @@ The "activateThread" function is used to prepare a thread to run. If the thread 
 
 The following functions are used by the scheduler to determine whether a particular thread is ready to be scheduled, and whether it is ready to run.
 
-> isBlocked :: PPtr TCB -> Kernel Bool
-> isBlocked thread = do
+> isStopped :: PPtr TCB -> Kernel Bool
+> isStopped thread = do
 >         state <- getThreadState thread
 >         return $ case state of
 >             Inactive -> True
@@ -141,7 +137,7 @@ The invoked thread will return to the instruction that caused it to enter the ke
 
 > restart :: PPtr TCB -> Kernel ()
 > restart target = do
->     blocked <- isBlocked target
+>     blocked <- isStopped target
 >     when blocked $ do
 >         cancelIPC target
 >         setupReplyMaster target
@@ -177,7 +173,7 @@ If the sent message is a fault IPC, the stored fault is transferred.
 >             Just _ -> do
 >                 doFaultTransfer badge sender receiver receiveBuffer
 
-Replies sent by the "Reply" and "ReplyRecv" system calls can either be normal IPC replies, or fault replies. In the former case, the transfer is the same as for an IPC send, but there is never a fault, capability grants are always allowed, the badge is always 0, and capabilities are never received with diminished rights (diminished rights are now removed).
+Replies sent by the "Reply" and "ReplyRecv" system calls can either be normal IPC replies, or fault replies. In the former case, the transfer is the same as for an IPC send, but there is never a fault, capability grants are always allowed, and the badge is always 0.
 
 > doReplyTransfer :: PPtr TCB -> PPtr TCB -> PPtr CTE -> Bool -> Kernel ()
 > doReplyTransfer sender receiver slot grant = do
@@ -480,8 +476,10 @@ to choose a new thread.
 
 >         runnable <- isRunnable tptr
 >         when runnable $ do
->             tcbSchedEnqueue tptr
->             rescheduleRequired
+>             curThread <- getCurThread
+>             if (tptr == curThread)
+>               then rescheduleRequired
+>               else possibleSwitchTo tptr
 
 \subsubsection{Switching to Woken Threads}
 

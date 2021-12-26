@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 section "Additional Word Operations"
@@ -26,6 +22,11 @@ definition
 definition
   alignUp :: "'a::len word \<Rightarrow> nat \<Rightarrow> 'a word" where
  "alignUp x n \<equiv> x + 2 ^ n - 1 && complement (2 ^ n - 1)"
+
+(* standard notation for blocks of 2^n-1 words, usually aligned;
+   abbreviation so it simplifies directly *)
+abbreviation mask_range :: "'a::len word \<Rightarrow> nat \<Rightarrow> 'a word set" where
+  "mask_range p n \<equiv> {p .. p + mask n}"
 
 (* Haskellish names/syntax *)
 notation (input)
@@ -110,7 +111,7 @@ where
 definition
   sign_extend :: "nat \<Rightarrow> 'a::len word \<Rightarrow> 'a word"
 where
-  "sign_extend n w \<equiv> if w !! n then w || ~~mask n else w && mask n"
+  "sign_extend n w \<equiv> if w !! n then w || ~~ (mask n) else w && mask n"
 
 definition
   sign_extended :: "nat \<Rightarrow> 'a::len word \<Rightarrow> bool"
@@ -167,7 +168,7 @@ declare test_bit_1 [simp del, iff]
 lemma "1 < (1024::32 word) \<and> 1 \<le> (1024::32 word)" by simp
 
 lemma and_not_mask:
-  "w AND NOT mask n = (w >> n) << n"
+  "w AND NOT (mask n) = (w >> n) << n"
   apply (rule word_eqI)
   apply (simp add : word_ops_nth_size word_size)
   apply (simp add : nth_shiftr nth_shiftl)
@@ -221,11 +222,11 @@ lemmas p2_eq_0 [simp] = trans [OF eq_commute
   iffD2 [OF Not_eq_iff p2_gt_0, folded le_def, unfolded word_gt_0 not_not]]
 
 lemma neg_mask_is_div':
-  "n < size w \<Longrightarrow> w AND NOT mask n = ((w div (2 ^ n)) * (2 ^ n))"
+  "n < size w \<Longrightarrow> w AND NOT (mask n) = ((w div (2 ^ n)) * (2 ^ n))"
   by (simp add : and_not_mask shiftr_div_2n_w shiftl_t2n word_size)
 
 lemma neg_mask_is_div:
-  "w AND NOT mask n = (w div 2^n) * 2^n"
+  "w AND NOT (mask n) = (w div 2^n) * 2^n"
   apply (cases "n < size w")
    apply (erule neg_mask_is_div')
   apply (simp add: word_size)
@@ -251,6 +252,10 @@ lemma and_mask_arith:
 
 lemma mask_2pm1: "mask n = 2 ^ n - 1"
   by (simp add : mask_def)
+
+lemma add_mask_fold:
+  "x + 2 ^ n - 1 = x + mask n"
+  by (simp add: mask_def)
 
 lemma word_and_mask_le_2pm1: "w && mask n \<le> 2 ^ n - 1"
   by (simp add: mask_2pm1[symmetric] word_and_le1)
@@ -349,7 +354,7 @@ lemmas and_mask_eq_iff_le_mask = trans
   [OF and_mask_eq_iff_shiftr_0 le_mask_iff [THEN sym]]
 
 lemma mask_shiftl_decompose:
-  "mask m << n = mask (m + n) && ~~ mask n"
+  "mask m << n = mask (m + n) && ~~ (mask n)"
   by (auto intro!: word_eqI simp: and_not_mask nth_shiftl nth_shiftr word_size)
 
 lemma one_bit_shiftl: "set_bit 0 n True = (1 :: 'a :: len word) << n"
@@ -484,14 +489,14 @@ lemma shiftl_shiftr2:
 
 lemma shiftr_shiftl1:
   fixes a::"'a::len word"
-  shows "c \<le> b \<Longrightarrow> a >> b << c = (a >> (b - c)) AND (NOT mask c)"
+  shows "c \<le> b \<Longrightarrow> a >> b << c = (a >> (b - c)) AND (NOT (mask c))"
   apply(rule word_eqI)
   apply(auto simp:nth_shiftr nth_shiftl word_size word_ops_nth_size)
   done
 
 lemma shiftr_shiftl2:
   fixes a::"'a::len word"
-  shows "b < c \<Longrightarrow> a >> b << c = (a << (c - b)) AND (NOT mask c)"
+  shows "b < c \<Longrightarrow> a >> b << c = (a << (c - b)) AND (NOT (mask c))"
   apply(rule word_eqI)
   apply(auto simp:nth_shiftr nth_shiftl word_size word_ops_nth_size)
   done
@@ -512,19 +517,6 @@ lemma word_and_max_word:
    the following will usually be much faster. *)
 lemmas word_and_max_simps[simplified max_word_def, simplified] =
   word_and_max[where 'a=8] word_and_max[where 'a=16] word_and_max[where 'a=32] word_and_max[where 'a=64]
-
-lemma word_and_1:
-  fixes x::"'a::len word"
-  shows "(x AND 1) = (if x!!0 then 1 else 0)"
-  apply(rule word_eqI)
-  apply(simp add:word_ao_nth)
-  apply(rule conjI)
-   apply(auto)[1]
-  apply clarsimp
-  apply (case_tac n)
-   apply simp
-  apply simp
-  done
 
 lemma word_and_1_bl:
   fixes x::"'a::len word"

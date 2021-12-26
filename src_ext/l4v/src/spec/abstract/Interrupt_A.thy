@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -15,21 +11,18 @@ Formalisation of interrupt handling.
 chapter "Interrupts"
 
 theory Interrupt_A
-imports "./$L4V_ARCH/ArchInterrupt_A"
+imports ArchInterrupt_A
 begin
 
 context begin interpretation Arch .
 
 requalify_consts
   arch_invoke_irq_control
+  arch_invoke_irq_handler
   handle_reserved_irq
+  arch_mask_irq_signal
 end
 
-
-text \<open>Tests whether an IRQ identifier is in use.\<close>
-definition
-  is_irq_active :: "irq \<Rightarrow> (bool,'z::state_ext) s_monad" where
- "is_irq_active irq \<equiv> liftM (\<lambda>st. st \<noteq> IRQInactive) $ get_irq_state irq"
 
 text \<open>The IRQControl capability can be used to create a new IRQHandler
 capability as well as to perform whatever architecture specific interrupt
@@ -51,7 +44,7 @@ slot. The IRQHandler operations load or clear those capabilities.\<close>
 fun
   invoke_irq_handler :: "irq_handler_invocation \<Rightarrow> (unit,'z::state_ext) s_monad"
 where
-  "invoke_irq_handler (ACKIrq irq) = (do_machine_op $ maskInterrupt False irq)"
+  "invoke_irq_handler (ACKIrq irq) = arch_invoke_irq_handler (ACKIrq irq)"
 | "invoke_irq_handler (SetIRQHandler irq cap slot) = (do
      irq_slot \<leftarrow> get_irq_slot irq;
      cap_delete_one irq_slot;
@@ -103,7 +96,7 @@ definition
        cap \<leftarrow> get_cap slot;
        when (is_ntfn_cap cap \<and> AllowSend \<in> cap_rights cap)
          $ send_signal (obj_ref_of cap) (cap_ep_badge cap);
-       do_machine_op $ maskInterrupt True irq
+       arch_mask_irq_signal irq
      od
    | IRQTimer \<Rightarrow> do
        do_extended_op timer_tick;

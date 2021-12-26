@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -13,7 +9,7 @@
 *)
 
 theory ArchRetype_AI
-imports "../Retype_AI"
+imports Retype_AI
 begin
 
 context Arch begin global_naming X64
@@ -126,7 +122,7 @@ lemmas init_arch_objects_valid_cap[wp] = valid_cap_typ [OF init_arch_objects_typ
 lemmas init_arch_objects_cap_table[wp] = cap_table_at_lift_valid [OF init_arch_objects_typ_at]
 
 crunch device_state_inv[wp]: clearMemory "\<lambda>ms. P (device_state ms)"
-  (wp: mapM_x_wp)
+  (wp: mapM_x_wp ignore_del: clearMemory)
 
 crunch pspace_respects_device_region[wp]: reserve_region pspace_respects_device_region
 crunch cap_refs_respects_device_region[wp]: reserve_region cap_refs_respects_device_region
@@ -306,7 +302,7 @@ lemma copy_global_equal_kernel_mappings_restricted:
    apply (clarsimp simp: kernel_mapping_slots_def get_pml4_index_def)
    apply (rule conjI)
     apply (simp add: pptr_base_shift_cast_le)
-   apply (rule minus_one_helper3)
+   apply (rule word_le_minus_one_leq)
    apply (rule order_less_le_trans, rule ucast_less)
     apply simp
    apply (simp add: ptTranslationBits_def)
@@ -435,7 +431,7 @@ lemma copy_global_invs_mappings_restricted:
    apply (rule ccontr)
    apply (drule_tac x = "(ucast x)" in spec)
    apply (clarsimp split: option.split_asm if_split_asm)+
-  apply (drule minus_one_helper5[rotated])
+  apply (drule word_leq_minus_one_le[rotated])
   apply (auto simp: pml4_bits_def simple_bit_simps)
   done
 
@@ -1240,11 +1236,11 @@ lemma invs_irq_state_independent:
       swp_def valid_irq_states_def)
 
 crunch irq_masks_inv[wp]: storeWord, clearMemory "\<lambda>s. P (irq_masks s)"
-  (ignore:  wp: crunch_wps)
+  (wp: crunch_wps ignore_del: storeWord clearMemory)
 
 crunch underlying_mem_0[wp]: clearMemory
     "\<lambda>s. underlying_memory s p = 0"
-  (ignore: wp: crunch_wps storeWord_um_eq_0)
+  (wp: crunch_wps storeWord_um_eq_0 ignore_del: clearMemory)
 
 lemma clearMemory_invs[wp]:
   "\<lbrace>invs\<rbrace> do_machine_op (clearMemory w sz) \<lbrace>\<lambda>_. invs\<rbrace>"

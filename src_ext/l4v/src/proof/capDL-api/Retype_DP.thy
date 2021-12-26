@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Retype_DP
@@ -1207,7 +1203,7 @@ lemma invoke_untyped_no_pending[wp]:
   apply (wpsimp wp: mapM_x_wp' set_cap_no_pending_asm_in_pre get_cap_wp select_wp
         simp: update_available_range_def
     )+
-     apply (wp_once hoare_drop_imps)
+     apply (wp (once) hoare_drop_imps)
      apply (wpsimp  split_del: if_split)+
    apply (rule_tac Q' = "\<lambda>r s. no_pending s \<and> ((\<exists>y. opt_cap ref s = Some y) \<longrightarrow>
                         \<not> is_pending_cap (the (opt_cap ref s)))" in hoare_post_imp_R)

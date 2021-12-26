@@ -1,12 +1,18 @@
+<!--
+     Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
+
+     SPDX-License-Identifier: CC-BY-SA-4.0
+-->
+
 Abstract Spec Invariant Proof
 =============================
 
 This proof defines and proves the global invariants of seL4's
 [abstract specification](../../spec/abstract/). The invariants are
-phrased and proved using a [monadic Hoare logic](../../lib/wp/NonDetMonad.thy)
+phrased and proved using a [monadic Hoare logic](../../lib/Monad_WP/NonDetMonad.thy)
 described in a TPHOLS '08 [paper][1].
 
-  [1]: http://nicta.com.au/pub?id=483 "Secure Microkernels, State Monads and Scalable Refinement"
+  [1]: https://ts.data61.csiro.au/publications/nictaabstracts/Cock_KS_08.abstract.pml "Secure Microkernels, State Monads and Scalable Refinement"
 
 Building
 --------

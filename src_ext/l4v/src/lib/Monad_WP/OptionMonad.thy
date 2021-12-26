@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 (*
@@ -16,8 +12,8 @@
 
 theory OptionMonad (* FIXME: this is really a Reader_Option_Monad *)
   imports
-    "../Lib" (* FIXME: reduce dependencies *)
-    "Less_Monad_Syntax"
+    Lib (* FIXME: reduce dependencies *)
+    Less_Monad_Syntax
 begin
 
 type_synonym ('s,'a) lookup = "'s \<Rightarrow> 'a option"
@@ -27,6 +23,10 @@ definition
   opt_map :: "('s,'a) lookup \<Rightarrow> ('a \<Rightarrow> 'b option) \<Rightarrow> ('s,'b) lookup" (infixl "|>" 54)
 where
   "f |> g \<equiv> \<lambda>s. case f s of None \<Rightarrow> None | Some x \<Rightarrow> g x"
+
+abbreviation opt_map_Some :: "('s \<rightharpoonup> 'a) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> 's \<rightharpoonup> 'b" (infixl "||>" 54) where
+  "f ||> g \<equiv> f |> (Some \<circ> g)"
+lemmas opt_map_Some_def = opt_map_def
 
 lemma opt_map_cong [fundef_cong]:
   "\<lbrakk> f = f'; \<And>v s. f s = Some v \<Longrightarrow> g v = g' v\<rbrakk> \<Longrightarrow> f |> g = f' |> g'"
@@ -40,6 +40,21 @@ lemma opt_mapE:
   "\<lbrakk> (f |> g) s = Some v; \<And>v'. \<lbrakk>f s = Some v'; g v' = Some v \<rbrakk> \<Longrightarrow> P \<rbrakk> \<Longrightarrow> P"
   by (auto simp: in_opt_map_eq)
 
+lemma opt_map_upd_None:
+  "f(x := None) |> g = (f |> g)(x := None)"
+  by (auto simp: opt_map_def)
+
+lemma opt_map_upd_Some:
+  "f(x \<mapsto> v) |> g = (f |> g)(x := g v)"
+  by (auto simp: opt_map_def)
+
+lemmas opt_map_upd[simp] = opt_map_upd_None opt_map_upd_Some
+
+declare None_upd_eq[simp]
+
+(* None_upd_eq[simp] so that this pattern is by simp. Hopefully not too much slowdown. *)
+lemma "\<lbrakk> (f |> g) x = None; g v = None \<rbrakk> \<Longrightarrow> f(x \<mapsto> v) |> g = f |> g"
+  by simp
 
 definition
   obind :: "('s,'a) lookup \<Rightarrow> ('a \<Rightarrow> ('s,'b) lookup) \<Rightarrow> ('s,'b) lookup" (infixl "|>>" 53)
@@ -184,6 +199,14 @@ lemma in_oassert_eq [simp]:
   "(oassert P s = Some v) = P"
   by (simp add: oassert_def)
 
+lemma oassert_True [simp]:
+  "oassert True = oreturn ()"
+  by (simp add: oassert_def)
+
+lemma oassert_False [simp]:
+  "oassert False = ofail"
+  by (simp add: oassert_def)
+
 lemma oassertE:
   "\<lbrakk> oassert P s = Some v; P \<Longrightarrow> Q \<rbrakk> \<Longrightarrow> Q"
   by simp
@@ -191,6 +214,18 @@ lemma oassertE:
 lemma in_obind_eq:
   "((f |>> g) s = Some v) = (\<exists>v'. f s = Some v' \<and> g v' s = Some v)"
   by (simp add: obind_def split: option.splits)
+
+lemma obind_eqI:
+  "\<lbrakk> f s = f s' ; \<And>x. f s = Some x \<Longrightarrow> g x s = g' x s' \<rbrakk> \<Longrightarrow> obind f g s = obind f g' s'"
+  by (simp add: obind_def split: option.splits)
+
+(* full form of obind_eqI; the second equality makes more sense flipped here, as we end up
+   with "f s = Some x ; f s' = f s" preventing "Some x = ..." *)
+lemma obind_eqI_full:
+  "\<lbrakk> f s = f s' ; \<And>x. \<lbrakk> f s = Some x; f s' = f s \<rbrakk> \<Longrightarrow> g x s = g' x s' \<rbrakk>
+   \<Longrightarrow> obind f g s = obind f g' s'"
+  by (drule sym[where s="f s"]) (* prevent looping *)
+     (clarsimp simp: obind_def split: option.splits)
 
 lemma obindE:
   "\<lbrakk> (f |>> g) s = Some v;
@@ -215,6 +250,51 @@ lemma oreturnOkE:
 
 lemmas omonadE [elim!] =
   opt_mapE obindE oreturnE ofailE othrowE oreturnOkE oassertE
+
+lemma in_opt_map_Some_eq:
+  "((f ||> g) x = Some y) = (\<exists>v. f x = Some v \<and> g v = y)"
+  by (simp add: in_opt_map_eq)
+
+lemma in_opt_map_None_eq[simp]:
+  "((f ||> g) x = None) = (f x = None)"
+  by (simp add: opt_map_def split: option.splits)
+
+lemma oreturn_comp[simp]:
+  "oreturn x \<circ> f = oreturn x"
+  by (simp add: oreturn_def K_def o_def)
+
+lemma ofail_comp[simp]:
+  "ofail \<circ> f = ofail"
+  by (auto simp: ofail_def K_def)
+
+lemma oassert_comp[simp]:
+  "oassert P \<circ> f = oassert P"
+  by (simp add: oassert_def)
+
+lemma fail_apply[simp]:
+  "ofail s = None"
+  by (simp add: ofail_def K_def)
+
+lemma oassert_apply[simp]:
+  "oassert P s = (if P then Some () else None)"
+  by (simp add: oassert_def)
+
+lemma oreturn_apply[simp]:
+  "oreturn x s = Some x"
+  by simp
+
+lemma oapply_apply[simp]:
+  "oapply x s = s x"
+  by (simp add: oapply_def)
+
+lemma obind_comp_dist:
+  "obind f g o h = obind (f o h) (\<lambda>x. g x o h)"
+  by (auto simp: obind_def split: option.splits)
+
+lemma if_comp_dist:
+  "(if P then f else g) o h = (if P then f o h else g o h)"
+  by auto
+
 
 section \<open>"While" loops over option monad.\<close>
 

@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -13,7 +9,7 @@
 *)
 
 theory ArchAcc_R
-imports SubMonad_R
+imports SubMonad_R ArchMove_R
 begin
 
 context Arch begin global_naming X64_A (*FIXME: arch_split*)
@@ -536,27 +532,6 @@ lemma get_pml4e_corres':
   apply (rule aligned_distinct_relation_pml4e_atI')
    apply (simp add:state_relation_def)+
   done
-
-(* FIXME: move *)
-lemma table_size_slot_eq:
-  "((p::machine_word) && ~~ mask table_size) + (ucast x << word_size_bits) = p \<Longrightarrow>
-    (x::9 word) = ucast (p && mask table_size >> word_size_bits)"
-  apply (clarsimp simp: bit_simps mask_def)
-  apply word_bitwise
-  apply clarsimp
-  done
-
-lemmas pd_bits_slot_eq = table_size_slot_eq[folded pd_bits_def]
-lemmas pt_bits_slot_eq = table_size_slot_eq[folded pt_bits_def]
-lemmas pdpt_bits_slot_eq = table_size_slot_eq[folded pdpt_bits_def]
-lemmas pml4_bits_slot_eq = table_size_slot_eq[folded pml4_bits_def]
-
-lemma more_pd_inner_beauty:
-  fixes x :: "9 word"
-  fixes p :: machine_word
-  assumes x: "x \<noteq> ucast (p && mask pd_bits >> word_size_bits)"
-  shows "(p && ~~ mask pd_bits) + (ucast x << word_size_bits) = p \<Longrightarrow> False"
-  by (rule mask_split_aligned_neg[OF _ _ x]; simp add: bit_simps)
 
 \<comment> \<open>set_other_obj_corres unfortunately doesn't work here\<close>
 lemma set_pd_corres:
@@ -1090,8 +1065,6 @@ lemma pml4e_relation_must_pml4e:
   apply clarsimp
   done
 
-declare X64_H.pptrBase_def[simp]
-
 lemma page_table_at_state_relation:
   "\<lbrakk>page_table_at (ptrFromPAddr ptr) s; pspace_aligned s;
      (s, sa) \<in> state_relation;pspace_distinct' sa\<rbrakk>
@@ -1296,11 +1269,10 @@ lemma lookup_pdpt_slot_corres:
                   simp: lookup_pml4_slot_eq lookup_pml4_slot_kernel_mappings exI)+
   done
 
-crunch aligned'[wp]: lookupPDPTSlot, lookupPDSlot pspace_aligned'
-  (wp: getPML4E_wp getPDPTE_wp hoare_drop_imps ignore: getObject)
-
-crunch distict'[wp]: lookupPDPTSlot, lookupPDSlot pspace_distinct'
-  (wp: getPML4E_wp getPDPTE_wp hoare_drop_imps ignore: getObject)
+crunches lookupPDPTSlot, lookupPDSlot
+  for aligned'[wp]: pspace_aligned'
+  and distict'[wp]: pspace_distinct'
+  (wp: getPML4E_wp getPDPTE_wp hoare_drop_imps)
 
 lemma pd_at_lift:
   "corres_inst_eq ptr ptr' \<Longrightarrow> \<forall>s s'. (s, s') \<in> state_relation \<longrightarrow> True \<longrightarrow>
@@ -1346,7 +1318,7 @@ lemma lookup_pd_slot_corres:
         apply (rule page_directory_at_state_relation)
            apply fastforce
           apply simp+
-       apply (wpsimp wp: getPDPTE_wp | wp_once hoare_drop_imps)+
+       apply (wpsimp wp: getPDPTE_wp | wp (once) hoare_drop_imps)+
   done
 
 lemma pt_at_lift:
@@ -1392,22 +1364,22 @@ lemma lookup_pt_slot_corres:
         apply (rule page_table_at_state_relation)
            apply fastforce
           apply simp+
-       apply (wpsimp wp: getPDE_wp | wp_once hoare_drop_imps)+
+       apply (wpsimp wp: getPDE_wp | wp (once) hoare_drop_imps)+
   done
 
 declare in_set_zip_refl[simp]
 
 crunch typ_at' [wp]: storePML4E "\<lambda>s. P (typ_at' T p s)"
-  (wp: crunch_wps mapM_x_wp' simp: crunch_simps)
+  (wp: crunch_wps mapM_x_wp' simp: crunch_simps ignore_del: setObject)
 
 crunch typ_at' [wp]: storePDPTE "\<lambda>s. P (typ_at' T p s)"
-  (wp: crunch_wps mapM_x_wp' simp: crunch_simps)
+  (wp: crunch_wps mapM_x_wp' simp: crunch_simps ignore_del: setObject)
 
 crunch typ_at' [wp]: storePDE "\<lambda>s. P (typ_at' T p s)"
-  (wp: crunch_wps mapM_x_wp' simp: crunch_simps)
+  (wp: crunch_wps mapM_x_wp' simp: crunch_simps ignore_del: setObject)
 
 crunch typ_at' [wp]: storePTE "\<lambda>s. P (typ_at' T p s)"
-  (wp: crunch_wps mapM_x_wp' simp: crunch_simps)
+  (wp: crunch_wps mapM_x_wp' simp: crunch_simps ignore_del: setObject)
 
 lemmas storePML4E_typ_ats[wp] = typ_at_lifts [OF storePML4E_typ_at']
 lemmas storePDPTE_typ_ats[wp] = typ_at_lifts [OF storePDPTE_typ_at']
@@ -1437,7 +1409,7 @@ lemma getObject_pml4e_inv[wp]:
   by (simp add: getObject_inv loadObject_default_inv)
 
 crunch typ_at'[wp]: copyGlobalMappings "\<lambda>s. P (typ_at' T p s)"
-  (wp: mapM_x_wp' ignore: forM_x getObject)
+  (wp: mapM_x_wp')
 
 lemmas copyGlobalMappings_typ_ats[wp] = typ_at_lifts [OF copyGlobalMappings_typ_at']
 
@@ -1530,7 +1502,6 @@ where
       | VMPDE pde \<Rightarrow> \<exists>ptr'. snd e = VMPDEPtr ptr'
       | VMPDPTE pdpte \<Rightarrow> \<exists>ptr'. snd e = VMPDPTEPtr ptr'"
 
-term createMappingEntries
 definition
   mapping_map :: "vm_page_entry \<times> machine_word \<Rightarrow> vmpage_entry \<times> vmpage_entry_ptr \<Rightarrow> bool"
 where
@@ -1604,15 +1575,12 @@ definition
 
 lemma createMappingEntries_valid_slots' [wp]:
   "\<lbrace>valid_objs' and
-    K (vmsz_aligned' base sz \<and> vmsz_aligned' vptr sz \<and> ptrFromPAddr base \<noteq> 0) \<rbrace>
+    K (vmsz_aligned base sz \<and> vmsz_aligned vptr sz \<and> ptrFromPAddr base \<noteq> 0) \<rbrace>
   createMappingEntries base vptr sz vm_rights attrib pd
   \<lbrace>\<lambda>m. valid_slots' m\<rbrace>, -"
   apply (simp add: createMappingEntries_def)
-  apply (rule hoare_pre)
-   apply (wp|wpc|simp add: valid_slots'_def valid_mapping'_def)+
-  apply (simp add: vmsz_aligned'_def)
-  apply auto
-  done
+  apply (wpsimp simp: valid_slots'_def valid_mapping'_def vmsz_aligned_def)
+  by fastforce
 
 lemma mapping_map_pte: "\<lbrakk>mapping_map (vm_page_entry.VMPTE p, x) m'; page_entry_map_corres m'\<rbrakk> \<Longrightarrow> \<exists>p'. m' = (VMPTE p', VMPTEPtr x)"
   by (cases m'; clarsimp simp : mapping_map_def page_entry_map_def page_entry_ptr_map_def page_entry_map_corres_def)
@@ -1687,10 +1655,6 @@ lemma asidLowBitsOf [simp]:
   apply (rule word_eqI)
   apply (simp add: word_size nth_ucast)
   done
-
-(* FIXME: move to invariants? *)
-definition
-  "vspace_at_asid_ex asid \<equiv> \<lambda>s. \<exists>pm. vspace_at_asid asid pm s"
 
 lemma le_mask_asidBits_asid_wf:
   "asid_wf asid \<longleftrightarrow> asid \<le> mask asidBits"

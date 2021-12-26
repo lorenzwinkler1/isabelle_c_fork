@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -46,11 +42,6 @@ lemma maskCapRights_allRights [simp]:
             ARM_H.maskCapRights_def maskVMRights_def
   by (cases c) (simp_all add: Let_def split: arch_capability.split vmrights.split)
 
-lemma diminished_refl'[simp]:
-  "diminished' cap cap"
-  unfolding diminished'_def
-  by (rule exI[where x=allRights], simp)
-
 lemma getCTE_inv [wp]: "\<lbrace>P\<rbrace> getCTE addr \<lbrace>\<lambda>rv. P\<rbrace>"
   by (simp add: getCTE_def) wp
 
@@ -85,10 +76,10 @@ proof (induct arbitrary: s rule: resolveAddressBits.induct)
     apply (simp add: Let_def split_def cap_case_CNodeCap[unfolded isCap_simps]
                split del: if_split cong: if_cong)
     apply (rule hoare_pre_spec_validE)
-     apply ((elim exE | wp_once spec_strengthen_postE[OF "1.hyps"])+,
+     apply ((elim exE | wp (once) spec_strengthen_postE[OF "1.hyps"])+,
               (rule refl conjI | simp add: in_monad split del: if_split)+)
             apply (wp | simp add: locateSlot_conv split del: if_split
-                      | wp_once hoare_drop_imps)+
+                      | wp (once) hoare_drop_imps)+
   done
 qed
 
@@ -1143,9 +1134,9 @@ lemma cte_refs_capRange:
     apply (intro conjI)
      apply (erule(1) is_aligned_no_wrap')
     apply (rule word_plus_mono_right[where z="2^tcbBlockSizeBits - 1", simplified field_simps])
-     apply (drule minus_one_helper3, simp)
+     apply (drule word_le_minus_one_leq, simp)
     apply (erule is_aligned_no_wrap'[where off="2^tcbBlockSizeBits - 1", simplified field_simps])
-    apply (drule minus_one_helper3)
+    apply (drule word_le_minus_one_leq)
     apply simp
    defer
    \<comment> \<open>CNodeCap\<close>
@@ -2025,10 +2016,6 @@ crunch idle[wp]: get_object "valid_idle"
   (wp: crunch_wps simp: crunch_simps)
 
 end
-
-lemma diminished_capMaster:
-  "diminished' cap cap' \<Longrightarrow> capMasterCap cap' = capMasterCap cap"
-  by (clarsimp simp: diminished'_def)
 
 
 end (* of theory *)

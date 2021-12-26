@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchInvariants_AI
-imports "../InvariantsPre_AI" "Lib.Apply_Trace_Cmd"
+imports InvariantsPre_AI "Lib.Apply_Trace_Cmd"
 begin
 
 section "Move this up"
@@ -3355,6 +3351,24 @@ lemma arch_tcb_context_get_set[simp]:
   "arch_tcb_context_get (arch_tcb_context_set uc a_tcb) = uc"
   apply (simp add: arch_tcb_context_get_def arch_tcb_context_set_def)
   done
+
+lemma vs_lookup_trans_sub2:
+  assumes ko: "\<And>ko p. \<lbrakk> ko_at ko p s; vs_refs ko \<noteq> {} \<rbrakk> \<Longrightarrow> obj_at (\<lambda>ko'. vs_refs ko \<subseteq> vs_refs ko') p s'"
+  shows "vs_lookup_trans s \<subseteq> vs_lookup_trans s'"
+proof -
+  have "vs_lookup1 s \<subseteq> vs_lookup1 s'"
+    by (fastforce dest: ko elim: vs_lookup1_stateI2)
+  thus ?thesis by (rule rtrancl_mono)
+qed
+
+lemma vs_lookup_pages_trans_sub2:
+  assumes ko: "\<And>ko p. \<lbrakk> ko_at ko p s; vs_refs_pages ko \<noteq> {} \<rbrakk> \<Longrightarrow> obj_at (\<lambda>ko'. vs_refs_pages ko \<subseteq> vs_refs_pages ko') p s'"
+  shows "vs_lookup_pages_trans s \<subseteq> vs_lookup_pages_trans s'"
+proof -
+  have "vs_lookup_pages1 s \<subseteq> vs_lookup_pages1 s'"
+    by (fastforce dest: ko elim: vs_lookup_pages1_stateI2)
+  thus ?thesis by (rule rtrancl_mono)
+qed
 
 end
 

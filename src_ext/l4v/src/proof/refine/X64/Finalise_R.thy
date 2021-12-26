@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Finalise_R
@@ -24,10 +20,12 @@ lemma case_Null_If:
   "(case c of NullCap \<Rightarrow> a | _ \<Rightarrow> b) = (if c = NullCap then a else b)"
   by (case_tac c, simp_all)
 
-crunch aligned'[wp]: emptySlot pspace_aligned' (simp: case_Null_If)
-crunch pspace_canonical'[wp]: emptySlot pspace_canonical' (simp: case_Null_If)
-crunch pspace_in_kernel_mappings'[wp]: emptySlot pspace_in_kernel_mappings' (simp: case_Null_If)
-crunch distinct'[wp]: emptySlot pspace_distinct' (simp: case_Null_If)
+crunches emptySlot
+  for aligned'[wp]: pspace_aligned'
+  and pspace_canonical'[wp]: pspace_canonical'
+  and pspace_in_kernel_mappings'[wp]: pspace_in_kernel_mappings'
+  and distinct'[wp]: pspace_distinct'
+  (simp: case_Null_If)
 
 lemma updateCap_cte_wp_at_cases:
   "\<lbrace>\<lambda>s. (ptr = ptr' \<longrightarrow> cte_wp_at' (P \<circ> cteCap_update (K cap)) ptr' s) \<and> (ptr \<noteq> ptr' \<longrightarrow> cte_wp_at' P ptr' s)\<rbrace>
@@ -38,7 +36,8 @@ lemma updateCap_cte_wp_at_cases:
   apply (clarsimp simp: cte_wp_at_ctes_of modify_map_def)
   done
 
-crunch cte_wp_at'[wp]: postCapDeletion, updateTrackedFreeIndex "cte_wp_at' P p"
+crunches postCapDeletion, updateTrackedFreeIndex
+  for cte_wp_at'[wp]: "cte_wp_at' P p"
 
 lemma updateFreeIndex_cte_wp_at:
   "\<lbrace>\<lambda>s. cte_at' p s \<and> P (cte_wp_at' (if p = p' then P'
@@ -64,7 +63,7 @@ lemma emptySlot_cte_wp_cap_other:
    apply (wp updateMDB_weak_cte_wp_at updateCap_cte_wp_at_cases
              updateFreeIndex_cte_wp_at getCTE_wp' hoare_vcg_all_lift
               | simp add:  | wpc
-              | wp_once hoare_drop_imps)+
+              | wp (once) hoare_drop_imps)+
   done
 
 crunch typ_at'[wp]: emptySlot "\<lambda>s. P (typ_at' T p s)"
@@ -74,7 +73,7 @@ lemmas clearUntypedFreeIndex_typ_ats[wp]
 crunch tcb_at'[wp]: postCapDeletion "tcb_at' t"
 crunch ct[wp]: emptySlot "\<lambda>s. P (ksCurThread s)"
 crunch cur_tcb'[wp]: clearUntypedFreeIndex "cur_tcb'"
-  (ignore: setObject wp: cur_tcb_lift)
+  (wp: cur_tcb_lift)
 
 crunch ksRQ[wp]: emptySlot "\<lambda>s. P (ksReadyQueues s)"
 crunch ksRQL1[wp]: emptySlot "\<lambda>s. P (ksReadyQueuesL1Bitmap s)"
@@ -1096,7 +1095,8 @@ lemma vmdb_n: "valid_mdb_ctes n"
 end
 
 context begin interpretation Arch .
-crunch ctes_of[wp]: postCapDeletion, clearUntypedFreeIndex "\<lambda>s. P (ctes_of s)"
+crunches postCapDeletion, clearUntypedFreeIndex
+  for ctes_of[wp]: "\<lambda>s. P (ctes_of s)"
 
 lemma emptySlot_mdb [wp]:
   "\<lbrace>valid_mdb'\<rbrace>
@@ -1195,7 +1195,6 @@ lemma not_Final_removeable:
 context begin interpretation Arch .
 crunch ko_wp_at'[wp]: postCapDeletion "\<lambda>s. P (ko_wp_at' P' p s)"
 crunch cteCaps_of[wp]: postCapDeletion "\<lambda>s. P (cteCaps_of s)"
-  (simp: cteCaps_of_def o_def)
 end
 
 crunch ko_at_live[wp]: clearUntypedFreeIndex "\<lambda>s. P (ko_wp_at' live' ptr s)"
@@ -1217,7 +1216,7 @@ lemma emptySlot_iflive'[wp]:
              clearUntypedFreeIndex_ctes_of
              clearUntypedFreeIndex_cteCaps_of
              hoare_vcg_ex_lift
-             | wp_once hoare_vcg_imp_lift
+             | wp (once) hoare_vcg_imp_lift
              | simp add: cte_wp_at_ctes_of del: comp_apply)+
   apply (clarsimp simp: modify_map_same
     imp_conjR[symmetric])
@@ -1288,10 +1287,12 @@ crunch valid_idle'[wp]: setInterruptState "valid_idle'"
   (simp: valid_idle'_def)
 
 context begin interpretation Arch .
-crunch valid_idle'[wp]: emptySlot "valid_idle'"
-crunch ksArch[wp]: deletedIRQHandler, getSlotCap, clearUntypedFreeIndex, updateMDB, getCTE, updateCap "\<lambda>s. P (ksArchState s)"
-crunch ksIdle[wp]: emptySlot "\<lambda>s. P (ksIdleThread s)"
-crunch gsMaxObjectSize[wp]: emptySlot "\<lambda>s. P (gsMaxObjectSize s)"
+crunches emptySlot
+  for valid_idle'[wp]: "valid_idle'"
+  and ksIdle[wp]: "\<lambda>s. P (ksIdleThread s)"
+  and gsMaxObjectSize[wp]: "\<lambda>s. P (gsMaxObjectSize s)"
+crunches deletedIRQHandler, getSlotCap, clearUntypedFreeIndex, updateMDB, getCTE, updateCap
+  for ksArch[wp]: "\<lambda>s. P (ksArchState s)"
 end
 
 lemma emptySlot_cteCaps_of:
@@ -1465,7 +1466,7 @@ lemma emptySlot_ioports'[wp]:
                      updateMDB_weak_cte_wp_at hoare_vcg_const_imp_lift updateCap_cte_wp_at' getCTE_wp
                      hoare_vcg_ex_lift
                simp: cte_wp_at_ctes_of
-              | wp_once hoare_drop_imps)+
+              | wp (once) hoare_drop_imps)+
   apply (clarsimp simp: valid_ioports'_simps)
   apply (rule conjI)
    apply (clarsimp simp: safe_ioport_insert'_def)
@@ -2344,10 +2345,10 @@ lemmas cteDeleteOne_def'
 lemmas cteDeleteOne_def
     = cteDeleteOne_def'[folded finaliseCapTrue_standin_simple_def]
 
-crunch typ_at'[wp]: cteDeleteOne, suspend, prepareThreadDelete "\<lambda>s. P (typ_at' T p s)"
+crunches cteDeleteOne, suspend, prepareThreadDelete
+  for typ_at'[wp]: "\<lambda>s. P (typ_at' T p s)"
   (wp: crunch_wps getObject_inv loadObject_default_inv
-   simp: crunch_simps unless_def o_def
-   ignore: getObject)
+   simp: crunch_simps unless_def o_def)
 
 end
 
@@ -2393,22 +2394,19 @@ lemma finaliseCap_cases[wp]:
 
 crunch aligned'[wp]: finaliseCap "pspace_aligned'"
   (simp: crunch_simps assertE_def unless_def o_def
- ignore: getObject setObject forM ignoreFailure
      wp: getObject_inv loadObject_default_inv crunch_wps)
 
 crunch distinct'[wp]: finaliseCap "pspace_distinct'"
-  (ignore: getObject setObject forM ignoreFailure
-     simp: crunch_simps assertE_def unless_def o_def
-       wp: getObject_inv loadObject_default_inv crunch_wps)
+  (simp: crunch_simps assertE_def unless_def o_def
+     wp: getObject_inv loadObject_default_inv crunch_wps)
 
 crunch typ_at'[wp]: finaliseCap "\<lambda>s. P (typ_at' T p s)"
-  (simp: crunch_simps assertE_def ignore: getObject setObject
+  (simp: crunch_simps assertE_def
      wp: getObject_inv loadObject_default_inv crunch_wps)
 lemmas finaliseCap_typ_ats[wp] = typ_at_lifts[OF finaliseCap_typ_at']
 
 crunch it'[wp]: finaliseCap "\<lambda>s. P (ksIdleThread s)"
-  (ignore: getObject setObject forM ignoreFailure maskInterrupt
-   wp: mapM_x_wp_inv mapM_wp' hoare_drop_imps getObject_inv loadObject_default_inv
+  (wp: mapM_x_wp_inv mapM_wp' hoare_drop_imps getObject_inv loadObject_default_inv
    simp: crunch_simps o_def)
 
 declare doUnbindNotification_def[simp]
@@ -2584,7 +2582,7 @@ lemma ctes_of_cteCaps_of_lift:
 
 crunches deleteASIDPool, unmapPageTable, unmapPageDirectory, unmapPDPT
   for ctes_of[wp]: "\<lambda>s. P (ctes_of s)"
-  (wp: crunch_wps getObject_inv loadObject_default_inv getASID_wp simp: crunch_simps ignore: getObject)
+  (wp: crunch_wps getObject_inv loadObject_default_inv getASID_wp simp: crunch_simps)
 
 lemma deleteASID_ctes_of[wp]:
   "\<lbrace>\<lambda>s. P (ctes_of s)\<rbrace> deleteASID a ptr \<lbrace>\<lambda>rv s. P (ctes_of s)\<rbrace>"
@@ -2602,7 +2600,7 @@ lemma arch_finaliseCap_removeable[wp]:
   apply (simp add: X64_H.finaliseCap_def
                    removeable'_def)
   apply (rule hoare_pre)
-   apply (wp ctes_of_cteCaps_of_lift | wpc | wp_once hoare_drop_imps)+
+   apply (wp ctes_of_cteCaps_of_lift | wpc | wp (once) hoare_drop_imps)+
   apply (clarsimp simp: arch_cap_has_cleanup'_def isCap_simps final_matters'_def)
   done
 
@@ -2621,8 +2619,9 @@ lemma prepares_delete_helper'':
   apply (clarsimp simp: removeable'_def)
   done
 
-crunch ctes_of[wp]: finaliseCapTrue_standin, unbindNotification "\<lambda>s. P (ctes_of s)"
-  (wp: crunch_wps getObject_inv loadObject_default_inv simp: crunch_simps ignore: getObject)
+crunches finaliseCapTrue_standin, unbindNotification
+  for ctes_of[wp]: "\<lambda>s. P (ctes_of s)"
+  (wp: crunch_wps getObject_inv loadObject_default_inv simp: crunch_simps)
 
 lemma cteDeleteOne_cteCaps_of:
   "\<lbrace>\<lambda>s. (cte_wp_at' (\<lambda>cte. \<exists>final. finaliseCap (cteCap cte) final True \<noteq> fail) p s \<longrightarrow>
@@ -2640,7 +2639,7 @@ lemma cteDeleteOne_cteCaps_of:
    apply (simp add: return_def fail_def)
   apply (wp emptySlot_cteCaps_of)
     apply (simp add: cteCaps_of_def)
-    apply (wp_once hoare_drop_imps)
+    apply (wp (once) hoare_drop_imps)
     apply (wp isFinalCapability_inv getCTE_wp')+
   apply (clarsimp simp: cteCaps_of_def cte_wp_at_ctes_of)
   apply (auto simp: fun_upd_idem fun_upd_def[symmetric] o_def)
@@ -2660,7 +2659,7 @@ lemmas setQueue_cteCaps_of[wp] = ctes_of_cteCaps_of_lift [OF setQueue_ctes_of]
 lemmas threadSet_cteCaps_of = ctes_of_cteCaps_of_lift [OF threadSet_ctes_of]
 
 crunch isFinal: suspend, prepareThreadDelete "\<lambda>s. isFinal cap slot (cteCaps_of s)"
-  (ignore: setObject getObject threadSet
+  (ignore: threadSet
        wp: threadSet_cteCaps_of crunch_wps
      simp: crunch_simps unless_def o_def)
 
@@ -2682,7 +2681,6 @@ lemma cteDeleteOne_deletes[wp]:
 crunch irq_node'[wp]: finaliseCap "\<lambda>s. P (irq_node' s)"
   (wp: crunch_wps getObject_inv loadObject_default_inv
        updateObject_default_inv setObject_ksInterrupt
-   ignore: getObject setObject
    simp: crunch_simps o_def)
 
 lemma deletingIRQHandler_removeable':
@@ -2822,15 +2820,18 @@ lemma unbindMaybeNotification_obj_at'_bound:
   apply (clarsimp simp: obj_at'_def ko_wp_at'_def projectKOs)
   done
 
-crunch isFinal[wp]: unbindNotification, unbindMaybeNotification "\<lambda>s. isFinal cap slot (cteCaps_of s)"
+crunches unbindNotification, unbindMaybeNotification
+  for isFinal[wp]: "\<lambda>s. isFinal cap slot (cteCaps_of s)"
   (wp: sts_bound_tcb_at' threadSet_cteCaps_of crunch_wps getObject_inv
        loadObject_default_inv
-   ignore: getObject setObject threadSet)
+   simp: setBoundNotification_def
+   ignore: threadSet)
 
-crunch bound_tcb_at'[wp]: cancelSignal, cancelAllIPC "bound_tcb_at' P t"
+crunches cancelSignal, cancelAllIPC
+  for bound_tcb_at'[wp]: "bound_tcb_at' P t"
   (wp: sts_bound_tcb_at' threadSet_cteCaps_of crunch_wps getObject_inv
        loadObject_default_inv
-   ignore: getObject setObject threadSet)
+   ignore: threadSet)
 
 lemma finaliseCapTrue_standin_bound_tcb_at':
   "\<lbrace>\<lambda>s. bound_tcb_at' P t s \<and> (\<exists>tt b r. cap = ReplyCap tt b r) \<rbrace>
@@ -2848,7 +2849,7 @@ lemma capDeleteOne_bound_tcb_at':
   apply (rule hoare_pre)
    apply (wp finaliseCapTrue_standin_bound_tcb_at' hoare_vcg_all_lift
             hoare_vcg_if_lift2 getCTE_cteCap_wp
-        | wpc | simp | wp_once hoare_drop_imp)+
+        | wpc | simp | wp (once) hoare_drop_imp)+
   apply (clarsimp simp:  cteCaps_of_def projectKOs isReplyCap_def cte_wp_at_ctes_of
                  split: option.splits)
   apply (case_tac "cteCap cte", simp_all)
@@ -2870,9 +2871,10 @@ lemma cancelIPC_bound_tcb_at'[wp]:
    apply (wp threadSet_pred_tcb_no_state | simp)+
   done
 
-crunch bound_tcb_at'[wp]: suspend, prepareThreadDelete "bound_tcb_at' P t"
+crunches suspend, prepareThreadDelete
+  for bound_tcb_at'[wp]: "bound_tcb_at' P t"
   (wp: sts_bound_tcb_at' cancelIPC_bound_tcb_at'
-   ignore: getObject setObject threadSet)
+   ignore: threadSet)
 
 lemma unbindNotification_bound_tcb_at':
   "\<lbrace>\<lambda>_. True\<rbrace> unbindNotification t \<lbrace>\<lambda>rv. bound_tcb_at' ((=) None) t\<rbrace>"
@@ -2880,10 +2882,10 @@ lemma unbindNotification_bound_tcb_at':
   apply (wp setBoundNotification_bound_tcb gbn_wp' | wpc | simp)+
   done
 
-crunch valid_queues[wp]: unbindNotification, unbindMaybeNotification "Invariants_H.valid_queues"
+crunches unbindNotification, unbindMaybeNotification
+  for valid_queues[wp]: "Invariants_H.valid_queues"
+  and weak_sch_act_wf[wp]: "\<lambda>s. weak_sch_act_wf (ksSchedulerAction s) s"
   (wp: sbn_valid_queues)
-
-crunch weak_sch_act_wf[wp]: unbindNotification, unbindMaybeNotification "\<lambda>s. weak_sch_act_wf (ksSchedulerAction s) s"
 
 lemma unbindNotification_tcb_at'[wp]:
   "\<lbrace>tcb_at' t'\<rbrace> unbindNotification t \<lbrace>\<lambda>rv. tcb_at' t'\<rbrace>"
@@ -3004,12 +3006,12 @@ lemma cancelIPC_cteCaps_of:
   apply (rule hoare_pre)
    apply (wp cteDeleteOne_cteCaps_of getCTE_wp' | wpcw
         | simp add: cte_wp_at_ctes_of
-        | wp_once hoare_drop_imps ctes_of_cteCaps_of_lift)+
+        | wp (once) hoare_drop_imps ctes_of_cteCaps_of_lift)+
           apply (wp hoare_convert_imp hoare_vcg_all_lift
                     threadSet_ctes_of threadSet_cteCaps_of
                | clarsimp)+
     apply (wp cteDeleteOne_cteCaps_of getCTE_wp' | wpcw | simp
-       | wp_once hoare_drop_imps ctes_of_cteCaps_of_lift)+
+       | wp (once) hoare_drop_imps ctes_of_cteCaps_of_lift)+
   apply (clarsimp simp: cte_wp_at_ctes_of cteCaps_of_def)
   apply (drule_tac x="mdbNext (cteMDBNode x)" in spec)
   apply clarsimp
@@ -3043,8 +3045,7 @@ context begin interpretation Arch . (*FIXME: arch_split*)
 
 crunch cte_wp_at'[wp]: deleteASIDPool "cte_wp_at' P p"
   (simp: crunch_simps assertE_def
-         wp: crunch_wps getObject_inv loadObject_default_inv
-     ignore: getObject setObject)
+   wp: crunch_wps getObject_inv loadObject_default_inv)
 
 lemma deleteASID_cte_wp_at'[wp]:
   "\<lbrace>cte_wp_at' P p\<rbrace> deleteASID param_a param_b \<lbrace>\<lambda>_. cte_wp_at' P p\<rbrace>"
@@ -3058,10 +3059,9 @@ lemma deleteASID_cte_wp_at'[wp]:
           | wpc)+
   done
 
-crunch cte_wp_at'[wp]: unmapPageTable, unmapPage, unbindNotification, finaliseCapTrue_standin
-            "cte_wp_at' P p"
-  (simp: crunch_simps wp: crunch_wps getObject_inv loadObject_default_inv
-     ignore: getObject setObject)
+crunches unmapPageTable, unmapPage, unbindNotification, finaliseCapTrue_standin
+  for cte_wp_at'[wp]: "cte_wp_at' P p"
+  (simp: crunch_simps wp: crunch_wps getObject_inv loadObject_default_inv)
 
 lemma arch_finaliseCap_cte_wp_at[wp]:
   "\<lbrace>cte_wp_at' P p\<rbrace> Arch.finaliseCap cap fin \<lbrace>\<lambda>rv. cte_wp_at' P p\<rbrace>"
@@ -3109,7 +3109,7 @@ lemmas setThreadState_st_tcb_at_simplish
 crunch st_tcb_at_simplish: cteDeleteOne
             "st_tcb_at' (\<lambda>st. P st \<or> simple' st) t"
   (wp: crunch_wps getObject_inv loadObject_default_inv threadSet_pred_tcb_no_state
-   simp: crunch_simps unless_def ignore: getObject threadSet)
+   simp: crunch_simps unless_def ignore: threadSet)
 
 lemma cteDeleteOne_st_tcb_at[wp]:
   assumes x[simp]: "\<And>st. simple' st \<longrightarrow> P st" shows
@@ -3133,15 +3133,16 @@ lemma cteDeleteOne_reply_pred_tcb_at:
   apply (intro impI conjI, (wp | simp)+)
   done
 
-crunch sch_act_simple[wp]: cteDeleteOne, unbindNotification sch_act_simple
+context
+notes option.case_cong_weak[cong]
+begin
+crunches cteDeleteOne, unbindNotification
+  for sch_act_simple[wp]: sch_act_simple
   (wp: crunch_wps ssa_sch_act_simple sts_sch_act_simple getObject_inv
        loadObject_default_inv
    simp: crunch_simps unless_def
-   rule: sch_act_simple_lift
-   ignore: getObject)
-
-crunch valid_queues[wp]: setSchedulerAction "Invariants_H.valid_queues"
-  (simp: Invariants_H.valid_queues_def bitmapQ_defs valid_queues_no_bitmap_def)
+   rule: sch_act_simple_lift)
+end
 
 lemma rescheduleRequired_sch_act_not[wp]:
   "\<lbrace>\<top>\<rbrace> rescheduleRequired \<lbrace>\<lambda>rv. sch_act_not t\<rbrace>"
@@ -3151,8 +3152,7 @@ lemma rescheduleRequired_sch_act_not[wp]:
 
 crunch sch_act_not[wp]: cteDeleteOne "sch_act_not t"
   (simp: crunch_simps case_Null_If unless_def
-   wp: crunch_wps getObject_inv loadObject_default_inv
-   ignore: getObject)
+   wp: crunch_wps getObject_inv loadObject_default_inv)
 
 lemma cancelAllIPC_mapM_x_valid_queues:
   "\<lbrace>Invariants_H.valid_queues and valid_objs' and (\<lambda>s. \<forall>t\<in>set q. tcb_at' t s)\<rbrace>
@@ -3334,7 +3334,7 @@ lemma emptySlot_valid_inQ_queues [wp]:
   by (wp opt_return_pres_lift | wpcw | wp valid_inQ_queues_lift | simp)+
 
 crunch valid_inQ_queues[wp]: emptySlot valid_inQ_queues
-  (simp: crunch_simps ignore: updateObject setObject)
+  (simp: crunch_simps)
 
 lemma cancelAllIPC_mapM_x_valid_inQ_queues:
   "\<lbrace>valid_inQ_queues\<rbrace>
@@ -3369,7 +3369,8 @@ lemma cancelAllSignals_valid_inQ_queues[wp]:
    apply (simp)
   done
 
-crunch valid_inQ_queues[wp]: unbindNotification, unbindMaybeNotification "valid_inQ_queues"
+crunches unbindNotification, unbindMaybeNotification
+  for valid_inQ_queues[wp]: "valid_inQ_queues"
 
 lemma finaliseCapTrue_standin_valid_inQ_queues[wp]:
   "\<lbrace>valid_inQ_queues\<rbrace>
@@ -3437,7 +3438,7 @@ lemma cteDeleteOne_invs[wp]:
     subgoal by (auto dest!: isCapDs simp: pred_tcb_at'_def obj_at'_def projectKOs
                                      ko_wp_at'_def)
    apply (wp isFinalCapability_inv getCTE_wp' static_imp_wp
-        | wp_once isFinal[where x=ptr])+
+        | wp (once) isFinal[where x=ptr])+
   apply (fastforce simp: cte_wp_at_ctes_of)
   done
 
@@ -3454,7 +3455,8 @@ lemma deletingIRQHandler_invs' [wp]:
   apply simp
   done
 
-crunch tcb_at'[wp]: unbindNotification, unbindMaybeNotification "tcb_at' t"
+crunches unbindNotification, unbindMaybeNotification
+  for tcb_at'[wp]: "tcb_at' t"
 
 lemma finaliseCap_invs:
   "\<lbrace>invs' and sch_act_simple and valid_cap' cap
@@ -3512,7 +3514,11 @@ lemma finaliseCap_cte_cap_wp_to[wp]:
   apply fastforce
   done
 
+context
+notes option.case_cong_weak[cong]
+begin
 crunch valid_cap'[wp]: unbindNotification "valid_cap' cap"
+end
 
 lemma finaliseCap_valid_cap[wp]:
   "\<lbrace>valid_cap' cap\<rbrace> finaliseCap cap final flag \<lbrace>\<lambda>rv. valid_cap' (fst rv)\<rbrace>"
@@ -3532,14 +3538,12 @@ lemma finaliseCap_valid_cap[wp]:
 context begin interpretation Arch . (*FIXME: arch_split*)
 
 crunch nosch[wp]: "Arch.finaliseCap" "\<lambda>s. P (ksSchedulerAction s)"
-  (wp: crunch_wps getObject_inv simp: loadObject_default_def updateObject_default_def
-   ignore: getObject)
+  (wp: crunch_wps getObject_inv simp: loadObject_default_def updateObject_default_def)
 
 crunch sch_act_simple[wp]: finaliseCap sch_act_simple
   (simp: crunch_simps
    rule: sch_act_simple_lift
-   wp: getObject_inv loadObject_default_inv crunch_wps
-   ignore: getObject)
+   wp: getObject_inv loadObject_default_inv crunch_wps)
 
 end
 
@@ -3642,6 +3646,7 @@ lemma unbind_notification_corres:
       (invs' and tcb_at' t)
       (unbind_notification t)
       (unbindNotification t)"
+  supply option.case_cong_weak[cong]
   apply (simp add: unbind_notification_def unbindNotification_def)
   apply (rule corres_guard_imp)
     apply (rule corres_split[OF _ gbn_corres])
@@ -3676,7 +3681,6 @@ lemma unbind_maybe_notification_corres:
       apply (rule corres_option_split)
         apply (clarsimp simp: ntfn_relation_def split: Structures_A.ntfn.splits)
        apply (rule corres_return_trivial)
-      apply simp
       apply (rule corres_split[OF _ set_ntfn_corres])
          apply (rule sbn_corres)
         apply (clarsimp simp: ntfn_relation_def split: Structures_A.ntfn.splits)
@@ -3744,7 +3748,7 @@ lemma cap_delete_one_corres:
               apply (rule empty_slot_corres)
              apply simp+
           apply (wp hoare_drop_imps)+
-        apply (wp isFinalCapability_inv | wp_once isFinal[where x="cte_map ptr"])+
+        apply (wp isFinalCapability_inv | wp (once) isFinal[where x="cte_map ptr"])+
       apply (rule corres_trivial, simp)
      apply (wp get_cap_wp getCTE_wp)+
    apply (clarsimp simp: cte_wp_at_caps_of_state can_fast_finalise_Null
@@ -3820,43 +3824,43 @@ lemma finalise_cap_corres:
 context begin interpretation Arch . (*FIXME: arch_split*)
 
 crunch queues[wp]: copyGlobalMappings "Invariants_H.valid_queues"
-  (wp: crunch_wps ignore: storePDE getObject)
+  (wp: crunch_wps ignore: storePDE)
 
 crunch queues'[wp]: copyGlobalMappings "Invariants_H.valid_queues'"
-  (wp: crunch_wps ignore: storePDE getObject)
+  (wp: crunch_wps ignore: storePDE)
 
 crunch ifunsafe'[wp]: copyGlobalMappings "if_unsafe_then_cap'"
-  (wp: crunch_wps ignore: storePDE getObject)
+  (wp: crunch_wps ignore: storePDE)
 
 crunch pred_tcb_at'[wp]: copyGlobalMappings "pred_tcb_at' proj P t"
-  (wp: crunch_wps ignore: storePDE getObject)
+  (wp: crunch_wps ignore: storePDE)
 
 crunch vms'[wp]: copyGlobalMappings "valid_machine_state'"
-  (wp: crunch_wps ignore: storePDE getObject)
+  (wp: crunch_wps ignore: storePDE)
 
 crunch ct_not_inQ[wp]: copyGlobalMappings "ct_not_inQ"
-  (wp: crunch_wps ignore: storePDE getObject)
+  (wp: crunch_wps ignore: storePDE)
 
 crunch tcb_in_cur_domain'[wp]: copyGlobalMappings "tcb_in_cur_domain' t"
-  (wp: crunch_wps ignore: getObject)
+  (wp: crunch_wps)
 
 crunch ct__in_cur_domain'[wp]: copyGlobalMappings ct_idle_or_in_cur_domain'
-  (wp: crunch_wps ignore: getObject)
+  (wp: crunch_wps)
 
 crunch gsUntypedZeroRanges[wp]: copyGlobalMappings "\<lambda>s. P (gsUntypedZeroRanges s)"
-  (wp: crunch_wps ignore: getObject)
+  (wp: crunch_wps)
 
 crunch gsMaxObjectSize[wp]: copyGlobalMappings "\<lambda>s. P (gsMaxObjectSize s)"
-  (wp: crunch_wps ignore: getObject)
+  (wp: crunch_wps)
 
 crunch it'[wp]: copyGlobalMappings "\<lambda>s. P (ksIdleThread s)"
-  (wp: crunch_wps ignore: getObject)
+  (wp: crunch_wps)
 
 crunch valid_irq_states'[wp]: copyGlobalMappings "valid_irq_states'"
-  (wp: crunch_wps ignore: getObject)
+  (wp: crunch_wps)
 
 crunch ksDomScheduleIdx[wp]: copyGlobalMappings "\<lambda>s. P (ksDomScheduleIdx s)"
-  (wp: crunch_wps ignore: getObject)
+  (wp: crunch_wps)
 
 lemma ct_in_current_domain_ArchState_update[simp]:
   "ct_idle_or_in_cur_domain' (s\<lparr>ksArchState := v\<rparr>) = ct_idle_or_in_cur_domain' s"
@@ -4252,7 +4256,7 @@ lemma cteDeleteOne_ct_not_ksQ:
    apply (clarsimp)
   apply (wp emptySlot_cteCaps_of hoare_lift_Pf2 [OF emptySlot_ksRQ emptySlot_ct])
     apply (simp add: cteCaps_of_def)
-    apply (wp_once hoare_drop_imps)
+    apply (wp (once) hoare_drop_imps)
     apply (wp finaliseCapTrue_standin_ct_not_ksQ isFinalCapability_inv)+
   apply (clarsimp)
   done

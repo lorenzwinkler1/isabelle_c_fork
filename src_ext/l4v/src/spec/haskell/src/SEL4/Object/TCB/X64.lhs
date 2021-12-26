@@ -1,10 +1,7 @@
+%
 % Copyright 2014, General Dynamics C4 Systems
 %
-% This software may be distributed and modified according to the terms of
-% the GNU General Public License version 2. Note that NO WARRANTY is provided.
-% See "LICENSE_GPLv2.txt" for details.
-%
-% @TAG(GD_GPL)
+% SPDX-License-Identifier: GPL-2.0-only
 %
 
 This module contains x64-specific TCB management functions. Specifically, these functions are used by the "CopyRegisters" operation to transfer x64-specific subsets of the register set.
@@ -46,7 +43,7 @@ There are presently no x64-specific register subsets defined, but in future this
 
 > sanitiseRegister :: Bool -> Register -> Word -> Word
 > sanitiseRegister _ r v =
->     let val = if r == FaultIP || r == NextIP then
+>     let val = if r == FaultIP || r == NextIP || r == FS_BASE || r == GS_BASE then
 >                  if v > 0x00007fffffffffff && v < 0xffff800000000000 then 0 else v
 >               else v
 >     in
@@ -56,9 +53,6 @@ There are presently no x64-specific register subsets defined, but in future this
 
 > getSanitiseRegisterInfo :: PPtr TCB -> Kernel Bool
 > getSanitiseRegisterInfo _ = return False
-
-> setTCBIPCBuffer :: VPtr -> UserMonad ()
-> setTCBIPCBuffer ptr = return ()
 
 Here, cur = ksCurThread
 

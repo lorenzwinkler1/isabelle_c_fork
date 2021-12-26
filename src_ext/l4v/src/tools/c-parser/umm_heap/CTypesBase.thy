@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 (* License: BSD, terms see file ./LICENSE *)
@@ -17,7 +13,7 @@
 
 theory CTypesBase
 imports
-  "./$L4V_ARCH/Addr_Type"
+  Addr_Type
   "HOL-Library.Prefix_Order"
   "Word_Lib.Signed_Words"
 begin
@@ -25,6 +21,10 @@ begin
 section "Type setup"
 
 type_synonym byte = "8 word"
+
+type_synonym memory = "addr \<Rightarrow> byte"
+type_synonym 'a mem_upd = "addr \<Rightarrow> 'a \<Rightarrow> memory \<Rightarrow> memory"
+type_synonym 'a mem_read = "addr \<Rightarrow> memory \<Rightarrow> 'a"
 
 class unit_class =
   assumes there_is_only_one: "x = y"

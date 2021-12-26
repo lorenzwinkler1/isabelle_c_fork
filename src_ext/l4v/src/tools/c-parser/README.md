@@ -1,11 +1,7 @@
 <!--
- Copyright 2014, NICTA
+     Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
 
- This software may be distributed and modified according to the terms of
- the BSD 2-Clause license. Note that NO WARRANTY is provided.
- See "LICENSE_BSD2.txt" for details.
-
- @TAG(NICTA_BSD)
+     SPDX-License-Identifier: CC-BY-SA-4.0
 -->
 
 The StrictC translation tool
@@ -27,7 +23,6 @@ See also the examples in the testfiles directory.  For example,
 `breakcontinue.thy` is a fairly involved demonstration of doing things
 the hard way.
 
-
 ----------------------------------------------------------------------
 The translation tool builds on various open source projects by others.
 
@@ -36,7 +31,7 @@ The translation tool builds on various open source projects by others.
    Sources for this are found in the Simpl/ directory.  The
    code is covered by an LGPL licence.
 
-   See https://isa-afp.org/entries/Simpl.shtml
+   See <https://isa-afp.org/entries/Simpl.shtml>
 
 2. Code from SML/NJ:
    - an implementation of binary sets (Binaryset.ML)
@@ -45,7 +40,7 @@ The translation tool builds on various open source projects by others.
 
    This code is covered by SML/NJ's BSD-ish licence.
 
-   See http://www.smlnj.org
+   See <http://www.smlnj.org>
 
 3. Code from the mlton compiler:
    - regions during lexing and parsing (Region.ML, SourceFile.ML and
@@ -53,4 +48,4 @@ The translation tool builds on various open source projects by others.
 
    This code is governed by a BSD licence.
 
-   See http://mlton.org
+   See <http://mlton.org>

@@ -1,10 +1,8 @@
--- Copyright 2018, Data61, CSIRO
 --
--- This software may be distributed and modified according to the terms of
--- the GNU General Public License version 2. Note that NO WARRANTY is provided.
--- See "LICENSE_GPLv2.txt" for details.
+-- Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
 --
--- @TAG(DATA61_GPL)
+-- SPDX-License-Identifier: GPL-2.0-only
+--
 
 {-# LANGUAGE CPP, GeneralizedNewtypeDeriving, EmptyDataDecls #-}
 
@@ -50,15 +48,14 @@ data VMPageSize
     | RISCVHugePage
     deriving (Show, Eq, Ord, Enum, Bounded)
 
+-- C defines further fault types, but the trap handler only forwards these
+-- below as VMFaults. The rest, including any unknown faults, become user level
+-- faults with the fault scause number passed on verbatim.
+
 data VMFaultType
-    = RISCVInstructionMisaligned
-    | RISCVInstructionAccessFault
-    | RISCVInstructionIllegal
-    | RISCVBreakpoint
+    = RISCVInstructionAccessFault
     | RISCVLoadAccessFault
-    | RISCVAddressMisaligned
     | RISCVStoreAccessFault
-    | RISCVEnvCall
     | RISCVInstructionPageFault
     | RISCVLoadPageFault
     | RISCVStorePageFault
@@ -68,14 +65,9 @@ data VMFaultType
 vmFaultTypeFSR :: VMFaultType -> Word
 vmFaultTypeFSR f =
     case f of
-        RISCVInstructionMisaligned -> 0
         RISCVInstructionAccessFault -> 1
-        RISCVInstructionIllegal -> 2
-        RISCVBreakpoint -> 3
         RISCVLoadAccessFault -> 5
-        RISCVAddressMisaligned -> 6
         RISCVStoreAccessFault -> 7
-        RISCVEnvCall -> 8
         RISCVInstructionPageFault -> 12
         RISCVLoadPageFault -> 13
         RISCVStorePageFault -> 15
@@ -88,17 +80,39 @@ data HypFaultType
 
 type PAddr = Platform.PAddr
 
-ptrFromPAddr :: PAddr -> PPtr a
-ptrFromPAddr = Platform.ptrFromPAddr
-
-addrFromPPtr :: PPtr a -> PAddr
-addrFromPPtr = Platform.addrFromPPtr
-
 fromPAddr :: PAddr -> Word
 fromPAddr = Platform.fromPAddr
 
+paddrBase :: PAddr
+paddrBase = Platform.PAddr 0x0
+
+pptrBase :: VPtr
+pptrBase = VPtr 0xFFFFFFC000000000
+
+pptrTop :: VPtr
+pptrTop = VPtr 0xFFFFFFFF80000000
+
+kernelELFPAddrBase :: PAddr
+kernelELFPAddrBase = toPAddr $ (fromPAddr Platform.physBase) + 0x4000000
+
+kernelELFBase :: VPtr
+kernelELFBase = VPtr $ fromVPtr pptrTop + (fromPAddr kernelELFPAddrBase .&. (mask 30))
+
+pptrUserTop :: VPtr
+pptrUserTop = pptrBase
+
+pptrBaseOffset = (fromVPtr pptrBase) - (fromPAddr paddrBase)
+
+ptrFromPAddr :: PAddr -> PPtr a
+ptrFromPAddr addr = PPtr $ fromPAddr addr + pptrBaseOffset
+
+addrFromPPtr :: PPtr a -> PAddr
+addrFromPPtr addr = toPAddr $ fromPPtr addr - pptrBaseOffset
+
+kernelELFBaseOffset = (fromVPtr kernelELFBase) - (fromPAddr kernelELFPAddrBase)
+
 addrFromKPPtr :: PPtr a -> PAddr
-addrFromKPPtr = Platform.addrFromKPPtr
+addrFromKPPtr (PPtr addr) = toPAddr $ addr - kernelELFBaseOffset
 
 {- Hardware Access -}
 
@@ -131,6 +145,12 @@ resetTimer :: MachineMonad ()
 resetTimer = do
     cbptr <- ask
     liftIO $ Platform.resetTimer cbptr
+
+initIRQController :: MachineMonad ()
+initIRQController = error "Unimplemented - boot code"
+
+setIRQTrigger :: IRQ -> Bool -> MachineMonad ()
+setIRQTrigger irq trigger = error "Unimplemented - machine op"
 
 getRestartPC = getRegister (Register RISCV64.FaultIP)
 setNextPC = setRegister (Register RISCV64.NextIP)
@@ -202,9 +222,9 @@ data VMRights
     deriving (Show, Eq)
 
 vmRightsToBits :: VMRights -> Word
-vmRightsToBits VMKernelOnly = 0x00
-vmRightsToBits VMReadOnly = 0x01
-vmRightsToBits VMReadWrite = 0x11
+vmRightsToBits VMKernelOnly = 1
+vmRightsToBits VMReadOnly = 2
+vmRightsToBits VMReadWrite = 3
 
 allowWrite :: VMRights -> Bool
 allowWrite VMKernelOnly = False
@@ -246,16 +266,6 @@ data PTE
         pteGlobal :: Bool,
         pteUser :: Bool }
     deriving (Show, Eq)
-
-pptrBase :: VPtr
-pptrBase = Platform.pptrBase
-
-pptrUserTop :: VPtr
-pptrUserTop = Platform.pptrUserTop
-
-physBase :: PAddr
-physBase = toPAddr Platform.physBase
-
 
 {- Simulator callbacks -}
 
@@ -308,8 +318,8 @@ maskInterrupt maskI irq = do
 debugPrint :: String -> MachineMonad ()
 debugPrint str = liftIO $ putStrLn str
 
-initIRQController :: MachineMonad ()
-initIRQController = error "Unimplemented - boot code"
+read_stval :: MachineMonad Word
+read_stval = error "Unimplemented - machine op"
 
-read_sbadaddr :: MachineMonad Word
-read_sbadaddr = error "Unimplemented - machine op"
+plic_complete_claim :: IRQ -> MachineMonad ()
+plic_complete_claim = error "Unimplemented - machine op"

@@ -1,11 +1,7 @@
 %
 % Copyright 2014, General Dynamics C4 Systems
 %
-% This software may be distributed and modified according to the terms of
-% the GNU General Public License version 2. Note that NO WARRANTY is provided.
-% See "LICENSE_GPLv2.txt" for details.
-%
-% @TAG(GD_GPL)
+% SPDX-License-Identifier: GPL-2.0-only
 %
 
 \begin{impdetails}
@@ -25,7 +21,7 @@ This module defines the low-level ARM hardware interface.
 
 > import Control.Monad.Reader
 > import Data.Bits
-> import Data.Word(Word8, Word32)
+> import Data.Word(Word8, Word32, Word64)
 > import Data.Ix
 
 \end{impdetails}
@@ -85,14 +81,39 @@ The ARM MMU does not allow access to physical addresses while translation is ena
 
 > type PAddr = Platform.PAddr
 
-> ptrFromPAddr :: PAddr -> PPtr a
-> ptrFromPAddr = Platform.ptrFromPAddr
-
-> addrFromPPtr :: PPtr a -> PAddr
-> addrFromPPtr = Platform.addrFromPPtr
-
 > fromPAddr :: PAddr -> Word
 > fromPAddr = Platform.fromPAddr
+
+> paddrBase :: PAddr
+> paddrBase = Platform.physBase
+
+> pptrBase :: VPtr
+> pptrBase = Platform.pptrBase
+
+> pptrTop :: VPtr
+> pptrTop = VPtr 0xfff00000
+
+> paddrTop :: PAddr
+> paddrTop = toPAddr $ (fromVPtr pptrTop - pptrBaseOffset)
+
+> kernelELFPAddrBase :: PAddr
+> kernelELFPAddrBase = paddrBase
+
+> kernelELFBase :: VPtr
+> kernelELFBase = VPtr $ fromVPtr pptrBase + (fromPAddr kernelELFPAddrBase .&. (mask 22))
+
+> pptrBaseOffset = (fromVPtr pptrBase) - (fromPAddr paddrBase)
+
+> ptrFromPAddr :: PAddr -> PPtr a
+> ptrFromPAddr addr = PPtr $ fromPAddr addr + pptrBaseOffset
+
+> addrFromPPtr :: PPtr a -> PAddr
+> addrFromPPtr addr = toPAddr $ fromPPtr addr - pptrBaseOffset
+
+> kernelELFBaseOffset = (fromVPtr kernelELFBase) - (fromPAddr kernelELFPAddrBase)
+
+> addrFromKPPtr :: PPtr a -> PAddr
+> addrFromKPPtr (PPtr addr) = toPAddr $ addr - kernelELFBaseOffset
 
 > addPAddr :: PAddr -> Word -> PAddr
 > addPAddr p w = toPAddr (fromPAddr p + w)
@@ -185,6 +206,12 @@ The following functions define the ARM-specific interface between the kernel and
 > getRestartPC = getRegister (Register ARM.FaultIP)
 > setNextPC = setRegister (Register ARM.NextIP)
 
+> getTPIDRURW :: MachineMonad Word
+> getTPIDRURW = error "machine callback unimplemented"
+
+> setTPIDRURW :: Word -> MachineMonad ()
+> setTPIDRURW = error "machine callback unimplemented"
+
 \subsection{ARM Memory Management}
 
 There are several operations used by the ARM memory management code to access relevant hardware registers.
@@ -265,6 +292,12 @@ caches must be done separately.
 
 > writeContextIDAndPD :: HardwareASID -> PAddr -> MachineMonad ()
 > writeContextIDAndPD = error "FIXME ARMHYP  machine callback unimplemented"
+
+> getTPIDRURO :: MachineMonad Word
+> getTPIDRURO = error "FIXME ARMHYP machine callback unimplemented"
+
+> setTPIDRURO :: Word -> MachineMonad ()
+> setTPIDRURO = error "FIXME ARMHYP machine callback unimplemented"
 
 #endif
 
@@ -821,15 +854,24 @@ FIXME ARMHYP consider moving to platform code?
 > set_gic_vcpu_ctrl_lr :: Word -> Word -> MachineMonad ()
 > set_gic_vcpu_ctrl_lr = error "FIXME ARMHYP Unimplemented callback"
 
+\subsection{Virtual timer interface}
+
+> get_cntv_cval_64 :: MachineMonad Word64
+> get_cntv_cval_64 = error "FIXME ARMHYP Unimplemented callback"
+> set_cntv_cval_64 :: Word64 -> MachineMonad ()
+> set_cntv_cval_64 = error "FIXME ARMHYP Unimplemented callback"
+
+> get_cntv_off_64 :: MachineMonad Word64
+> get_cntv_off_64 = error "FIXME ARMHYP Unimplemented callback"
+> set_cntv_off_64 :: Word64 -> MachineMonad ()
+> set_cntv_off_64 = error "FIXME ARMHYP Unimplemented callback"
+
+> read_cntpct :: MachineMonad Word64
+> read_cntpct = error "FIXME ARMHYP Unimplemented callback"
+
 #endif
 
 \subsection{Constants}
-
-> physBase :: PAddr
-> physBase = toPAddr Platform.physBase
-
-> kernelBase :: VPtr
-> kernelBase = Platform.kernelBase
 
 #ifdef CONFIG_ARM_HYPERVISOR_SUPPORT
 

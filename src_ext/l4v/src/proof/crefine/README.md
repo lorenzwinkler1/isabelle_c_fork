@@ -1,3 +1,9 @@
+<!--
+     Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
+
+     SPDX-License-Identifier: CC-BY-SA-4.0
+-->
+
 C Refinement Proof
 ==================
 
@@ -19,7 +25,7 @@ its abstract specification.
 The approach used for the proof is described in the TPHOLS '09
 [paper][5].
 
-  [paper]: http://www.nicta.com.au/pub?id=1842  " Mind the gap: A verification framework for low-level C"
+  [paper]: https://ts.data61.csiro.au/publications/nictaabstracts/Winwood_KSACN_09.abstract.pml  "Mind the gap: A verification framework for low-level C"
 
 Building
 --------
@@ -45,7 +51,7 @@ produced directly by the C parser from the kernel's C code, and another
 produced by the C spec's [`Substitute`](../../spec/cspec/Substitute.thy)
 theory. These proofs largely operate on the latter, proving that it
 corresponds to the design spec. Refinement between the two C-level specs
-is proved in the [`CToCRefine`](../../lib/clib/CToCRefine.thy) theory.
+is proved in the [`CToCRefine`](lib/CToCRefine.thy) theory.
 The top-level [`Refine_C`](ARM/Refine_C.thy) theory quotes both refinement
 properties.
 

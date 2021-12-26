@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -15,7 +11,7 @@ Higher level functions for manipulating virtual address spaces
 chapter "x64 VSpace Functions"
 
 theory ArchVSpace_A
-imports "../Retype_A"
+imports Retype_A
 begin
 
 context Arch begin global_naming X64_A
@@ -134,7 +130,7 @@ find_vspace_for_asid_assert :: "asid \<Rightarrow> (obj_ref,'z::state_ext) s_mon
 
 text \<open>Format a VM fault message to be passed to a thread's supervisor after
 it encounters a page fault.\<close>
-fun
+definition
 handle_vm_fault :: "obj_ref \<Rightarrow> vmfault_type \<Rightarrow> (unit,'z::state_ext) f_monad"
 where
 "handle_vm_fault thread fault_type = doE

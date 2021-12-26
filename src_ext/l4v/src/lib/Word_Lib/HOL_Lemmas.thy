@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 section "Generic Lemmas used in the Word Library"
@@ -221,5 +217,13 @@ lemma mod_lemma: "[| (0::nat) < c; r < b |] ==> b * (q mod c) + r < b * c"
   apply (erule_tac P = "%x. lhs < rhs x" for lhs rhs in ssubst)
   apply (simp add: add_mult_distrib2)
   done
+
+lemma nat_le_Suc_less:
+  "0 < y \<Longrightarrow> (x \<le> y - Suc 0) = (x < y)"
+  by arith
+
+lemma nat_power_minus_less:
+  "a < 2 ^ (x - n) \<Longrightarrow> (a :: nat) < 2 ^ x"
+  by (erule order_less_le_trans) simp
 
 end

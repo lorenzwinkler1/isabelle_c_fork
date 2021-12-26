@@ -1,1 +1,0 @@
-skel/EndpointDecls_H.thy

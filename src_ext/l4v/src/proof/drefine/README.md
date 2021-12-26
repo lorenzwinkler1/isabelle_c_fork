@@ -1,3 +1,9 @@
+<!--
+     Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
+
+     SPDX-License-Identifier: CC-BY-SA-4.0
+-->
+
 CapDL Refinement Proof
 ======================
 
@@ -8,7 +14,7 @@ specification][capDL]. It is described as part of an ICFEM '13
 
   [aspec]: ../../spec/abstract/
   [capdl]: ../../spec/capDL/
-  [paper]: http://www.nicta.com.au/pub?id=7047 "Formally Verified System Initialisation"
+  [paper]: https://ts.data61.csiro.au/publications/nictaabstracts/Boyton_ABFGGKLS_13.abstract.pml "Formally Verified System Initialisation"
 
 Building
 --------

@@ -1,3 +1,9 @@
+<!--
+     Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
+
+     SPDX-License-Identifier: CC-BY-SA-4.0
+-->
+
 Confidentiality Proof
 =====================
 
@@ -13,7 +19,7 @@ before transferring the noninterference result to the kernel's
 C implementation via the [Design Spec Refinement Proof](../refine/) and
 the [C Refinement Proof](../crefine/).
 
-  [1]: http://www.nicta.com.au/pub?id=6464 "seL4: from General Purpose to a Proof of Information Flow Enforcement"
+  [1]: https://ts.data61.csiro.au/publications/nictaabstracts/Murray_MBGBSLGK_13.abstract.pml "seL4: from General Purpose to a Proof of Information Flow Enforcement"
 
 Building
 --------
@@ -28,12 +34,12 @@ Important Theories
 The top-level theory where noninterference is proved for the seL4
 abstract specification is [`Noninterference`](Noninterference.thy); it
 is transferred to the C implementation via refinement in the theory
-[`Noninterference_Refinement`](Noninterference_Refinement.thy). The base
+[`Noninterference_Refinement`](refine/Noninterference_Refinement.thy). The base
 theory where noninterference is (generically) defined is
 [`Noninterference_Base`](Noninterference_Base.thy). The bottom-level
 theory where confidentiality is formalised over the seL4 abstract
 specification is [`InfoFlow`](InfoFlow.thy). Confidentiality is
-a relational property and the theory [`EquivValid`](../lib/EquivValid.thy)
+a relational property and the theory [`EquivValid`](../../lib/EquivValid.thy)
 defines these generically for the nondeterministic state monad of the
 abstract specification.
 

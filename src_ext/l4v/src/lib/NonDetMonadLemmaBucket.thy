@@ -1,18 +1,14 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 theory NonDetMonadLemmaBucket
 imports
-  "Monad_WP/NonDetMonadVCG"
-  "MonadEq"
-  "Monad_WP/WhileLoopRulesCompleteness"
+  NonDetMonadVCG
+  MonadEq
+  WhileLoopRulesCompleteness
   "Word_Lib.Distinct_Prop"
 begin
 setup \<open>AutoLevity_Base.add_attribute_test "wp" WeakestPre.is_wp_rule\<close>
@@ -1137,6 +1133,9 @@ proof -
     by (auto simp: injection_handler_def handleE'_def P)
 qed
 
+lemma injection_handler_assertE:
+  "injection_handler inject (assertE f) = assertE f"
+  by (simp add: assertE_liftE injection_liftE)
 
 lemma case_options_weak_wp:
   "\<lbrakk> \<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>; \<And>x. \<lbrace>P'\<rbrace> g x \<lbrace>Q\<rbrace> \<rbrakk> \<Longrightarrow> \<lbrace>P and P'\<rbrace> case opt of None \<Rightarrow> f | Some x \<Rightarrow> g x \<lbrace>Q\<rbrace>"
@@ -1145,6 +1144,22 @@ lemma case_options_weak_wp:
   apply (rule hoare_weaken_pre [where Q=P'])
    apply simp+
   done
+
+lemma case_option_wp_None_return:
+  assumes [wp]: "\<And>x. \<lbrace>P' x\<rbrace> f x \<lbrace>\<lambda>_. Q\<rbrace>"
+  shows "\<lbrakk>\<And>x s. (Q and P x) s \<Longrightarrow> P' x s \<rbrakk>
+         \<Longrightarrow> \<lbrace>Q and (\<lambda>s. opt \<noteq> None \<longrightarrow> P (the opt) s)\<rbrace>
+             (case opt of None \<Rightarrow> return () | Some x \<Rightarrow> f x)
+             \<lbrace>\<lambda>_. Q\<rbrace>"
+  by (cases opt; wpsimp)
+
+lemma case_option_wp_None_returnOk:
+  assumes [wp]: "\<And>x. \<lbrace>P' x\<rbrace> f x \<lbrace>\<lambda>_. Q\<rbrace>,\<lbrace>E\<rbrace>"
+  shows "\<lbrakk>\<And>x s. (Q and P x) s \<Longrightarrow> P' x s \<rbrakk>
+         \<Longrightarrow> \<lbrace>Q and (\<lambda>s. opt \<noteq> None \<longrightarrow> P (the opt) s)\<rbrace>
+             (case opt of None \<Rightarrow> returnOk () | Some x \<Rightarrow> f x)
+             \<lbrace>\<lambda>_. Q\<rbrace>,\<lbrace>E\<rbrace>"
+  by (cases opt; wpsimp)
 
 lemma list_cases_weak_wp:
   assumes "\<lbrace>P_A\<rbrace> a \<lbrace>Q\<rbrace>"
@@ -1453,6 +1468,10 @@ lemma static_imp_wp:
   "\<lbrace>Q\<rbrace> m \<lbrace>R\<rbrace> \<Longrightarrow> \<lbrace>\<lambda>s. P \<longrightarrow> Q s\<rbrace> m \<lbrace>\<lambda>rv s. P \<longrightarrow> R rv s\<rbrace>"
   by (cases P, simp_all add: valid_def)
 
+lemma static_imp_wpE :
+  "\<lbrace>Q\<rbrace> m \<lbrace>R\<rbrace>,- \<Longrightarrow> \<lbrace>\<lambda>s. P \<longrightarrow> Q s\<rbrace> m \<lbrace>\<lambda>rv s. P \<longrightarrow> R rv s\<rbrace>,-"
+  by (cases P, simp_all)
+
 lemma static_imp_conj_wp:
   "\<lbrakk> \<lbrace>Q\<rbrace> m \<lbrace>Q'\<rbrace>; \<lbrace>R\<rbrace> m \<lbrace>R'\<rbrace> \<rbrakk>
     \<Longrightarrow> \<lbrace>\<lambda>s. (P \<longrightarrow> Q s) \<and> R s\<rbrace> m \<lbrace>\<lambda>rv s. (P \<longrightarrow> Q' rv s) \<and> R' rv s\<rbrace>"
@@ -1473,6 +1492,13 @@ lemma hoare_validE_R_conj:
 lemma hoare_vcg_const_imp_lift_R:
   "\<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>,- \<Longrightarrow> \<lbrace>\<lambda>s. F \<longrightarrow> P s\<rbrace> f \<lbrace>\<lambda>rv s. F \<longrightarrow> Q rv s\<rbrace>,-"
   by (cases F, simp_all)
+
+lemma hoare_vcg_disj_lift_R:
+  assumes x: "\<lbrace>P\<rbrace>  f \<lbrace>Q\<rbrace>,-"
+  assumes y: "\<lbrace>P'\<rbrace> f \<lbrace>Q'\<rbrace>,-"
+  shows      "\<lbrace>\<lambda>s. P s \<or> P' s\<rbrace> f \<lbrace>\<lambda>rv s. Q rv s \<or> Q' rv s\<rbrace>,-"
+  using assms
+  by (fastforce simp: validE_R_def validE_def valid_def split: sum.splits)
 
 lemmas throwError_validE_R = throwError_wp [where E="\<top>\<top>", folded validE_R_def]
 
@@ -2821,6 +2847,31 @@ lemma bindE_handleE_join:
     "no_throw \<top> A \<Longrightarrow> (A >>=E (\<lambda>x. (B x) <handle> C)) = ((A >>=E B <handle> C))"
   apply (monad_eq simp: Bex_def Ball_def no_throw_def')
   apply blast
+  done
+
+lemma catch_bind_distrib:
+  "do _ <- m <catch> h; f od = (doE m; liftE f odE <catch> (\<lambda>x. do h x; f od))"
+  by (force simp: catch_def bindE_def bind_assoc liftE_def NonDetMonad.lift_def bind_def
+                  split_def return_def throwError_def
+            split: sum.splits)
+
+lemma if_catch_distrib:
+  "((if P then f else g) <catch> h) = (if P then f <catch> h else g <catch> h)"
+  by (simp split: if_split)
+
+lemma will_throw_and_catch:
+  "f = throwError e \<Longrightarrow> (f <catch> (\<lambda>_. g)) = g"
+  by (simp add: catch_def throwError_def)
+
+lemma catch_is_if:
+  "(doE x <- f; g x odE <catch> h) =
+   do
+     rv <- f;
+     if sum.isl rv then h (projl rv) else g (projr rv) <catch> h
+   od"
+  apply (simp add: bindE_def catch_def bind_assoc cong: if_cong)
+  apply (rule bind_cong, rule refl)
+  apply (clarsimp simp: NonDetMonad.lift_def throwError_def split: sum.splits)
   done
 
 lemma snd_put [monad_eq]:

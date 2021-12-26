@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchEmptyFail_AI
-imports "../EmptyFail_AI"
+imports EmptyFail_AI
 begin
 
 context Arch begin global_naming ARM
@@ -51,7 +47,7 @@ crunch (empty_fail) empty_fail[wp]:
 
 lemma decode_tcb_invocation_empty_fail[wp]:
   "empty_fail (decode_tcb_invocation a b (ThreadCap p) d e)"
-  by (simp add: decode_tcb_invocation_def split: invocation_label.splits | wp | intro conjI impI)+
+  by (simp add: decode_tcb_invocation_def split: invocation_label.splits | wp | wpc | intro conjI impI)+
 
 crunch (empty_fail) empty_fail[wp]: find_pd_for_asid, get_master_pde, check_vp_alignment,
                    create_mapping_entries, ensure_safe_mapping, get_asid_pool, resolve_vaddr
@@ -156,7 +152,9 @@ global_interpretation EmptyFail_AI_schedule?: EmptyFail_AI_schedule
   qed
 
 context Arch begin global_naming ARM
-crunch (empty_fail) empty_fail[wp, EmptyFail_AI_assms]: handle_event, activate_thread
+
+crunches possible_switch_to, handle_event, activate_thread
+  for (empty_fail) empty_fail[wp, EmptyFail_AI_assms]
   (simp: cap.splits arch_cap.splits split_def invocation_label.splits Let_def
          kernel_object.splits arch_kernel_obj.splits option.splits pde.splits pte.splits
          bool.splits apiobject_type.splits aobject_type.splits notification.splits
@@ -164,7 +162,7 @@ crunch (empty_fail) empty_fail[wp, EmptyFail_AI_assms]: handle_event, activate_t
          page_table_invocation.splits page_invocation.splits asid_control_invocation.splits
          asid_pool_invocation.splits arch_invocation.splits irq_state.splits syscall.splits
          flush_type.splits page_directory_invocation.splits
-   ignore: resetTimer_impl ackInterrupt_impl)
+   ignore: resetTimer_impl ackInterrupt_impl ignore_del: possible_switch_to)
 end
 
 global_interpretation EmptyFail_AI_call_kernel_unit?: EmptyFail_AI_call_kernel_unit

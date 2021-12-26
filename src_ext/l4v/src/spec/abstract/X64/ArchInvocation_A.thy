@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -15,7 +11,7 @@ Arch specific object invocations
 chapter "x64 Object Invocations"
 
 theory ArchInvocation_A
-imports "../Structures_A"
+imports Structures_A
 begin
 
 context Arch begin global_naming X64_A
@@ -48,10 +44,6 @@ datatype page_invocation
          (page_map_ct_slot: cslot_ptr)
          (page_map_entries: "vm_page_entry \<times> obj_ref")
          (page_map_vspace: obj_ref)
-     | PageRemap
-         (page_remap_entries: "vm_page_entry \<times> obj_ref")
-         (page_remap_asid: asid)
-         (page_remap_vspace: obj_ref)
      | PageUnmap
          (page_unmap_cap: arch_cap)
          (page_unmap_cap_slot: cslot_ptr)

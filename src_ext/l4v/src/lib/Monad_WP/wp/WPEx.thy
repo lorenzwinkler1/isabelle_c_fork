@@ -1,17 +1,13 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 theory WPEx
 imports
-  "../NonDetMonadVCG"
-  "../Strengthen"
+  NonDetMonadVCG
+  Strengthen
 begin
 
 text \<open>WPEx - the WP Extension Experiment\<close>
@@ -352,17 +348,17 @@ let
   (* avoid duplicate simp rule etc warnings: *)
   val ctxt = Context_Position.set_visible false ctxt
 in
-  resolve_tac ctxt [valid_strengthen_with_mresults] 1
-  THEN (safe_simp_tac (put_simpset (postcond_ss ctxt) ctxt) 1)
-  THEN Subgoal.FOCUS (fn focus => let
+  resolve_tac ctxt [valid_strengthen_with_mresults]
+  THEN' (safe_simp_tac (put_simpset (postcond_ss ctxt) ctxt))
+  THEN' Subgoal.FOCUS (fn focus => let
       val ctxt = #context focus;
       val (simps, _) = get_wp_simps_strgs ctxt rules (#prems focus);
-    in CHANGED (simp_tac (put_simpset (wp_default_ss ctxt) ctxt addsimps simps) 1) end) ctxt 1
-  THEN eresolve_tac ctxt [wpex_name_for_idE] 1
+    in CHANGED (simp_tac (put_simpset (wp_default_ss ctxt) ctxt addsimps simps) 1) end) ctxt
+  THEN' eresolve_tac ctxt [wpex_name_for_idE]
 end
 
 val wps_method = Attrib.thms >> curry
-  (fn (ts, ctxt) => Method.SIMPLE_METHOD (wps_tac ctxt ts));
+  (fn (ts, ctxt) => Method.SIMPLE_METHOD' (wps_tac ctxt ts));
 
 \<close>
 

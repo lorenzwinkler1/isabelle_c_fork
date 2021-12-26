@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchDeterministic_AI
-imports "../Deterministic_AI"
+imports Deterministic_AI
 begin
 
 context Arch begin global_naming ARM
@@ -17,7 +13,7 @@ context Arch begin global_naming ARM
 named_theorems Deterministic_AI_assms
 
 crunch valid_list[wp, Deterministic_AI_assms]:
-  cap_swap_for_delete,set_cap,finalise_cap,arch_tcb_set_ipc_buffer,arch_get_sanitise_register_info,
+  cap_swap_for_delete,set_cap,finalise_cap,arch_get_sanitise_register_info,
   arch_post_modify_registers valid_list
   (wp: crunch_wps simp: unless_def crunch_simps)
 declare get_cap_inv[Deterministic_AI_assms]
@@ -31,6 +27,8 @@ global_interpretation Deterministic_AI_1?: Deterministic_AI_1
   qed
 
 context Arch begin global_naming ARM
+
+crunch valid_list[wp, Deterministic_AI_assms]: arch_invoke_irq_handler valid_list
 
 crunch valid_list[wp]: invalidate_tlb_by_asid valid_list
   (wp: crunch_wps preemption_point_inv' simp: crunch_simps filterM_mapM)
@@ -76,15 +74,14 @@ lemma handle_interrupt_valid_list[wp, Deterministic_AI_assms]:
   unfolding handle_interrupt_def ackInterrupt_def
   apply (rule hoare_pre)
    by (wp get_cap_wp  do_machine_op_valid_list
-       | wpc | simp add: get_irq_slot_def handle_reserved_irq_def
-       | wp_once hoare_drop_imps)+
+       | wpc | simp add: get_irq_slot_def handle_reserved_irq_def arch_mask_irq_signal_def
+       | wp (once) hoare_drop_imps)+
 
 crunch valid_list[wp, Deterministic_AI_assms]: handle_send,handle_reply valid_list
 
 crunch valid_list[wp, Deterministic_AI_assms]: handle_hypervisor_fault valid_list
 
 end
-
 global_interpretation Deterministic_AI_2?: Deterministic_AI_2
   proof goal_cases
   interpret Arch .

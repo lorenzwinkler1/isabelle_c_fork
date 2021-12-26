@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory DetWP
-imports "Lib.DetWPLib" Include_C
+imports "Lib.DetWPLib" "CBaseRefine.Include_C"
 begin
 
 context begin interpretation Arch . (*FIXME: arch_split*)
@@ -64,7 +60,7 @@ lemma det_wp_getTCB [wp]:
   apply (rule det_wp_pre)
    apply (wp|wpc)+
   apply (clarsimp simp add: obj_at'_def projectKOs objBits_simps
-                      cong: conj_cong)
+                      cong: conj_cong option.case_cong)
   apply (simp add: lookupAround2_known1)
   apply (rule ps_clear_lookupAround2, assumption+)
     apply simp
@@ -130,7 +126,6 @@ lemma det_wp_asUser [wp]:
   apply simp
   done
 
-(* FIXME move into Refine somewhere *)
 lemma wordSize_def':
   "wordSize = 4"
   unfolding wordSize_def wordBits_def

@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Finalise_DR
@@ -207,6 +203,7 @@ lemma delete_cap_one_shrink_descendants:
     \<lbrace>\<lambda>r s. slot \<notin> CSpaceAcc_A.descendants_of p (cdt s) \<and>
     CSpaceAcc_A.descendants_of p (cdt s) \<subseteq> CSpaceAcc_A.descendants_of p (cdt pres) \<rbrace>"
   including no_pre
+  supply if_cong[cong]
   apply (simp add:cap_delete_one_def unless_def)
   apply wp
      apply (clarsimp simp add:empty_slot_def)
@@ -318,6 +315,7 @@ lemma dcorres_revoke_the_cap_corres:
                           select descs >>= cap_delete_one
                           od)
     od)"
+  supply if_cong[cong]
   apply (rule dcorres_revoke_cap_simple_helper)
   apply (simp add:gets_def)
   apply (rule dcorres_absorb_get_l)
@@ -774,6 +772,7 @@ lemma invalidateLocalTLB_VAASID_underlying_memory[wp]:
 
 lemma dcorres_flush_page:
   "dcorres dc \<top> \<top>  (return x) (flush_page aa a b word)"
+  supply if_cong[cong]
   apply (rule corres_dummy_return_r)
   apply (rule dcorres_symb_exec_r[OF corres_free_return[where P=\<top> and P'=\<top>]])
    apply wp
@@ -799,6 +798,7 @@ done
 
 lemma dcorres_flush_table:
   "dcorres dc \<top> \<top>  (return x) (flush_table aa a b word)"
+  supply if_cong[cong]
   apply (rule corres_dummy_return_r)
   apply (rule dcorres_symb_exec_r[OF corres_free_return[where P=\<top> and P'=\<top>]])
    apply wp
@@ -1385,7 +1385,7 @@ lemma test_bits_neg_mask:
   "\<lbrakk>x && ~~ mask l = y && ~~ mask l;na < size x; size x = size y\<rbrakk>
   \<Longrightarrow> l\<le> na \<longrightarrow> x !! na = y !! na"
   apply (drule word_eqD)
-  apply (auto simp:word_size neg_mask_bang)
+  apply (auto simp:word_size neg_mask_test_bit)
 done
 
 lemma mask_compare_imply:
@@ -1513,7 +1513,7 @@ lemma is_aligned_less_kernel_base_helper:
   apply (simp add: word_le_nat_alt shiftr_20_unat_ucast
                    unat_ucast_pd_bits_shift)
   apply (fold word_le_nat_alt, unfold linorder_not_le)
-  apply (drule minus_one_helper3[where x=x])
+  apply (drule word_le_minus_one_leq[where x=x])
   apply (subst add.commute, subst is_aligned_add_or, assumption)
    apply (erule order_le_less_trans, simp)
   apply (simp add: word_ao_dist shiftr_over_or_dist)
@@ -1754,7 +1754,7 @@ lemma dcorres_unmap_large_section:
   apply (rule conjI, fastforce) \<comment> \<open>valid_idle\<close>
   apply (rule conj_comms[THEN iffD1])
   apply (rule context_conjI)
-   apply (clarsimp simp: tl_map tl_upt)
+   apply (clarsimp simp: tl_map)
    apply (clarsimp simp: field_simps)
    apply (subst mask_lower_twice[symmetric,where n = 6])
     apply (simp add:pd_bits_def pageBits_def)
@@ -1873,7 +1873,7 @@ lemma dcorres_unmap_large_page:
   apply (rule conjI,fastforce)
   apply (rule conj_comms[THEN iffD1])
   apply (rule context_conjI)
-   apply (clarsimp simp:tl_map drop_map tl_upt)
+   apply (clarsimp simp:tl_map drop_map)
    apply (simp add:field_simps)
    apply (subst mask_lower_twice[symmetric,where n = 6])
     apply (simp add:pt_bits_def pageBits_def)
@@ -1975,12 +1975,6 @@ crunch valid_idle[wp]: flush_table "valid_idle"
   (wp: crunch_wps simp:crunch_simps)
 
 crunch valid_idle[wp]: page_table_mapped "valid_idle"
-  (wp: crunch_wps simp:crunch_simps)
-
-crunch valid_idle[wp]: invalidate_asid_entry "valid_idle"
-  (wp: crunch_wps simp:crunch_simps)
-
-crunch valid_idle[wp]: flush_space "valid_idle"
   (wp: crunch_wps simp:crunch_simps)
 
 lemma page_table_mapped_stable[wp]:
@@ -2241,6 +2235,7 @@ lemma dcorres_unmap_page_table:
    \<Longrightarrow> dcorres dc \<top> (invs and valid_cap (cap.ArchObjectCap (arch_cap.PageTableCap w (Some (a, b)))))
      (PageTableUnmap_D.unmap_page_table (transform_asid a,b)  w)
      (ARM_A.unmap_page_table a b w)"
+  supply option.case_cong[cong]
   apply (simp add: unmap_page_table_def PageTableUnmap_D.unmap_page_table_def)
   apply (rule corres_guard_imp)
     apply (rule corres_split[OF _ dcorres_page_table_mapped])
@@ -2384,7 +2379,7 @@ prefer 2
               apply (rule dcorres_flush_page)
              apply (wp do_machine_op_wp | clarsimp)+
          apply (simp add: imp_conjR)
-         apply ((wp check_mapping_pptr_pt_relation | wp_once hoare_drop_imps)+)[1]
+         apply ((wp check_mapping_pptr_pt_relation | wp (once) hoare_drop_imps)+)[1]
         apply (simp | wp lookup_pt_slot_inv)+
      apply (simp add: dc_def
        | wp lookup_pt_slot_inv find_pd_for_asid_kernel_mapping_help
@@ -2450,7 +2445,7 @@ prefer 2
               apply (rule dcorres_flush_page[unfolded dc_def])
              apply (wp do_machine_op_wp | clarsimp)+
          apply (simp add: imp_conjR)
-         apply ((wp check_mapping_pptr_section_relation | wp_once hoare_drop_imps)+)[1]
+         apply ((wp check_mapping_pptr_section_relation | wp (once) hoare_drop_imps)+)[1]
         apply (simp | wp lookup_pt_slot_inv)+
      apply (simp add: dc_def
        | wp lookup_pt_slot_inv find_pd_for_asid_kernel_mapping_help
@@ -2984,6 +2979,7 @@ lemma swap_cap_corres:
 proof -
   note inj_on_insert[iff del]
   show ?thesis
+  supply if_cong[cong]
   apply (simp add: swap_cap_def cap_swap_def)
   apply (rule corres_guard_imp)
     apply (rule corres_split_nor [OF _ set_cap_corres[OF refl refl]])
@@ -3204,7 +3200,8 @@ lemma transform_object_irq_state_independent[intro!, simp]:
    = transform_object s"
   by (rule ext, rule ext, rule ext,
       simp add: transform_object_def
-         split: Structures_A.kernel_object.splits)
+           cong: option.case_cong
+           split: Structures_A.kernel_object.splits)
 
 lemma transform_objects_irq_state_independent[intro!, simp]:
   "transform_objects (s \<lparr> machine_state := machine_state s \<lparr> irq_state := f (irq_state (machine_state s)) \<rparr> \<rparr>)
@@ -3266,12 +3263,6 @@ lemma cutMon_validE_R_drop:
   "\<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>,- \<Longrightarrow> \<lbrace>P\<rbrace> cutMon R f \<lbrace>Q\<rbrace>,-"
   by (simp add: validE_R_def validE_def cutMon_valid_drop)
 
-crunch idle_thread [wp]: cap_swap_for_delete "\<lambda>s::'a::state_ext state. P (idle_thread s)"
-  (wp: dxo_wp_weak)
-
-crunch idle_thread [wp]: finalise_cap "\<lambda>s. P (idle_thread s)"
- (wp: crunch_wps simp: crunch_simps)
-
 lemma preemption_point_idle_thread[wp]: "\<lbrace> \<lambda>s. P (idle_thread s) \<rbrace> preemption_point \<lbrace> \<lambda>_ s. P (idle_thread s) \<rbrace>"
   apply (simp add: preemption_point_def OR_choiceE_def)
   apply (wpsimp wp: hoare_drop_imps dxo_wp_weak[where P="\<lambda>s. P (idle_thread s)"])
@@ -3279,7 +3270,7 @@ lemma preemption_point_idle_thread[wp]: "\<lbrace> \<lambda>s. P (idle_thread s)
 
 lemma rec_del_idle_thread[wp]:
   "\<lbrace>\<lambda>s. P (idle_thread s)\<rbrace> rec_del args \<lbrace>\<lambda>rv s::'a::state_ext state. P (idle_thread s)\<rbrace>"
-  by (wp rec_del_preservation | simp)+
+  by (wp rec_del_preservation)+
 
 lemmas gets_constant = gets_to_return
 
@@ -3307,6 +3298,7 @@ lemma finalise_slot_inner1_add_if_Null:
           return (cap', removeable)
        od
      od)"
+  supply if_cong[cong]
   apply (simp add: finalise_slot_inner1_def)
   apply (rule monadic_rewrite_imp)
    apply (rule monadic_rewrite_bind_tail)
@@ -3526,7 +3518,7 @@ proof (induct arbitrary: S rule: rec_del.induct,
          apply (rule monadic_trancl_preemptible_return)
         apply (rule corres_trivial, simp add: returnOk_liftE)
         apply wp
-       apply (wp_trace cutMon_validE_R_drop rec_del_invs
+       apply (wp cutMon_validE_R_drop rec_del_invs
                   | simp add: not_idle_thread_def
                   | strengthen invs_weak_valid_mdb invs_valid_idle_strg
                   | rule hoare_vcg_E_elim[rotated])+
@@ -3589,6 +3581,7 @@ next
     done
   show ?case
     using "2.prems"
+    supply if_cong[cong]
     apply (simp add: dc_def[symmetric])
     apply (subst rec_del_simps_ext[unfolded split_def])
     apply (simp add: bindE_assoc, simp add: liftE_bindE)

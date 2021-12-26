@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 section "Word Alignment"
@@ -790,12 +786,11 @@ proof -
 qed
 
 lemma is_aligned_neg_mask:
-  "m \<le> n \<Longrightarrow> is_aligned (x && ~~ mask n) m"
+  "m \<le> n \<Longrightarrow> is_aligned (x && ~~ (mask n)) m"
   by (metis and_not_mask is_aligned_shift is_aligned_weaken)
 
 lemma unat_minus:
-  "unat (- (x :: ('a :: len) word))
-    = (if x = 0 then 0 else (2 ^ size x) - unat x)"
+  "unat (- (x :: 'a :: len word)) = (if x = 0 then 0 else 2 ^ size x - unat x)"
   using unat_sub_if_size[where x="2 ^ size x" and y=x]
   by (simp add: unat_eq_0 word_size)
 
@@ -811,7 +806,7 @@ lemma is_aligned_minus:
 
 lemma add_mask_lower_bits:
   "\<lbrakk>is_aligned (x :: 'a :: len word) n;
-    \<forall>n' \<ge> n. n' < LENGTH('a) \<longrightarrow> \<not> p !! n'\<rbrakk> \<Longrightarrow> x + p && ~~mask n = x"
+    \<forall>n' \<ge> n. n' < LENGTH('a) \<longrightarrow> \<not> p !! n'\<rbrakk> \<Longrightarrow> x + p && ~~ (mask n) = x"
   apply (subst word_plus_and_or_coroll)
    apply (rule word_eqI)
    apply (clarsimp simp: word_size is_aligned_nth)
@@ -843,7 +838,7 @@ lemma is_aligned_shiftl_self:
   by (rule is_aligned_shift)
 
 lemma is_aligned_neg_mask_eq:
-  "is_aligned p n \<Longrightarrow> p && ~~ mask n = p"
+  "is_aligned p n \<Longrightarrow> p && ~~ (mask n) = p"
   by (metis add.left_neutral is_aligned_mask word_plus_and_or_coroll2)
 
 lemma is_aligned_shiftr_shiftl:
@@ -861,5 +856,39 @@ lemma aligned_shiftr_mask_shiftl:
   apply (frule test_bit_size)
   apply (simp add: word_size)
   done
+
+lemma mask_zero:
+  "is_aligned x a \<Longrightarrow> x && mask a = 0"
+  by (metis is_aligned_mask)
+
+lemma is_aligned_neg_mask_eq_concrete:
+  "\<lbrakk> is_aligned p n; msk && ~~(mask n) = ~~(mask n) \<rbrakk>
+   \<Longrightarrow> p && msk = p"
+  by (metis word_bw_assocs(1) word_bw_comms(1) is_aligned_neg_mask_eq)
+
+lemma is_aligned_and_not_zero:
+  "\<lbrakk> is_aligned n k; n \<noteq> 0 \<rbrakk> \<Longrightarrow> 2 ^ k \<le> n"
+  using is_aligned_less_sz leI by blast
+
+lemma is_aligned_and_2_to_k:
+  "(n && 2 ^ k - 1) = 0 \<Longrightarrow> is_aligned (n :: 'a :: len word) k"
+  by (simp add: is_aligned_mask mask_def)
+
+lemma is_aligned_power2:
+  "b \<le> a \<Longrightarrow> is_aligned (2 ^ a) b"
+  by (metis is_aligned_triv is_aligned_weaken)
+
+lemma aligned_sub_aligned':
+  "\<lbrakk> is_aligned (a :: 'a :: len word) n; is_aligned b n; n < LENGTH('a) \<rbrakk>
+   \<Longrightarrow> is_aligned (a - b) n"
+  by (simp add: aligned_sub_aligned)
+
+lemma is_aligned_neg_mask_weaken:
+  "\<lbrakk> is_aligned p n; m \<le> n \<rbrakk> \<Longrightarrow> p && ~~(mask m) = p"
+   using is_aligned_neg_mask_eq is_aligned_weaken by blast
+
+lemma is_aligned_neg_mask2[simp]:
+  "is_aligned (a && ~~(mask n)) n"
+  by (simp add: and_not_mask is_aligned_shift)
 
 end

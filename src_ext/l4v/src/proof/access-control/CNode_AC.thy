@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory CNode_AC
@@ -17,6 +13,7 @@ context begin interpretation Arch . (*FIXME: arch_split*)
 declare arch_post_modify_registers_def[simp]
 declare arch_post_cap_deletion_def[simp]
 declare arch_cap_cleanup_opt_def[simp]
+declare arch_mask_irq_signal_def[simp]
 
 (* FIXME: arch-split *)
 lemmas post_cap_deletion_simps[simp] = post_cap_deletion_def[simplified arch_post_cap_deletion_def]
@@ -144,8 +141,6 @@ where
   | CancelBadgedSendsCall cap \<Rightarrow> pas_cap_cur_auth aag cap
   | RevokeCall ptr \<Rightarrow> is_subject aag (fst ptr))"
 
-declare resolve_address_bits'.simps[simp del]
-
 lemma resolve_address_bits_authorised_aux:
   "s \<turnstile> \<lbrace>pas_refined aag and K (is_cnode_cap (fst (cap, cref))
                                \<longrightarrow> (\<forall>x \<in> obj_refs (fst (cap, cref)). is_subject aag x))\<rbrace>
@@ -187,7 +182,7 @@ lemma lookup_slot_for_cnode_op_authorised[wp]:
             resolve_address_bits_authorised[THEN hoare_post_imp_R[where Q'="\<lambda>x s. is_subject aag (fst (fst x))"]]
        | wpc
        | simp add: split_def authorised_cnode_inv_def split del: if_split
-              del: resolve_address_bits'.simps split_paired_All | clarsimp)+
+              del: split_paired_All | clarsimp)+
   done
 
 (* MOVE *)
@@ -228,7 +223,7 @@ lemma decode_cnode_inv_authorised:
               lsfco_cte_at
         | simp only: simp_thms if_simps fst_conv snd_conv Invocations_A.cnode_invocation.simps K_def
         | wpc
-        | wp_once get_cap_cur_auth)+
+        | wp (once) get_cap_cur_auth)+
   apply clarsimp
   apply (frule is_cnode_into_is_subject [rotated], fastforce)
   apply simp
@@ -1877,7 +1872,7 @@ lemma decode_cnode_invocation_auth_derived:
                     split del: if_split
             | strengthen cte_wp_at_auth_derived_mask_cap_strg
                          cte_wp_at_auth_derived_update_cap_data_strg
-            | wp_once hoare_drop_imps)+
+            | wp (once) hoare_drop_imps)+
   done
 
 

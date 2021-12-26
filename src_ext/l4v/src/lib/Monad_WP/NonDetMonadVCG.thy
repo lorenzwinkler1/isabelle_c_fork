@@ -1,28 +1,15 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 theory NonDetMonadVCG
 imports
   NonDetMonadLemmas
-  "wp/WP"
-  "wp/WPC"
-  "wp/WPFix"
-  "Strengthen"
-  "../Simp_No_Conditional"
+  WPSimp
+  Strengthen
 begin
-
-(* Wrap up the standard usage pattern of wp/wpc/simp into its own command: *)
-method wpsimp uses wp wp_del simp simp_del split split_del cong comb =
-  ((determ \<open>wpfix | wp add: wp del: wp_del comb: comb| wpc |
-            clarsimp_no_cond simp: simp simp del: simp_del split: split split del: split_del cong: cong |
-            clarsimp simp: simp simp del: simp_del split: split split del: split_del cong: cong\<close>)+)[1]
 
 declare K_def [simp]
 
@@ -215,6 +202,10 @@ lemma pred_and_false[simp]: "(P and \<bottom>) = \<bottom>"
 
 lemma pred_and_false_var[simp]: "(\<bottom> and P) = \<bottom>"
   by(simp add:pred_conj_def)
+
+lemma pred_conj_assoc:
+  "(P and Q and R) = (P and (Q and R))"
+  unfolding pred_conj_def by simp
 
 subsection "Hoare Logic Rules"
 
@@ -758,7 +749,7 @@ lemma no_fail_pre:
   by (simp add: no_fail_def)
 
 lemma no_fail_alt [wp]:
-  "\<lbrakk> no_fail P f; no_fail Q g \<rbrakk> \<Longrightarrow> no_fail (P and Q) (f OR g)"
+  "\<lbrakk> no_fail P f; no_fail Q g \<rbrakk> \<Longrightarrow> no_fail (P and Q) (f \<sqinter> g)"
   by (simp add: no_fail_def alternative_def)
 
 lemma no_fail_return [simp, wp]:
@@ -1134,7 +1125,7 @@ lemma hoare_vcg_handle_elseE:
 lemma alternative_valid:
   assumes x: "\<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>"
   assumes y: "\<lbrace>P\<rbrace> f' \<lbrace>Q\<rbrace>"
-  shows      "\<lbrace>P\<rbrace> f OR f' \<lbrace>Q\<rbrace>"
+  shows      "\<lbrace>P\<rbrace> f \<sqinter> f' \<lbrace>Q\<rbrace>"
   apply (simp add: valid_def alternative_def)
   apply safe
    apply (simp add: post_by_hoare [OF x])
@@ -1144,7 +1135,7 @@ lemma alternative_valid:
 lemma alternative_wp:
   assumes x: "\<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>"
   assumes y: "\<lbrace>P'\<rbrace> f' \<lbrace>Q\<rbrace>"
-  shows      "\<lbrace>P and P'\<rbrace> f OR f' \<lbrace>Q\<rbrace>"
+  shows      "\<lbrace>P and P'\<rbrace> f \<sqinter> f' \<lbrace>Q\<rbrace>"
   apply (rule alternative_valid)
    apply (rule hoare_pre_imp [OF _ x], simp)
   apply (rule hoare_pre_imp [OF _ y], simp)
@@ -1152,13 +1143,13 @@ lemma alternative_wp:
 
 lemma alternativeE_wp:
   assumes x: "\<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>,\<lbrace>E\<rbrace>" and y: "\<lbrace>P'\<rbrace> f' \<lbrace>Q\<rbrace>,\<lbrace>E\<rbrace>"
-  shows      "\<lbrace>P and P'\<rbrace> f OR f' \<lbrace>Q\<rbrace>,\<lbrace>E\<rbrace>"
+  shows      "\<lbrace>P and P'\<rbrace> f \<sqinter> f' \<lbrace>Q\<rbrace>,\<lbrace>E\<rbrace>"
   apply (unfold validE_def)
   apply (wp add: x y alternative_wp | simp | fold validE_def)+
   done
 
 lemma alternativeE_R_wp:
-  "\<lbrakk> \<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>,-; \<lbrace>P'\<rbrace> f' \<lbrace>Q\<rbrace>,- \<rbrakk> \<Longrightarrow> \<lbrace>P and P'\<rbrace> f OR f' \<lbrace>Q\<rbrace>,-"
+  "\<lbrakk> \<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>,-; \<lbrace>P'\<rbrace> f' \<lbrace>Q\<rbrace>,- \<rbrakk> \<Longrightarrow> \<lbrace>P and P'\<rbrace> f \<sqinter> f' \<lbrace>Q\<rbrace>,-"
   apply (simp add: validE_R_def)
   apply (rule alternativeE_wp)
    apply assumption+
@@ -1308,6 +1299,17 @@ lemma hoare_vcg_ex_lift_R1:
   "(\<And>x. \<lbrace>P x\<rbrace> f \<lbrace>Q\<rbrace>, -) \<Longrightarrow> \<lbrace>\<lambda>s. \<exists>x. P x s\<rbrace> f \<lbrace>Q\<rbrace>, -"
   by (fastforce simp: valid_def validE_R_def validE_def split: sum.splits)
 
+lemma hoare_liftP_ext:
+  assumes "\<And>P x. m \<lbrace>\<lambda>s. P (f s x)\<rbrace>"
+  shows "m \<lbrace>\<lambda>s. P (f s)\<rbrace>"
+  unfolding valid_def
+  apply clarsimp
+  apply (erule rsubst[where P=P])
+  apply (rule ext)
+  apply (drule use_valid, rule assms, rule refl)
+  apply simp
+  done
+
 (* for instantiations *)
 lemma hoare_triv:    "\<lbrace>P\<rbrace>f\<lbrace>Q\<rbrace> \<Longrightarrow> \<lbrace>P\<rbrace>f\<lbrace>Q\<rbrace>" .
 lemma hoare_trivE:   "\<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>,\<lbrace>E\<rbrace> \<Longrightarrow> \<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>,\<lbrace>E\<rbrace>" .
@@ -1357,6 +1359,52 @@ lemma validE_valid: "\<lbrace>P\<rbrace> f \<lbrace>\<lambda>rv. Q\<rbrace>,\<lb
    apply assumption
   apply (case_tac r, simp_all)
   done
+
+lemma hoare_lift_Pf_E_R:
+  assumes P: "\<And>x. \<lbrace>P x\<rbrace> m \<lbrace>\<lambda>_. P x\<rbrace>, -"
+  assumes f: "\<And>P. \<lbrace>\<lambda>s. P (f s)\<rbrace> m \<lbrace>\<lambda>_ s. P (f s)\<rbrace>, -"
+  shows "\<lbrace>\<lambda>s. P (f s) s\<rbrace> m \<lbrace>\<lambda>_ s. P (f s) s\<rbrace>, -"
+  using P f
+  apply (clarsimp simp: validE_R_def validE_def valid_def)
+  apply (rename_tac r s', case_tac r; simp)
+  apply fastforce
+  done
+
+lemma hoare_lift_Pf_E_E:
+  assumes P: "\<And>x. \<lbrace>P x\<rbrace> m -, \<lbrace>\<lambda>_. P x\<rbrace>"
+  assumes f: "\<And>P. \<lbrace>\<lambda>s. P (f s)\<rbrace> m -, \<lbrace>\<lambda>_ s. P (f s)\<rbrace>"
+  shows "\<lbrace>\<lambda>s. P (f s) s\<rbrace> m -, \<lbrace>\<lambda>_ s. P (f s) s\<rbrace>"
+  using P f
+  apply (clarsimp simp: validE_E_def validE_def valid_def)
+  apply (rename_tac r s', case_tac r; simp)
+  apply fastforce
+  done
+
+lemma hoare_vcg_const_Ball_lift_E_E:
+ "\<lbrakk> \<And>x. x \<in> S \<Longrightarrow> \<lbrace>P x\<rbrace> f -,\<lbrace>Q x\<rbrace> \<rbrakk> \<Longrightarrow>
+   \<lbrace>\<lambda>s. \<forall>x \<in> S. P x s\<rbrace> f -,\<lbrace>\<lambda>rv s. \<forall>x \<in> S. Q x rv s\<rbrace>"
+  apply (simp add: validE_E_def validE_def)
+  apply (rule hoare_strengthen_post)
+   apply (erule hoare_vcg_const_Ball_lift)
+  apply (simp split: sum.splits)
+  done
+
+lemma hoare_vcg_all_liftE_E:
+  "(\<And>x. \<lbrace>P x\<rbrace> f -, \<lbrace>Q x\<rbrace>) \<Longrightarrow> \<lbrace>\<lambda>s. \<forall>x. P x s\<rbrace> f -,\<lbrace>\<lambda>rv s. \<forall>x. Q x rv s\<rbrace>"
+  by (rule hoare_vcg_const_Ball_lift_E_E[where S=UNIV, simplified])
+
+lemma hoare_vcg_imp_liftE_E:
+  "\<lbrakk>\<lbrace>P'\<rbrace> f -, \<lbrace>\<lambda>rv s. \<not> P rv s\<rbrace>; \<lbrace>Q'\<rbrace> f -, \<lbrace>Q\<rbrace>\<rbrakk> \<Longrightarrow>
+   \<lbrace>\<lambda>s. \<not> P' s \<longrightarrow> Q' s\<rbrace> f -, \<lbrace>\<lambda>rv s. P rv s \<longrightarrow> Q rv s\<rbrace>"
+  by (auto simp add: valid_def validE_E_def validE_def split_def split: sum.splits)
+
+lemma hoare_vcg_ex_liftE:
+  "\<lbrakk> \<And>x. \<lbrace>P x\<rbrace> f \<lbrace>Q x\<rbrace>,\<lbrace>E\<rbrace> \<rbrakk> \<Longrightarrow> \<lbrace>\<lambda>s. \<exists>x. P x s\<rbrace> f \<lbrace>\<lambda>rv s. \<exists>x. Q x rv s\<rbrace>,\<lbrace>E\<rbrace>"
+  by (fastforce simp: validE_def valid_def split: sum.splits)
+
+lemma hoare_vcg_ex_liftE_E:
+  "\<lbrakk> \<And>x. \<lbrace>P x\<rbrace> f -,\<lbrace>E x\<rbrace> \<rbrakk> \<Longrightarrow> \<lbrace>\<lambda>s. \<exists>x. P x s\<rbrace> f -,\<lbrace>\<lambda>rv s. \<exists>x. E x rv s\<rbrace>"
+  by (fastforce simp: validE_E_def validE_def valid_def split: sum.splits)
 
 lemma valid_validE_R:
   "\<lbrace>P\<rbrace> f \<lbrace>\<lambda>rv. Q\<rbrace> \<Longrightarrow> \<lbrace>P\<rbrace> f \<lbrace>\<lambda>rv. Q\<rbrace>,-"
@@ -1874,6 +1922,18 @@ lemma gets_map_wp'[wp]:
 lemma no_fail_gets_map[wp]:
   "no_fail (\<lambda>s. f s p \<noteq> None) (gets_map f p)"
   unfolding gets_map_def by wpsimp
+
+lemma hoare_vcg_set_pred_lift:
+  assumes "\<And>P x. m \<lbrace> \<lambda>s. P (f x s) \<rbrace>"
+  shows "m \<lbrace> \<lambda>s. P {x. f x s} \<rbrace>"
+  using assms[where P="\<lambda>x . x"] assms[where P=Not] use_valid
+  by (fastforce simp: valid_def elim!: rsubst[where P=P])
+
+lemma hoare_vcg_set_pred_lift_mono:
+  assumes f: "\<And>x. m \<lbrace> f x \<rbrace>"
+  assumes mono: "\<And>A B. A \<subseteq> B \<Longrightarrow> P A \<Longrightarrow> P B"
+  shows "m \<lbrace> \<lambda>s. P {x. f x s} \<rbrace>"
+  by (fastforce simp: valid_def elim!: mono[rotated] dest: use_valid[OF _ f])
 
 
 section "validNF Rules"

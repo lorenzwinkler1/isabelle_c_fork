@@ -1,16 +1,13 @@
 (*
- * Copyright 2017, Data61, CSIRO
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(DATA61_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchVSpaceLookup_AI
-imports "../SubMonad_AI"
- "Lib.Crunch_Instances_NonDet"
+imports
+  SubMonad_AI
+  "Lib.Crunch_Instances_NonDet"
 begin
 
 definition
@@ -983,9 +980,9 @@ theorem khupd_graph_subset:
   qed
 end
 
-abbreviation "vs_lookup_leaf ptr s \<equiv> lookup_leaf ptr (vs_lookup1 s)"
-
 context Arch begin global_naming X64
+
+locale_abbrev "vs_lookup_leaf ptr s \<equiv> lookup_leaf ptr (vs_lookup1 s)"
 
 primrec vsref_of :: "vs_ref \<Rightarrow> word64"
 where

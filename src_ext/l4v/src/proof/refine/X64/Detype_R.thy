@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Detype_R
@@ -169,16 +165,6 @@ lemma deleteObjects_def3:
    apply (simp add: deleteObjects_def2)
   apply (simp add: deleteObjects_def is_aligned_mask
                    unless_def alignError_def)
-  done
-
-(* FIXME x64: move to Word_Lib *)
-lemma ucast_less_shiftl_helper':
-  "\<lbrakk> len_of TYPE('b) + (a::nat) < len_of TYPE('a); 2 ^ (len_of TYPE('b) + a) \<le> n\<rbrakk>
-    \<Longrightarrow> (ucast (x :: 'b::len word) << a) < (n :: 'a::len word)"
-  apply (erule order_less_le_trans[rotated])
-  using ucast_less[where x=x and 'a='a]
-  apply (simp only: shiftl_t2n field_simps)
-  apply (rule word_less_power_trans2; simp)
   done
 
 lemma obj_relation_cuts_in_obj_range:
@@ -708,7 +694,7 @@ lemma detype_corres:
     apply (simp add: valid_mdb_def)
    apply (wp hoare_vcg_ex_lift hoare_vcg_ball_lift | wps |
           simp add: invs_def valid_state_def valid_pspace_def
-                    descendants_range_def | wp_once hoare_drop_imps)+
+                    descendants_range_def | wp (once) hoare_drop_imps)+
   done
 
 
@@ -2037,7 +2023,7 @@ lemma cte_wp_at_top:
   apply (case_tac b,simp_all)
        apply ((simp add: typeError_def fail_def cte_check_def
                   split: Structures_H.kernel_object.splits)+)[5]
-    apply_trace (simp add:loadObject_cte cte_check_def
+    apply (simp add:loadObject_cte cte_check_def
       tcbIPCBufferSlot_def tcbCallerSlot_def
       tcbReplySlot_def tcbCTableSlot_def
       tcbVTableSlot_def objBits_simps cteSizeBits_def)
@@ -3345,9 +3331,6 @@ lemma storePML4E_setCTE_commute:
   apply fastforce
   done
 
-(* FIXME: move  *)
-lemmas of_nat_inj64 = of_nat_inj[where 'a=machine_word_len, folded word_bits_def]
-
 lemma copyGlobalMappings_setCTE_commute:
   "monad_commute
      (valid_arch_state' and pspace_distinct' and pspace_aligned' and
@@ -3588,27 +3571,20 @@ lemma curDomain_commute:
 crunch inv[wp]: curDomain P
 
 lemma placeNewObject_tcb_at':
-  notes blah[simp del] =  atLeastatMost_subset_iff atLeastLessThan_iff
-          Int_atLeastAtMost atLeastatMost_empty_iff split_paired_Ex
-          atLeastAtMost_iff
-  shows
-  "\<lbrace>pspace_aligned' and pspace_distinct'
-    and pspace_no_overlap' ptr (objBits (makeObject::tcb))
-    and  K(is_aligned ptr  (objBits (makeObject::tcb)))
-   \<rbrace> placeNewObject ptr (makeObject::tcb) 0
-       \<lbrace>\<lambda>rv s. tcb_at' ptr s \<rbrace>"
-  apply (simp add:placeNewObject_def placeNewObject'_def split_def)
+  notes [simp del] = atLeastatMost_subset_iff atLeastLessThan_iff
+                     Int_atLeastAtMost atLeastatMost_empty_iff split_paired_Ex atLeastAtMost_iff
+  shows "\<lbrace> pspace_aligned' and pspace_distinct'
+             and pspace_no_overlap' ptr (objBits (makeObject::tcb))
+             and  K(is_aligned ptr  (objBits (makeObject::tcb))) \<rbrace>
+         placeNewObject ptr (makeObject::tcb) 0
+         \<lbrace>\<lambda>_ s. tcb_at' ptr s \<rbrace>"
+  apply (simp add: placeNewObject_def placeNewObject'_def split_def)
   apply (wp hoare_unless_wp |wpc | simp add:alignError_def)+
-  apply (auto simp:obj_at'_def is_aligned_mask lookupAround2_None1
-    lookupAround2_char1 field_simps is_aligned_neg_mask_eq
-    projectKO_opt_tcb projectKO_def return_def ps_clear_def
-    split:if_splits
-    dest!:pspace_no_overlap_disjoint'
-  )[1]
-  apply (drule_tac m = "ksPSpace s" in domI)
-  apply (erule in_emptyE)
-  apply (fastforce simp:objBits_simps)
-  done
+  by (auto simp: obj_at'_def is_aligned_mask lookupAround2_None1
+                    lookupAround2_char1 field_simps objBits_simps
+                    projectKO_opt_tcb projectKO_def return_def ps_clear_def
+           split: if_splits
+           dest!: pspace_no_overlap_disjoint')
 
 lemma monad_commute_if_weak_r:
 "\<lbrakk>monad_commute P1 f h1; monad_commute P2 f h2\<rbrakk> \<Longrightarrow>
@@ -4108,16 +4084,9 @@ proof -
 qed
 
 lemma createNewCaps_not_nc:
-  "\<lbrace>\<top>\<rbrace>
-   createNewCaps ty ptr (Suc (length as)) us d
-   \<lbrace>\<lambda>r s. (\<forall>cap\<in>set r. cap \<noteq> capability.NullCap)\<rbrace>"
-   apply (clarsimp simp:simp:createNewCaps_def Arch_createNewCaps_def )
-   apply (rule hoare_pre)
-    apply wpc
-    apply wp
-    apply (simp add:Arch_createNewCaps_def split del: if_split)
-   apply (wpc|wp|clarsimp)+
-done
+  "\<lbrace>\<top>\<rbrace> createNewCaps ty ptr (Suc (length as)) us d \<lbrace>\<lambda>r s. (\<forall>cap\<in>set r. cap \<noteq> NullCap)\<rbrace>"
+  unfolding createNewCaps_def Arch_createNewCaps_def
+  by (wpsimp simp: Arch_createNewCaps_def split_del: if_split)
 
 lemma doMachineOp_psp_no_overlap:
   "\<lbrace>\<lambda>s. pspace_no_overlap' ptr sz s \<and> pspace_aligned' s \<and> pspace_distinct' s \<rbrace>
@@ -4332,7 +4301,7 @@ lemma no_overlap_check:
   "\<lbrakk>range_cover ptr sz bits n; pspace_no_overlap' ptr sz s;
     pspace_aligned' s;n\<noteq> 0\<rbrakk>
    \<Longrightarrow> case_option (return ())
-                   (case_prod (\<lambda>x xa. haskell_assert (x < fromPPtr ptr) []))
+                   (case_prod (\<lambda>x y. haskell_assert (x < fromPPtr ptr) []))
                    (fst (lookupAround2 (ptr + of_nat (shiftL n bits - Suc 0))
                                        (ksPSpace s))) s =
        return () s"
@@ -4483,7 +4452,7 @@ lemma pspace_no_overlap'_modify:
     "\<not> ptr + (1 + of_nat n << us + objBitsKO val) \<le> ptr + (1 + of_nat n << us) * 2 ^ objBitsKO val - 1")
    apply (clarsimp simp:blah field_simps)
   apply (clarsimp simp: not_le)
-  apply (rule minus_one_helper)
+  apply (rule word_leq_le_minus_one)
    apply (clarsimp simp: power_add[symmetric] shiftl_t2n field_simps objSize_eq_capBits )
   apply (rule neq_0_no_wrap)
    apply (clarsimp simp: power_add[symmetric] shiftl_t2n field_simps objSize_eq_capBits )
@@ -4525,6 +4494,7 @@ lemma createObjects_Cons:
            createObjects' (((1 + of_nat n) << (objBitsKO val + us)) + ptr)
                           (Suc 0) val us
         od) s"
+  supply option.case_cong_weak[cong]
   apply (clarsimp simp:createObjects'_def split_def bind_assoc)
   apply (subgoal_tac "is_aligned (((1::machine_word) + of_nat n << objBitsKO val + us) + ptr) (objBitsKO val + us)")
    prefer 2
@@ -4711,23 +4681,14 @@ lemma dmo'_gets_ksPSpace_comm:
   "doMachineOp f >>= (\<lambda>_. gets ksPSpace >>= m) =
    gets ksPSpace >>= (\<lambda>x. doMachineOp f >>= (\<lambda>_. m x))"
   apply (rule ext)
-  apply (auto simp add: doMachineOp_def simpler_modify_def simpler_gets_def
-                        return_def select_f_def bind_def split_def image_def
-                  cong: SUP_cong_simp)
-     apply (rule_tac x=aa in exI; drule prod_injects; clarsimp)
-     apply (rule_tac x="snd (m (ksPSpace x) (x\<lparr>ksMachineState := bb\<rparr>))" in exI, clarsimp)
-     apply (rule_tac x="{(ab, x\<lparr>ksMachineState := bb\<rparr>)}" in exI, simp)
-     apply (rule bexI[rotated], assumption, simp)
-    apply (rule_tac x="fst (m (ksPSpace x) (x\<lparr>ksMachineState := bb\<rparr>))" in exI, clarsimp)
-    apply (rule_tac x="snd (m (ksPSpace x) (x\<lparr>ksMachineState := bb\<rparr>))" in exI, clarsimp)
-    apply (rule_tac x="{(ab, x\<lparr>ksMachineState := bb\<rparr>)}" in exI, simp)
-    apply (rule bexI[rotated], assumption, simp)
-   apply (rule_tac x=a in exI, clarsimp)
-   apply (rule_tac x="{(aa, x\<lparr>ksMachineState := b\<rparr>)}" in exI, simp)
-   apply (rule bexI[rotated], assumption, simp)
-  apply (rule_tac x=a in exI, clarsimp)
-  apply (rule_tac x="{(aa, x\<lparr>ksMachineState := b\<rparr>)}" in exI, simp)
-  apply (rule bexI[rotated], assumption, simp)
+  apply (clarsimp simp: doMachineOp_def simpler_modify_def simpler_gets_def
+                        return_def select_f_def bind_def split_def image_def)
+  apply (rule conjI)
+   apply (rule set_eqI, clarsimp)
+   apply (rule iffI; clarsimp)
+    apply (metis eq_singleton_redux prod_injects(2))
+   apply (intro exI conjI bexI[rotated], simp+)[1]
+  apply (rule iffI; clarsimp; intro exI conjI bexI[rotated], simp+)[1]
   done
 
 lemma dmo'_ksPSpace_update_comm':

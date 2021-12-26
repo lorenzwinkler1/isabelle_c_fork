@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 (* Miscellaneous Isabelle tools. *)
@@ -20,6 +16,7 @@ imports
   TSubst
   Time_Methods_Cmd
   Try_Attribute
+  Repeat_Attribute
   Trace_Schematic_Insts
   Insulin
   ShowTypes
@@ -86,5 +83,9 @@ val _ = Try.tool_setup ("unused_meta_forall",
 
 lemma test_unused_meta_forall: "\<And>x. y \<or> \<not> y"
   oops
+
+(* Hide rules used by Trace_Schematic_Insts from apply_trace. *)
+lemmas [no_trace] =
+  data_stash.elim data_stash.proof_state_add data_stash.proof_state_remove data_stash.rule_add
 
 end

@@ -1,15 +1,11 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchDetSchedAux_AI
-imports "../DetSchedAux_AI"
+imports DetSchedAux_AI
 begin
 
 context Arch begin global_naming X64
@@ -82,7 +78,7 @@ lemma invoke_untyped_etcb_at [DetSchedAux_AI_assms]:
             hoare_convert_imp[OF create_cap_no_pred_tcb_at]
             hoare_convert_imp[OF _ init_arch_objects_exst]
       | simp
-      | (wp_once hoare_drop_impE_E))+
+      | (wp (once) hoare_drop_impE_E))+
   done
 
 

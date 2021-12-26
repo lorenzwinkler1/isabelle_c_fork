@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 structure ASM_Ignore_Hooks = struct
@@ -656,6 +652,8 @@ in
     end
   | AsmStmt st =>
     (let
+      (* FIXME: is this correct for all arches? *)
+      val reg_cty = Unsigned ImplementationNumbers.ptr_t;
       val (nm, vol, ret, args) = ProgramAnalysis.split_asm_stmt (AsmStmt st)
       val _ = if ASM_Ignore_Hooks.ignore_thy (nm, vol, ret, args) sg
         then raise Fail "hook fired" else ()
@@ -666,9 +664,8 @@ in
                 ^ ") without l-value used as asm stmt lval specifier.")
       val x = Free ("x", addr_ty)
       val ret = mk_abs (x, mk_abs (svar, ret x svar))
-      val reg_ty = Unsigned Int (* FIXME: not true in 64-bit world. *)
       fun conv_arg arg = mk_abs (svar, rval_of (typecast
-            (sg, reg_ty, expr_term arg)) svar)
+            (sg, reg_cty, expr_term arg)) svar)
         handle Option => error ("Value (" ^ expr_string arg
                 ^ ") without r-value used as asm stmt rval specifier.")
       val args = map conv_arg args

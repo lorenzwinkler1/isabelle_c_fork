@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -16,9 +12,9 @@ chapter "CSpace"
 
 theory CSpace_A
 imports
-  "./$L4V_ARCH/ArchVSpace_A"
+  ArchVSpace_A
   IpcCancel_A
-  "./$L4V_ARCH/ArchCSpace_A"
+  ArchCSpace_A
   "Lib.NonDetMonadLemmas"
   "HOL-Library.Prefix_Order"
 begin
@@ -26,6 +22,7 @@ begin
 context begin interpretation Arch .
 
 requalify_consts
+  aobjs_of
   arch_update_cap_data
   arch_derive_cap
   arch_finalise_cap
@@ -202,6 +199,8 @@ termination
   apply (relation "measure (\<lambda>(z,cap, cs). size cs)")
   apply (auto simp: whenE_def returnOk_def return_def rab_termination)
   done
+
+declare resolve_address_bits'.simps[simp del]
 
 definition resolve_address_bits where
 "resolve_address_bits \<equiv> resolve_address_bits' TYPE('z::state_ext)"

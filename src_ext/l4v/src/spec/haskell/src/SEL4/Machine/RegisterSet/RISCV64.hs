@@ -1,10 +1,8 @@
--- Copyright 2018, Data61, CSIRO
 --
--- This software may be distributed and modified according to the terms of
--- the GNU General Public License version 2. Note that NO WARRANTY is provided.
--- See "LICENSE_GPLv2.txt" for details.
+-- Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
 --
--- @TAG(DATA61_GPL)
+-- SPDX-License-Identifier: GPL-2.0-only
+--
 
 -- This module defines the RISCV 64-bit register set.
 
@@ -21,10 +19,10 @@ import Control.Monad.State(State, gets, modify)
 
 data Register
     = LR -- "RA"
-    | SP | GP | TP | T0 | T1 | T2 | S0 | S1
+    | SP | GP
+    | S0 | S1 | S2 | S3 | S4 | S5 | S6 | S7 | S8 | S9 | S10 | S11
     | A0 | A1 | A2 | A3 | A4 | A5 | A6 | A7
-    | S2 | S3 | S4 | S5 | S6 | S7 | S8 | S9 | S10 | S11
-    | T3 | T4 | T5 | T6
+    | T0 | T1 | T2 | T3 | T4 | T5 | T6 | TP
     | SCAUSE | SSTATUS | FaultIP | NextIP
     deriving (Eq, Enum, Bounded, Ord, Ix, Show)
 
@@ -43,19 +41,19 @@ badgeRegister :: Register
 badgeRegister = A0
 
 frameRegisters :: [Register]
-frameRegisters = FaultIP : [LR .. A6]
+frameRegisters = FaultIP : LR : SP : GP : [S0 .. S11]
 
 gpRegisters :: [Register]
-gpRegisters = []
+gpRegisters = [A0 .. A7] ++ [T0 .. T6] ++ [TP]
 
 exceptionMessage :: [Register]
-exceptionMessage = [FaultIP, SP, A7]
+exceptionMessage = [FaultIP, SP]
 
 syscallMessage :: [Register]
 syscallMessage = FaultIP : SP : LR : [A0 .. A6]
 
 tlsBaseRegister :: Register
-tlsBaseRegister = TP -- note: used for IPC buffer until TLS is used
+tlsBaseRegister = TP
 
 sstatusSPIE :: Word
 sstatusSPIE = 0x20

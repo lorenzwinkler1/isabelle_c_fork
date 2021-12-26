@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 structure CrunchTheoryData = Theory_Data
@@ -50,7 +46,9 @@ val crunch_parser =
     (((Scan.optional (P.$$$ "(" |-- P.name --| P.$$$ ")") "" -- P.name
      -- Parse.opt_attribs --| P.$$$ ":") -- P.list1 P.const -- Scan.optional P.term ""
      -- Scan.optional
-       (P.$$$ "(" |-- read_sections [wp_sect,wp_del_sect,ignore_sect,simp_sect,simp_del_sect,rule_sect,rule_del_sect,ignore_del_sect] --| P.$$$ ")")
+       (P.$$$ "(" |-- read_sections [wp_sect,wp_del_sect,wps_sect,ignore_sect,simp_sect,
+                                     simp_del_sect,rule_sect,rule_del_sect,ignore_del_sect]
+        --| P.$$$ ")")
        []
     )
     >> (fn (((((crunch_instance, prp_name), att_srcs), consts), extra), wpigs) =>
@@ -65,7 +63,9 @@ val crunches_parser =
      -- P.and_list1 ((Scan.optional (P.$$$ "(" |-- P.name --| P.$$$ ")") "" -- P.name
          -- Parse.opt_attribs) -- Scan.optional (P.$$$ ":" |-- P.term) "")
      -- Scan.optional
-       (P.$$$ "(" |-- read_sections [wp_sect,wp_del_sect,ignore_sect,simp_sect,simp_del_sect,rule_sect,rule_del_sect,ignore_del_sect] --| P.$$$ ")")
+       (P.$$$ "(" |-- read_sections [wp_sect,wp_del_sect,wps_sect,ignore_sect,simp_sect,
+                                     simp_del_sect,rule_sect,rule_del_sect,ignore_del_sect]
+        --| P.$$$ ")")
        []
     )
     >> (fn ((consts, confs), wpigs) =>

@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -22,6 +18,7 @@ abbreviation "down_aligned_area ptr sz \<equiv> {(ptr && ~~ mask sz) + (2 ^ sz -
 context begin interpretation Arch .
 requalify_facts
   global_refs_kheap
+  valid_vspace_obj_default
 requalify_consts
   clearMemory
   clearMemoryVM
@@ -1401,13 +1398,6 @@ lemma valid_obj_default_object:
     apply (simp split: if_split_asm)
    apply (clarsimp split: if_split_asm)
   apply (clarsimp simp add: wellformed_arch_default)
-  done
-
-lemma valid_vspace_obj_default:
-  assumes tyunt: "ty \<noteq> Structures_A.apiobject_type.Untyped"
-  shows "ArchObj ao = default_object ty dev us \<Longrightarrow> valid_vspace_obj ao s'"
-  apply (cases ty, simp_all add: default_object_def tyunt)
-  apply (simp add: valid_vspace_obj_default')
   done
 
 lemma usable_range_subseteq:

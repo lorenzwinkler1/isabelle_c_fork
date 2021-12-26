@@ -1,11 +1,7 @@
 (*
- * Copyright 2016, Data61
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 theory inf_loop_gref
@@ -123,10 +119,6 @@ local_setup \<open>add_field_h_val_rewrites #> add_field_to_bytes_rewrites\<clos
 
 context graph_refine begin
 
-ML \<open>SimplToGraphProof.globals_swap
- := (fn t => @{term "globals_swap t_hrs_' t_hrs_'_update symbol_table globals_list"} $ t)
-\<close>
-
 local_setup \<open>add_globals_swap_rewrites @{thms inf_loop_global_addresses.global_data_mems}\<close>
 
 definition
@@ -137,15 +129,19 @@ where
         \<and> htd_safe domain (hrs_htd (t_hrs_' (globals s)))}"
 
 abbreviation(input) "ghost_assns_from_globals
-    \<equiv> (K (K 0 :: word64 \<Rightarrow> word32) o ghost'state_' :: globals \<Rightarrow> _)"
+    \<equiv> (K (K 0 :: ghost_assertions) o ghost'state_' :: globals \<Rightarrow> _)"
 
 
 text \<open>Test everything.\<close>
-ML \<open>ProveSimplToGraphGoals.test_all_graph_refine_proofs_parallel
-    funs
-    (CalculateState.get_csenv @{theory} "inf_loop.c" |> the)
-    @{context}\<close>
+ML \<open>
+val dbg = ProveSimplToGraphGoals.no_debug ();
 
+ProveSimplToGraphGoals.test_all_graph_refine_proofs_parallel
+  funs
+  (CalculateState.get_csenv @{theory} "inf_loop.c" |> the)
+  @{context}
+  dbg
+\<close>
 
 text \<open>Manual test for debugging.\<close>
 
@@ -167,6 +163,7 @@ ProveSimplToGraphGoals.simpl_to_graph_thm funs
   (CalculateState.get_csenv @{theory} "inf_loop.c" |> the)
   @{context} nm;
 \<close>
+
 ML \<open>
 val tacs = ProveSimplToGraphGoals.graph_refine_proof_tacs
   (CalculateState.get_csenv @{theory} "inf_loop.c" |> the)

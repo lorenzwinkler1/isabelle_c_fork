@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory CNode_IF
@@ -48,7 +44,7 @@ lemma get_object_rev:
   "reads_equiv_valid_inv A aag (\<lambda> s. aag_can_read aag oref) (get_object oref)"
   apply (unfold get_object_def fun_app_def)
   apply (subst gets_apply)
-  apply (wp gets_apply_ev | wp_once hoare_drop_imps)+
+  apply (wp gets_apply_ev | wp (once) hoare_drop_imps)+
   apply (fastforce elim: reads_equivE equiv_forE)
   done
 
@@ -663,7 +659,7 @@ lemma preemption_point_def2:
            if rv then doE
              liftE reset_work_units;
              liftE (do_machine_op (getActiveIRQ True)) >>=E
-             case_option (returnOk ()) (throwError \<circ> Interrupted)
+             case_option (returnOk ()) (K (throwError $ ()))
            odE else returnOk()
        odE"
   apply (rule ext)
@@ -976,7 +972,7 @@ lemma preemption_point_reads_respects:
   apply (simp add: preemption_point_def2)
   apply (wp | wpc | simp add: comp_def)+
             apply ((wp dmo_getActiveIRQ_reads_respects hoare_TrueI | simp
-                  | wp_once hoare_drop_imps)+)[8]
+                  | wp (once) hoare_drop_imps)+)[8]
    apply wp
   apply force
   done

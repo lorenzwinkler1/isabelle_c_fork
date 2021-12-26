@@ -1,11 +1,7 @@
 --
 -- Copyright 2014, General Dynamics C4 Systems
 --
--- This software may be distributed and modified according to the terms of
--- the GNU General Public License version 2. Note that NO WARRANTY is provided.
--- See "LICENSE_GPLv2.txt" for details.
---
--- @TAG(GD_GPL)
+-- SPDX-License-Identifier: GPL-2.0-only
 --
 
 {-# LANGUAGE EmptyDataDecls, ForeignFunctionInterface, GeneralizedNewtypeDeriving #-}
@@ -30,17 +26,11 @@ instance Bounded IRQ where
     minBound = IRQ 0
     maxBound = IRQ 31
 
-kernelBase :: VPtr
-kernelBase = VPtr 0xe0000000
+physBase :: PAddr
+physBase = PAddr 0x80000000
 
-physBase = 0x80000000
-physMappingOffset = 0xe0000000 - physBase
-
-ptrFromPAddr :: PAddr -> PPtr a
-ptrFromPAddr (PAddr addr) = PPtr $ addr + physMappingOffset
-
-addrFromPPtr :: PPtr a -> PAddr
-addrFromPPtr (PPtr ptr) = PAddr $ ptr - physMappingOffset
+pptrBase :: VPtr
+pptrBase = VPtr 0xe0000000
 
 pageColourBits :: Int
 pageColourBits = 0 -- qemu has no cache
@@ -62,6 +52,7 @@ avicPPtr = PPtr 0xfff01000
 avicAddr = PAddr 0x68000000
 
 irqVGICMaintenance = IRQ 25
+irqVTimerEvent = IRQ 27
 irqSMMU = IRQ 109
 
 getKernelDevices :: Ptr CallbackData -> IO [(PAddr, PPtr Word)]

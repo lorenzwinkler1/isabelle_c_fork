@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory CSpace_RAB_C
@@ -394,6 +390,7 @@ next
     note if_cong[cong]
     show ?case
       using ind.prems
+      supply option.case_cong[cong]
       apply -
       apply (rule iffD1 [OF ccorres_expand_while_iff])
       apply (subst resolveAddressBits.simps)
@@ -472,7 +469,7 @@ next
                apply assumption
               apply vcg
              apply (simp add: getSlotCap_def imp_conjR)
-             apply (wp getCTE_ctes_of | (wp_once hoare_drop_imps))+
+             apply (wp getCTE_ctes_of | (wp (once) hoare_drop_imps))+
             apply (clarsimp simp: Collect_const_mem if_then_simps lookup_fault_lifts cong: imp_cong conj_cong)
             apply vcg
            apply (vcg strip_guards=true)
@@ -555,14 +552,6 @@ lemma cap_rights_to_H_from_word_canon [simp]:
   unfolding cap_rights_from_word_def rightsFromWord_def
   apply (simp add: cap_rights_from_word_canon_def)
   apply (simp add: cap_rights_to_H_def)
-  done
-
-(* MOVE *)
-lemma tcb_aligned':
-  "tcb_at' t s \<Longrightarrow> is_aligned t tcbBlockSizeBits"
-  apply (drule obj_at_aligned')
-   apply (simp add: objBits_simps)
-  apply (simp add: objBits_simps)
   done
 
 abbreviation

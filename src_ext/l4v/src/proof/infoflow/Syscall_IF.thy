@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Syscall_IF
@@ -67,7 +63,7 @@ lemma invoke_cnode_globals_equiv:
           apply(wp cap_insert_globals_equiv cap_move_globals_equiv cap_revoke_globals_equiv
                    cap_delete_globals_equiv cap_swap_globals_equiv hoare_vcg_all_lift
                    cancel_badged_sends_globals_equiv
-                    | wpc | wp_once hoare_drop_imps | simp add: invs_valid_global_objs)+
+                    | wpc | wp (once) hoare_drop_imps | simp add: invs_valid_global_objs)+
   apply (case_tac cinv)
   apply (clarsimp simp: invs_valid_ko_at_arm | strengthen real_cte_emptyable_strg)+
 done
@@ -558,15 +554,15 @@ lemma authorised_for_globals_triv:
   done
 
 lemma decode_invocation_authorised_globals_inv:
-  "\<lbrace>cte_wp_at (diminished cap) slot and invs and
+  "\<lbrace>cte_wp_at ((=) cap) slot and invs and
     (\<lambda>s. \<forall>x\<in>set excaps.
-           cte_wp_at (diminished (fst x)) (snd x) s)\<rbrace>
+           cte_wp_at ((=) (fst x)) (snd x) s)\<rbrace>
     decode_invocation info_label args ptr slot cap excaps
    \<lbrace>\<lambda>rv. authorised_for_globals_inv rv\<rbrace>, -"
   unfolding decode_invocation_def
   apply (rule hoare_pre)
-  apply wpc
-             apply((wp authorised_for_globals_triv | wpc | simp add: uncurry_def)+)[11]
+   apply wpc
+              apply((wp authorised_for_globals_triv | wpc | simp add: uncurry_def)+)[11]
    apply (simp add: authorised_for_globals_inv_def)
    apply wp
    apply (unfold comp_def)
@@ -574,8 +570,8 @@ lemma decode_invocation_authorised_globals_inv:
    apply (wp decode_arch_invocation_authorised_for_globals)
   apply (intro impI conjI allI | clarsimp simp add: authorised_for_globals_inv_def)+
   apply (erule_tac x="(a, aa, b)" in ballE)
-  apply simp+
-done
+   apply simp+
+  done
 
 lemma set_thread_state_reads_respects_g:
   assumes domains_distinct: "pas_domains_distinct aag"
@@ -719,7 +715,7 @@ lemma handle_invocation_reads_respects_g:
                        get_mi_length'
               | rule doesnt_touch_globalsI
               | (clarify,assumption)
-              | wp_once hoare_drop_imps
+              | wp (once) hoare_drop_imps
           )+
   apply (rule conjI)
    apply (clarsimp simp: requiv_g_cur_thread_eq simp: reads_equiv_f_g_conj)
@@ -768,8 +764,6 @@ lemma lookup_cap_cap_fault:
    apply (wp lookup_slot_for_thread_cap_fault)
   apply assumption
   done
-
-term "equiv_valid_inv (reads_equiv_f aag) (affects_equiv aag l) P f"
 
 lemma cap_fault_on_failure_ev':
   "equiv_valid_inv (reads_equiv_f aag) A P f \<Longrightarrow>
@@ -1206,7 +1200,7 @@ lemma handle_invocation_globals_equiv:
             reply_from_kernel_globals_equiv set_thread_state_globals_equiv
             hoare_vcg_all_lift
        | simp split del: if_split
-       | wp_once hoare_drop_imps)+
+       | wp (once) hoare_drop_imps)+
         apply (rule_tac Q="\<lambda>r. invs and globals_equiv st and (\<lambda>s. thread \<noteq> idle_thread s)"
                     and E="\<lambda>_. globals_equiv st"
                      in hoare_post_impErr)
@@ -1245,7 +1239,7 @@ lemma handle_event_globals_equiv:
                  handle_hypervisor_fault_globals_equiv
              | wpc
              | simp add: handle_send_def handle_call_def Let_def
-             | wp_once hoare_drop_imps
+             | wp (once) hoare_drop_imps
              | clarsimp simp: invs_imps invs_valid_idle ct_active_not_idle)+
   done
 

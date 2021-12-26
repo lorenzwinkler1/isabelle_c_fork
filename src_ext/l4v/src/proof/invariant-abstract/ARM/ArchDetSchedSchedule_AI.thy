@@ -1,20 +1,21 @@
 (*
- * Copyright 2016, Data61, CSIRO
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(DATA61_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchDetSchedSchedule_AI
-imports "../DetSchedSchedule_AI"
+imports DetSchedSchedule_AI
 begin
 
 context Arch begin global_naming ARM
 
 named_theorems DetSchedSchedule_AI_assms
+
+crunch valid_sched[wp, DetSchedSchedule_AI_assms]: arch_mask_irq_signal valid_sched
+
+crunch prepare_thread_delete_idle_thread[wp, DetSchedSchedule_AI_assms]:
+  prepare_thread_delete "\<lambda>(s:: det_ext state). P (idle_thread s)"
 
 crunch valid_etcbs [wp, DetSchedSchedule_AI_assms]:
   arch_switch_to_idle_thread, arch_switch_to_thread, arch_get_sanitise_register_info, arch_post_modify_registers valid_etcbs
@@ -152,9 +153,6 @@ crunch exst [wp, DetSchedSchedule_AI_assms]: arch_switch_to_thread "\<lambda>s. 
 
 crunch cur_thread[wp]: arch_switch_to_idle_thread "\<lambda>s. P (cur_thread s)"
 
-crunch inv[wp]: arch_switch_to_idle_thread "\<lambda>s. P"
-  (wp: crunch_wps simp: crunch_simps)
-
 lemma astit_st_tcb_at[wp]:
   "\<lbrace>st_tcb_at P t\<rbrace> arch_switch_to_idle_thread \<lbrace>\<lambda>rv. st_tcb_at P t\<rbrace>"
   apply (simp add: arch_switch_to_idle_thread_def)
@@ -213,8 +211,8 @@ crunch simple_sched_action [wp, DetSchedSchedule_AI_assms]:
   (wp: hoare_drop_imps mapM_x_wp mapM_wp select_wp subset_refl
    simp: unless_def if_fun_split)
 
-crunch valid_sched [wp, DetSchedSchedule_AI_assms]:
-  arch_tcb_set_ipc_buffer, arch_finalise_cap, prepare_thread_delete valid_sched
+crunches arch_finalise_cap, prepare_thread_delete, arch_invoke_irq_handler
+  for valid_sched [wp, DetSchedSchedule_AI_assms]: valid_sched
   (ignore: set_object wp: crunch_wps subset_refl simp: if_fun_split)
 
 lemma activate_thread_valid_sched [DetSchedSchedule_AI_assms]:
@@ -289,6 +287,30 @@ crunches arch_post_cap_deletion
   and not_queued[wp, DetSchedSchedule_AI_assms]: "not_queued t"
   and sched_act_not[wp, DetSchedSchedule_AI_assms]: "scheduler_act_not t"
   and weak_valid_sched_action[wp, DetSchedSchedule_AI_assms]: weak_valid_sched_action
+  and valid_idle[wp, DetSchedSchedule_AI_assms]: valid_idle
+
+crunches flush_space, invalidate_asid_entry, get_asid_pool
+  for idle_thread[wp]: "\<lambda>s. P (idle_thread s)"
+
+crunches flush_space, invalidate_asid_entry
+  for valid_idle[wp]: "valid_idle"
+  (wp: crunch_wps simp:crunch_simps)
+
+crunch delete_asid_pool[wp]:
+  delete_asid_pool "\<lambda>(s:: det_ext state). P (idle_thread s)"
+  (wp: crunch_wps simp: if_apply_def2)
+
+crunch idle_thread[wp, DetSchedSchedule_AI_assms]:
+  finalise_cap "\<lambda>s. P (idle_thread s)"
+  (wp: crunch_wps simp: crunch_simps)
+
+lemmas[DetSchedSchedule_AI_assms] = arch_post_cap_deletion_valid_idle
+
+crunches cap_swap_for_delete, cap_move, cancel_badged_sends
+  for idle_thread[wp]: "\<lambda>s::'a::state_ext state. P (idle_thread s)"
+  (wp: syscall_valid crunch_wps rec_del_preservation cap_revoke_preservation modify_wp dxo_wp_weak
+   simp: crunch_simps check_cap_at_def filterM_mapM unless_def
+   ignore: without_preemption filterM rec_del check_cap_at cap_revoke)
 
 end
 

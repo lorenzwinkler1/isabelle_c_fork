@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory Syscall_DR
@@ -96,7 +92,7 @@ lemma decode_invocation_untypedcap_corres:
     dcorres (dc \<oplus> cdl_invocation_relation) \<top>
         (invs and cte_wp_at ((=) invoked_cap') invoked_cap_ref'
                  and (\<lambda>s. \<forall>x \<in> set (map fst excaps'). s \<turnstile> x)
-                 and (\<lambda>s. \<forall>x \<in> set excaps'. cte_wp_at (diminished (fst x)) (snd x) s)
+                 and (\<lambda>s. \<forall>x \<in> set excaps'. cte_wp_at ((=) (fst x)) (snd x) s)
                  and valid_etcbs)
         (Decode_D.decode_invocation invoked_cap invoked_cap_ref excaps intent)
         (Decode_A.decode_invocation label' args' cap_index' invoked_cap_ref' invoked_cap' excaps')"
@@ -151,7 +147,8 @@ lemma decode_invocation_replycap_corres:
      invoked_cap = transform_cap invoked_cap';
      excaps = transform_cap_list excaps';
      invoked_cap' = cap.ReplyCap a b c \<rbrakk> \<Longrightarrow>
-    dcorres (dc \<oplus> cdl_invocation_relation) \<top> (cte_wp_at (Not\<circ> is_master_reply_cap) invoked_cap_ref' and cte_wp_at (diminished invoked_cap') invoked_cap_ref')
+    dcorres (dc \<oplus> cdl_invocation_relation) \<top> (cte_wp_at (Not\<circ> is_master_reply_cap) invoked_cap_ref' and
+                                               cte_wp_at ((=) invoked_cap') invoked_cap_ref')
         (Decode_D.decode_invocation invoked_cap invoked_cap_ref excaps intent)
         (Decode_A.decode_invocation label' args' cap_index' invoked_cap_ref' invoked_cap' excaps')"
   apply (clarsimp simp: Decode_A.decode_invocation_def Decode_D.decode_invocation_def )
@@ -228,7 +225,7 @@ lemma decode_domain_corres:
      (Decode_A.decode_domain_invocation label' args' excaps')"
   apply (unfold Tcb_D.decode_domain_invocation_def Decode_A.decode_domain_invocation_def)
   apply (unfold transform_cap_list_def)
-  apply (case_labels "invocation_type label'"; simp)
+  apply (case_labels "invocation_type label'"; simp add: gen_invocation_type_eq)
                                             apply (clarsimp simp: transform_intent_def option_map_def
                                                             split: option.splits)+
                   defer
@@ -259,11 +256,11 @@ lemma decode_domain_corres:
 lemma decode_domain_cap_label_not_match:
   "\<lbrakk>\<forall>ui. Some (DomainIntent ui) \<noteq> transform_intent (invocation_type label') args'\<rbrakk>
     \<Longrightarrow> \<lbrace>(=) s\<rbrace> Decode_A.decode_domain_invocation label' args' excaps' \<lbrace>\<lambda>r. \<bottom>\<rbrace>,\<lbrace>\<lambda>e. (=) s\<rbrace>"
-  apply (case_tac "invocation_type label' = DomainSetSet")
-   apply (clarsimp simp: Decode_A.decode_domain_invocation_def transform_intent_def)+
+  apply (case_tac "invocation_type label' = GenInvocationLabel DomainSetSet")
+   apply (clarsimp simp: Decode_A.decode_domain_invocation_def transform_intent_def gen_invocation_type_eq)+
    apply (clarsimp simp: transform_intent_domain_def split: option.splits list.splits)
    apply wp
-  apply (simp add: Decode_A.decode_domain_invocation_def)
+  apply (simp add: Decode_A.decode_domain_invocation_def gen_invocation_type_eq)
   apply wp
   done
 
@@ -328,8 +325,9 @@ lemma decode_invocation_irqhandlercap_corres:
   apply (clarsimp simp: throw_opt_def get_irq_handler_intent_def split: option.splits)
   apply (rule conjI)
    apply (auto simp: decode_irq_handler_invocation_def transform_intent_def
-          split del: if_split
-              split: invocation_label.splits cdl_intent.splits list.splits)[1]
+               simp flip: gen_invocation_type_eq
+               split del: if_split
+               split: invocation_label.splits gen_invocation_labels.splits cdl_intent.splits list.splits)[1]
   apply clarsimp
   apply (simp split: cdl_intent.splits)
   apply (rule corres_rel_imp)
@@ -353,12 +351,12 @@ lemma transform_intent_untyped_cap_None:
   "\<lbrakk>transform_intent (invocation_type label) args = None; cap = cap.UntypedCap dev w n idx\<rbrakk>
          \<Longrightarrow> \<lbrace>(=) s\<rbrace> Decode_A.decode_invocation label args cap_i slot cap excaps \<lbrace>\<lambda>r. \<bottom>\<rbrace>, \<lbrace>\<lambda>x. (=) s\<rbrace>"
   including no_pre
+  supply gen_invocation_type_eq[symmetric, simp]
   apply (clarsimp simp:Decode_A.decode_invocation_def)
   apply wp
-  apply (case_tac "invocation_type label")
-      (* 43 subgoals *)
-      apply (clarsimp simp:Decode_A.decode_untyped_invocation_def unlessE_def)
-      apply wp+
+  apply (case_labels "invocation_type label")
+      (* 46 subgoals *)
+      apply (clarsimp simp:Decode_A.decode_untyped_invocation_def unlessE_def, wp)+
      apply (clarsimp simp:transform_intent_def Decode_A.decode_untyped_invocation_def unlessE_def split del:if_split)
      apply (clarsimp simp:transform_intent_untyped_retype_def split del:if_split)
      apply (case_tac "args")
@@ -373,17 +371,19 @@ lemma transform_intent_untyped_cap_None:
 lemma transform_intent_cnode_cap_None:
   "\<lbrakk>transform_intent (invocation_type label) args = None; cap = cap.CNodeCap w n list\<rbrakk>
    \<Longrightarrow> \<lbrace>(=) s\<rbrace> Decode_A.decode_invocation label args cap_i slot cap excaps \<lbrace>\<lambda>r. \<bottom>\<rbrace>, \<lbrace>\<lambda>x. (=) s\<rbrace>"
+  supply if_cong[cong]
   apply (clarsimp simp:Decode_A.decode_invocation_def)
   apply (simp add: Decode_A.decode_cnode_invocation_def unlessE_def upto_enum_def
-                   fromEnum_def toEnum_def enum_invocation_label
+                   fromEnum_def toEnum_def enum_invocation_label enum_gen_invocation_labels
                    whenE_def)
   apply (intro conjI impI;
-    clarsimp simp: transform_intent_def transform_cnode_index_and_depth_def
-                   transform_intent_cnode_copy_def
-                   transform_intent_cnode_mint_def transform_intent_cnode_move_def
-                   transform_intent_cnode_mutate_def transform_intent_cnode_rotate_def
-      split: list.split_asm;
-    (solves \<open>wpsimp\<close>)?)
+           clarsimp simp: transform_intent_def transform_cnode_index_and_depth_def
+                          transform_intent_cnode_copy_def
+                          transform_intent_cnode_mint_def transform_intent_cnode_move_def
+                          transform_intent_cnode_mutate_def transform_intent_cnode_rotate_def
+                    simp flip: gen_invocation_type_eq
+                    split: list.split_asm;
+           (solves \<open>wpsimp\<close>)?)
   done
 
 lemma transform_intent_thread_cap_None:
@@ -393,20 +393,19 @@ lemma transform_intent_thread_cap_None:
   apply (clarsimp simp:Decode_A.decode_invocation_def)
   apply wp+
   apply (simp add:Decode_A.decode_tcb_invocation_def)
-  apply (case_tac "invocation_type label")
-    apply simp_all
-    apply wp+
-    apply (clarsimp simp: transform_intent_def decode_read_registers_def decode_write_registers_def
-                          decode_copy_registers_def decode_tcb_configure_def decode_set_priority_def
-                          decode_set_mcpriority_def decode_set_sched_params_def
-                          decode_set_ipc_buffer_def transform_intent_tcb_defs
-                   split: list.split_asm
-          | wp+)+
-    apply (clarsimp simp: transform_intent_def decode_set_space_def decode_bind_notification_def
-                          decode_unbind_notification_def transform_intent_tcb_set_space_def
-                   split: list.split_asm
-          , wp+
-          | clarsimp simp: transform_intent_def)+
+  apply (cases "gen_invocation_type label"; simp; wp?)
+               apply (clarsimp simp: transform_intent_def decode_read_registers_def decode_write_registers_def
+                                     decode_copy_registers_def decode_tcb_configure_def decode_set_priority_def
+                                     decode_set_mcpriority_def decode_set_sched_params_def
+                                     decode_set_ipc_buffer_def transform_intent_tcb_defs
+                              simp flip: gen_invocation_type_eq
+                              split: list.split_asm
+                     | wp+)+
+         apply (clarsimp simp: transform_intent_def decode_set_space_def decode_bind_notification_def
+                               decode_unbind_notification_def transform_intent_tcb_set_space_def
+                        split: list.split_asm
+               , wp+
+               | clarsimp simp: transform_intent_def simp flip: gen_invocation_type_eq)+
   done
 
 lemma transform_intent_irq_control_None:
@@ -414,18 +413,14 @@ lemma transform_intent_irq_control_None:
       \<Longrightarrow> \<lbrace>(=) s\<rbrace> Decode_A.decode_invocation label args cap_i slot cap excaps \<lbrace>\<lambda>r. \<bottom>\<rbrace>,
           \<lbrace>\<lambda>x. (=) s\<rbrace>"
   including no_pre
+  supply gen_invocation_type_eq[symmetric, simp] if_cong[cong]
   apply (clarsimp simp:Decode_A.decode_invocation_def)
   apply wp
   apply (clarsimp simp:decode_irq_control_invocation_def arch_decode_irq_control_invocation_def
                   split del:if_split)
-  apply (case_tac "invocation_type label")
-                      apply (clarsimp, wp)+
-       apply (clarsimp simp:transform_intent_issue_irq_handler_def transform_intent_def
-                       split:list.split_asm split del:if_split,wp+)
-      apply (clarsimp, wp)+
-  apply (rename_tac arch_label)
-  apply (case_tac "arch_label")
-                  apply (clarsimp, wp)+
+  apply (case_labels "invocation_type label"; (clarsimp, wp)?)
+   apply (clarsimp simp:transform_intent_issue_irq_handler_def transform_intent_def
+                   split:list.split_asm split del:if_split,wp+)
   apply (clarsimp simp:arch_transform_intent_issue_irq_handler_def transform_intent_def
                   split:list.split_asm split del:if_split,wp+)
   done
@@ -433,12 +428,13 @@ lemma transform_intent_irq_control_None:
 lemma transform_intent_irq_handler_None:
   "\<lbrakk>transform_intent (invocation_type label) args = None; cap = cap.IRQHandlerCap w\<rbrakk>
              \<Longrightarrow> \<lbrace>(=) s\<rbrace> Decode_A.decode_invocation label args cap_i slot cap excaps \<lbrace>\<lambda>r. \<bottom>\<rbrace>, \<lbrace>\<lambda>x. (=) s\<rbrace>"
+  supply gen_invocation_type_eq[symmetric, simp]
   apply (clarsimp simp:Decode_A.decode_invocation_def)
   apply (wp)
-    apply (clarsimp simp:decode_irq_handler_invocation_def|rule conjI)+
-      apply (clarsimp simp:transform_intent_def split: list.splits)+
-    apply (clarsimp simp:transform_intent_def |rule conjI | wp)+
-done
+   apply (clarsimp simp:decode_irq_handler_invocation_def|rule conjI)+
+    apply (clarsimp simp:transform_intent_def split: list.splits)+
+   apply (clarsimp simp:transform_intent_def |rule conjI | wp)+
+  done
 
 lemma transform_intent_zombie_cap_None:
   "\<lbrakk>transform_intent (invocation_type label) args = None; cap = cap.Zombie w option n\<rbrakk>
@@ -451,6 +447,7 @@ lemma transform_intent_domain_cap_None:
   "\<lbrakk>transform_intent (invocation_type label) args = None; cap = cap.DomainCap\<rbrakk>
      \<Longrightarrow> \<lbrace>(=) s\<rbrace> Decode_A.decode_invocation label args cap_i slot cap.DomainCap excaps \<lbrace>\<lambda>r. \<bottom>\<rbrace>, \<lbrace>\<lambda>x. (=) s\<rbrace>"
   including no_pre
+  supply gen_invocation_type_eq[symmetric, simp]
   apply (clarsimp simp: Decode_A.decode_invocation_def)
   apply wp
   apply (case_tac excaps, simp_all)
@@ -458,9 +455,9 @@ lemma transform_intent_domain_cap_None:
    apply (case_tac args, simp_all)
     apply (wp whenE_inv whenE_inv[THEN valid_validE] | simp)+
   apply (clarsimp simp: decode_domain_invocation_def)
-   apply (case_tac args, simp_all)
-    apply ((wp whenE_inv whenE_inv[THEN valid_validE] | simp)+)[1]
-  apply (case_tac "invocation_type label \<noteq> DomainSetSet", simp_all)
+  apply (case_tac args, simp_all)
+   apply ((wp whenE_inv whenE_inv[THEN valid_validE] | simp)+)[1]
+  apply (case_tac "invocation_type label \<noteq> GenInvocationLabel DomainSetSet", simp_all)
    apply wp
   apply (clarsimp simp: transform_intent_def transform_intent_domain_def)
   done
@@ -469,40 +466,40 @@ lemma transform_intent_arch_cap_None:
   "\<lbrakk>transform_intent (invocation_type label) args = None; cap = cap.ArchObjectCap arch_cap\<rbrakk>
          \<Longrightarrow> \<lbrace>(=) s\<rbrace> Decode_A.decode_invocation label args cap_i slot cap excaps \<lbrace>\<lambda>r. \<bottom>\<rbrace>, \<lbrace>\<lambda>x. (=) s\<rbrace>"
   including no_pre
+  supply gen_invocation_type_eq[symmetric, simp]
   apply (clarsimp simp:Decode_A.decode_invocation_def)
   apply wp
   apply (simp add: arch_decode_invocation_def split del: if_split)
   apply (case_tac arch_cap)
       apply (case_labels "invocation_type label"; simp split del: if_split, wp?)
-      apply (clarsimp split:if_splits | rule conjI)+
+      apply (clarsimp split: if_splits | rule conjI)+
        apply (case_tac "excaps ! 0")
-       apply (clarsimp split:cap.splits | rule conjI | wp)+
-       apply (clarsimp split:arch_cap.splits | rule conjI | wp)+
-       apply ((clarsimp simp:transform_intent_def | wp) +)[2]
-     apply (case_labels "invocation_type label";
-             simp add:arch_decode_invocation_def split del: if_split; wp?)
+       apply (clarsimp split: cap.splits | rule conjI | wp)+
+       apply (clarsimp split: arch_cap.splits | rule conjI | wp)+
+       apply ((clarsimp simp: transform_intent_def | wp) +)[2]
+     apply (case_labels "invocation_type label"
+            ; wpsimp simp: arch_decode_invocation_def split_del: if_split)
      apply (case_tac "excaps ! 0")
-     apply (clarsimp simp:transform_intent_def transform_cnode_index_and_depth_def split:list.split_asm)
+     apply (clarsimp simp: transform_intent_def transform_cnode_index_and_depth_def
+                    split: list.split_asm)
       apply wp+
-    apply (case_labels "invocation_type label";
-             simp add: arch_decode_invocation_def isPageFlushLabel_def
-            split del: if_split, wp?)
-           apply (clarsimp simp: transform_intent_def transform_intent_page_map_def
-                          split: list.split_asm )
-             apply wp+
-          apply (clarsimp | rule conjI)+
-           apply (case_tac "excaps ! 0")
-           apply (clarsimp simp:transform_intent_def transform_intent_page_remap_def split:list.split_asm)
-          apply ((clarsimp simp:transform_intent_def | wp)+)
-    apply (case_labels "invocation_type label"; simp)
-                          apply (intro conjI impI | wp)+
+    apply (case_labels "invocation_type label"
+           ; wpsimp simp: arch_decode_invocation_def isPageFlushLabel_def split_del: if_split)
+          apply (clarsimp simp: transform_intent_def transform_intent_page_map_def
+                         split: list.split_asm )
+            apply wp+
+         apply (case_tac "excaps ! 0")
+         apply (clarsimp simp:transform_intent_def split:list.split_asm)
+        apply ((clarsimp simp:transform_intent_def | wp)+)
+   apply (case_labels "invocation_type label"; simp)
+                            apply (intro conjI impI | wp)+
        apply (clarsimp | rule conjI)+
        apply (clarsimp simp: transform_intent_def transform_intent_page_table_map_def
                       split: list.split_asm)
       apply (intro conjI impI | wp)+
-     apply ((clarsimp simp: transform_intent_def split: list.split_asm | wp)+)[1]
-     apply (case_labels "invocation_type label"; simp add: isPDFlushLabel_def)
-    apply (wp)+
+  apply ((clarsimp simp: transform_intent_def split: list.split_asm | wp)+)[1]
+  apply (case_labels "invocation_type label"; simp add: isPDFlushLabel_def)
+                           apply (wp)+
   done
 
 lemma decode_invocation_error_branch:
@@ -565,8 +562,8 @@ lemma decode_invocation_corres:
      dcorres (dc \<oplus> cdl_invocation_relation) \<top>
       (invs and valid_cap cap and (\<lambda>s. \<forall>e\<in>set excaps'. valid_cap (fst e) s)
             and (cte_wp_at (Not \<circ> is_master_reply_cap) slot
-            and cte_wp_at (diminished cap) slot)
-            and (\<lambda>s. \<forall>x\<in>set excaps'. cte_wp_at (diminished (fst x)) (snd x) s)
+            and cte_wp_at ((=) cap) slot)
+            and (\<lambda>s. \<forall>x\<in>set excaps'. cte_wp_at ((=) (fst x)) (snd x) s)
             and valid_etcbs)
       (Decode_D.decode_invocation invoked_cap invoked_cap_ref excaps intent)
       (Decode_A.decode_invocation label args cap_index slot cap excaps')"
@@ -615,6 +612,7 @@ lemma dcorres_set_eobject_tcb:
   dcorres dc ((=) (transform s')) ((=) s')
            (KHeap_D.set_object p' (Tcb tcb ))
            (set_eobject p' etcb)"
+  supply if_cong[cong]
   apply (clarsimp simp: corres_underlying_def set_eobject_def in_monad)
   apply (clarsimp simp: KHeap_D.set_object_def simpler_modify_def)
   apply (clarsimp simp: transform_def transform_current_thread_def transform_cdt_def transform_asid_table_def)
@@ -632,6 +630,7 @@ lemma invoke_domain_corres:
             invocation_duplicates_valid (Invocations_A.invocation.InvokeDomain word1 word2) and
             (tcb_at word1 and (\<lambda>s. word1 \<noteq> idle_thread s)))
            (Tcb_D.invoke_domain (SetDomain word1 word2)) (Tcb_A.invoke_domain word1 word2)"
+  supply if_cong[cong]
   apply (clarsimp simp: Tcb_D.invoke_domain_def Tcb_A.invoke_domain_def)
   apply (rule corres_bind_return_r)
   apply (clarsimp simp: Tcb_D.set_domain_def Tcb_A.set_domain_def)
@@ -1021,8 +1020,8 @@ lemma decode_invocation_corres':
   \<Longrightarrow> dcorres (dc \<oplus> cdl_invocation_relation) \<top>
     ((=) s and (\<lambda>(slot,cap,excaps,buffer) s. \<not> is_master_reply_cap (cap) \<and> valid_cap cap s \<and> valid_etcbs s
     \<and> evalMonad (lookup_ipc_buffer False (cur_thread s)) s = Some buffer
-    \<and> (\<forall>e\<in> set excaps. s \<turnstile> fst e) \<and> cte_wp_at (Not \<circ> is_master_reply_cap) slot s \<and> cte_wp_at (diminished cap) slot s
-    \<and> (\<forall>e\<in> set excaps. cte_wp_at (diminished (fst e)) (snd e) s)) rv')
+    \<and> (\<forall>e\<in> set excaps. s \<turnstile> fst e) \<and> cte_wp_at (Not \<circ> is_master_reply_cap) slot s \<and> cte_wp_at ((=) cap) slot s
+    \<and> (\<forall>e\<in> set excaps. cte_wp_at ((=) (fst e)) (snd e) s)) rv')
      ((\<lambda>(cap, cap_ref, extra_caps).
           case_option (if ep_related_cap cap then Decode_D.decode_invocation cap cap_ref extra_caps undefined else Monads_D.throw)
           (Decode_D.decode_invocation cap cap_ref extra_caps)
@@ -1227,14 +1226,10 @@ lemma not_master_reply_cap_lcs[wp]:
 lemma not_master_reply_cap_lcs'[wp]:
   "\<lbrace>valid_reply_masters and valid_objs\<rbrace> CSpace_A.lookup_cap_and_slot t ptr
             \<lbrace>\<lambda>rv s. cte_wp_at (Not \<circ> is_master_reply_cap) (snd rv) s\<rbrace>,-"
-  apply (rule_tac Q' = "\<lambda>rv s. \<not> is_master_reply_cap (fst rv) \<and> cte_wp_at (diminished (fst rv)) (snd rv) s" in hoare_post_imp_R)
+  apply (rule_tac Q' = "\<lambda>rv s. \<not> is_master_reply_cap (fst rv) \<and> cte_wp_at ((=) (fst rv)) (snd rv) s"
+           in hoare_post_imp_R)
    apply (rule hoare_pre,wp,simp)
   apply (clarsimp simp:cte_wp_at_def)
-  apply (case_tac cap)
-             apply (simp_all add:is_master_reply_cap_def)
-  apply clarsimp
-  apply (case_tac a)
-             apply (simp_all add:diminished_def mask_cap_def cap_rights_update_def)
   done
 
 lemma set_thread_state_ct_active:
@@ -1336,7 +1331,9 @@ lemma handle_invocation_corres:
       apply (rule_tac Q="\<lambda>r s. s = s'a \<and>
                                evalMonad (lookup_ipc_buffer False (cur_thread s'a)) s'a = Some r \<and>
                                cte_wp_at (Not \<circ> is_master_reply_cap) (snd x) s \<and>
-                               cte_wp_at (diminished (fst x)) (snd x) s \<and> s \<turnstile> fst x \<and>
+                               cte_wp_at ((=) (fst x)) (snd x) s \<and>
+                               real_cte_at (snd x) s \<and>
+                               s \<turnstile> fst x \<and>
                                ex_cte_cap_wp_to (\<lambda>_. True) (snd x) s \<and>
                                (\<forall>r\<in>zobj_refs (fst x). ex_nonz_cap_to r s) \<and>
                                (\<forall>r\<in>cte_refs (fst x) (interrupt_irq_node s). ex_cte_cap_wp_to \<top> r s)"

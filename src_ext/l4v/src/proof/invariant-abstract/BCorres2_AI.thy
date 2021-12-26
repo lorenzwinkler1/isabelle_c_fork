@@ -1,16 +1,12 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory BCorres2_AI
 imports
-  "./$L4V_ARCH/ArchEmptyFail_AI"
+  ArchEmptyFail_AI
 begin
 
 locale BCorres2_AI =
@@ -257,9 +253,10 @@ lemma all_but_exst_update[simp]:
 
 crunch all_but_exst[wp]: set_scheduler_action,tcb_sched_action,next_domain,
                          cap_move_ext "all_but_exst P"
-  (simp: Let_def)
+  (simp: Let_def ignore_del: tcb_sched_action cap_move_ext)
 
 crunch (empty_fail) empty_fail[wp]: cap_move_ext
+  (ignore_del: cap_move_ext)
 
 global_interpretation set_scheduler_action_extended: is_extended "set_scheduler_action a"
   by (unfold_locales; wp)
@@ -296,19 +293,19 @@ shows
 
   show ?case
     apply (simp add: rec_del.simps)
-    apply (wp "2" | wpc | simp split: prod.splits | intro impI conjI allI | (rule ssubst[rotated, where s="fst x" for x], rule "2",simp+) | wp_once drop_sbcorres_underlying)+
+    apply (wp "2" | wpc | simp split: prod.splits | intro impI conjI allI | (rule ssubst[rotated, where s="fst x" for x], rule "2",simp+) | wp (once) drop_sbcorres_underlying)+
     done
   next
   case (3 slot exposed s)
   show ?case
     apply (simp add: rec_del.simps)
-    apply (wp | wp_once drop_sbcorres_underlying)+
+    apply (wp | wp (once) drop_sbcorres_underlying)+
     done
   next
   case (4 slot exposed s)
   show ?case
     apply (simp add: rec_del.simps)
-    apply (simp add: in_monad | wp "4" | intro impI conjI | wp_once drop_sbcorres_underlying)+
+    apply (simp add: in_monad | wp "4" | intro impI conjI | wp (once) drop_sbcorres_underlying)+
     done
   qed
 
@@ -366,7 +363,7 @@ proof (induct a arbitrary: s rule: resolve_address_bits'.induct[where ?a0.0="TYP
   case (1 z cap cref s')
   show ?case
     apply (simp add: resolve_address_bits'.simps)
-    apply (wp | wpc | intro impI conjI allI | simp split: cap.splits | (rule "1", (simp add: in_monad | force)+) | wp_once drop_sbcorres_underlying)+
+    apply (wp | wpc | intro impI conjI allI | simp split: cap.splits | (rule "1", (simp add: in_monad | force)+) | wp (once) drop_sbcorres_underlying)+
   done
 qed
 

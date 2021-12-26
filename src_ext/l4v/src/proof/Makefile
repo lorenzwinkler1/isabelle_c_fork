@@ -1,11 +1,7 @@
 #
 # Copyright 2014, General Dynamics C4 Systems
 #
-# This software may be distributed and modified according to the terms of
-# the GNU General Public License version 2. Note that NO WARRANTY is provided.
-# See "LICENSE_GPLv2.txt" for details.
-#
-# @TAG(GD_GPL)
+# SPDX-License-Identifier: GPL-2.0-only
 #
 
 ## Targets
@@ -16,14 +12,14 @@ all: images test
 report-regression:
 	@echo Refine Access CBaseRefine CRefine \
 	      DRefine InfoFlow InfoFlowCBase InfoFlowC DPolicy \
-		  DSpecProofs SepTacticsExamples Bisim
+		  DSpecProofs Bisim
 
 #
 # Setup heaps.
 #
 
 # Refine heaps.
-HEAPS += AInvs BaseRefine BaseRefine2 Refine RefineOrphanage
+HEAPS += AInvs BaseRefine Refine RefineOrphanage
 
 # CRefine heaps.
 HEAPS += CKernel CSpec CBaseRefine CRefine
@@ -41,12 +37,17 @@ HEAPS += SimplExportAndRefine
 HEAPS += Bisim
 
 # Separation Logic Tactics
-HEAPS += SepTactics SepTacticsExamples
+HEAPS += SepTactics
 
 # Additional dependencies
 
 BaseRefine Refine DBaseRefine DRefine: design-spec
-CBaseRefine CRefine CKernel CSpec SimplExportAndRefine: c-kernel design-spec
+
+# CKernel uses the `machinety=machine_state` option for `install_C_file`,
+# and therefore depends on `design-spec`.
+CKernel CSpec : c-kernel design-spec
+
+CBaseRefine CRefine SimplExportAndRefine : c-kernel design-spec ASpec-files
 
 # Preprocess the kernel's source code and bitfield theory files.
 c-kernel: .FORCE
@@ -58,9 +59,13 @@ design-spec: .FORCE
 	cd ../spec && $(ISABELLE_TOOL) env make design-spec
 .PHONY: design-spec
 
+ASpec-files: .FORCE
+	cd ../spec && make ASpec-files
+.PHONY: ASpec-files
+
 include ../misc/isa-common.mk
 
-# SimplExportOnly is treated specially, to not save an image.
-SimplExportOnly: c-kernel design-spec
+# SimplExport is treated specially, to not save an image.
+SimplExport: c-kernel design-spec
 	$(ISABELLE_TOOL) build -v -c -d $(ROOT_PATH) $@
-.PHONY: SimplExportOnly
+.PHONY: SimplExport

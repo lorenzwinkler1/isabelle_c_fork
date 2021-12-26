@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -15,18 +11,10 @@ Arch-specific functions for the abstract model of CSpace.
 chapter "Architecture-specific TCB functions"
 
 theory ArchTcb_A
-imports "../KHeap_A"
+imports KHeap_A
 begin
 
 context Arch begin global_naming X64_A
-
-definition
-  arch_tcb_set_ipc_buffer :: "machine_word \<Rightarrow> vspace_ref \<Rightarrow> (unit, 'a::state_ext) s_monad"
-where
-  "arch_tcb_set_ipc_buffer target ptr \<equiv> return ()"
-
-(* Allow most pre-existing proofs to continue to work. *)
-declare arch_tcb_set_ipc_buffer_def [simp]
 
 definition
   sanitise_or_flags :: machine_word
@@ -42,7 +30,7 @@ definition
   sanitise_register :: "bool \<Rightarrow> register \<Rightarrow> machine_word \<Rightarrow> machine_word"
 where
   "sanitise_register t r v \<equiv>
-    let val = (if r = FaultIP \<or> r = NextIP
+    let val = (if r = FaultIP \<or> r = NextIP \<or> r = FS_BASE \<or> r = GS_BASE
                then if v > 0x00007fffffffffff \<and> v < 0xffff800000000000 then 0 else v
                else v)
     in

@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 structure CtacImpl =
@@ -926,7 +922,7 @@ fun corres_boilerplate_tac opts unfold_haskell_p xfs ctxt = let
             else
                 (fn _ => all_tac)
 
-        val ccorres_rewrite_tac = Method.NO_CONTEXT_TACTIC ctxt
+        val ccorres_rewrite_tac = NO_CONTEXT_TACTIC ctxt
             (Method_Closure.apply_method ctxt @{method "ccorres_rewrite"} [] [] [] ctxt [])
 
         val ss = simpset_of (ctxt delsimps boilerplace_simp_dels |> addcongs

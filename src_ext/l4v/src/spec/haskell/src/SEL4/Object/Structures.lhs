@@ -1,11 +1,7 @@
 %
 % Copyright 2014, General Dynamics C4 Systems
 %
-% This software may be distributed and modified according to the terms of
-% the GNU General Public License version 2. Note that NO WARRANTY is provided.
-% See "LICENSE_GPLv2.txt" for details.
-%
-% @TAG(GD_GPL)
+% SPDX-License-Identifier: GPL-2.0-only
 %
 
 This module defines the structures which represent kernel objects in the modelled physical memory.
@@ -32,6 +28,7 @@ This module uses the C preprocessor to select a target architecture.
 > import SEL4.Machine
 > import SEL4.API.Types
 > import SEL4.API.Types.Universal
+> import SEL4.API.Types.TARGET
 > import SEL4.API.Failures
 
 > import SEL4.Object.Structures.TARGET
@@ -83,7 +80,7 @@ This is the type used to represent a capability.
 >             capCNodeGuard :: Word,
 >             capCNodeGuardSize :: Int }
 >         | IRQControlCap
->         deriving Show
+>         deriving (Eq, Show)
 
 > data ZombieType = ZombieTCB | ZombieCNode { zombieCTEBits :: Int }
 >     deriving (Eq, Show)

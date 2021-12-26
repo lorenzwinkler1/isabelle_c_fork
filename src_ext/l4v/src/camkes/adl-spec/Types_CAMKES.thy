@@ -1,18 +1,15 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 chapter \<open>\label{sec:types}Types\<close>
 
 (*<*)
 theory Types_CAMKES
-imports Main
+imports
+  Access.Access
 begin
 (*>*)
 
@@ -168,33 +165,25 @@ datatype interface =
 
 subsection \<open>\label{subsec:connectors}Connectors\<close>
 text \<open>
-  Two components are connected via a connector. The type of a connector is an
-  abstraction of the underlying communication mechanism. Connectors come in three
-  distinct types, native connectors, hardware connectors and export connectors.
+  Two components are connected via a connector. The type of a connector
+  comprises two orthogonal features:
 
-  Native connectors map directly to implementation mechanisms. These are the
-  types of connectors that are found in almost all component platform models. The
-  event-style connector, @{text AsynchronousEvent}, is
-  used to model communication consisting of an identifier with no associated message
-  data.
+  \begin{itemize}
+    \item The kind of components being connected: @{text connector_endpoint}
+    \item The communication mechanism: @{text connector_mechanism}
+  \end{itemize}
 \<close>
-datatype native_connector_type =
-    AsynchronousEvent \<comment> \<open>an asynchronous notification\<close>
-  | RPC \<comment> \<open>a synchronous channel\<close>
-  | SharedData \<comment> \<open>a shared memory region\<close>
 
 text \<open>
-  Recalling that hardware devices are modelled as components in CAmkES, hardware
-  connectors are used to connect the interface of a device to the interface of a
-  software component. Devices must be connected using the connector type that
-  corresponds to the mode of interaction with the device.
-\<close>
-datatype hardware_connector_type =
-    HardwareMMIO \<comment> \<open>memory mapped IO\<close>
-  | HardwareInterrupt \<comment> \<open>device interrupts\<close>
-  | HardwareIOPort \<comment> \<open>IA32 IO ports\<close>
+  Connector types.
 
-text \<open>
+  Native connectors are used for ordinary communication between software
+  components; these are found in almost all component platform models.
+
+  Hardware devices are also modelled as components in CAmkES.
+  Hardware connectors are used to connect the interface of a device to
+  the interface of a software component (typically, a driver).
+
   Export connectors are used when
   specifying a compound component. A compound component has a set of interfaces
   that are a subset of the unconnected interfaces of its constituent components.
@@ -213,25 +202,63 @@ text \<open>
   \includegraphics{imgs/composite-passthrough}
   \end{center}
   \end{figure}
-\<close>
-datatype export_connector_type =
-    ExportAsynchronous
-  | ExportRPC
-  | ExportData
 
+  (Our model does not support compound components yet, but we may add support
+   in the future. See \ref{subsubsec:composites} for more exposition.)
+\<close>
 datatype connector_type =
-    Native native_connector_type
-  | Hardware hardware_connector_type
-  | Export export_connector_type
+    NativeConnector
+  | HardwareConnector
+  | ExportConnector
 
 text \<open>
-  Connectors are distinguished by the mode of interaction they enable. The
-  reason for this will become clearer in \autoref{subsec:wconnectors}.
+  Connector interfaces.
+
+  Each connector is declared to bind to a certain type of interface
+  on its component endpoints. This also determines the interface
+  exposed to user code.
 \<close>
-datatype connector =
-    SyncConnector connector_type
-  | AsyncConnector connector_type
-  | MemoryConnector connector_type
+datatype connector_interface =
+    RPCInterface
+  | EventInterface
+  | DataportInterface
+
+text \<open>
+  Connector access rights.
+
+  This declares the types of access rights that may be made available
+  by the connector. There are two sets of rights, corresponding to
+  each nominal direction of the connector.
+
+  Note that we will model connections to have separate access-control
+  labels from components'. Hence we need \emph{six} sets: two for
+  component rights to the connection objects (e.g. endpoints), and
+  four for component rights to each other's objects.
+\<close>
+record connector_access =
+    \<comment> \<open>@{text access_foo_bar} means access from the "@{text foo}" label to
+        the "@{text bar}" label; labels may be from-components,
+        to-components, or the connection itself\<close>
+    access_from_to :: "auth set"
+    access_to_from :: "auth set"
+
+    \<comment> \<open>It might seem that components on the same side of a connection
+        should not need access rights to each other.
+        However, these auths are needed in more complicated systems,
+        to work around bugs like VER-1108 and to express non-standard
+        connector semantics such as VirtQueues.\<close>
+    access_from_from :: "auth set"
+    access_to_to :: "auth set"
+
+    \<comment> \<open>we assume connections are passive labels, so they do not
+        need access rights of their own\<close>
+    access_from_conn :: "auth set"
+    access_to_conn :: "auth set"
+
+record connector =
+    connector_type :: connector_type
+    connector_interface :: connector_interface
+    connector_access :: connector_access
 
 subsection \<open>\label{subsec:components}Components\<close>
 text \<open>
@@ -239,7 +266,7 @@ text \<open>
   are re-usable collections of source code with explicit descriptions of the
   exposed methods of interaction (@{term interfaces} described above).
 
-  Components have three distinct modes of communication:
+  Components have three distinct interfaces for communication:
   \begin{enumerate}
     \item Synchronous communication over procedures. This communication is
       analogous to a function call and happens over a channel established from
@@ -252,13 +279,16 @@ text \<open>
       two @{text dataports}.
   \end{enumerate}
 \<close>
+datatype InterfaceRequired = InterfaceRequired | InterfaceOptional
+
 record component =
   control     :: bool
-  requires    :: "(adl_symbol \<times> procedure) list"
+  hardware    :: bool
+  requires    :: "(adl_symbol \<times> (InterfaceRequired \<times> procedure)) list"
   provides    :: "(adl_symbol \<times> procedure) list"
   dataports   :: "(adl_symbol \<times> dataport) list"
   emits       :: "(adl_symbol \<times> event) list"
-  consumes    :: "(adl_symbol \<times> event) list"
+  consumes    :: "(adl_symbol \<times> (InterfaceRequired \<times> event)) list"
   attributes  :: "(adl_symbol \<times> param_type) list"
 
 subsection \<open>\label{subsec:assembling}Assembling a System\<close>
@@ -276,10 +306,29 @@ record connection =
 text \<open>
   A composition block is used to contain all components of the system and the
   connections that define their communication with each other.
+
+  Additionally, it records which components are defined in a CAmkES
+  @{text group} block. These components share a single address space
+  and must also share the same access-control label.
+  For more information, see the CAmkES documentation for groups.
 \<close>
 record composition =
   components  :: "(adl_symbol \<times> component) list"
   connections :: "(adl_symbol \<times> connection) list"
+  group_labels :: "(adl_symbol \<times> adl_symbol) list" \<comment> \<open>See @{text get_group_label}, below\<close>
+
+text \<open>
+  Get the access-control label for a component or connection, taking
+  groups into account. ADL names that are not part of groups are
+  assumed to have their own labels.
+\<close>
+definition
+  get_group_label :: "composition \<Rightarrow> adl_symbol \<Rightarrow> adl_symbol"
+where
+  "get_group_label spec c \<equiv>
+     case map_of (group_labels spec) c of
+         Some c' \<Rightarrow> c'
+       | None \<Rightarrow> c"
 
 text \<open>
   Configurations are used as a way of adding extra information to a component
@@ -299,6 +348,8 @@ text \<open>
 record assembly =
   composition   :: "composition"
   configuration :: "configuration option"
+  \<comment> \<open>This lets us shove extra policy edges into the generated integrity policy\<close>
+  policy_extra  :: "(adl_symbol \<times> auth \<times> adl_symbol) set"
 
 subsection \<open>\label{subsec:future}Future Work\<close>
 subsubsection \<open>\label{subsubsec:composites}Component Hierarchy\<close>

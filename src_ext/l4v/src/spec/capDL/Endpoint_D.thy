@@ -1,11 +1,7 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(NICTA_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -120,7 +116,6 @@ where
         transfer_caps_loop ep receiver caps dest
       od
       else if dest \<noteq> None then doE
-        \<comment> \<open>Possibly diminish rights (if diminish flag was set on endpoint)\<close>
         new_cap \<leftarrow> returnOk (update_cap_rights (cap_rights cap - {Write}) cap) \<sqinter>
                   returnOk cap;
 
@@ -154,8 +149,6 @@ where
  *
  *   - Caps may not send, but still allow later caps to
  *     use the receive slot (Unwrapped endpoints);
- *
- *   - Caps may send with the rights diminished;
  *
  *   - Cap sending may stop half way (cap lookup faults);
  *

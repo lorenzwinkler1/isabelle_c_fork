@@ -1,11 +1,7 @@
 (*
  * Copyright 2014, General Dynamics C4 Systems
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(GD_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 (*
@@ -13,13 +9,8 @@
 *)
 
 theory ArchAcc_R
-imports SubMonad_R
+imports SubMonad_R ArchMove_R
 begin
-
-(*FIXME move*)
-lemma hoare_add_post':
-  "\<lbrakk>\<lbrace>P'\<rbrace> f \<lbrace>Q'\<rbrace>; \<lbrace>P''\<rbrace> f \<lbrace>\<lambda>rv s. Q' rv s \<longrightarrow> Q rv s\<rbrace>\<rbrakk> \<Longrightarrow> \<lbrace>P' and P''\<rbrace> f \<lbrace>Q\<rbrace>"
-  by (fastforce simp add: valid_def)
 
 context begin
 
@@ -504,18 +495,13 @@ lemma in_zip_superSectionPDEOffsets:
   apply simp
   done
 
-(* FIXME: move *)
-lemma mask_out_0:
-  "\<lbrakk>x \<le> 2^n-1; n < LENGTH('a)\<rbrakk> \<Longrightarrow> (x::'a::len word) && ~~ mask n = 0"
-  by (clarsimp simp: mask_out_sub_mask less_mask_eq)
-
 lemma addPAddr_mask_out:
   "\<lbrakk> x \<le> 15; m = 2^(n-4); is_aligned p n; 4 \<le> n; n < 32 \<rbrakk> \<Longrightarrow> p = addPAddr p (x * m) && ~~ mask n"
   apply (simp add: addPAddr_def fromPAddr_def)
   apply (subst is_aligned_add_or, assumption)
    apply (rule word_less_power_trans2; simp)
    apply unat_arith
-  apply (simp add: word_ao_dist is_aligned_neg_mask_eq)
+  apply (simp add: word_ao_dist)
   apply (subst mask_out_0; simp?)
   apply (rule word_less_power_trans2; simp)
   apply unat_arith
@@ -709,7 +695,6 @@ lemma no_fail_getPTE [wp]:
     apply simp
    apply (erule is_aligned_no_overflow)
   apply (clarsimp simp del: lookupAround2_same1)
-  apply (clarsimp split: option.split_asm simp: objBits_simps archObjSize_def)
   done
 
 lemma ko_at'_pt:
@@ -1140,10 +1125,10 @@ lemma page_table_at_state_relation:
   apply (drule_tac x = "ucast y" in spec)
   apply (drule sym[where s = "pspace_dom (kheap s)"])
   apply (clarsimp simp:typ_at'_def ko_wp_at'_def)
-  apply (subgoal_tac "(ptr + physMappingOffset + (y << 3)) \<in> dom (ksPSpace sa)")
+  apply (subgoal_tac "(ptr + pptrBaseOffset + (y << 3)) \<in> dom (ksPSpace sa)")
    prefer 2
    apply (clarsimp simp: pspace_dom_def)
-   apply (rule_tac x = "ptr + physMappingOffset" in bexI[where A = "dom (kheap s)"])
+   apply (rule_tac x = "ptr + pptrBaseOffset" in bexI[where A = "dom (kheap s)"])
     apply (simp add:image_def pte_bits_def)
     apply (rule_tac x = "ucast y" in exI)
     apply (simp add:ucast_ucast_len)
@@ -1238,10 +1223,10 @@ lemma lookup_pt_slot_corres [corres]:
 declare in_set_zip_refl[simp]
 
 crunch typ_at' [wp]: storePDE "\<lambda>s. P (typ_at' T p s)"
-  (wp: crunch_wps mapM_x_wp' simp: crunch_simps)
+  (wp: crunch_wps mapM_x_wp' simp: crunch_simps ignore_del: setObject)
 
 crunch typ_at' [wp]: storePTE "\<lambda>s. P (typ_at' T p s)"
-  (wp: crunch_wps mapM_x_wp' simp: crunch_simps)
+  (wp: crunch_wps mapM_x_wp' simp: crunch_simps ignore_del: setObject)
 
 lemmas storePDE_typ_ats[wp] = typ_at_lifts [OF storePDE_typ_at']
 lemmas storePTE_typ_ats[wp] = typ_at_lifts [OF storePTE_typ_at']
@@ -1261,7 +1246,7 @@ lemma getObject_pde_inv[wp]:
   by (simp add: getObject_inv loadObject_default_inv)
 
 crunch typ_at'[wp]: copyGlobalMappings "\<lambda>s. P (typ_at' T p s)"
-  (wp: mapM_x_wp' ignore: forM_x getObject)
+  (wp: mapM_x_wp')
 
 lemmas copyGlobalMappings_typ_ats[wp] = typ_at_lifts [OF copyGlobalMappings_typ_at']
 

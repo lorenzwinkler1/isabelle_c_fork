@@ -1,27 +1,23 @@
 (*
- * Copyright 2014, NICTA
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the BSD 2-Clause license. Note that NO WARRANTY is provided.
- * See "LICENSE_BSD2.txt" for details.
- *
- * @TAG(NICTA_BSD)
+ * SPDX-License-Identifier: BSD-2-Clause
  *)
 
 chapter Lib
 
 session Word_Lib (lib) = "HOL-Word" +
-  options [timeout = 150]
+  options [timeout = 150, document=pdf]
   sessions
     "HOL-Library"
+    "HOL-Eisbach"
+  directories  (* not in the AFP *)
+    "$L4V_ARCH"
   theories
     "Word_Lemmas_32"
     "Word_Lemmas_64"
-
-  (* not in the AFP: *)
-  theories
-    "../Distinct_Prop"
-    "../$L4V_ARCH/WordSetup"
-
+  theories (* not in the AFP: *)
+    "Distinct_Prop"
+    "$L4V_ARCH/WordSetup"
   document_files
     "root.tex"

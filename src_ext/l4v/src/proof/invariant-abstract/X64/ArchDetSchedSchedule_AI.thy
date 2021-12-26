@@ -1,20 +1,19 @@
 (*
- * Copyright 2016, Data61, CSIRO
+ * Copyright 2020, Data61, CSIRO (ABN 41 687 119 230)
  *
- * This software may be distributed and modified according to the terms of
- * the GNU General Public License version 2. Note that NO WARRANTY is provided.
- * See "LICENSE_GPLv2.txt" for details.
- *
- * @TAG(DATA61_GPL)
+ * SPDX-License-Identifier: GPL-2.0-only
  *)
 
 theory ArchDetSchedSchedule_AI
-imports "../DetSchedSchedule_AI"
+imports DetSchedSchedule_AI
 begin
 
 context Arch begin global_naming X64
 
 named_theorems DetSchedSchedule_AI_assms
+
+crunch prepare_thread_delete_idel_thread[wp, DetSchedSchedule_AI_assms]:
+  prepare_thread_delete "\<lambda>(s:: det_ext state). P (idle_thread s)"
 
 crunch valid_etcbs [wp, DetSchedSchedule_AI_assms]:
   arch_switch_to_idle_thread, arch_switch_to_thread, arch_get_sanitise_register_info, arch_post_modify_registers valid_etcbs
@@ -269,7 +268,7 @@ lemma store_pde_valid_sched[wp]:
       | simp add: store_pde_def set_arch_obj_simps)+
 
 crunch valid_sched [wp, DetSchedSchedule_AI_assms]:
-  arch_tcb_set_ipc_buffer, arch_finalise_cap, prepare_thread_delete valid_sched
+  arch_finalise_cap, prepare_thread_delete valid_sched
   (ignore: set_object set_object wp: crunch_wps subset_refl simp: if_fun_split crunch_simps)
 
 lemma activate_thread_valid_sched [DetSchedSchedule_AI_assms]:
@@ -300,7 +299,8 @@ lemma arch_perform_invocation_valid_sched [wp, DetSchedSchedule_AI_assms]:
   done
 
 crunch valid_sched [wp, DetSchedSchedule_AI_assms]:
-  handle_arch_fault_reply, handle_vm_fault valid_sched
+  handle_arch_fault_reply, handle_vm_fault, arch_mask_irq_signal, arch_invoke_irq_handler
+  valid_sched
   (ignore: )
 
 crunch not_queued [wp, DetSchedSchedule_AI_assms]:
@@ -313,14 +313,13 @@ crunch sched_act_not [wp, DetSchedSchedule_AI_assms]:
 
 lemma hvmf_st_tcb_at [wp, DetSchedSchedule_AI_assms]:
   "\<lbrace>st_tcb_at P t' \<rbrace> handle_vm_fault t w \<lbrace>\<lambda>rv. st_tcb_at P t' \<rbrace>"
-  by (cases w, simp_all) ((wp | simp)+)
+  unfolding handle_vm_fault_def by (cases w, simp_all) ((wp | simp)+)
 
 lemma handle_vm_fault_st_tcb_cur_thread [wp, DetSchedSchedule_AI_assms]:
   "\<lbrace> \<lambda>s. st_tcb_at P (cur_thread s) s \<rbrace> handle_vm_fault t f \<lbrace>\<lambda>_ s. st_tcb_at P (cur_thread s) s \<rbrace>"
+  unfolding handle_vm_fault_def
   apply (fold ct_in_state_def)
-  apply (rule ct_in_state_thread_state_lift)
-   apply (cases f)
-    apply (wp|simp)+
+  apply (rule ct_in_state_thread_state_lift; cases f; wpsimp)
   done
 
 crunch valid_sched [wp, DetSchedSchedule_AI_assms]: arch_invoke_irq_control "valid_sched"
@@ -353,6 +352,21 @@ crunches arch_post_cap_deletion
   and not_queued[wp, DetSchedSchedule_AI_assms]: "not_queued t"
   and sched_act_not[wp, DetSchedSchedule_AI_assms]: "scheduler_act_not t"
   and weak_valid_sched_action[wp, DetSchedSchedule_AI_assms]: weak_valid_sched_action
+  and valid_idle[wp, DetSchedSchedule_AI_assms]: valid_idle
+
+lemma flush_table_idle_thread[wp, DetSchedSchedule_AI_assms]:
+  "\<lbrace>\<lambda>s. P (idle_thread s)\<rbrace> flush_table param_a param_b param_c param_d \<lbrace>\<lambda>_ s. P (idle_thread s)\<rbrace>"
+  unfolding flush_table_def
+  apply (wpsimp wp: mapM_x_wp')
+  done
+
+crunch delete_asid_pool[wp]:
+  delete_asid_pool, unmap_page "\<lambda>(s:: det_ext state). P (idle_thread s)"
+  (wp: crunch_wps simp: if_apply_def2)
+
+crunch idle_thread[wp, DetSchedSchedule_AI_assms]:
+  arch_finalise_cap "\<lambda> (s:: det_ext state). P (idle_thread s)"
+  (wp: crunch_wps crunch_simps)
 
 declare make_arch_fault_msg_invs[DetSchedSchedule_AI_assms]
 
