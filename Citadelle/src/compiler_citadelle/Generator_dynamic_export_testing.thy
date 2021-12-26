@@ -195,23 +195,28 @@ structure Toplevel' = struct
 end
 
 structure Resources' = struct
-  fun check_path' check_file ctxt dir (name, pos) =
+  fun formal_check check_file ctxt opt_dir source =
     let
-      fun err msg pos = error (msg ^ Position.here pos)
-      val _ = Context_Position.report ctxt pos Markup.language_path;
+      val name = Input.string_of source;
+      val pos = Input.pos_of source;
+      val delimited = Input.is_delimited source;
   
-      val path = Path.append dir (Path.explode name) handle ERROR msg => err msg pos;
-      val path' = Path.expand path handle ERROR msg => err msg pos;
-      val _ = Context_Position.report ctxt pos (Markup.path (Path.smart_implode path));
-      val _ =
-        (case check_file of
-          NONE => path
-        | SOME check => (check path handle ERROR msg => err msg pos));
-    in Path.implode path' end
-
-  fun check_dir thy = check_path' (SOME File.check_dir)
-                                  (Proof_Context.init_global thy)
-                                  (Resources.master_directory thy)
+      val _ = Context_Position.report ctxt pos (Markup.language_path delimited);
+  
+      fun err msg = error (msg ^ Position.here pos);
+      val dir =
+        (case opt_dir of
+          SOME dir => dir
+        | NONE => Resources.master_directory (Proof_Context.theory_of ctxt));
+      val path = dir + Path.explode name handle ERROR msg => err msg;
+      val path' = Path.implode_symbolic path;
+      val _ = Path.expand path handle ERROR msg => err msg;
+      val _ = Context_Position.report ctxt pos (Markup.path path');
+      val _ : Path.T = check_file path handle ERROR msg => err msg;
+    in path' end;
+  
+  val check_file = formal_check File.check_file;
+  val check_dir = formal_check File.check_dir;
 end
 \<close>
 
@@ -252,7 +257,7 @@ type ('transitionM, 'Proof_stateM, 'state) toplevel =
   , keep: ('state -> unit) -> 'transitionM
   , generic_theory: (generic_theory -> generic_theory) -> 'transitionM
   , theory: (theory -> theory) -> 'transitionM
-  , begin_local_theory: bool -> (theory -> local_theory) -> 'transitionM
+  , begin_main_target: bool -> (theory -> local_theory) -> 'transitionM
   , local_theory': (bool * Position.T) option -> (xstring * Position.T) option ->
       (bool -> local_theory -> local_theory) -> 'transitionM
   , local_theory: (bool * Position.T) option -> (xstring * Position.T) option ->
@@ -454,7 +459,7 @@ fun semi__command_proof top = let open META_overload
 end
 
 fun end' top =
- (\<^command_keyword>\<open>end\<close>, #tr_raw top (Toplevel.exit o Toplevel.end_local_theory o Toplevel.close_target o
+ (\<^command_keyword>\<open>end\<close>, #tr_raw top (Toplevel.exit o Toplevel.end_main_target o Toplevel.end_nested_target o
                                       Toplevel.end_proof (K Proof.end_notepad)))
 
 structure Cmd = struct open META open META_overload
@@ -616,13 +621,13 @@ fun semi__theory (top : ('transitionM, 'transitionM, 'state) toplevel) = let ope
 | Theory_type_notation type_notation =>
   cons (\<^command_keyword>\<open>type_notation\<close>, Cmd.type_notation top type_notation)
 | Theory_instantiation (Instantiation (n, n_def, expr)) => let val name = To_string0 n in fn acc => acc
-  |>:: (\<^command_keyword>\<open>instantiation\<close>, #begin_local_theory top true (Cmd.instantiation1 name))
+  |>:: (\<^command_keyword>\<open>instantiation\<close>, #begin_main_target top true (Cmd.instantiation1 name))
   |>:: (\<^command_keyword>\<open>definition\<close>, #local_theory' top NONE NONE (#2 oo Cmd.instantiation2 name n_def expr))
   |>:: (\<^command_keyword>\<open>instance\<close>, #local_theory_to_proof top NONE NONE (Class.instantiation_instance I))
   |>:: (\<^command_keyword>\<open>..\<close>, #tr_raw top Isar_Cmd.default_proof)
   |>:: end' top end
 | Theory_overloading (Overloading (n_c, e_c, n, e)) => (fn acc => acc
-  |>:: (\<^command_keyword>\<open>overloading\<close>, #begin_local_theory top true (Cmd.overloading1 n_c e_c))
+  |>:: (\<^command_keyword>\<open>overloading\<close>, #begin_main_target top true (Cmd.overloading1 n_c e_c))
   |>:: (\<^command_keyword>\<open>definition\<close>, #local_theory' top NONE NONE (Cmd.overloading2 n e))
   |>:: end' top)
 | Theory_consts consts =>
@@ -793,6 +798,7 @@ local
            |> (   Expression.add_locale_cmd
                     (To_sbinding (META.holThyLocale_name data))
                     Binding.empty
+                    []
                     ([], [])
                     (List.concat
                       (map
@@ -839,7 +845,7 @@ fun all_meta_tr aux top thy_o = fn
     (case theo of
        Theories_one theo => Command_Transition.semi__theory top theo
      | Theories_locale (data, l) => fn acc => acc
-       |>:: (\<^command_keyword>\<open>locale\<close>, #begin_local_theory top true (semi__locale data))
+       |>:: (\<^command_keyword>\<open>locale\<close>, #begin_main_target top true (semi__locale data))
        |> fold (fold (Command_Transition.semi__theory top)) l
        |>:: end' top)
 | META_boot_generation_syntax _ => I
@@ -868,7 +874,7 @@ fun all_meta_thy aux top_theory top_local_theory = fn
   META_semi_theories theo => apsnd
     (case theo of
        Theories_one theo => Command_Theory.semi__theory top_theory theo
-     | Theories_locale (data, l) => (*Toplevel.begin_local_theory*) fn thy => thy
+     | Theories_locale (data, l) => (*Toplevel.begin_main_target*) fn thy => thy
        |> semi__locale data
        |> fold (fold (Command_Theory.semi__theory top_local_theory)) l
        |> Local_Theory.exit_global)
@@ -1363,7 +1369,7 @@ fun f_command l_mode =
                         let val tmp_export_code = Deep.mk_path_export_code (#tmp_export_code i_deep) ml_compiler i
                             fun mk_fic s = Path.append tmp_export_code (Path.make [s])
                             val () = Deep0.Find.check_compil ml_compiler ()
-                            val () = Isabelle_System.mkdirs tmp_export_code in
+                            val () = Isabelle_System.mkdir(*TODO?*) tmp_export_code in
                         (( ( (ml_compiler, ml_module)
                            , ( Path.implode (if Deep0.Find.export_mode ml_compiler = Deep0.Export_code_env.Directory then
                                                tmp_export_code
@@ -1571,12 +1577,12 @@ fun thy_shallow l_obj get_all_meta_embed =
                 (fn msg =>
                   let val () = disp_time msg ()
                       fun in_self f =
-                        \<comment> \<open>Note: This function is not equivalent to \<^ML>\<open>Local_Theory.subtarget\<close>.\<close>
+                        \<comment> \<open>Note: This function is not equivalent to \<^ML>\<open>Local_Theory.begin_nested\<close> \<^ML>\<open>Local_Theory.end_nested\<close>.\<close>
                         Local_Theory.new_group
                         #> f
                         #> Local_Theory.reset_group
                         #> (fn lthy =>
-                            #1 (Named_Target.switch NONE (Context.Proof lthy)) lthy |> Context.the_proof)
+                            #1 (Target_Context.switch_named_cmd NONE (Context.Proof lthy)) lthy |> Context.the_proof)
                       fun not_used p _ = error ("not used " ^ Position.here p)
                       val context_of = I
                       fun proof' f = f true
@@ -1597,7 +1603,7 @@ fun thy_shallow l_obj get_all_meta_embed =
                                           , tr_report = report, tr_report_o = report_o
                                           , pr_report = report, pr_report_o = report_o
                                             (* irrelevant part *)
-                                          , begin_local_theory = K o not_used \<^here>
+                                          , begin_main_target = K o not_used \<^here>
                                           , local_theory_to_proof' = K o K not_used \<^here>
                                           , local_theory_to_proof = K o K not_used \<^here>
                                           , tr_raw = not_used \<^here> }
@@ -1614,7 +1620,7 @@ fun thy_shallow l_obj get_all_meta_embed =
                                           , tr_report = report, tr_report_o = report_o
                                           , pr_report = report, pr_report_o = report_o
                                             (* irrelevant part *)
-                                          , begin_local_theory = K o not_used \<^here>
+                                          , begin_main_target = K o not_used \<^here>
                                           , local_theory_to_proof' = K o K not_used \<^here>
                                           , local_theory_to_proof = K o K not_used \<^here>
                                           , tr_raw = not_used \<^here> }
@@ -1702,7 +1708,7 @@ fun outer_syntax_commands'''' is_safe mk_string get_all_meta_embed name thy _ =
                                                     , keep = Toplevel.keep
                                                     , generic_theory = Toplevel.generic_theory
                                                     , theory = Toplevel.theory
-                                                    , begin_local_theory = Toplevel.begin_local_theory
+                                                    , begin_main_target = Toplevel.begin_main_target
                                                     , local_theory' = Toplevel.local_theory'
                                                     , local_theory = Toplevel.local_theory
                                                     , local_theory_to_proof' = Toplevel.local_theory_to_proof'
