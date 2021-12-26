@@ -65,14 +65,14 @@ of two possibly interchangeable parsers (from two different projects):
 
 At present, the recommended and default version is C11.
 
-Isabelle/C requires Isabelle2019. (This is following the latest version currently supported by
+Isabelle/C requires Isabelle2020. (This is following the latest version currently supported by
 AutoCorres.)
 \<close>
 
 section \<open>Getting started (quickstart for users)\<close>
 
 text \<open>
-In the sequel, with \<^verbatim>\<open>isabelle\<close> we refer to your local Isabelle2019
+In the sequel, with \<^verbatim>\<open>isabelle\<close> we refer to your local Isabelle2020
 installation, and assume your current working directory is at the root of \<^verbatim>\<open>Isabelle_C\<close>
 (i.e. the directory that contains this \<^file>\<open>README.md\<close> file).
 
@@ -109,7 +109,7 @@ The following C examples or entry-points of documentation can be executed:
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C18-FrontEnd/examples/C0.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/C_Appendices.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/appendices/C_Appendices.thy\<close>
 
 The option \<^verbatim>\<open>-l Isabelle_C\<close> can be omitted; it instructs Isabelle to use a
 binary-built version of the \<^verbatim>\<open>Isabelle_C\<close> session. In case of omission,
@@ -126,7 +126,7 @@ C editing support in PIDE; it also contains annotation commands without any sema
 generation and the use of bindings resulting from the static C environment.
 \<^item> The example \<^file>\<open>C18-FrontEnd/examples/C0.thy\<close> is basically used to
 demonstrate the faithfulness of the C18 parser implementation.
-\<^item> The example \<^file>\<open>C11-FrontEnd/C_Appendices.thy\<close> shows the use of
+\<^item> The example \<^file>\<open>C11-FrontEnd/appendices/C_Appendices.thy\<close> shows the use of
 Isabelle/C documentation facilities.
 \<close>
 
@@ -190,9 +190,9 @@ project used is \<open>e3352826893db4d00fc402fad2a0125307ebe45e\<close>.
 subsection \<open>Isabelle/C/README\<close>
 
 text \<open>
-\<^file>\<open>README.md\<close> is automatically generated from \<^file>\<open>README.thy\<close>
+\<^file>\<open>README.md\<close> is automatically generated from \<^file>\<open>README/README.thy\<close>
 using:
-\<^item> \<^verbatim>\<open>isabelle env\<close> \<^file>\<open>./README.sh\<close>
+\<^item> \<^verbatim>\<open>isabelle env\<close> \<^file>\<open>README/README.sh\<close>
 \<close>
 
 text \<open> Note that this shell-script requires the prior installation of

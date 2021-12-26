@@ -43,8 +43,8 @@ chapter \<open>Appendix: Citadelle's Meta Interface\<close>
 
 theory Generator_dynamic_sequential
   imports Core
-          "../../../../Citadelle/src/compiler_generic/isabelle_home/src/Tools/Code/Isabelle_code_runtime"
-          "../../../../Citadelle/src/compiler_generic/isabelle_home/src/Pure/Isar/Isabelle_typedecl"
+          Isabelle_Meta_Model.Isabelle_code_runtime
+          Isabelle_Meta_Model.Isabelle_typedecl
   keywords (* Language (added) *)
            "self"
            "with_only"

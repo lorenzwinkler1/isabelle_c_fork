@@ -44,7 +44,7 @@
  *)
 
 theory BinarySearch
-imports Isabelle_C_AutoCorres.AutoCorres_Wrapper "../../../src_ext/l4v/src/tools/autocorres/DataStructures"
+imports Isabelle_C_AutoCorres.AutoCorres_Wrapper AutoCorres.DataStructures
 begin
 
 declare [[AutoCorres]]

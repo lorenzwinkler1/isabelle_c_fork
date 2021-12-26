@@ -34,49 +34,49 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-session Isabelle_C_AutoCorres = AutoCorres +
-  options [document = pdf, document_output = "output/document/1"]
+session Isabelle_C_AutoCorres in src = AutoCorres +
+  options [document = pdf, document_output = "../output/document/1"]
+  directories
+    "../../AutoCorres/src"
   theories
-    "../AutoCorres/src/README"
-    "src/AutoCorres_Wrapper"
+    "../../AutoCorres/src/README"
+    AutoCorres_Wrapper
   document_files
     "root.tex"
     "root.bib"
 
-session Isabelle_C_AutoCorres_examples = Isabelle_C_AutoCorres +
-  options [document = pdf, document_output = "output/document/2"]
+session Isabelle_C_AutoCorres_examples in examples = Isabelle_C_AutoCorres +
+  options [document = pdf, document_output = "../output/document/2"]
   sessions
     "HOL-Computational_Algebra"
   theories
-    "examples/BinarySearch"
-    "examples/C0"
-    "examples/CList"
-    "examples/FactorialTest"
-    "examples/FibProof"
-    "examples/IsPrime_linear_CCT"
-    "examples/IsPrime_linear_TCC"
-    "examples/IsPrime_sqrt_CAS"
-    "examples/IsPrime_sqrt_opt_CCT"
-    "examples/IsPrime_sqrt_opt_TCC"
-    "examples/IsPrime_sqrt_TCC"
-    "examples/ListRev"
-    "examples/Memcpy"
-    "examples/Memset"
-    "examples/MultByAdd"
-    "examples/Parse_for_loop"
-    "examples/Plus"
-    "examples/Quicksort"
-    "examples/SchorrWaite"
-    "examples/Simple"
-    "examples/TestSEL4"
+    BinarySearch
+    C0
+    CList
+    FactorialTest
+    FibProof
+    IsPrime_linear_CCT
+    IsPrime_linear_TCC
+    IsPrime_sqrt_CAS
+    IsPrime_sqrt_opt_CCT
+    IsPrime_sqrt_opt_TCC
+    IsPrime_sqrt_TCC
+    ListRev
+    Memcpy
+    Memset
+    MultByAdd
+    Parse_for_loop
+    Plus
+    Quicksort
+    SchorrWaite
+    Simple
+    TestSEL4
   document_files
     "root.tex"
     "root.bib"
 
 session Isabelle_C_AutoCorres_document = Isabelle_C_AutoCorres_examples +
   options [document = pdf, document_output = "output"]
-  theories
-    "src/compiler/Init" (* already used in session CParser, but only mentioned here for the document generation *)
   document_files
     "root.tex"
     "root.bib"

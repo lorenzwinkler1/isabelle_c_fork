@@ -3,4 +3,5 @@ C11-BackEnds/Clean
 C11-BackEnds/Clean_wrapper
 C11-FrontEnd
 C18-FrontEnd
+Citadelle/src/compiler_generic
 src_ext/l4v/src

@@ -40,28 +40,35 @@
  *           Contributions by Chantal Keller
  *)
 
-session Clean = HOL +
+session Clean in src = HOL +
+  options [document = pdf, document_output = "../output/document/1"]
+  sessions
+    "HOL-Eisbach"
   theories
-    "src/Clean_Main"
+    "Clean_Main"
+  document_files
+    "lstisadof.sty"
+    "root.bib"
+    "root.tex"
 
-session Clean_examples = Clean +
+session Clean_examples in examples = Clean +
+  options [document = pdf, document_output = "../output/document/2"]
   sessions
     "HOL-Computational_Algebra"
   theories
-    "examples/IsPrime"
-    "examples/LinearSearch" 
-    "examples/Quicksort"
-    "examples/Quicksort_concept"
-    "examples/SquareRoot_concept"
+    "IsPrime"
+    "LinearSearch" 
+    "Quicksort"
+    "Quicksort_concept"
+    "SquareRoot_concept"
+  document_files
+    "lstisadof.sty"
+    "root.bib"
+    "root.tex"
 
 session Clean_document = Clean_examples +
   options [document = pdf, document_output = "output"]
-  theories
-    "src/Clean_Main"
-    "examples/LinearSearch"
-    "examples/Quicksort_concept"
-    "examples/SquareRoot_concept"
   document_files
+    "lstisadof.sty"
     "root.tex"
     "root.bib"
-    "lstisadof.sty"

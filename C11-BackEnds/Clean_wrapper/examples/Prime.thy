@@ -55,7 +55,7 @@ respect the lexical conventions of C (support for such lexical-extensions is lef
 
 theory Prime imports Isabelle_C_Clean.Clean_Wrapper
                   \<comment> \<open>Clean back-end is imported\<close>  
-                     "../../../C11-FrontEnd/archive/Clean_backend_old" 
+                     "../archive/Clean_backend_old" 
                      "HOL-Computational_Algebra.Primes" 
 begin                
 

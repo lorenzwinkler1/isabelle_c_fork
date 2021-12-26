@@ -34,17 +34,19 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-session Isabelle_C_README in "C11-FrontEnd" = HOL +
+session Isabelle_C_README in README = HOL +
   theories
-    "../README"
+    "./README"
 
 session Isabelle_C_archive = Isabelle_C_AutoCorres +
   options [quick_and_dirty]
   sessions
     Clean
     "HOL-Computational_Algebra"
+  directories
+    "C11-FrontEnd/archive"
+    "C11-BackEnds/AutoCorres/examples/program-based"
   theories
-    "C11-FrontEnd/archive/Clean_old"
     "C11-FrontEnd/archive/C_DOF"
     "C11-FrontEnd/archive/IsPrime_sqrt_outside"
     "C11-FrontEnd/archive/Prime"

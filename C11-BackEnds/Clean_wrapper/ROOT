@@ -34,25 +34,30 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-session Isabelle_C_Clean = Isabelle_C +
-  options [document = pdf, document_output = "output/document/1"]
+session Isabelle_C_Clean in src = Isabelle_C +
+  options [document = pdf, document_output = "../output/document/1"]
   sessions
+    Isabelle_Meta_Model
     Clean
+  directories
+    compiler
   theories
-    "src/Clean_Wrapper"
+    Clean_Wrapper
   document_files
     "root.tex"
     "root.bib"
 
-session Isabelle_C_Clean_examples = Isabelle_C_Clean +
-  options [document = pdf, document_output = "output/document/2"]
+session Isabelle_C_Clean_examples in examples = Isabelle_C_Clean +
+  options [document = pdf, document_output = "../output/document/2"]
   sessions
     "HOL-Computational_Algebra"
+  directories
+    "../archive"
   theories
-    "examples/IsPrime_sqrt_outside"
-    "examples/Prime"
-    "examples/Quicksort2"
-    "examples/Quicksort"
+    "IsPrime_sqrt_outside"
+    "Prime"
+    "Quicksort2"
+    "Quicksort"
   document_files
     "figures/A-C-Source7.png"
     "root.tex"

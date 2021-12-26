@@ -6,6 +6,7 @@
 \usepackage{isabelle,isabellesym}
 \usepackage[only,bigsqcap]{stmaryrd}
 \usepackage{ifthen}
+\newcommand\inputif[1]{\IfFileExists{./#1}{\input{#1}}{}}
 \usepackage{wrapfig}
 \usepackage{graphicx}
 \usepackage{xcolor}
@@ -80,20 +81,20 @@ test-generation techniques described in~\cite{DBLP:conf/tap/Keller18}.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % \input{session}
 \newpage
-\input{Clean.tex}
-\input{Quicksort_concept.tex}
-\input{SquareRoot_concept.tex}
-\input{LinearSearch}
+\inputif{1/document/Clean.tex}
+\inputif{2/document/Quicksort_concept.tex}
+\inputif{2/document/SquareRoot_concept.tex}
+\inputif{2/document/LinearSearch.tex}
 
 \newpage
 \chapter{Appendix : Used Monad Libraries}
-\input{MonadSE.tex}
-\input{Seq_MonadSE.tex}
-\input{Symbex_MonadSE.tex}
-\input{Clean_Symbex.tex}
-\input{Test_Clean.tex}
-\input{Hoare_MonadSE.tex}
-\input{Hoare_Clean.tex}
+\inputif{1/document/MonadSE.tex}
+\inputif{1/document/Seq_MonadSE.tex}
+\inputif{1/document/Symbex_MonadSE.tex}
+\inputif{1/document/Clean_Symbex.tex}
+\inputif{1/document/Test_Clean.tex}
+\inputif{1/document/Hoare_MonadSE.tex}
+\inputif{1/document/Hoare_Clean.tex}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

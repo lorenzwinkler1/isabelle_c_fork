@@ -40,7 +40,7 @@ theory Clean_backend_old
   imports Isabelle_C_Clean.Generator_dynamic_sequential
 begin
 
-text\<open>A Mockup Logical Context for the \<^file>\<open>../../C11-BackEnds/Clean_wrapper/examples/Prime.thy\<close> - example. 
+text\<open>A Mockup Logical Context for the \<^file>\<open>../examples/Prime.thy\<close> - example. 
 Will disappear in the final distribution. \<close>
 
 section \<open>\<close>
