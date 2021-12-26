@@ -134,7 +134,7 @@ fun delete_command (name, pos) thy =
 type command_keyword = string * Position.T;
 
 fun raw_command0 kind (name, pos) comment command_parser =
-  C_Thy_Header.add_keywords [((name, pos), ((kind, []), [name]))]
+  C_Thy_Header.add_keywords [((name, pos), (kind, [name]))]
   #> add_command name (new_command comment command_parser pos);
 
 fun raw_command (name, pos) comment command_parser =
@@ -235,17 +235,20 @@ structure C_Resources =
 struct
 (* load files *)
 
-fun parse_files cmd =
-  Scan.ahead C_Parse.not_eof -- C_Parse.path >> (fn (tok, name) => fn thy =>
+fun parse_files make_paths =
+  Scan.ahead C_Parse.not_eof -- C_Parse.path_input >> (fn (tok, source) => fn thy =>
     (case C_Token.get_files tok of
       [] =>
         let
-          val keywords = C_Thy_Header.get_keywords thy;
           val master_dir = Resources.master_directory thy;
-          val pos = C_Token.pos_of tok;
-          val src_paths = C_Keyword.command_files keywords cmd (Path.explode name);
-        in map (Command.read_file master_dir pos) src_paths end
+          val name = Input.string_of source;
+          val pos = Input.pos_of source;
+          val delimited = Input.is_delimited source;
+          val src_paths = make_paths (Path.explode name);
+        in map (Command.read_file master_dir pos delimited) src_paths end
     | files => map Exn.release files));
+
+val parse_file = parse_files single >> (fn f => f #> the_single);
 
 end;
 \<close>
