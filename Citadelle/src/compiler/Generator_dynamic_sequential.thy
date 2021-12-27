@@ -223,8 +223,8 @@ structure Resources' = struct
           SOME dir => dir
         | NONE => Resources.master_directory (Proof_Context.theory_of ctxt));
       val path = dir + Path.explode name handle ERROR msg => err msg;
-      val path' = Path.implode_symbolic path;
-      val _ = Path.expand path handle ERROR msg => err msg;
+      val path = Path.expand path handle ERROR msg => err msg;
+      val path' = Path.implode path;
       val _ = Context_Position.report ctxt pos (Markup.path path');
       val _ : Path.T = check_file path handle ERROR msg => err msg;
     in path' end;
