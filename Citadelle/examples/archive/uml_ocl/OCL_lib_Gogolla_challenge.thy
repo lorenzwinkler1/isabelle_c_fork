@@ -117,7 +117,7 @@ proof -
 qed
 
 lemma cp_mtSet : "\<And>x. Set{} = (\<lambda>_. Set{} x)"
-by (metis (hide_lams, no_types) mtSet_def)
+by (metis (opaque_lifting, no_types) mtSet_def)
 
 section{* Properties: OclIncluding *}
 
@@ -160,7 +160,7 @@ lemmas including_subst_set' = OclIncluding_cong'
 lemma including_subst_set'' : "\<tau> \<Turnstile> \<delta> s \<Longrightarrow> \<tau> \<Turnstile> \<delta> t \<Longrightarrow> \<tau> \<Turnstile> \<upsilon> x \<Longrightarrow> (s::('\<AA>,'a::null)Set) \<tau> = t \<tau> \<Longrightarrow> s->including\<^sub>S\<^sub>e\<^sub>t(x) \<tau> = (t->including\<^sub>S\<^sub>e\<^sub>t(x)) \<tau>"
  apply(frule including_subst_set'[where s = s and t = t and x = x], simp_all del: StrictRefEq\<^sub>S\<^sub>e\<^sub>t_exec)
  apply(simp add: StrictRefEq\<^sub>S\<^sub>e\<^sub>t OclValid_def del: StrictRefEq\<^sub>S\<^sub>e\<^sub>t_exec)
- apply (metis (hide_lams, no_types) OclValid_def foundation20 foundation22)
+ apply (metis (opaque_lifting, no_types) OclValid_def foundation20 foundation22)
 by (metis UML_Set.OclIncluding.cp0)
 
 
@@ -542,11 +542,17 @@ lemma if_commute_gen_var_gen :
       and comm : "\<And>x y S \<tau>. F y (f x S) \<tau> = f x (F y S) \<tau>"
     shows "comp_fun_commute (\<lambda>j r2. if c j then (F j r2) else f j r2 endif)"
 proof -
+ interpret f_comm: comp_fun_commute f
+ by (fact f_comm)
+
+ interpret F_comm: comp_fun_commute F
+ by (fact F_comm)
+
  have F_comm : "\<And>y x S. (F y (F x S)) = (F x (F y S))"
- by (metis comp_fun_commute.fun_left_comm F_comm)
+ by (simp add: F_comm.fun_left_comm)
 
  have f_comm : "\<And>y x S. (f y (f x S)) = (f x (f y S))"
- by (metis comp_fun_commute.fun_left_comm f_comm)
+ by (simp add: f_comm.fun_left_comm)
 
  have if_id : "\<And>x. (if x then invalid else invalid endif) = invalid"
  by(rule ext,simp add: OclIf_def)
@@ -581,8 +587,11 @@ lemma including_commute_gen_var_gen :
       and f_out : "\<And>x y S \<tau>. F x (S->including\<^sub>S\<^sub>e\<^sub>t(y)) \<tau> = (F x S)->including\<^sub>S\<^sub>e\<^sub>t(y) \<tau>"
     shows "comp_fun_commute (\<lambda>j r2. ((F j r2)->including\<^sub>S\<^sub>e\<^sub>t(a)))"
 proof -
+ interpret f_comm: comp_fun_commute F
+ by (fact f_comm)
+
  have comm : "\<And>y x S. (F y (F x S)) = (F x (F y S))"
- by (metis comp_fun_commute.fun_left_comm f_comm)
+ by (simp add: f_comm.fun_left_comm)
  show ?thesis
   apply(simp add: comp_fun_commute_def comp_def)
   apply(rule allI)+
@@ -761,16 +770,16 @@ proof -
   apply(rule conjI, rule conjI) apply(subst (1 2) UML_Set.OclIncluding.cp0, simp)
   apply(rule conjI) apply(subst (1 2) UML_Set.OclIncluding.cp0, subst (1 3) UML_Set.OclIncluding.cp0, subst (1 4) UML_Set.OclIncluding.cp0, simp) apply(rule allI)+
   apply(rule impI)+
-  apply(rule including_cp_all) apply(simp) apply (metis (hide_lams, no_types) all_defined1 cons_all_def i_val j_val)
-  apply(rule including_cp_all) apply(simp) apply(simp add: j_int)  apply (metis (hide_lams, no_types) all_defined1 cons_all_def i_val)
+  apply(rule including_cp_all) apply(simp) apply (metis (opaque_lifting, no_types) all_defined1 cons_all_def i_val j_val)
+  apply(rule including_cp_all) apply(simp) apply(simp add: j_int)  apply (metis (opaque_lifting, no_types) all_defined1 cons_all_def i_val)
   apply(rule including_cp_all) apply(simp) apply(simp add: i_int) apply(rule all_defined1, blast) apply(simp)
   apply(rule conjI) apply(rule allI)+
 
   apply(rule impI)+
-  apply(rule including_notempty)  apply (metis (hide_lams, no_types) all_defined1 cons_all_def i_val j_val) apply(simp)
-  apply(rule including_notempty)  apply (metis (hide_lams, no_types) all_defined1 cons_all_def i_val)  apply(simp add: j_val)
+  apply(rule including_notempty)  apply (metis (opaque_lifting, no_types) all_defined1 cons_all_def i_val j_val) apply(simp)
+  apply(rule including_notempty)  apply (metis (opaque_lifting, no_types) all_defined1 cons_all_def i_val)  apply(simp add: j_val)
   apply(rule including_notempty) apply(rule all_defined1, blast) apply(simp add: i_val) apply(simp)
- by (metis (no_types, hide_lams) OclIncluding_commute cons_all_def' i_val invert_all_defined j_val)
+ by (metis (no_types, opaque_lifting) OclIncluding_commute cons_all_def' i_val invert_all_defined j_val)
 qed
 
 section{* Properties: (with comp fun commute) OclIterate *}
@@ -1334,7 +1343,7 @@ lemma iterate_commute' :
   apply(drule_tac f = "\<lambda>s. Abs_Set\<^sub>b\<^sub>a\<^sub>s\<^sub>e \<lfloor>\<lfloor>s\<rfloor>\<rfloor>" in arg_cong)
   apply(subgoal_tac "S \<tau> = Abs_Set\<^sub>b\<^sub>a\<^sub>s\<^sub>e \<lfloor>\<lfloor>{}\<rfloor>\<rfloor>")
   prefer 2
-  apply(metis (hide_lams, no_types) abs_rep_simp' all_defined_def)
+  apply(metis (opaque_lifting, no_types) abs_rep_simp' all_defined_def)
   apply(simp add: mtSet_def)
 
   apply(subst (1 2) cp_OclIterate1[OF f_comm]) apply(rule i_cons_all_def'[OF f_comm], blast)+
@@ -1472,7 +1481,7 @@ proof -
   apply(drule_tac x = \<tau> in allE) prefer 2 apply assumption
   apply(drule_tac x = \<tau> in allE) prefer 2 apply assumption
   apply(simp add: mtSet_def)
- by (metis (hide_lams, no_types) abs_rep_simp' all_defined_def)
+ by (metis (opaque_lifting, no_types) abs_rep_simp' all_defined_def)
 
  have invert_set_0 : "\<And>x F. \<lfloor>\<lfloor>insert x F\<rfloor>\<rfloor> \<in> {X. X = bot \<or> X = null \<or> (\<forall>x\<in>\<lceil>\<lceil>X\<rceil>\<rceil>. x \<noteq> bot)} \<Longrightarrow> \<lfloor>\<lfloor>F\<rfloor>\<rfloor> \<in> {X. X = bot \<or> X = null \<or> (\<forall>x\<in>\<lceil>\<lceil>X\<rceil>\<rceil>. x \<noteq> bot)}"
  by(auto simp: bot_option_def null_option_def)
@@ -1677,7 +1686,7 @@ proof -
   apply(drule_tac f = "\<lambda>s. Abs_Set\<^sub>b\<^sub>a\<^sub>s\<^sub>e \<lfloor>\<lfloor>s\<rfloor>\<rfloor>" in arg_cong)
   apply(subgoal_tac "S \<tau> = Abs_Set\<^sub>b\<^sub>a\<^sub>s\<^sub>e \<lfloor>\<lfloor>{}\<rfloor>\<rfloor>")
   prefer 2
-  apply(metis (hide_lams, no_types) abs_rep_simp' all_defined_def)
+  apply(metis (opaque_lifting, no_types) abs_rep_simp' all_defined_def)
   apply(simp add: mtSet_def)
 
   apply(subst (1 2) UML_Set.OclIncluding.cp0)
@@ -1746,7 +1755,7 @@ proof -
   apply(drule_tac f = "\<lambda>s. Abs_Set\<^sub>b\<^sub>a\<^sub>s\<^sub>e \<lfloor>\<lfloor>s\<rfloor>\<rfloor>" in arg_cong)
   apply(subgoal_tac "S \<tau> = Abs_Set\<^sub>b\<^sub>a\<^sub>s\<^sub>e \<lfloor>\<lfloor>{}\<rfloor>\<rfloor>")
   prefer 2
-  apply (metis (hide_lams, no_types) abs_rep_simp' all_defined_def prod.exhaust)
+  apply (metis (opaque_lifting, no_types) abs_rep_simp' all_defined_def prod.exhaust)
   apply(simp add: mtSet_def)
 
 
@@ -2846,6 +2855,10 @@ lemma select_iterate:
      and P_strict: "\<And>x. x \<tau> = \<bottom> \<Longrightarrow> (P x) \<tau> = \<bottom>"
    shows "UML_Set.OclSelect S P \<tau> = (S->iterate\<^sub>S\<^sub>e\<^sub>t(x; acc = Set{} | OclSelect_body P x acc)) \<tau>"
 proof -
+ interpret OclSelect_body_commute: comp_fun_commute "(OclSelect_body (P::(('\<AA> state \<times> '\<AA> state \<Rightarrow> 'a option option)
+    \<Rightarrow> '\<AA> state \<times> '\<AA> state \<Rightarrow> bool option option)))"
+ by (fact OclSelect_body_commute)
+
  have ex_insert : "\<And>x F P. (\<exists>x\<in>insert x F. P x) = (P x \<or> (\<exists>x\<in>F. P x))"
  by (metis insert_iff)
 
@@ -2866,7 +2879,7 @@ proof -
  by (case_tac " P \<tau> = \<bottom> \<or> P \<tau> = null", simp_all add: true_def)
 
  have not_strongeq : "\<And>P. P \<tau> \<noteq> invalid \<tau> \<Longrightarrow> \<not> \<tau> \<Turnstile> P \<doteq> false \<Longrightarrow> (P \<doteq> false) \<tau> = false \<tau>"
- by (metis (hide_lams, no_types) OclValid_def StrictRefEq\<^sub>B\<^sub>o\<^sub>o\<^sub>l\<^sub>e\<^sub>a\<^sub>n.defined_args_valid bool_split_0 foundation1 foundation16 foundation18 invalid_def null_fun_def valid4)
+ by (metis (opaque_lifting, no_types) OclValid_def StrictRefEq\<^sub>B\<^sub>o\<^sub>o\<^sub>l\<^sub>e\<^sub>a\<^sub>n.defined_args_valid bool_split_0 foundation1 foundation16 foundation18 invalid_def null_fun_def valid4)
 
 
  show ?thesis
@@ -2885,7 +2898,7 @@ proof -
   apply(simp add: mtSet_def)
   (* *)
   apply(simp only: image_insert)
-  apply(subst comp_fun_commute.fold_insert[OF OclSelect_body_commute], simp)
+  apply(subst OclSelect_body_commute.fold_insert, simp)
   apply(rule inj, fast)
 
   apply(simp only: OclSelect_body_def)

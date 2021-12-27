@@ -62,6 +62,8 @@ and F_commute: "comp_fun_commute F"
 and F_valid_arg: "\<And>a A. \<upsilon> (F a A) = (\<upsilon> a and \<upsilon> A)"
 shows   "\<upsilon> (S->iterate\<^sub>S\<^sub>e\<^sub>t(a; x = A | F a x)) = (\<delta> S and (S->forAll\<^sub>S\<^sub>e\<^sub>t(x | \<upsilon> x)) and \<upsilon> A)"
 proof -
+ interpret F_commute: comp_fun_commute F
+ by (fact F_commute)
 
  have defined_inject_true : "\<And>\<tau> P. (\<delta> P) \<tau> \<noteq> true \<tau> \<Longrightarrow> (\<delta> P) \<tau> = false \<tau>"
   apply(simp add: defined_def true_def false_def
@@ -128,8 +130,7 @@ proof -
   apply(subgoal_tac "F (\<lambda>\<tau>. xa) (Finite_Set.fold F A ((\<lambda>a \<tau>. a) ` Fa)) = F (\<lambda>\<tau>. xa) xb")
    prefer 2
    apply(simp)
-  apply(subst comp_fun_commute.fold_insert[where f = F and z = A and A = "((\<lambda>a \<tau>. a) ` Fa)" and x = "(\<lambda>\<tau>. xa)"])
-     apply(rule F_commute)
+  apply(subst F_commute.fold_insert[where z = A and A = "((\<lambda>a \<tau>. a) ` Fa)" and x = "(\<lambda>\<tau>. xa)"])
     apply(simp)
    apply(rule image_cong)
     apply(rule inject)
@@ -169,8 +170,7 @@ proof -
    apply(subgoal_tac "\<forall>x. Finite_Set.fold F A (insert (\<lambda>\<tau>. xa) ((\<lambda>a \<tau>. a) ` Fa)) = x \<longrightarrow> (\<upsilon> x) \<tau> = false \<tau>") apply(simp, rule allI, rule impI)
    apply(subgoal_tac "F (\<lambda>\<tau>. xa) (Finite_Set.fold F A ((\<lambda>a \<tau>. a) ` Fa)) = xc")
     prefer 2
-    apply(subst comp_fun_commute.fold_insert[where f = F and z = A and x = "(\<lambda>\<tau>. xa)" and A = "((\<lambda>a \<tau>. a) ` Fa)", symmetric])
-       apply(rule F_commute)
+    apply(subst F_commute.fold_insert[where z = A and x = "(\<lambda>\<tau>. xa)" and A = "((\<lambda>a \<tau>. a) ` Fa)", symmetric])
       apply(simp)
       apply(rule image_cong)
      apply(rule inject)
@@ -191,8 +191,7 @@ proof -
   apply(subgoal_tac "F (\<lambda>\<tau>. xa) (Finite_Set.fold F A ((\<lambda>a \<tau>. a) ` Fa)) = F (\<lambda>\<tau>. xa) xd")
    prefer 2
    apply(simp)
-  apply(subst comp_fun_commute.fold_insert[where f = F and z = A and A = "((\<lambda>a \<tau>. a) ` Fa)" and x = "(\<lambda>\<tau>. xa)"])
-     apply(rule F_commute)
+  apply(subst F_commute.fold_insert[where z = A and A = "((\<lambda>a \<tau>. a) ` Fa)" and x = "(\<lambda>\<tau>. xa)"])
     apply(simp)
     apply(rule image_cong)
     apply(rule inject)
@@ -275,6 +274,9 @@ and F_valid_arg_false2: "\<And>\<tau> a A. \<not> (\<tau> \<Turnstile> \<upsilon
 shows   "\<upsilon> (S->iterate\<^sub>S\<^sub>e\<^sub>t(a; x = A | F a x)) = (\<delta> S and (S->forAll\<^sub>S\<^sub>e\<^sub>t(x | \<upsilon> x)) and \<upsilon> A)"
 proof -
 
+ interpret F_commute: comp_fun_commute F
+ by (fact F_commute)
+
  have defined_inject_true : "\<And>\<tau> P. (\<delta> P) \<tau> \<noteq> true \<tau> \<Longrightarrow> (\<delta> P) \<tau> = false \<tau>"
   apply(simp add: defined_def true_def false_def
                   bot_fun_def bot_option_def
@@ -334,8 +336,7 @@ proof -
   apply(subgoal_tac "F (\<lambda>\<tau>. xa) (Finite_Set.fold F A ((\<lambda>a \<tau>. a) ` Fa)) = F (\<lambda>\<tau>. xa) xb")
    prefer 2
    apply(simp)
-  apply(subst comp_fun_commute.fold_insert[where f = F and z = A and A = "((\<lambda>a \<tau>. a) ` Fa)" and x = "(\<lambda>\<tau>. xa)"])
-     apply(rule F_commute)
+  apply(subst F_commute.fold_insert[where z = A and A = "((\<lambda>a \<tau>. a) ` Fa)" and x = "(\<lambda>\<tau>. xa)"])
     apply(simp)
    apply(rule image_cong)
     apply(rule inject)
@@ -354,8 +355,7 @@ proof -
     apply(insert A_defined, simp)
    defer
    apply(simp)
-  apply(subst comp_fun_commute.fold_insert)
-     apply(rule F_commute)
+  apply(subst F_commute.fold_insert)
     apply(simp)
    apply(simp)
   apply(simp add: Let_def)
@@ -387,8 +387,7 @@ proof -
    apply(subgoal_tac "\<forall>x. Finite_Set.fold F A (insert (\<lambda>\<tau>. xa) ((\<lambda>a \<tau>. a) ` Fa)) = x \<longrightarrow> \<not> (\<tau> \<Turnstile> (\<upsilon> x))") apply(simp, rule allI, rule impI)
    apply(subgoal_tac "F (\<lambda>\<tau>. xa) (Finite_Set.fold F A ((\<lambda>a \<tau>. a) ` Fa)) = xc")
     prefer 2
-    apply(subst comp_fun_commute.fold_insert[where f = F and z = A and x = "(\<lambda>\<tau>. xa)" and A = "((\<lambda>a \<tau>. a) ` Fa)", symmetric])
-       apply(rule F_commute)
+    apply(subst F_commute.fold_insert[where z = A and x = "(\<lambda>\<tau>. xa)" and A = "((\<lambda>a \<tau>. a) ` Fa)", symmetric])
       apply(simp)
      apply(rule image_cong)
       apply(rule inject)
@@ -397,8 +396,7 @@ proof -
    apply(subgoal_tac "\<not> (\<tau> \<Turnstile> (\<upsilon> (F (\<lambda>\<tau>. xa) (Finite_Set.fold F A ((\<lambda>a \<tau>. a) ` Fa)))))") apply(simp)
    apply(rule F_valid_arg_false1, simp)
 
-  apply(subst comp_fun_commute.fold_insert[where f = F and z = A and x = "(\<lambda>\<tau>. xa)" and A = "((\<lambda>a \<tau>. a) ` Fa)"])
-     apply(rule F_commute)
+  apply(subst F_commute.fold_insert[where z = A and x = "(\<lambda>\<tau>. xa)" and A = "((\<lambda>a \<tau>. a) ` Fa)"])
     apply(simp)
     apply(rule image_cong)
     apply(rule inject)

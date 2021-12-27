@@ -82,7 +82,7 @@ term "all_defined \<tau> (f \<zero> Set{\<zero>}) = (all_defined \<tau> Set{\<ze
 lemma int_trivial : "is_int (\<lambda>_. \<lfloor>a\<rfloor>)" by(simp add: is_int_def OclValid_def valid_def bot_fun_def bot_option_def)
 
 lemma EQ_sym : "(x::(_, _) Set) = y \<Longrightarrow> \<tau> \<Turnstile> \<upsilon> x \<Longrightarrow> \<tau> \<Turnstile> (x \<doteq> y)"
-by (metis (hide_lams, no_types) OclIf_true' OclValid_def StrictRefEq\<^sub>S\<^sub>e\<^sub>t.refl_ext)
+by (metis (opaque_lifting, no_types) OclIf_true' OclValid_def StrictRefEq\<^sub>S\<^sub>e\<^sub>t.refl_ext)
 
 lemma cp_all_def : "all_defined \<tau> f = all_defined \<tau>' (\<lambda>_. f \<tau>)"
   apply(simp add: all_defined_def all_defined_set'_def OclValid_def)
