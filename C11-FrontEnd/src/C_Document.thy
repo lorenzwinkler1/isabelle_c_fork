@@ -40,20 +40,18 @@ theory C_Document
   imports C_Command
 begin
 
-ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/thy_output.ML\<close>\<close>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/document_output.ML\<close>\<close>
 (*  Author:     Frédéric Tuong, Université Paris-Saclay *)
-(*  Title:      Pure/Thy/thy_output.ML
+(*  Title:      Pure/Thy/document_output.ML
     Author:     Makarius
 
 Theory document output.
 *)
 \<open>
-structure C_Thy_Output =
+structure C_Document_Output =
 struct
 
 (* output document source *)
-
-val output_symbols = single o Latex.symbols_output;
 
 fun output_comment ctxt (kind, syms) =
   (case kind of
@@ -61,18 +59,17 @@ fun output_comment ctxt (kind, syms) =
       Input.cartouche_content syms
       |> output_document (ctxt |> Config.put Document_Antiquotation.thy_output_display false)
           {markdown = false}
-      |> Latex.enclose_body "%\n\\isamarkupcmt{" "%\n}"
+      |> XML.enclose "%\n\\isamarkupcmt{" "%\n}"
   | Comment.Cancel =>
       Symbol_Pos.cartouche_content syms
-      |> output_symbols
-      |> Latex.enclose_body "%\n\\isamarkupcancel{" "}"
-  | Comment.Latex =>
-      [Latex.symbols (Symbol_Pos.cartouche_content syms)]
+      |> Latex.symbols_output
+      |> XML.enclose "%\n\\isamarkupcancel{" "}"
+  | Comment.Latex => Latex.symbols (Symbol_Pos.cartouche_content syms)
   | Comment.Marker => [])
 and output_comment_document ctxt (comment, syms) =
   (case comment of
     SOME kind => output_comment ctxt (kind, syms)
-  | NONE => [Latex.symbols syms])
+  | NONE => Latex.symbols syms)
 and output_document_text ctxt syms =
   Comment.read_body syms |> maps (output_comment_document ctxt)
 and output_document ctxt {markdown} source =
@@ -84,14 +81,15 @@ and output_document ctxt {markdown} source =
       maps (Document_Antiquotation.evaluate (output_document_text ctxt) ctxt);
 
     fun output_line line =
-      (if Markdown.line_is_item line then [Latex.string "\\item "] else []) @
+      (if Markdown.line_is_item line then Latex.string "\\item " else []) @
         output_antiquotes (Markdown.line_content line);
 
     fun output_block (Markdown.Par lines) =
-          Latex.block (separate (Latex.string "\n") (map (Latex.block o output_line) lines))
+          separate (XML.Text "\n") (map (Latex.block o output_line) lines)
       | output_block (Markdown.List {kind, body, ...}) =
-          Latex.environment_block (Markdown.print_kind kind) (output_blocks body)
-    and output_blocks blocks = separate (Latex.string "\n\n") (map output_block blocks);
+          Latex.environment_text (Markdown.print_kind kind) (output_blocks body)
+    and output_blocks blocks =
+      separate (XML.Text "\n\n") (map (Latex.block o output_block) blocks);
   in
     if Toplevel.is_skipped_proof (Toplevel.presentation_state ctxt) then []
     else if markdown andalso exists (Markdown.is_control o Symbol_Pos.symbol) syms
@@ -116,16 +114,16 @@ and output_document ctxt {markdown} source =
 local
 
 val output_symbols_antiq =
-  (fn Antiquote.Text syms => output_symbols syms
+  (fn Antiquote.Text syms => Latex.symbols_output syms
     | Antiquote.Control {name = (name, _), body, ...} =>
-        Latex.string (Latex.output_symbols [Symbol.encode (Symbol.Control name)]) ::
-          output_symbols body
+        Latex.string (Latex.output_symbols [Symbol.encode (Symbol.Control name)]) @
+          Latex.symbols_output body
     | Antiquote.Antiq {body, ...} =>
-        Latex.enclose_body "%\n\\isaantiq\n" "{}%\n\\endisaantiq\n" (output_symbols body));
+        XML.enclose "%\n\\isaantiq\n" "{}%\n\\endisaantiq\n" (Latex.symbols_output body));
 
 fun output_comment_symbols ctxt {antiq} (comment, syms) =
   (case (comment, antiq) of
-    (NONE, false) => output_symbols syms
+    (NONE, false) => Latex.symbols_output syms
   | (NONE, true) =>
       Antiquote.parse_comments (#1 (Symbol_Pos.range syms)) syms
       |> maps output_symbols_antiq
@@ -134,7 +132,7 @@ fun output_comment_symbols ctxt {antiq} (comment, syms) =
 fun output_body ctxt antiq bg en syms =
   Comment.read_body syms
   |> maps (output_comment_symbols ctxt {antiq = antiq})
-  |> Latex.enclose_body bg en;
+  |> XML.enclose bg en;
 
 in
 
@@ -155,6 +153,7 @@ fun output_token ctxt tok =
     | Token.Alt_String => output false "{\\isacharbackquoteopen}" "{\\isacharbackquoteclose}"
     | Token.Verbatim => output true "{\\isacharverbatimopen}" "{\\isacharverbatimclose}"
     | Token.Cartouche => output false "{\\isacartoucheopen}" "{\\isacartoucheclose}"
+    | Token.Control control => output_body ctxt false "" "" (Antiquote.control_symbols control)
     | _ => output false "" "")
   end handle ERROR msg => error (msg ^ Position.here (C_Token.pos_of tok));
 
@@ -189,7 +188,7 @@ fun prepare_text ctxt =
   Input.source_content #> #1 #> Document_Antiquotation.prepare_lines ctxt;
 
 val theory_text_antiquotation =
-  Thy_Output.antiquotation_raw_embedded \<^binding>\<open>C_theory_text\<close> (Scan.lift Args.text_input)
+  Document_Output.antiquotation_raw_embedded \<^binding>\<open>C_theory_text\<close> (Scan.lift Args.text_input)
     (fn ctxt => fn text =>
       let
         val keywords = C_Thy_Header.get_keywords' ctxt;
@@ -203,8 +202,8 @@ val theory_text_antiquotation =
       in
         prepare_text ctxt text
         |> C_Token.explode0 keywords
-        |> maps (C_Thy_Output.output_token ctxt)
-        |> Thy_Output.isabelle ctxt
+        |> maps (C_Document_Output.output_token ctxt)
+        |> Document_Output.isabelle ctxt
       end);
 
 in
@@ -219,7 +218,7 @@ end;
 local
 
 fun c_text name c =
-  Thy_Output.antiquotation_verbatim_embedded name (Scan.lift Args.text_input)
+  Document_Output.antiquotation_verbatim_embedded name (Scan.lift Args.text_input)
     (fn ctxt => fn text =>
       let val _ = C_Module.eval_in text (SOME (Context.Proof ctxt)) (c text)
       in #1 (Input.source_content text) end);
