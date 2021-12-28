@@ -788,10 +788,12 @@ structure Bind_META = struct open Bind_Isabelle
 type T = META.all_meta list
 
 structure Meta_Cmd_Data = Theory_Data
-  (open META
-   type T = T
-   val empty = []
-   val merge = #2)
+(
+  open META
+  type T = T
+  val empty = []
+  val merge = #2
+)
 
 fun ML_context_exec pos ants =
   ML_Context.exec (fn () =>
@@ -985,11 +987,13 @@ fun mapM_deep f (mode : ('compiler_env_config_ext, 'a) generation_mode) tr = tr
 type T = (unit META.compiler_env_config_ext, theory) generation_mode
 
 structure Data_gen = Theory_Data
-  (type T = T
-   val empty = {deep = [], shallow = [], syntax_print = [NONE]}
-   fun merge (e1, e2) = { deep = #deep e1 @ #deep e2
-                        , shallow = #shallow e1 @ #shallow e2
-                        , syntax_print = #syntax_print e1 @ #syntax_print e2 })
+(
+  type T = T
+  val empty = {deep = [], shallow = [], syntax_print = [NONE]}
+  fun merge (e1, e2) = { deep = #deep e1 @ #deep e2
+                       , shallow = #shallow e1 @ #shallow e2
+                       , syntax_print = #syntax_print e1 @ #syntax_print e2 }
+)
 
 val code_expr_argsP = Scan.optional (\<^keyword>\<open>(\<close> |-- Parse.args --| \<^keyword>\<open>)\<close>) []
 
@@ -1959,9 +1963,11 @@ type Haskabelle_Data_T = module list * ((Code_Numeral.natural * Code_Numeral.nat
 end
 
 structure Haskabelle_Data = Theory_Data
-  (type T = Haskabelle_Data_T
-   val empty = ([], [])
-   val merge = #2)
+(
+  type T = Haskabelle_Data_T
+  val empty = ([], [])
+  val merge = #2
+)
 
 local
   fun haskabelle_path hkb_home l = Path.appends (Path.variable hkb_home :: map Path.explode l)
@@ -2046,9 +2052,11 @@ local
     * (string * string option) list
 
   structure Data_lang = Theory_Data
-    (type T = (haskell_parse * string option * (bool * string) list * string * (META.abr_string -> META.gen_meta)) Name_Space.table
-     val empty = Name_Space.empty_table "meta_language"
-     val merge = Name_Space.merge_tables)
+  (
+    type T = (haskell_parse * string option * (bool * string) list * string * (META.abr_string -> META.gen_meta)) Name_Space.table
+    val empty = Name_Space.empty_table "meta_language"
+    val merge = Name_Space.merge_tables
+  )
   
   structure Parse' =
   struct
