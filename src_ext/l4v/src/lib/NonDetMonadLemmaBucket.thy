@@ -11,7 +11,6 @@ imports
   WhileLoopRulesCompleteness
   "Word_Lib.Distinct_Prop"
 begin
-setup \<open>AutoLevity_Base.add_attribute_test "wp" WeakestPre.is_wp_rule\<close>
 
 lemma no_fail_assume_pre:
   "(\<And>s. P s \<Longrightarrow> no_fail P f) \<Longrightarrow> no_fail P f"
@@ -1004,13 +1003,13 @@ lemma zipWithM_If_cut:
   apply (cases "n < m")
    apply (cut_tac i=0 and j=n and k="m - n" in upt_add_eq_append)
     apply simp
-   apply (simp add: min.absorb1 zipWithM_mapM)
+   apply (simp add: zipWithM_mapM)
    apply (simp add: zip_append1 mapM_append zip_take_triv2 split_def)
    apply (intro bind_cong bind_apply_cong refl mapM_length_cong
                 fun_cong[OF mapM_length_cong])
     apply (clarsimp simp: set_zip)
    apply (clarsimp simp: set_zip)
-  apply (simp add: min.absorb2 zipWithM_mapM mapM_Nil)
+  apply (simp add: zipWithM_mapM mapM_Nil)
   apply (intro mapM_length_cong refl)
   apply (clarsimp simp: set_zip)
   done
@@ -3029,12 +3028,12 @@ proof -
   apply (intro conjI)
    apply (rule set_eqI)
     apply (rule iffI)
-    apply (clarsimp simp:Union_eq dest!: singletonD)
+    apply (clarsimp simp:Union_eq)
     apply (frule fsame)
     apply clarsimp
     apply (frule gsame)
     apply (metis fst_conv snd_conv)
-   apply (clarsimp simp:Union_eq dest!: singletonD)
+   apply (clarsimp simp:Union_eq)
    apply (frule gsame)
    apply clarsimp
    apply (frule fsame)
@@ -3127,5 +3126,44 @@ assumes rewrite: "\<And>s. Q s \<Longrightarrow> f s = t s"
 lemma commute_grab_asm:
   "(F \<Longrightarrow> monad_commute P f g) \<Longrightarrow> (monad_commute (P and (K F)) f g)"
   by (clarsimp simp: monad_commute_def)
+
+lemma returnOk_E': "\<lbrace>P\<rbrace> returnOk r -,\<lbrace>E\<rbrace>"
+  by (clarsimp simp: returnOk_def validE_E_def validE_def valid_def return_def)
+
+lemma throwError_R': "\<lbrace>P\<rbrace> throwError e \<lbrace>Q\<rbrace>,-"
+  by (clarsimp simp:throwError_def validE_R_def validE_def valid_def return_def)
+
+lemma select_modify_comm:
+  "(do b \<leftarrow> select S; _ \<leftarrow> modify f; use b od) =
+   (do _ \<leftarrow> modify f; b \<leftarrow> select S; use b od)"
+  by (simp add: bind_def split_def select_def simpler_modify_def image_def)
+
+lemma select_f_modify_comm:
+  "(do b \<leftarrow> select_f S; _ \<leftarrow> modify f; use b od) =
+   (do _ \<leftarrow> modify f; b \<leftarrow> select_f S; use b od)"
+  by (simp add: bind_def split_def select_f_def simpler_modify_def image_def)
+
+lemma hoare_validE_R_conjI:
+  "\<lbrakk> \<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>, - ; \<lbrace>P\<rbrace> f \<lbrace>Q'\<rbrace>, - \<rbrakk>  \<Longrightarrow> \<lbrace>P\<rbrace> f \<lbrace>\<lambda>rv s. Q rv s \<and> Q' rv s\<rbrace>, -"
+  apply (clarsimp simp: Ball_def validE_R_def validE_def valid_def)
+  by (case_tac a; fastforce)
+
+lemma validE_R_post_conjD1:
+  "\<lbrace>P\<rbrace> f \<lbrace>\<lambda>r s. Q r s \<and> R r s\<rbrace>,- \<Longrightarrow> \<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>,-"
+  apply (clarsimp simp: validE_R_def validE_def valid_def)
+  by (case_tac a; fastforce)
+
+lemma validE_R_post_conjD2:
+  "\<lbrace>P\<rbrace> f \<lbrace>\<lambda>r s. Q r s \<and> R r s\<rbrace>,- \<Longrightarrow> \<lbrace>P\<rbrace> f \<lbrace>R\<rbrace>,-"
+  apply (clarsimp simp: validE_R_def validE_def valid_def)
+  by (case_tac a; fastforce)
+
+lemma throw_opt_wp[wp]:
+  "\<lbrace>if v = None then E ex else Q (the v)\<rbrace> throw_opt ex v \<lbrace>Q\<rbrace>,\<lbrace>E\<rbrace>"
+  unfolding throw_opt_def by wpsimp auto
+
+lemma hoare_name_pre_state2:
+  "(\<And>s. \<lbrace>P and ((=) s)\<rbrace> f \<lbrace>Q\<rbrace>) \<Longrightarrow> \<lbrace>P\<rbrace> f \<lbrace>Q\<rbrace>"
+  by (auto simp: valid_def intro: hoare_name_pre_state)
 
 end

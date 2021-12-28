@@ -531,7 +531,7 @@ lemma threadSet_queued_ccorres [corres]:
    apply (rule rf_sr_tcb_update_no_queue_gen, assumption+, simp, simp_all)
    apply (rule ball_tcb_cte_casesI, simp_all)
    apply (simp add: ctcb_relation_def cthread_state_relation_def)
-   apply (case_tac "tcbState ko", simp_all add: Word_Lemmas.from_bool_mask_simp)[1]
+   apply (case_tac "tcbState ko"; simp)
   apply (frule (1) obj_at_cslift_tcb)
   apply (clarsimp simp: typ_heap_simps)
   done
@@ -1926,8 +1926,8 @@ lemma ksReadyQueuesL1Bitmap_word_log2_max:
     by (fastforce dest: word_log2_nth_same bitmapQ_no_L1_orphansD)
 
 lemma clzl_spec:
-  "\<forall>s. \<Gamma> \<turnstile> {\<sigma>. s = \<sigma> \<and> x_' s \<noteq> 0} Call clzl_'proc
-       \<lbrace>\<acute>ret__long = of_nat (word_clz (x_' s)) \<rbrace>"
+  "\<forall>s. \<Gamma> \<turnstile> {\<sigma>. s = \<sigma> \<and> x___unsigned_long_' s \<noteq> 0} Call clzl_'proc
+       \<lbrace>\<acute>ret__long = of_nat (word_clz (x___unsigned_long_' s))\<rbrace>"
   apply (rule allI, rule conseqPre, vcg)
   apply clarsimp
   apply (rule_tac x="ret__long_'_update f x" for f in exI)
@@ -1961,6 +1961,7 @@ proof -
   (* FIXME generalise *)
   have word_clz_sint_upper[simp]:
     "\<And>(w::machine_word). sint (of_nat (word_clz w) :: 32 signed word) \<le> 2147483679"
+    including no_take_bit
     apply (subst sint_eq_uint)
      apply (rule not_msb_from_less)
      apply simp
@@ -1997,6 +1998,7 @@ proof -
     "\<And>(w::32 word). \<lbrakk> w \<noteq> 0 ; word_log2 w < l2BitmapSize \<rbrakk> \<Longrightarrow>
        unat (of_nat l2BitmapSize - (1::32 word) - of_nat (word_log2 w))
      = invertL1Index (word_log2 w)"
+    including no_take_bit
     apply (subst unat_sub)
      apply (clarsimp simp: l2BitmapSize_def')
      apply (rule word_of_nat_le)
@@ -2007,6 +2009,7 @@ proof -
     done
 
   show ?thesis
+  including no_take_bit
   apply (cinit lift: dom_')
    apply (clarsimp split del: if_split)
    apply (rule ccorres_pre_getReadyQueuesL1Bitmap)
@@ -2117,6 +2120,7 @@ lemma possibleSwitchTo_ccorres:
           \<inter> UNIV) []
      (possibleSwitchTo t )
      (Call possibleSwitchTo_'proc)"
+  including no_take_bit
   supply if_split [split del]
   supply Collect_const [simp del]
   supply dc_simp [simp del]
@@ -2138,6 +2142,7 @@ lemma possibleSwitchTo_ccorres:
         apply (frule (1) obj_at_cslift_tcb, clarsimp simp: typ_heap_simps')
         apply (drule ctcb_relation_unat_tcbDomain_C)
         apply unat_arith
+        apply fastforce
         done
      apply (rule ccorres_cond2[where R=\<top>], simp)
       apply (ctac add: tcbSchedEnqueue_ccorres)

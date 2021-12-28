@@ -1071,6 +1071,13 @@ lemma vs_lookup_pagesI:
   (ref \<unrhd> p) s"
   by (simp add: vs_lookup_pages_def) blast
 
+lemma vs_lookup_pages_stateI:
+  assumes 1: "(ref \<unrhd> p) s"
+  assumes ko: "\<And>ko p. ko_at ko p s \<Longrightarrow> obj_at (\<lambda>ko'. vs_refs_pages ko \<subseteq> vs_refs_pages ko') p s'"
+  assumes table: "graph_of (arm_asid_table (arch_state s)) \<subseteq> graph_of (arm_asid_table (arch_state s'))"
+  shows "(ref \<unrhd> p) s'"
+  using 1 vs_lookup_pages_sub [OF ko table] by blast
+
 lemma vs_lookup_stateI:
   assumes 1: "(ref \<rhd> p) s"
   assumes ko: "\<And>ko p. ko_at ko p s \<Longrightarrow> obj_at (\<lambda>ko'. vs_refs ko \<subseteq> vs_refs ko') p s'"
@@ -1403,6 +1410,7 @@ lemmas abs_atyp_at_lifts =
 lemma page_directory_pde_atI:
   "\<lbrakk> page_directory_at p s; x < 2 ^ pageBits;
          pspace_aligned s \<rbrakk> \<Longrightarrow> pde_at (p + (x << 2)) s"
+  supply bit_simps[simp del]
   apply (clarsimp simp: obj_at_def pde_at_def)
   apply (drule (1) pspace_alignedD[rotated])
   apply (clarsimp simp: a_type_def
@@ -1422,6 +1430,7 @@ lemma page_directory_pde_atI:
 
 lemma page_table_pte_atI:
   "\<lbrakk> page_table_at p s; x < 2^(pt_bits - 2); pspace_aligned s \<rbrakk> \<Longrightarrow> pte_at (p + (x << 2)) s"
+  supply bit_simps[simp del]
   apply (clarsimp simp: obj_at_def pte_at_def)
   apply (drule (1) pspace_alignedD[rotated])
   apply (clarsimp simp: a_type_def
@@ -1882,7 +1891,7 @@ proof -
      apply (erule (6) 2)
     apply (clarsimp simp: vs_refs_pages_def graph_of_def obj_at_def
                           pde_ref_pages_def data_at_def
-                   dest!: vs_lookup_pages1D elim!: disjE
+                   dest!: vs_lookup_pages1D
                    split: if_split_asm pde.splits)
     apply (frule_tac d=ac in vpt, assumption+)
     apply (erule converse_rtranclE)
@@ -2424,7 +2433,7 @@ lemma valid_arch_mdb_eqI:
   assumes "caps_of_state s = caps_of_state s'"
   assumes "is_original_cap s = is_original_cap s'"
   shows "valid_arch_mdb (is original_cap s') (caps_of_state s')"
-  by (clarsimp simp: valid_arch_mdb_def)
+  by clarsimp
 
 lemma arch_tcb_context_absorbs[simp]:
   "arch_tcb_context_set uc2 (arch_tcb_context_set uc1 a_tcb) \<equiv> arch_tcb_context_set uc2 a_tcb"
@@ -2451,6 +2460,37 @@ proof -
     by (fastforce dest: ko elim: vs_lookup_pages1_stateI2)
   thus ?thesis by (rule rtrancl_mono)
 qed
+
+lemma pte_ref_pagesD:
+  "pte_ref_pages (pt y) = Some x \<Longrightarrow>
+   (VSRef (ucast y) (Some APageTable), x) \<in> vs_refs_pages (ArchObj (PageTable pt))"
+  by (auto simp: pte_ref_pages_def vs_refs_pages_def graph_of_def)
+
+lemmas pte_ref_pages_simps[simp] = pte_ref_pages_def[split_simps pte.split]
+lemmas pde_ref_pages_simps[simp] = pde_ref_pages_def[split_simps pde.split]
+
+lemma valid_asid_table_ran:
+  "valid_asid_table asid_tbl s \<Longrightarrow> \<forall>p\<in>ran asid_tbl. asid_pool_at p s"
+  by (simp add: valid_arch_state_def valid_asid_table_def)
+
+lemma vs_refs_add_one'':
+  "p \<in> kernel_mapping_slots \<Longrightarrow>
+   vs_refs (ArchObj (PageDirectory (pd(p := pde)))) = vs_refs (ArchObj (PageDirectory pd))"
+ by (auto simp: vs_refs_def graph_of_def split: if_split_asm)
+
+lemma vs_refs_pages_subset: "vs_refs ko \<subseteq> vs_refs_pages ko"
+  apply (clarsimp simp: vs_refs_pages_def vs_refs_def graph_of_def pde_ref_def pde_ref_pages_def
+                  split: kernel_object.splits arch_kernel_obj.splits pde.splits)
+  subgoal for "fun" a b
+  using
+    imageI[where A="{(x, y). (if x \<in> kernel_mapping_slots then None else pde_ref_pages (fun x)) = Some y}"
+             and f="(\<lambda>(r, y). (VSRef (ucast r) (Some APageDirectory), y))" and x="(a,b)"]
+   by (clarsimp simp: pde_ref_def pde_ref_pages_def split: if_splits pde.splits)+
+  done
+
+lemma vas_valid_asid_table:
+  "valid_arch_state s \<Longrightarrow> valid_asid_table (asid_table s) s"
+  by (simp add: valid_arch_state_def)
 
 end
 

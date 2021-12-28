@@ -13,6 +13,7 @@ context begin interpretation Arch .
 requalify_facts
   valid_arch_arch_tcb_context_set
   as_user_inv
+  getRegister_inv
   user_getreg_inv
 
 declare user_getreg_inv[wp]
@@ -891,10 +892,9 @@ lemma get_cap_aligned:
 lemma shiftr_eq_mask_eq:
   "a && ~~ mask b = c && ~~ mask b \<Longrightarrow> a >> b = c >> b"
   apply (rule word_eqI)
-  apply (drule_tac x="n + b" in word_eqD)
-  apply (case_tac "n + b < size a")
+  apply (drule_tac x="b + n" in word_eqD)
+  apply (case_tac "b + n < size a")
    apply (simp add: nth_shiftr word_size word_ops_nth_size)
-  apply (simp add: nth_shiftr)
   apply (auto dest!: test_bit_size simp: word_size)
   done
 
@@ -1821,5 +1821,17 @@ lemma set_mrs_pred_tcb_at [wp]:
 lemma get_tcb_ko_atD:
   "get_tcb t s = Some tcb \<Longrightarrow> ko_at (TCB tcb) t s"
   by auto
+
+(* FIXME: subsumes thread_set_ct_running *)
+lemma thread_set_ct_in_state:
+  "(\<And>tcb. tcb_state (f tcb) = tcb_state tcb) \<Longrightarrow>
+  \<lbrace>ct_in_state st\<rbrace> thread_set f t \<lbrace>\<lambda>rv. ct_in_state st\<rbrace>"
+  apply (simp add: ct_in_state_def)
+  apply (rule hoare_lift_Pf [where f=cur_thread])
+   apply (wp thread_set_no_change_tcb_state; simp)
+  apply (simp add: thread_set_def)
+  apply wp
+  apply simp
+  done
 
 end

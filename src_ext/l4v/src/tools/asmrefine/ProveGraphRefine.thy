@@ -761,7 +761,6 @@ fun dest_ptr_add_assertion ctxt = SUBGOAL (fn (t, i) =>
 fun tactic_check' (ss, t) = (ss, tactic_check (hd ss) t)
 
 fun graph_refine_proof_tacs csenv ctxt = let
-    (* FIXME isa: removed shiftr_no and sshiftr_no, but there are still int_shiftr_numeral etc *)
     val ctxt = ctxt delsimps @{thms shiftl_numeral}
         |> Splitter.del_split @{thm if_split}
         |> Simplifier.del_cong @{thm if_weak_cong}

@@ -324,7 +324,7 @@ lemma getSlotCap_corres:
   apply (simp add: getSlotCap_def)
   apply (subst bind_return [symmetric])
   apply (rule corres_guard_imp)
-    apply (rule corres_split [OF _ get_cap_corres])
+    apply (rule corres_split_deprecated [OF _ get_cap_corres])
       apply (rule corres_trivial, simp)
      apply (wp | simp)+
   done
@@ -710,7 +710,7 @@ lemma getSlotCap_tcb_corres:
   apply (simp add: o_def cte_map_def tcb_cnode_index_def)
   done
 
-lemma lookup_slot_corres:
+lemma lookupSlotForThread_corres:
   "corres (lfr \<oplus> (\<lambda>(cref, bits) cref'. cref' = cte_map cref))
         (valid_objs and pspace_aligned and tcb_at t)
         (valid_objs' and pspace_aligned' and pspace_distinct' and tcb_at' t)
@@ -769,7 +769,7 @@ lemma lookupSlot_inv[wp]:
   apply (wp | simp add: split_def)+
   done
 
-lemma lc_corres:
+lemma lookupCap_corres:
  "corres (lfr \<oplus> cap_relation)
          (valid_objs and pspace_aligned and tcb_at t)
          (valid_objs' and pspace_aligned' and pspace_distinct' and tcb_at' t)
@@ -777,7 +777,7 @@ lemma lc_corres:
   apply (simp add: lookup_cap_def lookupCap_def bindE_assoc
                    lookupCapAndSlot_def liftME_def split_def)
   apply (rule corres_guard_imp)
-    apply (rule corres_splitEE[OF _ lookup_slot_corres])
+    apply (rule corres_splitEE[OF _ lookupSlotForThread_corres])
       apply (simp add: split_def getSlotCap_def liftM_def[symmetric] o_def)
       apply (rule get_cap_corres)
      apply (rule hoare_pre, wp lookup_slot_cte_at_wp|simp)+
@@ -795,7 +795,7 @@ lemma setObject_cte_obj_at_tcb':
   \<lbrace>\<lambda>_ s. P' (obj_at' P p s)\<rbrace>"
   apply (clarsimp simp: setObject_def in_monad split_def
                         valid_def lookupAround2_char1
-                        obj_at'_def ps_clear_upd' projectKOs
+                        obj_at'_def ps_clear_upd projectKOs
              split del: if_split)
   apply (clarsimp elim!: rsubst[where P=P'])
   apply (clarsimp simp: updateObject_cte in_monad objBits_simps
@@ -831,14 +831,6 @@ lemma setCTE_tcb_in_cur_domain':
   apply (rule_tac f="\<lambda>s. ksCurDomain s" in hoare_lift_Pf)
   apply (wp setObject_cte_obj_at_tcb' | simp)+
   done
-
-lemma tcbCTable_upd_simp [simp]:
-  "tcbCTable (tcbCTable_update (\<lambda>_. x) tcb) = x"
-  by (cases tcb) simp
-
-lemma tcbVTable_upd_simp [simp]:
-  "tcbVTable (tcbVTable_update (\<lambda>_. x) tcb) = x"
-  by (cases tcb) simp
 
 lemma setCTE_ctes_of_wp [wp]:
   "\<lbrace>\<lambda>s. P (ctes_of s (p \<mapsto> cte))\<rbrace>
@@ -1354,7 +1346,7 @@ lemma weak_derived_updateCapData:
   apply (clarsimp simp: Let_def isCap_simps updateCapData_def)
   done
 
-lemma maskCapRights_Reply:
+lemma maskCapRights_Reply[simp]:
   "isReplyCap (maskCapRights r c) = isReplyCap c"
   apply (insert capMasterCap_maskCapRights)
   apply (rule master_eqI, rule isCap_Master)
@@ -2430,7 +2422,7 @@ lemma pspace_relationsD:
   "\<lbrakk>pspace_relation kh kh'; ekheap_relation ekh kh'\<rbrakk> \<Longrightarrow> pspace_relations ekh kh kh'"
   by (simp add: pspace_relations_def)
 
-lemma cap_update_corres:
+lemma updateCap_corres:
   "\<lbrakk>cap_relation cap cap';
     is_zombie cap \<or> is_cnode_cap cap \<or> is_thread_cap cap \<rbrakk>
    \<Longrightarrow> corres dc (\<lambda>s. invs s \<and>
@@ -2491,14 +2483,14 @@ lemma cap_update_corres:
        apply (clarsimp simp: cte_wp_at_caps_of_state)
        apply (simp add: is_cap_simps, elim disjE exE, simp_all)[1]
       apply (simp add: eq_commute)
-     apply (drule cte_wp_at_eqD, clarsimp)
+     apply (drule cte_wp_at_norm, clarsimp)
      apply (drule(1) pspace_relation_ctes_ofI, clarsimp+)
      apply (drule(1) capClass_ztc_relation)+
      apply (simp add: capRange_cap_relation obj_ref_of_relation[symmetric])
     apply (rule valid_capAligned, rule ctes_of_valid)
      apply (simp add: cte_wp_at_ctes_of)
     apply clarsimp
-   apply (drule cte_wp_at_eqD, clarsimp)
+   apply (drule cte_wp_at_norm, clarsimp)
    apply (drule(1) pspace_relation_ctes_ofI, clarsimp+)
    apply (simp add: is_cap_simps, elim disjE exE, simp_all add: isCap_simps)[1]
   apply clarsimp
@@ -3860,7 +3852,7 @@ lemma updateUntypedCap_descendants_of:
   apply (clarsimp simp:mdb_next_rel_def mdb_next_def split:if_splits)
   done
 
-lemma set_untyped_cap_corres:
+lemma setCTE_UntypedCap_corres:
   "\<lbrakk>cap_relation cap (cteCap cte); is_untyped_cap cap; idx' = idx\<rbrakk>
    \<Longrightarrow> corres dc (cte_wp_at ((=) cap) src and valid_objs and
                   pspace_aligned and pspace_distinct)
@@ -3953,7 +3945,7 @@ lemma getCTE_get:
   apply (clarsimp simp:cte_wp_at_ctes_of)
   done
 
-lemma set_untyped_cap_as_full_corres:
+lemma setUntypedCapAsFull_corres:
   "\<lbrakk>cap_relation c c'; src' = cte_map src; dest' = cte_map dest;
     cap_relation src_cap (cteCap srcCTE); rv = cap.NullCap;
     cteCap rv' = capability.NullCap; mdbPrev (cteMDBNode rv') = nullPointer \<and>
@@ -3972,7 +3964,7 @@ lemma set_untyped_cap_as_full_corres:
         apply (rule corres_symb_exec_r)
            apply (rule_tac F="cte = srcCTE" in corres_gen_asm2)
            apply (simp)
-           apply (rule set_untyped_cap_corres)
+           apply (rule setCTE_UntypedCap_corres)
              apply simp+
            apply (clarsimp simp:free_index_update_def isCap_simps is_cap_simps)
            apply (subst identity_eq)
@@ -5259,7 +5251,7 @@ lemma cte_map_inj_eq':
   done
 
 context begin interpretation Arch . (*FIXME: arch_split*)
-lemma cins_corres:
+lemma cteInsert_corres:
   notes split_paired_All[simp del] split_paired_Ex[simp del]
         trans_state_update'[symmetric,simp]
   assumes "cap_relation c c'" "src' = cte_map src" "dest' = cte_map dest"
@@ -5277,8 +5269,8 @@ lemma cins_corres:
   unfolding cap_insert_def cteInsert_def
   apply simp
   apply (rule corres_guard_imp)
-    apply (rule corres_split [OF _ get_cap_corres])
-      apply (rule corres_split [OF _ get_cap_corres])
+    apply (rule corres_split_deprecated [OF _ get_cap_corres])
+      apply (rule corres_split_deprecated [OF _ get_cap_corres])
         apply (rule_tac F="cteCap rv' = NullCap" in corres_gen_asm2)
         apply simp
         apply (rule_tac P="?P and cte_at dest and
@@ -5302,7 +5294,7 @@ lemma cins_corres:
                         R'="\<lambda>r. ?P' and cte_wp_at' ((=) rv') (cte_map dest) and
                            cte_wp_at' ((=) (CTE (maskedAsFull (cteCap srcCTE) c') (cteMDBNode srcCTE)))
                            (cte_map src)"
-                        in corres_split[where r'=dc])
+                        in corres_split_deprecated[where r'=dc])
              apply (rule corres_stronger_no_failI)
               apply (rule no_fail_pre)
                apply (wp hoare_weak_lift_imp)
@@ -5692,7 +5684,7 @@ lemma cins_corres:
               apply (erule (5) cte_map_inj)
 (* FIXME *)
 
-             apply (rule set_untyped_cap_as_full_corres)
+             apply (rule setUntypedCapAsFull_corres)
                    apply simp+
             apply (wp set_untyped_cap_full_valid_objs set_untyped_cap_as_full_valid_mdb
                set_untyped_cap_as_full_cte_wp_at setUntypedCapAsFull_valid_cap
@@ -6700,7 +6692,7 @@ corres_underlying srel nf rrel G G' (do do_extended_op (return ()); g od) (g')"
   done
 *)
 
-(* consider putting in AINVS or up above cins_corres *)
+(* consider putting in AINVS or up above cteInsert_corres *)
 lemma next_slot_eq:
   "\<lbrakk>next_slot p t' m' = x; t' = t; m' = m\<rbrakk> \<Longrightarrow> next_slot p t m = x"
   by simp
@@ -6709,7 +6701,7 @@ lemma inj_on_image_set_diff15 : (* for compatibility of assumptions *)
   "\<lbrakk>inj_on f C; A \<subseteq> C; B \<subseteq> C\<rbrakk> \<Longrightarrow> f ` (A - B) = f ` A - f ` B"
 by (rule inj_on_image_set_diff; auto)
 
-lemma cap_swap_corres:
+lemma cteSwap_corres:
   assumes srcdst: "src' = cte_map src" "dest' = cte_map dest"
   assumes scr: "cap_relation scap scap'"
   assumes dcr: "cap_relation dcap dcap'"
@@ -7162,7 +7154,7 @@ lemma cap_swap_corres:
      done
 
 
-lemma cap_swap_for_delete_corres:
+lemma capSwapForDelete_corres:
   assumes "src' = cte_map src" "dest' = cte_map dest"
   shows "corres dc
          (valid_objs and pspace_aligned and pspace_distinct and
@@ -7181,9 +7173,9 @@ lemma cap_swap_for_delete_corres:
        apply (simp add: caps_of_state_cte_at)+
   apply (simp add: when_def liftM_def)
   apply (rule corres_guard_imp)
-    apply (rule_tac P1=wellformed_cap in corres_split [OF _ get_cap_corres_P])
-      apply (rule_tac P1=wellformed_cap in corres_split [OF _ get_cap_corres_P])
-        apply (rule cap_swap_corres, rule refl, rule refl, clarsimp+)
+    apply (rule_tac P1=wellformed_cap in corres_split_deprecated [OF _ get_cap_corres_P])
+      apply (rule_tac P1=wellformed_cap in corres_split_deprecated [OF _ get_cap_corres_P])
+        apply (rule cteSwap_corres, rule refl, rule refl, clarsimp+)
        apply (wp get_cap_wp getCTE_wp')+
    apply (clarsimp simp: cte_wp_at_caps_of_state)
    apply (drule (1) caps_of_state_valid_cap)+
@@ -7217,7 +7209,7 @@ lemma subtree_no_parent:
 
 context begin interpretation Arch . (*FIXME: arch_split*)
 
-lemma ensure_no_children_corres:
+lemma ensureNoChildren_corres:
   "p' = cte_map p \<Longrightarrow>
   corres (ser \<oplus> dc) (cte_at p) (pspace_aligned' and pspace_distinct' and cte_at' p' and valid_mdb')
          (ensure_no_children p) (ensureNoChildren p')"

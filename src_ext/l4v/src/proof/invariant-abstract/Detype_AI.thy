@@ -12,8 +12,17 @@ context begin interpretation Arch .
 
 requalify_facts
   valid_arch_mdb_detype
+  clearMemory_invs
+  invs_irq_state_independent
+  init_arch_objects_invs_from_restricted
+  caps_region_kernel_window_imp
+  init_arch_objects_wps
 
 end
+
+declare clearMemory_invs[wp]
+
+declare invs_irq_state_independent[intro!, simp]
 
 locale Detype_AI =
   fixes state_ext_type :: "'a :: state_ext itself"
@@ -918,8 +927,6 @@ lemma of_nat_le_pow:
   apply simp
   done
 
-lemma maxword_len_conv': True by simp
-
 (* FIXME: copied from Retype_C and slightly adapted. *)
 lemma (in Detype_AI) mapM_x_storeWord_step:
   assumes al: "is_aligned ptr sz"
@@ -1293,16 +1300,6 @@ lemma range_cover_compare_offset:
 lemma range_cover_sz':
   "range_cover (a :: 'a :: len word) b bits d \<Longrightarrow> bits < len_of TYPE('a)"
   by (clarsimp simp:range_cover_def)
-
-
-(* FIXME: move to GenericLib *)
-lemma if3_fold2:
-  "(if P then x else if Q then x else y) = (if P \<or> Q then x else y)" by simp
-
-(* FIXME: move *)
-lemma not_emptyI:
-  "\<And>x A B. \<lbrakk>x\<in>A; x\<in>B\<rbrakk> \<Longrightarrow> A \<inter> B\<noteq> {}"
-  by auto
 
 
 end

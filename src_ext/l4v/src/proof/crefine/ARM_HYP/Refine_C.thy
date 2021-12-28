@@ -27,23 +27,12 @@ apply (rule hoare_post_imp)
 apply (rule schedule_invs')
 done
 
-lemma Arch_finaliseInterrupt_ccorres:
-  "ccorres dc xfdc \<top> UNIV [] (return a) (Call Arch_finaliseInterrupt_'proc)"
-  apply (cinit')
-   apply (rule ccorres_return_Skip)
-  apply clarsimp
-  done
-
 lemma handleInterruptEntry_ccorres:
   "ccorres dc xfdc
            (invs' and (\<lambda>s. ksSchedulerAction s = ResumeCurrentThread))
            UNIV []
            (callKernel Interrupt) (Call handleInterruptEntry_'proc)"
-  proof -
-  have unifyhelp :
-    "\<And>s t. irq_' (s\<lparr>globals := globals t, irq_' := ret__unsigned_short_' t\<rparr>) =
-      ret__unsigned_short_' (t::globals myvars)"
-      by simp
+proof -
   show ?thesis
   apply (cinit')
    apply (simp add: callKernel_def handleEvent_def minus_one_norm)
@@ -52,7 +41,7 @@ lemma handleInterruptEntry_ccorres:
     apply (rule ccorres_Guard_Seq)?
     apply (rule_tac P="rv \<noteq> Some 0xFFFF" in ccorres_gen_asm)
     apply wpc
-     apply (simp add: irqInvalid_def ucast_helper_simps_32)
+     apply (simp add: irqInvalid_def ucast_helper_simps_32 mask_def)
      apply (rule ccorres_symb_exec_r)
        apply (ctac (no_vcg) add: schedule_ccorres)
         apply (rule ccorres_stateAssert_after)
@@ -63,21 +52,19 @@ lemma handleInterruptEntry_ccorres:
          apply (clarsimp simp: return_def)
         apply (wp schedule_sch_act_wf schedule_invs'
              | strengthen invs_queues_imp invs_valid_objs_strengthen)+
-      apply (simp add: ucast_not_helper_cheating irqInvalid_def)
-      apply vcg
+      apply simp
      apply vcg
-     apply (clarsimp simp: irqInvalid_def ucast_ucast_b is_up ucast_not_helper_cheating ucast_helper_simps_32)
-    apply (rule ccorres_rhs_assoc)
+    apply vcg
+    apply (clarsimp simp: irqInvalid_def ucast_ucast_b is_up ucast_helper_simps_32 mask_def)
     apply (ctac (no_vcg) add: handleInterrupt_ccorres)
-     apply (rule ccorres_add_return, ctac (no_vcg) add: Arch_finaliseInterrupt_ccorres)
-      apply (ctac (no_vcg) add: schedule_ccorres)
-       apply (rule ccorres_stateAssert_after)
-       apply (rule ccorres_add_return2)
-       apply (ctac (no_vcg) add: activateThread_ccorres)
-        apply (rule_tac P=\<top> and P'=UNIV in ccorres_from_vcg_throws)
-        apply (rule allI, rule conseqPre, vcg)
-        apply (clarsimp simp: return_def)
-       apply (wp schedule_sch_act_wf schedule_invs'
+     apply (ctac (no_vcg) add: schedule_ccorres)
+      apply (rule ccorres_stateAssert_after)
+      apply (rule ccorres_add_return2)
+      apply (ctac (no_vcg) add: activateThread_ccorres)
+       apply (rule_tac P=\<top> and P'=UNIV in ccorres_from_vcg_throws)
+       apply (rule allI, rule conseqPre, vcg)
+       apply (clarsimp simp: return_def)
+      apply (wp schedule_sch_act_wf schedule_invs'
              | strengthen invs_queues_imp invs_valid_objs_strengthen)+
    apply simp
    apply (rule_tac Q="\<lambda>rv s. invs' s \<and> (\<forall>x. rv = Some x \<longrightarrow> x \<le> ARM_HYP.maxIRQ) \<and> rv \<noteq> Some 0x3FF \<and>
@@ -148,7 +135,7 @@ lemma handleVMFaultEvent_ccorres:
           apply clarsimp
          apply clarsimp
          apply (rule ccorres_cond_univ)
-         apply (rule_tac P="\<lambda>s. ksCurThread s = rv" in ccorres_cross_over_guard)
+         apply (rule_tac P="\<lambda>s. ksCurThread s = thread" in ccorres_cross_over_guard)
          apply (rule_tac xf'=xfdc in ccorres_call)
             apply (ctac (no_vcg) add: handleFault_ccorres)
            apply simp
@@ -157,7 +144,6 @@ lemma handleVMFaultEvent_ccorres:
         apply (rule hvmf_invs_lift)
         apply (simp add: invs'_machine valid_machine_state'_def)
        apply (simp add: guard_is_UNIV_def)
-       apply clarsimp
        apply (vcg exspec=handleVMFault_modifies)
       apply ceqv
      apply clarsimp
@@ -243,6 +229,7 @@ lemma dmo'_getActiveIRQ_non_kernel[wp]:
   apply clarsimp
   done
 
+
 lemma handleSyscall_ccorres:
   "ccorres dc xfdc
            (invs' and
@@ -277,11 +264,9 @@ lemma handleSyscall_ccorres:
                  apply (rule ccorres_split_nothrow_novcg)
                      apply (rule_tac R=\<top> and xf=xfdc in ccorres_when)
                       apply (case_tac rv)
-                      apply (clarsimp simp: max_word_minus[symmetric] ucast_def max_word_def)
+                      apply (clarsimp simp: ucast_def uint_minus_1_eq)
                      defer
-                     apply (rule ccorres_add_return2)
                      apply (ctac (no_vcg) add: handleInterrupt_ccorres)
-                      apply (ctac (no_vcg) add: Arch_finaliseInterrupt_ccorres, wp)
                     apply ceqv
                    apply (rule_tac r=dc and xf=xfdc in ccorres_returnOk_skip[unfolded returnOk_def,simplified])
                   apply wp
@@ -311,16 +296,14 @@ lemma handleSyscall_ccorres:
                     apply (rule ccorres_Guard)?
                     apply (rule_tac R=\<top> and xf=xfdc in ccorres_when)
                      apply (case_tac rv)
-                      apply (clarsimp simp: ucast_helper_simps_32)
+                      apply (clarsimp simp: ucast_helper_simps_32 mask_def)
                      apply (clarsimp simp only: ucast_helper_simps_32)
                      apply (intro iffI)
                       apply clarsimp
                       apply (cut_tac 'b=32 and x=a and n=10 and 'a=10 in
                                ucast_leq_mask; simp add: mask_def)
                      apply simp
-                     apply (rule ccorres_add_return2)
                     apply (ctac (no_vcg) add: handleInterrupt_ccorres)
-                     apply (ctac (no_vcg) add: Arch_finaliseInterrupt_ccorres, wp)
                    apply ceqv
                   apply (rule_tac ccorres_returnOk_skip[unfolded returnOk_def,simplified])
                  apply wp
@@ -349,13 +332,11 @@ lemma handleSyscall_ccorres:
                    apply (rule ccorres_Guard)?
                    apply (rule_tac R=\<top> and xf=xfdc in ccorres_when)
                    apply (case_tac rv, clarsimp)
-                    apply (clarsimp simp: ucast_not_helper_cheating ucast_ucast_b is_up ucast_helper_simps_32)
+                    apply (clarsimp simp:  ucast_ucast_b is_up ucast_helper_simps_32 mask_def)
                    apply (clarsimp simp: ucast_helper_simps_32)
                    apply (cut_tac 'b=32 and x=a and n=10 and 'a=10 in
                                ucast_leq_mask; simp add: mask_def)
-                  apply (rule ccorres_add_return2)
-                   apply (ctac (no_vcg) add: handleInterrupt_ccorres)
-                    apply (ctac (no_vcg) add: Arch_finaliseInterrupt_ccorres, wp)
+                  apply (ctac (no_vcg) add: handleInterrupt_ccorres)
                   apply ceqv
                  apply (rule_tac ccorres_returnOk_skip[unfolded returnOk_def,simplified])
                 apply wp
@@ -451,9 +432,8 @@ lemma handleSyscall_ccorres:
                          isReply_def ct_not_ksQ)
    apply (rule conjI, fastforce)
    prefer 2
-   apply (cut_tac 'b=32 and x=a and n=10 and 'a=10 in
-           ucast_leq_mask; simp add: mask_def)
-   by (auto simp: ucast_helper_simps_32 syscall_from_H_def Kernel_C.SysSend_def
+   apply (cut_tac 'b=32 and x=a and n=10 and 'a=10 in ucast_leq_mask)
+   by (auto simp: ucast_helper_simps_32 syscall_from_H_def Kernel_C.SysSend_def mask_def
             split: option.split_asm)
 
 lemma ccorres_corres_u:
@@ -733,21 +713,21 @@ lemma entry_corres_C:
            (kernelEntry e uc) (kernelEntry_C fp e uc)"
   apply (simp add: kernelEntry_C_def kernelEntry_def getCurThread_def)
   apply (rule corres_guard_imp)
-    apply (rule corres_split [where P=\<top> and P'=\<top> and r'="\<lambda>t t'. t' = tcb_ptr_to_ctcb_ptr t"])
+    apply (rule corres_split_deprecated [where P=\<top> and P'=\<top> and r'="\<lambda>t t'. t' = tcb_ptr_to_ctcb_ptr t"])
        prefer 2
        apply (clarsimp simp: rf_sr_def cstate_relation_def Let_def)
-      apply (rule corres_split)
+      apply (rule corres_split_deprecated)
          prefer 2
          apply simp
          apply (rule setTCBContext_C_corres)
           apply (simp add: ccontext_rel_to_C)
          apply simp
-        apply (rule corres_split)
+        apply (rule corres_split_deprecated)
            prefer 2
            apply (rule corres_cases[where R=fp], simp_all add: dc_def[symmetric])[1]
             apply (rule callKernel_withFastpath_corres_C, simp)
            apply (rule callKernel_corres_C[unfolded dc_def], simp)
-          apply (rule corres_split [where P=\<top> and P'=\<top> and r'="\<lambda>t t'. t' = tcb_ptr_to_ctcb_ptr t"])
+          apply (rule corres_split_deprecated [where P=\<top> and P'=\<top> and r'="\<lambda>t t'. t' = tcb_ptr_to_ctcb_ptr t"])
              prefer 2
              apply (clarsimp simp: rf_sr_def cstate_relation_def Let_def)
             apply (rule getContext_corres, simp)
@@ -924,20 +904,20 @@ lemma do_user_op_corres_C:
                      (doUserOp f tc) (doUserOp_C f tc)"
   apply (simp only: doUserOp_C_def doUserOp_def split_def)
   apply (rule corres_guard_imp)
-    apply (rule_tac P=\<top> and P'=\<top> and r'="(=)" in corres_split)
+    apply (rule_tac P=\<top> and P'=\<top> and r'="(=)" in corres_split_deprecated)
        prefer 2
        apply (clarsimp simp: simpler_gets_def getCurThread_def
                 corres_underlying_def rf_sr_def cstate_relation_def Let_def)
-      apply (rule_tac P=valid_state' and P'=\<top> and r'="(=)" in corres_split)
+      apply (rule_tac P=valid_state' and P'=\<top> and r'="(=)" in corres_split_deprecated)
          prefer 2
          apply (clarsimp simp: cstate_to_A_def absKState_def
                                rf_sr_def cstate_to_H_correct ptable_lift_def)
-        apply (rule_tac P=valid_state' and P'=\<top> and r'="(=)" in corres_split)
+        apply (rule_tac P=valid_state' and P'=\<top> and r'="(=)" in corres_split_deprecated)
            prefer 2
            apply (clarsimp simp: cstate_to_A_def absKState_def
                                  rf_sr_def cstate_to_H_correct ptable_rights_def)
           apply (rule_tac P=pspace_distinct' and P'=\<top> and r'="(=)"
-                 in corres_split)
+                 in corres_split_deprecated)
              prefer 2
              apply clarsimp
              apply (rule fun_cong[where x=ptrFromPAddr])
@@ -947,34 +927,34 @@ lemma do_user_op_corres_C:
                                cpspace_relation_def)
              apply assumption
             apply (rule_tac P=pspace_distinct' and P'=\<top> and r'="(=)"
-                 in corres_split)
+                 in corres_split_deprecated)
                prefer 2
                apply (clarsimp simp: rf_sr_def cstate_relation_def Let_def
                                cpspace_relation_def)
                apply (drule(1) device_mem_C_relation[symmetric])
                apply (simp add: comp_def)
-              apply (rule_tac P=valid_state' and P'=\<top> and r'="(=)" in corres_split)
+              apply (rule_tac P=valid_state' and P'=\<top> and r'="(=)" in corres_split_deprecated)
                  prefer 2
                  apply (clarsimp simp: cstate_relation_def rf_sr_def
                    Let_def cmachine_state_relation_def)
-                apply (rule_tac P=\<top> and P'=\<top> and r'="(=)" in corres_split)
+                apply (rule_tac P=\<top> and P'=\<top> and r'="(=)" in corres_split_deprecated)
                    prefer 2
                    apply (clarsimp simp add: corres_underlying_def fail_def
                         assert_def return_def
                         split:if_splits)
                   apply simp
-                  apply (rule_tac P=\<top> and P'=\<top> and r'="(=)" in corres_split)
+                  apply (rule_tac P=\<top> and P'=\<top> and r'="(=)" in corres_split_deprecated)
                     prefer 2
                     apply (clarsimp simp add: corres_underlying_def fail_def
                          assert_def return_def
                          split:if_splits)
                    apply simp
-                   apply (rule_tac r'="(=)" in corres_split[OF _ corres_select])
+                   apply (rule_tac r'="(=)" in corres_split_deprecated[OF _ corres_select])
                       prefer 2
                       apply clarsimp
                      apply simp
-                     apply (rule corres_split[OF _ user_memory_update_corres_C])
-                         apply (rule corres_split[OF _ device_update_corres_C,
+                     apply (rule corres_split_deprecated[OF _ user_memory_update_corres_C])
+                         apply (rule corres_split_deprecated[OF _ device_update_corres_C,
                                          where R="\<top>\<top>" and R'="\<top>\<top>"])
                         apply (wp select_wp | simp)+
    apply (intro conjI allI ballI impI)
@@ -998,7 +978,7 @@ lemma check_active_irq_corres_C:
   apply (simp add: checkActiveIRQ_C_def checkActiveIRQ_def getActiveIRQ_C_def)
   apply (rule corres_guard_imp)
     apply (subst bind_assoc[symmetric])
-    apply (rule corres_split)
+    apply (rule corres_split_deprecated)
        apply simp
        apply (rule ccorres_corres_u_xf)
        apply (rule ccorres_rel_imp, rule ccorres_guard_imp)
@@ -1006,8 +986,8 @@ lemma check_active_irq_corres_C:
          apply (rule TrueI)
         apply simp
        apply (clarsimp simp: ucast_helper_simps_32 irqInvalid_def ucast_up_ucast_id
-                             is_up_def source_size_def target_size_def word_size
-                       split: option.splits )
+                             is_up_def source_size_def target_size_def word_size mask_def
+                       split: option.splits)
       apply (rule no_fail_dmo')
       apply (rule no_fail_getActiveIRQ)
      apply (rule hoare_TrueI)+
@@ -1042,6 +1022,7 @@ lemma refinement2_both:
    apply (rule ext)
    apply (clarsimp simp: user_mem'_def option_to_0_def split:if_splits)
   apply (simp add: ADT_H_def)
+  supply subst_all [simp del]
   apply (clarsimp simp: rel_semi_def global_automaton_def relcomp_unfold
                         in_lift_state_relation_eq)
 

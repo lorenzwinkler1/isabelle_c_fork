@@ -22,8 +22,6 @@ imports
   "Word_Lib.WordSetup"
 begin
 
-typ "32 word"
-
 (* FIXME: eliminate *)
 abbreviation (input)
   split   :: "('a \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> 'a \<times> 'b \<Rightarrow> 'c"
@@ -94,6 +92,10 @@ definition
   pred_neg :: "('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool)" ("not _" [40] 40)
 where
   "pred_neg P \<equiv> \<lambda>x. \<not> P x"
+
+lemma pred_neg_simp[simp]:
+  "(not P) s \<longleftrightarrow> \<not> (P s)"
+  by (simp add: pred_neg_def)
 
 definition "K \<equiv> \<lambda>x y. x"
 
@@ -204,6 +206,10 @@ lemma split_paired_Ball:
 lemma split_paired_Bex:
   "(\<exists>x \<in> A. P x) = (\<exists>x y. (x,y) \<in> A \<and> P (x,y))"
   by auto
+
+lemma bexI_minus:
+  "\<lbrakk> P x; x \<in> A; x \<notin> B \<rbrakk> \<Longrightarrow> \<exists>x \<in> A - B. P x"
+  unfolding Bex_def by blast
 
 lemma delete_remove1:
   "delete x xs = remove1 x xs"
@@ -766,6 +772,10 @@ lemma graph_of_SomeD:
   "\<lbrakk> graph_of f \<subseteq> graph_of g; f x = Some y \<rbrakk> \<Longrightarrow> g x = Some y"
   unfolding graph_of_def
   by auto
+
+lemma graph_of_comp:
+  "\<lbrakk> g x = y; f y = Some z \<rbrakk> \<Longrightarrow> (x,z) \<in> graph_of (f \<circ> g)"
+  by (auto simp: graph_of_def)
 
 lemma in_set_zip_refl :
   "(x,y) \<in> set (zip xs xs) = (y = x \<and> x \<in> set xs)"
@@ -2403,9 +2413,7 @@ lemma insert_subtract_new:
   "x \<notin> S \<Longrightarrow> (insert x S - S) = {x}"
   by auto
 
-lemma zip_is_empty:
-  "(zip xs ys = []) = (xs = [] \<or> ys = [])"
-  by (cases xs; simp) (cases ys; simp)
+lemmas zip_is_empty = zip_eq_Nil_iff
 
 lemma minus_Suc_0_lt:
   "a \<noteq> 0 \<Longrightarrow> a - Suc 0 < a"
@@ -2416,14 +2424,9 @@ lemma fst_last_zip_upt:
    fst (last (zip [0 ..< m] xs)) = (if length xs < m then length xs - 1 else m - 1)"
   apply (subst last_conv_nth, assumption)
   apply (simp only: One_nat_def)
-  apply (subst nth_zip)
-    apply (rule order_less_le_trans[OF minus_Suc_0_lt])
-     apply (simp add: zip_is_empty)
-    apply simp
-   apply (rule order_less_le_trans[OF minus_Suc_0_lt])
-    apply (simp add: zip_is_empty)
-   apply simp
-  apply (simp add: min_def zip_is_empty)
+  apply (subst nth_zip; simp)
+   apply (rule order_less_le_trans[OF minus_Suc_0_lt]; simp)
+  apply (rule order_less_le_trans[OF minus_Suc_0_lt]; simp)
   done
 
 lemma neq_into_nprefix:
@@ -2581,11 +2584,7 @@ lemma int_shiftl_lt_2p_bits:
   by (metis bit_take_bit_iff not_less take_bit_int_eq_self_iff)
 \<comment> \<open>TODO: The converse should be true as well, but seems hard to prove.\<close>
 
-lemma int_eq_test_bit:
-  "((x :: int) = y) = (\<forall>i. test_bit x i = test_bit y i)"
-  apply simp
-  apply (metis bin_eqI)
-  done
+lemmas int_eq_test_bit = bin_eq_iff
 lemmas int_eq_test_bitI = int_eq_test_bit[THEN iffD2, rule_format]
 
 lemma le_nat_shrink_left:

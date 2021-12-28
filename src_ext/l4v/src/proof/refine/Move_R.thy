@@ -118,7 +118,7 @@ lemma corres_symb_exec_l':
   assumes y: "\<lbrace>Q\<rbrace> m \<lbrace>Q'\<rbrace>"
   shows      "corres_underlying sr nf nf' r (P and Q) P' (m >>= (\<lambda>rv. x rv)) y"
   apply (rule corres_guard_imp)
-    apply (subst gets_bind_ign[symmetric], rule corres_split)
+    apply (subst gets_bind_ign[symmetric], rule corres_split_deprecated)
        apply (rule z)
       apply (rule corres_noop3)
         apply (erule x)
@@ -136,7 +136,7 @@ lemma corres_symb_exec_r':
   assumes nf: "nf' \<Longrightarrow> no_fail R' m"
   shows      "corres_underlying sr nf nf' r P (P' and Q' and R') x (m >>= (\<lambda>rv. y rv))"
   apply (rule corres_guard_imp)
-    apply (subst gets_bind_ign[symmetric], rule corres_split)
+    apply (subst gets_bind_ign[symmetric], rule corres_split_deprecated)
        apply (rule z)
       apply (rule_tac P'="a' and a''" for a' a'' in corres_noop3)
         apply (simp add: simpler_gets_def exs_valid_def)
@@ -249,5 +249,11 @@ lemma check_active_irq_invs_just_idle:
         and (\<lambda>s. scheduler_action s = resume_cur_thread)
         and (\<lambda>s. 0 < domain_time s) and valid_domain_list \<rbrace>"
   by (wpsimp simp: check_active_irq_def ct_in_state_def)
+
+lemma caps_of_state_kheap_ekheap[simp]:
+  "caps_of_state (kheap_update f (ekheap_update ef s))
+     = caps_of_state (kheap_update f s)"
+  apply (simp add: trans_state_update[symmetric] del: trans_state_update)
+  done
 
 end

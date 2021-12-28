@@ -198,14 +198,6 @@ crunch pspace_respects_device_region[wp]: copy_global_mappings "pspace_respects_
 crunch cap_refs_respects_device_region[wp]: copy_global_mappings "cap_refs_respects_device_region"
   (wp: crunch_wps)
 
-(* FIXME: move to VSpace_R *)
-lemma vs_refs_add_one'':
-  "p \<in> kernel_mapping_slots \<Longrightarrow>
-   vs_refs (ArchObj (PageDirectory (pd(p := pde)))) =
-   vs_refs (ArchObj (PageDirectory pd))"
- by (auto simp: vs_refs_def graph_of_def split: if_split_asm)
-
-
 lemma glob_vs_refs_add_one':
   "glob_vs_refs (ArchObj (PageDirectory (pd(p := pde)))) =
    glob_vs_refs (ArchObj (PageDirectory pd))
@@ -1272,7 +1264,7 @@ lemma storeWord_um_eq_0:
   "\<lbrace>\<lambda>m. underlying_memory m p = 0\<rbrace>
     storeWord x 0
    \<lbrace>\<lambda>_ m. underlying_memory m p = 0\<rbrace>"
-  by (simp add: storeWord_def word_rsplit_0 | wp)+
+  by (simp add: storeWord_def word_rsplit_0 word_bits_conv | wp)+
 
 lemma clearMemory_um_eq_0:
   "\<lbrace>\<lambda>m. underlying_memory m p = 0\<rbrace>
@@ -1306,8 +1298,11 @@ lemma invs_irq_state_independent:
       cur_tcb_def sym_refs_def state_refs_of_def
       swp_def valid_irq_states_def)
 
-crunch irq_masks_inv[wp]: cleanByVA_PoU, storeWord, clearMemory "\<lambda>s. P (irq_masks s)"
-  (wp: crunch_wps ignore_del: cleanByVA_PoU storeWord clearMemory)
+crunches cleanByVA, cleanCacheRange_PoC, dsb, cleanCacheRange_PoC, cleanL2Range, cleanByVA_PoU,
+  storeWord, clearMemory
+  for irq_masks_inv[wp]: "\<lambda>s. P (irq_masks s)"
+  (wp: crunch_wps
+   ignore_del: cleanByVA_PoU storeWord clearMemory cleanL2Range cleanCacheRange_PoC dsb cleanByVA)
 
 crunch underlying_mem_0[wp]: clearMemory
     "\<lambda>s. underlying_memory s p = 0"
@@ -1352,24 +1347,13 @@ lemma valid_arch_mdb_detype:
          (\<lambda>p. if fst p \<in> untyped_range cap then None else caps_of_state s p)"
   by auto
 
-end
-
-lemmas clearMemory_invs[wp] = ARM.clearMemory_invs
-
-lemmas invs_irq_state_independent[intro!, simp]
-    = ARM.invs_irq_state_independent
-
-lemmas init_arch_objects_invs_from_restricted
-    = ARM.init_arch_objects_invs_from_restricted
-
-lemmas caps_region_kernel_window_imp
-    = ARM.caps_region_kernel_window_imp
-
 lemmas init_arch_objects_wps
-    = ARM.init_arch_objects_cte_wp_at
-      ARM.init_arch_objects_valid_cap
-      ARM.init_arch_objects_cap_table
-      ARM.init_arch_objects_excap
-      ARM.init_arch_objects_st_tcb_at
+    = init_arch_objects_cte_wp_at
+      init_arch_objects_valid_cap
+      init_arch_objects_cap_table
+      init_arch_objects_excap
+      init_arch_objects_st_tcb_at
+
+end
 
 end

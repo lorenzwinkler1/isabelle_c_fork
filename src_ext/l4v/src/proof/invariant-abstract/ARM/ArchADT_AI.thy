@@ -275,8 +275,8 @@ lemma get_pt_entry_Some_eq_get_pte:
                   split: option.splits Structures_A.kernel_object.splits
                          arch_kernel_obj.splits)
   apply (clarsimp simp: get_pte_def get_pt_def bind_def return_def
-                         assert_def get_object_def simpler_gets_def fail_def split_def
-                         mask_out_sub_mask mask_eqs)
+                        assert_def get_object_def simpler_gets_def fail_def split_def
+                        mask_out_sub_mask mask_eqs)
   apply (subgoal_tac "pt_ref + ((vptr >> 12) && mask 8 << 2) -
                       (pt_ref + ((vptr >> 12) && mask 8 << 2) && mask pt_bits) =
                       pt_ref")
@@ -322,31 +322,10 @@ where
    | Some (SuperSectionPDE base attrs rights) \<Rightarrow> Some (base,24, attrs, rights)
    | _ \<Rightarrow> None"
 
-
-(* FIXME: Lemma can be found in Untyped_R;
-   proof mostly copied from ArchAcc_R.pd_shifting *)
 lemma pd_shifting':
-   "is_aligned pd pd_bits \<Longrightarrow>
-    (pd + (vptr >> 20 << 2) && ~~ mask pd_bits) = (pd::word32)"
-  apply (simp add: pd_bits_def pageBits_def)
-  apply (rule word_eqI[rule_format])
-  apply (subst word_plus_and_or_coroll)
-   apply (rule word_eqI)
-   apply (clarsimp simp: word_size nth_shiftr nth_shiftl is_aligned_nth)
-   apply (erule_tac x=na in allE)
-   apply (simp add: linorder_not_less)
-   apply (drule test_bit_size)+
-   apply (simp add: word_size)
-  apply (clarsimp simp: word_size nth_shiftr nth_shiftl is_aligned_nth
-                        word_ops_nth_size pd_bits_def linorder_not_less)
-  apply (rule iffI)
-   apply clarsimp
-   apply (drule test_bit_size)+
-   apply (simp add: word_size)
-  apply clarsimp
-  apply (erule_tac x=n in allE)
-  apply simp
-  done
+ "is_aligned pd pd_bits \<Longrightarrow> (pd + (vptr >> 20 << 2) && ~~ mask pd_bits) = (pd::word32)"
+  unfolding pd_bits_def pageBits_def
+  by (rule pd_shifting_gen; simp add: word_size)
 
 lemma lookup_pt_slot_fail:
   "is_aligned pd pd_bits \<Longrightarrow>

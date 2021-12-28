@@ -758,7 +758,6 @@ end
 structure csenvData = Theory_Data(
   type T = csenv Symtab.table
   val empty = Symtab.empty
-  val extend = I
   val merge = Symtab.merge (K true)
 )
 
@@ -774,7 +773,6 @@ fun get_csenv' thy file =
 structure ghostData = Theory_Data(
   type T = typ Symtab.table
   val empty = Symtab.empty
-  val extend = I
   val merge = Symtab.merge (K true)
 )
 
@@ -785,7 +783,6 @@ val get_ghostty = Symtab.lookup o ghostData.get
 structure mungeDBs = Theory_Data(
   type T = mungedb Symtab.table
   val empty = Symtab.empty
-  val extend = I
   val merge = Symtab.merge (K true)
 )
 

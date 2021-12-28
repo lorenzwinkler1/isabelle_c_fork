@@ -336,7 +336,7 @@ lemma delete_objects_dcorres:
    apply (simp add: valid_cap_def cap_aligned_def untyped_min_bits_def)
   apply (rule corres_name_pre, clarify)
   apply (rule corres_guard_imp)
-    apply (rule corres_split[OF _ detype_dcorres])
+    apply (rule corres_split_deprecated[OF _ detype_dcorres])
        apply (rule freeMemory_dcorres, simp+)
     apply wp
    apply clarsimp
@@ -599,7 +599,7 @@ lemma retype_region_dcorres:
    apply (rule dcorres_expand_pfx)
    apply clarsimp
    apply (rule corres_guard_imp)
-     apply (rule corres_split)
+     apply (rule corres_split_deprecated)
         apply (rule corres_trivial)
         apply simp
        apply (rule_tac r = dc and Q = \<top> and Q' = "(=) s'" in corres_guard_imp)
@@ -631,6 +631,10 @@ lemma page_objects_default_object:
      \<Longrightarrow> \<exists>vmsz. (default_object ty dev us = ArchObj (DataPage dev vmsz) \<and> pageBitsForSize vmsz = obj_bits_api ty us)"
   by (auto simp: default_object_def default_arch_object_def obj_bits_api_def pageBitsForSize_def)
 
+crunches cleanByVA, cleanCacheRange_RAM
+  for mem[wp]: "\<lambda>s. P (underlying_memory s)"
+  (ignore_del: cleanByVA cleanL2Range)
+
 lemma clearMemory_unused_corres_noop:
   "\<lbrakk> ty \<in> ArchObject ` {SmallPageObj, LargePageObj, SectionObj, SuperSectionObj};
        range_cover ptr sz (obj_bits_api ty us) n;
@@ -645,12 +649,12 @@ lemma clearMemory_unused_corres_noop:
   (is "\<lbrakk> ?def; ?szv; ?in \<rbrakk> \<Longrightarrow> dcorres dc \<top> ?P ?f ?g")
   apply (drule page_objects_default_object[where us=us and dev = dev], clarsimp)
   apply (rename_tac pgsz)
-  apply (simp add: clearMemory_def do_machine_op_bind
-                   cleanCacheRange_PoU_def ef_storeWord
-                   mapM_x_mapM dom_mapM)
+  apply (simp add: clearMemory_def do_machine_op_bind cleanCacheRange_PoC_def
+                   cleanCacheRange_RAM_def cleanL2Range_def dsb_def mapM_x_mapM)
   apply (subst do_machine_op_bind)
-  apply (clarsimp simp:  ef_storeWord
-                   mapM_x_mapM dom_mapM cleanCacheRange_PoU_def cleanByVA_PoU_def)+
+    apply (clarsimp simp:  ef_storeWord)
+   apply (clarsimp simp: cacheRangeOp_def cleanByVA_def split_def)
+  apply (simp add: dom_mapM ef_storeWord)
   apply (rule corres_guard_imp, rule corres_split_noop_rhs)
       apply (rule dcorres_machine_op_noop, wp)
      apply (rule corres_mapM_to_mapM_x)
@@ -1274,7 +1278,7 @@ lemma reset_untyped_cap_corres:
   apply (simp add: Untyped_D.reset_untyped_cap_def reset_untyped_cap_def
                    liftE_bindE)
   apply (rule corres_guard_imp)
-    apply (rule corres_split[OF _ get_cap_corres])
+    apply (rule corres_split_deprecated[OF _ get_cap_corres])
        apply (rule_tac F="is_untyped_cap capa \<and> cap_aligned capa
                  \<and> bits_of capa > 2 \<and> free_index_of capa \<le> 2 ^ bits_of capa"
              in corres_gen_asm2)
@@ -1333,7 +1337,7 @@ lemma reset_untyped_cap_corres:
             apply (rule corres_guard_imp)
               apply (rule corres_add_noop_lhs)
               apply (rule corres_split_nor[OF _ clearMemory_corres_noop[OF refl]])
-                   apply (rule corres_split[OF _ set_cap_corres])
+                   apply (rule corres_split_deprecated[OF _ set_cap_corres])
                        apply (subst alternative_com)
                        apply (rule throw_or_return_preemption_corres[where P=\<top> and P'=\<top>])
                       apply (clarsimp simp: is_cap_simps bits_of_def)
@@ -1478,13 +1482,13 @@ lemma invoke_untyped_corres:
           apply (rule reset_untyped_cap_corres[where idx=idx])
          apply simp
         apply simp
-        apply (rule corres_split[OF _ get_cap_corres])
+        apply (rule corres_split_deprecated[OF _ get_cap_corres])
            apply simp
            apply (rule generate_object_ids_exec[where ptr = ptr and us = us and sz = sz])
            apply simp
-           apply (rule corres_split[OF _ update_available_range_dcorres])
+           apply (rule corres_split_deprecated[OF _ update_available_range_dcorres])
              apply simp
-             apply (rule corres_split[OF _ retype_region_dcorres[where sz = sz]])
+             apply (rule corres_split_deprecated[OF _ retype_region_dcorres[where sz = sz]])
                apply (rule corres_split_noop_rhs[OF _ init_arch_objects_corres_noop[where sz =sz]])
                    apply (simp add: liftM_def[symmetric] mapM_x_def[symmetric]
                                     zip_map1 zip_map2 o_def split_beta dc_def[symmetric])
@@ -1632,11 +1636,6 @@ lemma corres_whenE_throwError_split_rhs:
            \<and> (\<not> G \<longrightarrow> corres_underlying sr nf nf' r P Q a b))"
   by (simp add: whenE_bindE_throwError_to_if)
 
-(* FIXME isa: move to Word_Lib *)
-lemma word_of_int_word_of_nat_eqD:
-  "\<lbrakk> word_of_int x = (word_of_nat y :: 'a :: len word); 0 \<le> x; x < 2^LENGTH('a); y < 2^LENGTH('a) \<rbrakk>
-   \<Longrightarrow> nat x = y"
-  by (metis nat_eq_numeral_power_cancel_iff of_nat_inj word_of_int_nat zless2p zless_nat_conj)
 
 lemma nat_bl_to_bin_nat_to_cref:
   assumes asms: "x < 2 ^ bits" "bits < word_bits"

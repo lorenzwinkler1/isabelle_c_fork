@@ -52,9 +52,6 @@ proof (induct n arbitrary: m rule: less_induct)
     done
 qed
 
-(* FIXME: set default cases and induct rules for word *)
-declare word_induct2[induct type]
-
 lemma factorial'_terminates_old: "m > unat n \<longrightarrow> factorial' m n s \<noteq> None"
   apply (induct n arbitrary: m)
    apply (subst factorial'.simps, simp add: ocondition_def obind_def)
@@ -107,7 +104,7 @@ lemma factorial'_correct_old: "m > unat n \<longrightarrow> factorial' m n s = S
   apply (clarsimp split: option.splits)
   apply (intro conjI impI)
     apply unat_arith
-   apply (metis (hide_lams, no_types) Nat.add_0_right le_iff_add Suc_eq_plus1_left Suc_pred factorial.factorial'_terminates_old less_nat_zero_code nat_add_left_cancel_less nat_less_le)
+   apply (metis (opaque_lifting, no_types) Nat.add_0_right le_iff_add Suc_eq_plus1_left Suc_pred factorial.factorial'_terminates_old less_nat_zero_code nat_add_left_cancel_less nat_less_le)
   apply (unat_arith, force)
   done
 

@@ -43,7 +43,7 @@ lemma update_cap_objrefs [CNodeInv_AI_assms]:
   "\<lbrakk> update_cap_data P dt cap \<noteq> NullCap \<rbrakk> \<Longrightarrow>
      obj_refs (update_cap_data P dt cap) = obj_refs cap"
   by (case_tac cap,
-      simp_all add: update_cap_data_closedform
+      simp_all add: update_cap_data_closedform arch_update_cap_data_def
              split: if_split_asm)
 
 
@@ -227,15 +227,6 @@ lemma vs_cap_ref_update_cap_data[simp, CNodeInv_AI_assms]:
   by (simp add: vs_cap_ref_def update_cap_data_closedform
                 arch_update_cap_data_def
          split: cap.split)
-
-
-lemma in_preempt[simp, intro, CNodeInv_AI_assms]:
-  "(Inr rv, s') \<in> fst (preemption_point s) \<Longrightarrow>
-  (\<exists>f es. s' = s \<lparr> machine_state := machine_state s \<lparr> irq_state := f (irq_state (machine_state s)) \<rparr>, exst := es\<rparr>)"
-  apply (clarsimp simp: preemption_point_def in_monad do_machine_op_def
-                        return_def returnOk_def throwError_def o_def
-                        select_f_def select_def getActiveIRQ_def)
-  done
 
 
 lemma invs_irq_state_independent[intro!, simp, CNodeInv_AI_assms]:

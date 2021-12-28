@@ -175,27 +175,9 @@ lemma updateObject_cte_is_tcb_or_cte:
 
 declare plus_1_less[simp]
 
-lemma ps_clear_domE[elim?]:
-  "\<lbrakk> ps_clear x n s; dom (ksPSpace s) = dom (ksPSpace s') \<rbrakk> \<Longrightarrow> ps_clear x n s'"
-  by (simp add: ps_clear_def)
-
-lemma ps_clear_upd:
-  "ksPSpace s y = Some v \<Longrightarrow>
-    ps_clear x n (ksPSpace_update (\<lambda>a. ksPSpace s(y \<mapsto> v')) s') = ps_clear x n s"
-  by (rule iffI | clarsimp elim!: ps_clear_domE | fastforce)+
-
-lemmas ps_clear_updE[elim] = iffD2[OF ps_clear_upd, rotated]
-
 lemma updateObject_default_result:
   "(x, s'') \<in> fst (updateObject_default e ko p q n s) \<Longrightarrow> x = injectKO e"
   by (clarsimp simp add: updateObject_default_def in_monad)
-
-lemma ps_clear_upd':
-  "ksPSpace s y = Some v \<Longrightarrow>
-    ps_clear x n (s' \<lparr> ksPSpace := ksPSpace s(y \<mapsto> v')\<rparr>) = ps_clear x n s"
-  by (rule iffI | clarsimp elim!: ps_clear_domE | fastforce)+
-
-lemmas ps_clear_updE'[elim] = iffD2[OF ps_clear_upd', rotated]
 
 lemma obj_at_setObject1:
   assumes R: "\<And>(v::'a::pspace_storable) p q n ko s x s''.
@@ -237,7 +219,7 @@ lemma obj_at_setObject2:
    apply (clarsimp simp: lookupAround2_char1)
    apply (drule iffD1 [OF project_koType, OF exI])
    apply simp
-  apply (clarsimp simp: ps_clear_upd' lookupAround2_char1)
+  apply (clarsimp simp: ps_clear_upd lookupAround2_char1)
   done
 
 lemma updateObject_ep_eta:
@@ -263,11 +245,11 @@ lemma setObject_typ_at_inv:
   "\<lbrace>typ_at' T p'\<rbrace> setObject p v \<lbrace>\<lambda>r. typ_at' T p'\<rbrace>"
   apply (clarsimp simp: setObject_def split_def)
   apply (clarsimp simp: valid_def typ_at'_def ko_wp_at'_def in_monad
-                        lookupAround2_char1 ps_clear_upd')
+                        lookupAround2_char1 ps_clear_upd)
   apply (drule updateObject_type)
   apply clarsimp
   apply (drule objBits_type)
-  apply (simp add: ps_clear_upd')
+  apply (simp add: ps_clear_upd)
   done
 
 lemma setObject_typ_at_not:
@@ -302,19 +284,19 @@ lemma setObject_cte_wp_at2':
   apply (erule rsubst[where P=P'])
   apply (rule iffI)
    apply (erule disjEI)
-    apply (clarsimp simp: ps_clear_upd' lookupAround2_char1 y)
+    apply (clarsimp simp: ps_clear_upd lookupAround2_char1 y)
    apply (erule exEI [where 'a=machine_word])
-   apply (clarsimp simp: ps_clear_upd' lookupAround2_char1)
+   apply (clarsimp simp: ps_clear_upd lookupAround2_char1)
    apply (drule(1) x)
     apply (clarsimp simp: lookupAround2_char1 prod_eqI)
    apply (fastforce dest: bspec [OF _ ranI])
   apply (erule disjEI)
-   apply (clarsimp simp: ps_clear_upd' lookupAround2_char1
+   apply (clarsimp simp: ps_clear_upd lookupAround2_char1
                   split: if_split_asm)
    apply (frule updateObject_type)
    apply (case_tac ba, simp_all add: y)[1]
   apply (erule exEI)
-  apply (clarsimp simp: ps_clear_upd' lookupAround2_char1
+  apply (clarsimp simp: ps_clear_upd lookupAround2_char1
                  split: if_split_asm)
   apply (frule updateObject_type)
   apply (case_tac ba, simp_all)
@@ -391,7 +373,7 @@ lemma obj_at_setObject3:
                             setObject_def split_def projectKOs
                             project_inject objBits_def[symmetric]
                             R updateObject_default_def
-                            in_magnitude_check P ps_clear_upd')
+                            in_magnitude_check P ps_clear_upd)
   apply fastforce
   done
 
@@ -409,7 +391,7 @@ lemma setObject_tcb_strongest:
   apply (simp add: setObject_def split_def)
   apply (clarsimp simp: valid_def obj_at'_def split_def in_monad
                         updateObject_default_def projectKOs
-                        ps_clear_upd')
+                        ps_clear_upd)
   done
 
 lemma getObject_obj_at':
@@ -518,7 +500,7 @@ lemma get_ntfn'_valid_ntfn[wp]:
 lemma setObject_distinct[wp]:
   shows     "\<lbrace>pspace_distinct'\<rbrace> setObject p val \<lbrace>\<lambda>rv. pspace_distinct'\<rbrace>"
   apply (clarsimp simp: setObject_def split_def valid_def in_monad
-                        projectKOs pspace_distinct'_def ps_clear_upd'
+                        projectKOs pspace_distinct'_def ps_clear_upd
                         objBits_def[symmetric] lookupAround2_char1
                  split: if_split_asm
                  dest!: updateObject_objBitsKO)
@@ -529,7 +511,7 @@ lemma setObject_distinct[wp]:
 lemma setObject_aligned[wp]:
   shows     "\<lbrace>pspace_aligned'\<rbrace> setObject p val \<lbrace>\<lambda>rv. pspace_aligned'\<rbrace>"
   apply (clarsimp simp: setObject_def split_def valid_def in_monad
-                        projectKOs pspace_aligned'_def ps_clear_upd'
+                        projectKOs pspace_aligned'_def ps_clear_upd
                         objBits_def[symmetric] lookupAround2_char1
                  split: if_split_asm
                  dest!: updateObject_objBitsKO)
@@ -540,7 +522,7 @@ lemma setObject_aligned[wp]:
 lemma setObject_canonical[wp]:
   shows     "\<lbrace>pspace_canonical'\<rbrace> setObject p val \<lbrace>\<lambda>rv. pspace_canonical'\<rbrace>"
   apply (clarsimp simp: setObject_def split_def valid_def in_monad
-                        projectKOs pspace_canonical'_def ps_clear_upd'
+                        projectKOs pspace_canonical'_def ps_clear_upd
                         objBits_def[symmetric] lookupAround2_char1
                  split: if_split_asm
                  dest!: updateObject_objBitsKO)
@@ -551,7 +533,7 @@ lemma setObject_canonical[wp]:
 lemma setObject_in_kernel_mappings[wp]:
   shows     "\<lbrace>pspace_in_kernel_mappings'\<rbrace> setObject p val \<lbrace>\<lambda>rv. pspace_in_kernel_mappings'\<rbrace>"
   apply (clarsimp simp: setObject_def split_def valid_def in_monad
-                        projectKOs pspace_in_kernel_mappings'_def ps_clear_upd'
+                        projectKOs pspace_in_kernel_mappings'_def ps_clear_upd
                         objBits_def[symmetric] lookupAround2_char1
                  split: if_split_asm
                  dest!: updateObject_objBitsKO)
@@ -855,7 +837,7 @@ lemma no_fail_getEndpoint [wp]:
    apply (clarsimp split: option.split_asm simp: objBits_simps' archObjSize_def)
   done
 
-lemma get_ep_corres:
+lemma getEndpoint_corres:
   "corres ep_relation (ep_at ptr) (ep_at' ptr)
      (get_endpoint ptr) (getEndpoint ptr)"
   apply (rule corres_no_failI)
@@ -961,7 +943,7 @@ where
   "exst_same' (KOTCB tcb) (KOTCB tcb') = exst_same tcb tcb'" |
   "exst_same' _ _ = True"
 
-lemma set_other_obj_corres:
+lemma setObject_other_corres:
   fixes ob' :: "'a :: pspace_storable"
   assumes x: "updateObject ob' = updateObject_default ob'"
   assumes z: "\<And>s. obj_at' P ptr s
@@ -1038,21 +1020,21 @@ lemmas obj_at_simps = obj_at_def obj_at'_def projectKOs map_to_ctes_upd_other
                       is_other_obj_relation_type_def
                       a_type_def objBits_simps other_obj_relation_def
                       archObjSize_def pageBits_def
-lemma set_ep_corres:
+lemma setEndpoint_corres:
   "ep_relation e e' \<Longrightarrow>
   corres dc (ep_at ptr) (ep_at' ptr)
             (set_endpoint ptr e) (setEndpoint ptr e')"
   apply (simp add: set_simple_ko_def setEndpoint_def is_ep_def[symmetric])
-    apply (corres_search search: set_other_obj_corres[where P="\<lambda>_. True"])
+    apply (corres_search search: setObject_other_corres[where P="\<lambda>_. True"])
   apply (corressimp wp: get_object_ret get_object_wp)+
   by (fastforce simp: is_ep obj_at_simps objBits_defs partial_inv_def)
 
-lemma set_ntfn_corres:
+lemma setNotification_corres:
   "ntfn_relation ae ae' \<Longrightarrow>
   corres dc (ntfn_at ptr) (ntfn_at' ptr)
             (set_notification ptr ae) (setNotification ptr ae')"
   apply (simp add: set_simple_ko_def setNotification_def is_ntfn_def[symmetric])
-       apply (corres_search search: set_other_obj_corres[where P="\<lambda>_. True"])
+       apply (corres_search search: setObject_other_corres[where P="\<lambda>_. True"])
   apply (corressimp wp: get_object_ret get_object_wp)+
   by (fastforce simp: is_ntfn obj_at_simps objBits_defs partial_inv_def)
 
@@ -1072,7 +1054,7 @@ lemma no_fail_getNotification [wp]:
    apply (clarsimp split: option.split_asm simp: objBits_simps' archObjSize_def)
   done
 
-lemma get_ntfn_corres:
+lemma getNotification_corres:
   "corres ntfn_relation (ntfn_at ptr) (ntfn_at' ptr)
      (get_notification ptr) (getNotification ptr)"
   apply (rule corres_no_failI)
@@ -1109,7 +1091,7 @@ lemma setObject_ko_wp_at:
                  elim!: rsubst[where P=P]
              split del: if_split)
   apply (rule iffI)
-   apply (clarsimp simp: n ps_clear_upd' objBits_def[symmetric]
+   apply (clarsimp simp: n ps_clear_upd objBits_def[symmetric]
                   split: if_split_asm)
   apply (clarsimp simp: n project_inject objBits_def[symmetric]
                         ps_clear_upd
@@ -1231,6 +1213,13 @@ lemma setObject_it[wp]:
   apply (wp x | simp)+
   done
 
+\<comment>\<open>
+  `idle_tcb_ps val` asserts that `val` is a pspace_storable value
+  which corresponds to an idle TCB.
+\<close>
+definition idle_tcb_ps :: "('a :: pspace_storable) \<Rightarrow> bool" where
+  "idle_tcb_ps val \<equiv> (\<exists>tcb. projectKO_opt (injectKO val) = Some tcb \<and> idle_tcb' tcb)"
+
 lemma setObject_idle':
   fixes v :: "'a :: pspace_storable"
   assumes R: "\<And>ko s x y n. (updateObject v ko ptr y n s)
@@ -1241,12 +1230,9 @@ lemma setObject_idle':
        \<lbrace>\<lambda>s. P (ksIdleThread s)\<rbrace> updateObject v p q n ko
        \<lbrace>\<lambda>rv s. P (ksIdleThread s)\<rbrace>"
   shows      "\<lbrace>\<lambda>s. valid_idle' s \<and>
-                   (ptr = ksIdleThread s \<longrightarrow>
-                    (\<exists>obj (val :: 'a). projectKO_opt (injectKO val) = Some obj
-                                      \<and> idle' (tcbState obj) \<and> tcbBoundNotification obj = None)
-                    \<longrightarrow> (\<exists>obj. projectKO_opt (injectKO v) = Some obj \<and>
-                          idle' (tcbState obj) \<and> tcbBoundNotification obj = None)) \<and>
-                   P s\<rbrace>
+                   (ptr = ksIdleThread s
+                        \<longrightarrow> (\<exists>val :: 'a. idle_tcb_ps val)
+                        \<longrightarrow> idle_tcb_ps v)\<rbrace>
                 setObject ptr v
               \<lbrace>\<lambda>rv s. valid_idle' s\<rbrace>"
   apply (simp add: valid_idle'_def pred_tcb_at'_def o_def)
@@ -1255,8 +1241,7 @@ lemma setObject_idle':
     apply (simp add: pred_tcb_at'_def obj_at'_real_def)
     apply (rule setObject_ko_wp_at [OF R n m])
    apply (wp z)
-  apply (clarsimp simp add: pred_tcb_at'_def obj_at'_real_def ko_wp_at'_def)
-  apply (drule_tac x=obj in spec, simp)
+  apply (clarsimp simp add: pred_tcb_at'_def obj_at'_real_def ko_wp_at'_def idle_tcb_ps_def)
   apply (clarsimp simp add: project_inject)
   apply (drule_tac x=obja in spec, simp)
   done
@@ -1265,7 +1250,7 @@ lemma setObject_no_0_obj' [wp]:
   "\<lbrace>no_0_obj'\<rbrace> setObject p v \<lbrace>\<lambda>r. no_0_obj'\<rbrace>"
   apply (clarsimp simp: setObject_def split_def)
   apply (clarsimp simp: valid_def no_0_obj'_def ko_wp_at'_def in_monad
-                        lookupAround2_char1 ps_clear_upd')
+                        lookupAround2_char1 ps_clear_upd)
   done
 
 lemma valid_updateCapDataI:
@@ -1789,9 +1774,9 @@ lemma setEndpoint_idle'[wp]:
    setEndpoint p v
    \<lbrace>\<lambda>_. valid_idle'\<rbrace>"
   unfolding setEndpoint_def
-  apply (wp setObject_idle'[where P="\<top>"])
+  apply (wp setObject_idle')
        apply (simp add: objBits_simps' updateObject_default_inv)+
-  apply (clarsimp simp: projectKOs)
+  apply (clarsimp simp: projectKOs idle_tcb_ps_def)
   done
 
 crunch it[wp]: setEndpoint "\<lambda>s. P (ksIdleThread s)"
@@ -1930,9 +1915,9 @@ lemma setNotification_ifunsafe'[wp]:
 lemma setNotification_idle'[wp]:
   "\<lbrace>\<lambda>s. valid_idle' s\<rbrace> setNotification p v \<lbrace>\<lambda>rv. valid_idle'\<rbrace>"
   unfolding setNotification_def
-  apply (wp setObject_idle'[where P="\<top>"])
+  apply (wp setObject_idle')
         apply (simp add: objBits_simps' updateObject_default_inv)+
-  apply (clarsimp simp: projectKOs)
+  apply (clarsimp simp: projectKOs idle_tcb_ps_def)
   done
 
 crunch it[wp]: setNotification "\<lambda>s. P (ksIdleThread s)"

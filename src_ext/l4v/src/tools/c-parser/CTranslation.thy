@@ -43,7 +43,7 @@ and
   , ("memsafe", \<^here>)
   , ("c_types", \<^here>)
   , ("c_defs", \<^here>) ]
-  |> map (fn cmd => (cmd, ("", [])))
+  |> map (fn cmd => (cmd, Keyword.command_spec ("", [])))
   |> C_Thy_Header.add_keywords
 \<close>
 

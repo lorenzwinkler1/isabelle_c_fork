@@ -1456,24 +1456,24 @@ lemma emptySlot_invs'[wp]:
   apply (clarsimp simp: cte_wp_at_ctes_of)
   done
 
-lemma deleted_irq_corres:
+lemma deletedIRQHandler_corres:
   "corres dc \<top> \<top>
     (deleted_irq_handler irq)
     (deletedIRQHandler irq)"
   apply (simp add: deleted_irq_handler_def deletedIRQHandler_def)
-  apply (rule set_irq_state_corres)
+  apply (rule setIRQState_corres)
   apply (simp add: irq_state_relation_def)
   done
 
-lemma arch_post_cap_deletion_corres:
+lemma arch_postCapDeletion_corres:
   "acap_relation cap cap' \<Longrightarrow> corres dc \<top> \<top> (arch_post_cap_deletion cap) (ARM_H.postCapDeletion cap')"
   by (corressimp simp: arch_post_cap_deletion_def ARM_H.postCapDeletion_def)
 
-lemma post_cap_deletion_corres:
+lemma postCapDeletion_corres:
   "cap_relation cap cap' \<Longrightarrow> corres dc \<top> \<top> (post_cap_deletion cap) (postCapDeletion cap')"
   apply (cases cap; clarsimp simp: post_cap_deletion_def Retype_H.postCapDeletion_def)
-   apply (corressimp corres: deleted_irq_corres)
-  by (corressimp corres: arch_post_cap_deletion_corres)
+   apply (corressimp corres: deletedIRQHandler_corres)
+  by (corressimp corres: arch_postCapDeletion_corres)
 
 lemma set_cap_trans_state:
   "((),s') \<in> fst (set_cap c p s) \<Longrightarrow> ((),trans_state f s') \<in> fst (set_cap c p (trans_state f s))"
@@ -1483,7 +1483,7 @@ lemma set_cap_trans_state:
   apply (auto simp add: in_monad set_object_def split: if_split_asm)
   done
 
-lemma clearUntypedFreeIndex_corres_noop:
+lemma clearUntypedFreeIndex_noop_corres:
   "corres dc \<top> (cte_at' (cte_map slot))
     (return ()) (clearUntypedFreeIndex (cte_map slot))"
   apply (simp add: clearUntypedFreeIndex_def)
@@ -1506,16 +1506,16 @@ lemma clearUntypedFreeIndex_valid_pspace'[wp]:
    apply (wp | simp add: valid_mdb'_def)+
   done
 
-lemma empty_slot_corres:
+lemma emptySlot_corres:
   "cap_relation info info' \<Longrightarrow> corres dc (einvs and cte_at slot) (invs' and cte_at' (cte_map slot))
              (empty_slot slot info) (emptySlot (cte_map slot) info')"
   unfolding emptySlot_def empty_slot_def
   apply (simp add: case_Null_If)
   apply (rule corres_guard_imp)
-    apply (rule corres_split_noop_rhs[OF _ clearUntypedFreeIndex_corres_noop])
+    apply (rule corres_split_noop_rhs[OF _ clearUntypedFreeIndex_noop_corres])
      apply (rule_tac R="\<lambda>cap. einvs and cte_wp_at ((=) cap) slot" and
                      R'="\<lambda>cte. valid_pspace' and cte_wp_at' ((=) cte) (cte_map slot)" in
-                     corres_split [OF _ get_cap_corres])
+                     corres_split_deprecated [OF _ get_cap_corres])
        defer
        apply (wp get_cap_wp getCTE_wp')+
      apply (simp add: cte_wp_at_ctes_of)
@@ -1529,7 +1529,7 @@ lemma empty_slot_corres:
   apply (rule conjI, clarsimp)
   apply clarsimp
   apply (simp only: bind_assoc[symmetric])
-  apply (rule corres_split'[where r'=dc, OF _ post_cap_deletion_corres])
+  apply (rule corres_split'[where r'=dc, OF _ postCapDeletion_corres])
     defer
     apply wpsimp+
   apply (rule corres_no_failI)
@@ -2038,7 +2038,7 @@ lemma obj_refs_Master:
   by (clarsimp simp: isCap_simps
               split: cap_relation_split_asm arch_cap.split_asm)
 
-lemma final_cap_corres':
+lemma isFinalCapability_corres':
   "final_matters' (cteCap cte) \<Longrightarrow>
    corres (=) (invs and cte_wp_at ((=) cap) ptr)
                (invs' and cte_wp_at' ((=) cte) (cte_map ptr))
@@ -2092,7 +2092,7 @@ lemma final_cap_corres':
                          gen_obj_refs_Int
                   split: cap_relation_split_asm arch_cap.split_asm)
   apply clarsimp
-  apply (drule_tac p="(a,b)" in cte_wp_at_eqD)
+  apply (drule_tac p="(a,b)" in cte_wp_at_norm)
   apply clarsimp
   apply (frule_tac slot="(a,b)" in pspace_relation_ctes_ofI, assumption)
     apply fastforce
@@ -2123,14 +2123,14 @@ lemma final_cap_corres':
   by (clarsimp simp: cap_irqs_def cap_irq_opt_def sameObjectAs_def3 isCap_simps arch_gen_obj_refs_def
                  split: cap.split_asm)
 
-lemma final_cap_corres:
+lemma isFinalCapability_corres:
   "corres (\<lambda>rv rv'. final_matters' (cteCap cte) \<longrightarrow> rv = rv')
           (invs and cte_wp_at ((=) cap) ptr)
           (invs' and cte_wp_at' ((=) cte) (cte_map ptr))
        (is_final_cap cap) (isFinalCapability cte)"
   apply (cases "final_matters' (cteCap cte)")
    apply simp
-   apply (erule final_cap_corres')
+   apply (erule isFinalCapability_corres')
   apply (subst bind_return[symmetric],
          rule corres_symb_exec_r)
      apply (rule corres_no_failI)
@@ -2329,10 +2329,6 @@ lemma finaliseCap_True_invs[wp]:
   done
 
 crunch invs'[wp]: flushSpace "invs'" (ignore: doMachineOp)
-
-lemma ct_not_inQ_ksArchState_update[simp]:
-  "ct_not_inQ (s\<lparr>ksArchState := v\<rparr>) = ct_not_inQ s"
-  by (simp add: ct_not_inQ_def)
 
 lemma invs_asid_update_strg':
   "invs' s \<and> tab = armKSASIDTable (ksArchState s) \<longrightarrow>
@@ -3373,12 +3369,12 @@ lemma interrupt_cap_null_or_ntfn:
                  split: cap.split_asm)
   done
 
-lemma (in delete_one) deleting_irq_corres:
+lemma (in delete_one) deletingIRQHandler_corres:
   "corres dc (einvs) (invs')
           (deleting_irq_handler irq) (deletingIRQHandler irq)"
   apply (simp add: deleting_irq_handler_def deletingIRQHandler_def)
   apply (rule corres_guard_imp)
-    apply (rule corres_split [OF _ get_irq_slot_corres])
+    apply (rule corres_split_deprecated [OF _ getIRQSlot_corres])
       apply simp
       apply (rule_tac P'="cte_at' (cte_map slot)" in corres_symb_exec_r_conj)
          apply (rule_tac F="isNotificationCap rv \<or> rv = capability.NullCap"
@@ -3403,7 +3399,7 @@ lemma (in delete_one) deleting_irq_corres:
 
 context begin interpretation Arch . (*FIXME: arch_split*)
 
-lemma arch_finalise_cap_corres:
+lemma arch_finaliseCap_corres:
   "\<lbrakk> final_matters' (ArchObjectCap cap') \<Longrightarrow> final = final'; acap_relation cap cap' \<rbrakk>
      \<Longrightarrow> corres (\<lambda>r r'. cap_relation (fst r) (fst r') \<and> cap_relation (snd r) (snd r'))
            (\<lambda>s. invs s \<and> valid_etcbs s
@@ -3422,23 +3418,23 @@ lemma arch_finalise_cap_corres:
                        isPageTableCap_def
                        o_def dc_def[symmetric]
                 split: option.split)
-     apply (rule corres_guard_imp, rule delete_asid_pool_corres)
+     apply (rule corres_guard_imp, rule deleteASIDPool_corres)
       apply (clarsimp simp: valid_cap_def mask_def)
      apply (clarsimp simp: valid_cap'_def)
      apply auto[1]
-    apply (rule corres_guard_imp, rule unmap_page_corres)
+    apply (rule corres_guard_imp, rule unmapPage_corres)
       apply simp
      apply (clarsimp simp: valid_cap_def valid_unmap_def)
      apply (auto simp: vmsz_aligned_def pbfs_atleast_pageBits mask_def
                  elim: is_aligned_weaken invs_valid_asid_map)[2]
-   apply (rule corres_guard_imp, rule unmap_page_table_corres)
+   apply (rule corres_guard_imp, rule unmapPageTable_corres)
     apply (auto simp: valid_cap_def valid_cap'_def mask_def
                elim!: is_aligned_weaken invs_valid_asid_map)[2]
-  apply (rule corres_guard_imp, rule delete_asid_corres)
+  apply (rule corres_guard_imp, rule deleteASID_corres)
    apply (auto elim!: invs_valid_asid_map simp: mask_def valid_cap_def)[2]
   done
 
-lemma unbind_notification_corres:
+lemma unbindNotification_corres:
   "corres dc
       (invs and tcb_at t)
       (invs' and tcb_at' t)
@@ -3447,14 +3443,14 @@ lemma unbind_notification_corres:
   supply option.case_cong_weak[cong]
   apply (simp add: unbind_notification_def unbindNotification_def)
   apply (rule corres_guard_imp)
-    apply (rule corres_split[OF _ gbn_corres])
+    apply (rule corres_split_deprecated[OF _ getBoundNotification_corres])
       apply (rule corres_option_split)
         apply simp
        apply (rule corres_return_trivial)
-      apply (rule corres_split[OF _ get_ntfn_corres])
+      apply (rule corres_split_deprecated[OF _ getNotification_corres])
         apply clarsimp
-        apply (rule corres_split[OF _ set_ntfn_corres])
-           apply (rule sbn_corres)
+        apply (rule corres_split_deprecated[OF _ setNotification_corres])
+           apply (rule setBoundNotification_corres)
           apply (clarsimp simp: ntfn_relation_def split:Structures_A.ntfn.splits)
          apply (wp gbn_wp' gbn_wp)+
    apply (clarsimp elim!: obj_at_valid_objsE
@@ -3468,19 +3464,19 @@ lemma unbind_notification_corres:
                   split: option.splits)
   done
 
-lemma unbind_maybe_notification_corres:
+lemma unbindMaybeNotification_corres:
   "corres dc
       (invs and ntfn_at ntfnptr) (invs' and ntfn_at' ntfnptr)
       (unbind_maybe_notification ntfnptr)
       (unbindMaybeNotification ntfnptr)"
   apply (simp add: unbind_maybe_notification_def unbindMaybeNotification_def)
   apply (rule corres_guard_imp)
-    apply (rule corres_split[OF _ get_ntfn_corres])
+    apply (rule corres_split_deprecated[OF _ getNotification_corres])
       apply (rule corres_option_split)
         apply (clarsimp simp: ntfn_relation_def split: Structures_A.ntfn.splits)
        apply (rule corres_return_trivial)
-      apply (rule corres_split[OF _ set_ntfn_corres])
-         apply (rule sbn_corres)
+      apply (rule corres_split_deprecated[OF _ setNotification_corres])
+         apply (rule setBoundNotification_corres)
         apply (clarsimp simp: ntfn_relation_def split: Structures_A.ntfn.splits)
        apply (wp get_simple_ko_wp getNotification_wp)+
    apply (clarsimp elim!: obj_at_valid_objsE
@@ -3494,7 +3490,7 @@ lemma unbind_maybe_notification_corres:
                   split: option.splits)
   done
 
-lemma fast_finalise_corres:
+lemma fast_finaliseCap_corres:
   "\<lbrakk> final_matters' cap' \<longrightarrow> final = final'; cap_relation cap cap';
      can_fast_finalise cap \<rbrakk>
    \<Longrightarrow> corres dc
@@ -3520,8 +3516,8 @@ lemma fast_finalise_corres:
    apply (simp add: valid_cap'_def)
   apply (clarsimp simp: final_matters'_def)
   apply (rule corres_guard_imp)
-    apply (rule corres_split[OF _ unbind_maybe_notification_corres])
-         apply (rule ntfn_cancel_corres)
+    apply (rule corres_split_deprecated[OF _ unbindMaybeNotification_corres])
+         apply (rule cancelAllSignals_corres)
        apply (wp abs_typ_at_lifts unbind_maybe_notification_invs typ_at_lifts hoare_drop_imps getNotification_wp
             | wpc)+
    apply (clarsimp simp: valid_cap_def)
@@ -3536,14 +3532,14 @@ lemma cap_delete_one_corres:
   apply (simp add: cap_delete_one_def cteDeleteOne_def'
                    unless_def when_def)
   apply (rule corres_guard_imp)
-    apply (rule corres_split [OF _ get_cap_corres])
+    apply (rule corres_split_deprecated [OF _ get_cap_corres])
       apply (rule_tac F="can_fast_finalise cap" in corres_gen_asm)
       apply (rule corres_if)
         apply fastforce
-       apply (rule corres_split [OF _ final_cap_corres[where ptr=ptr]])
+       apply (rule corres_split_deprecated [OF _ isFinalCapability_corres[where ptr=ptr]])
          apply (simp add: split_def bind_assoc [THEN sym])
-         apply (rule corres_split [OF _ fast_finalise_corres[where sl=ptr]])
-              apply (rule empty_slot_corres)
+         apply (rule corres_split_deprecated [OF _ fast_finaliseCap_corres[where sl=ptr]])
+              apply (rule emptySlot_corres)
              apply simp+
           apply (wp hoare_drop_imps)+
         apply (wp isFinalCapability_inv | wp (once) isFinal[where x="cte_map ptr"])+
@@ -3564,7 +3560,7 @@ global_interpretation delete_one
    apply auto
   done
 
-lemma finalise_cap_corres:
+lemma finaliseCap_corres:
   "\<lbrakk> final_matters' cap' \<Longrightarrow> final = final'; cap_relation cap cap';
           flag \<longrightarrow> can_fast_finalise cap \<rbrakk>
      \<Longrightarrow> corres (\<lambda>x y. cap_relation (fst x) (fst y) \<and> cap_relation (snd x) (snd y))
@@ -3586,8 +3582,8 @@ lemma finalise_cap_corres:
         apply (simp add: valid_cap'_def)
        apply (clarsimp simp add: final_matters'_def)
        apply (rule corres_guard_imp)
-         apply (rule corres_split[OF _ unbind_maybe_notification_corres])
-           apply (rule ntfn_cancel_corres)
+         apply (rule corres_split_deprecated[OF _ unbindMaybeNotification_corres])
+           apply (rule cancelAllSignals_corres)
           apply (wp abs_typ_at_lifts unbind_maybe_notification_invs typ_at_lifts hoare_drop_imps hoare_vcg_all_lift | wpc)+
         apply (clarsimp simp: valid_cap_def)
        apply (clarsimp simp: valid_cap'_def)
@@ -3596,8 +3592,8 @@ lemma finalise_cap_corres:
                                liftM_def[symmetric] o_def zbits_map_def
                                dc_def[symmetric])
      apply (rule corres_guard_imp)
-       apply (rule corres_split[OF _ unbind_notification_corres])
-         apply (rule corres_split[OF _ suspend_corres])
+       apply (rule corres_split_deprecated[OF _ unbindNotification_corres])
+         apply (rule corres_split_deprecated[OF _ suspend_corres])
             apply (clarsimp simp: liftM_def[symmetric] o_def dc_def[symmetric] zbits_map_def)
           apply (rule prepareThreadDelete_corres)
         apply (wp unbind_notification_invs unbind_notification_simple_sched_action)+
@@ -3606,7 +3602,7 @@ lemma finalise_cap_corres:
     apply (simp add: final_matters'_def liftM_def[symmetric]
                      o_def dc_def[symmetric])
     apply (intro impI, rule corres_guard_imp)
-      apply (rule deleting_irq_corres)
+      apply (rule deletingIRQHandler_corres)
      apply simp
     apply simp
    apply (clarsimp simp: final_matters'_def)
@@ -3616,7 +3612,7 @@ lemma finalise_cap_corres:
     apply (clarsimp simp: cte_wp_at_caps_of_state)
    apply simp
   apply (clarsimp split del: if_split simp: o_def)
-  apply (rule corres_guard_imp [OF arch_finalise_cap_corres], (fastforce simp: valid_sched_def)+)
+  apply (rule corres_guard_imp [OF arch_finaliseCap_corres], (fastforce simp: valid_sched_def)+)
   done
 context begin interpretation Arch . (*FIXME: arch_split*)
 lemma arch_recycleCap_improve_cases:
@@ -3650,10 +3646,6 @@ crunch ct__in_cur_domain'[wp]: copyGlobalMappings ct_idle_or_in_cur_domain'
 
 crunch gsUntypedZeroRanges[wp]: copyGlobalMappings "\<lambda>s. P (gsUntypedZeroRanges s)"
   (wp: crunch_wps)
-
-lemma ct_in_current_domain_ArchState_update[simp]:
-  "ct_idle_or_in_cur_domain' (s\<lparr>ksArchState := v\<rparr>) = ct_idle_or_in_cur_domain' s"
-  by (simp add: ct_idle_or_in_cur_domain'_def tcb_in_cur_domain'_def)
 
 lemma threadSet_ct_idle_or_in_cur_domain':
   "\<lbrace>ct_idle_or_in_cur_domain' and (\<lambda>s. \<forall>tcb. tcbDomain tcb = ksCurDomain s \<longrightarrow> tcbDomain (F tcb) = ksCurDomain s)\<rbrace>
@@ -3834,7 +3826,7 @@ lemma thread_set_all_corresT:
                     (thread_set_all f g t) (threadSet f' t)"
   apply (simp add: thread_set_all_def threadSet_def bind_assoc)
   apply (rule corres_guard_imp)
-    apply (rule corres_split [OF _ thread_gets_the_all_corres])
+    apply (rule corres_split_deprecated [OF _ thread_gets_the_all_corres])
       apply (simp add: split_def)
       apply (rule tcb_update_all_corres')
           apply (erule x)

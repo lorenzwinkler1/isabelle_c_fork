@@ -162,7 +162,7 @@ lemma c_guard_mono:
   apply clarsimp
   apply(drule_tac p=p in field_tag_sub)
   apply(clarsimp simp: field_lvalue_def field_offset_def field_offset_untyped_def typ_uinfo_t_def)
-  apply(metis (mono_tags, hide_lams) export_size_of subsetD typ_uinfo_t_def)
+  apply(metis (mono_tags) export_size_of subsetD typ_uinfo_t_def)
   done
 
 lemma c_guard_NULL_fl:
@@ -438,5 +438,19 @@ lemma asm_spec_preserves:
   apply clarsimp
   apply (erule (1) spec)
   done
+
+lemma hoarep_Seq:
+  assumes a: "A \<subseteq> C"
+  assumes b: "B \<subseteq> C"
+  assumes c: "hoarep \<Gamma> \<Theta> F P c Q A"
+  assumes d: "hoarep \<Gamma> \<Theta> F Q d R B"
+  shows "hoarep \<Gamma> \<Theta> F P (Seq c d) R C"
+proof -
+  note post = HoarePartialDef.conseqPost[OF _ subset_refl]
+  show ?thesis
+  by (rule hoarep.Seq[OF post[OF c a] post[OF d b]])
+qed
+
+lemmas hoarep_Seq_nothrow = hoarep_Seq[OF empty_subsetI subset_refl]
 
 end

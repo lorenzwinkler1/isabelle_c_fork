@@ -45,7 +45,6 @@ EXCLUDE["ARM"]=[]
 EXCLUDE["X64"]=[
     "Access",
     "AutoCorresSEL4",
-    "CamkesDarpaReport",
     "CamkesGlueProofs",
     "DBaseRefine",
     "DSpec",
@@ -55,11 +54,9 @@ EXCLUDE["X64"]=[
 ]
 
 EXCLUDE["RISCV64"]=[
-    "Access",
     "AutoCorresSEL4",
     "DSpec",
     "DBaseRefine",
-    "CamkesDarpaReport",
     "CamkesGlueProofs",
     "AsmRefine"
 ]
@@ -110,6 +107,8 @@ for arch in archs:
         print("Testing Orphanage for ARM")
     elif "L4V_ARCH_IS_ARM" in os.environ:
         del os.environ["L4V_ARCH_IS_ARM"]
+
+    sys.stdout.flush()
 
     # Arguments:
     args  = ['./misc/regression/run_tests.py']            # Script name

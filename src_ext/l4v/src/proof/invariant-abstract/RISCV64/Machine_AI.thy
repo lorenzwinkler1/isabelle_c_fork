@@ -359,7 +359,25 @@ lemma empty_fail_clearMemory [simp, intro!]:
   "\<And>a b. empty_fail (clearMemory a b)"
   by (simp add: clearMemory_def mapM_x_mapM ef_storeWord)
 
+lemma no_irq_setVSpaceRoot:
+  "no_irq (setVSpaceRoot r a)"
+  unfolding setVSpaceRoot_def by wpsimp
+
+lemma no_irq_hwASIDFlush:
+  "no_irq (hwASIDFlush r)"
+  unfolding hwASIDFlush_def by wpsimp
+
 end
+end
+
+context begin interpretation Arch .
+
+requalify_facts
+  det_getRegister
+  det_setRegister
+  det_getRestartPC
+  det_setNextPC
+
 end
 
 end

@@ -18,7 +18,7 @@ lemma of_bl_nat_to_cref[Untyped_AI_assms]:
   apply (clarsimp intro!: less_mask_eq
                   simp: nat_to_cref_def of_drop_to_bl
                         word_size word_less_nat_alt word_bits_def)
-  by (simp add: take_bit_nat_def)
+  by (metis add_lessD1 le_unat_uoi nat_le_iff_add nat_le_linear)
 
 
 lemma cnode_cap_ex_cte[Untyped_AI_assms]:
@@ -465,10 +465,6 @@ lemma valid_arch_state_global_pd:
   apply (clarsimp split: Structures_A.kernel_object.split_asm
                          arch_kernel_obj.split_asm if_split_asm)
   done
-
-lemma pd_shifting':
-  "is_aligned (pd :: word32) pd_bits \<Longrightarrow> pd + (vptr >> 20 << 2) && ~~ mask pd_bits = pd"
-  by (rule pd_shifting, simp add: pd_bits_def pageBits_def)
 
 lemma copy_global_mappings_nonempty_table:
   "is_aligned pd pd_bits \<Longrightarrow>

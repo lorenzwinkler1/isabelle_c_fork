@@ -55,7 +55,7 @@ text \<open>
   which (we expect) return the minimum and maximum respectively of two unsigned
   integers.
 
-  \lstinputlisting[language=C, firstline=13]{../../minmax.c}
+  \lstinputlisting[language=C, firstline=13]{minmax.c}
 
   It is easy to see that \texttt{min} is correct, but perhaps less obvious why
   \texttt{max} is correct. AutoCorres will hopefully allow us to prove these
@@ -69,7 +69,7 @@ text \<open>
 
   As mentioned earlier, AutoCorres does not handle C code directly. The first
   step is to apply the
-  C-Parser\footnote{\url{https://ts.data61.csiro.au/software/TS/c-parser}} to
+  C-Parser\footnote{\url{https://trustworthy.systems/software/TS/c-parser}} to
   obtain a SIMPL translation. We do this using the \texttt{install-C-file}
   command in Isabelle, as shown.
 

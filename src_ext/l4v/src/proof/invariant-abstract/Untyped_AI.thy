@@ -419,10 +419,8 @@ lemma range_cover_stuff:
        apply simp
       apply (subst shiftl_shiftr1)
        apply (simp_all add: word_size)
-      apply (rule bit_eqI)
-      apply (simp add: word_bits_conv shiftl_word_eq bit_and_iff bit_push_bit_iff bit_1_iff bit_mask_iff bit_exp_iff not_le)
-      apply auto
-     done
+      apply (word_eqI_solve simp: word_bits_conv)
+      done
 
     have cmp2[simp]: "alignUp (of_nat rv) bits < (2 :: machine_word) ^ sz"
       using bound cmp not_0
@@ -478,7 +476,7 @@ lemma range_cover_stuff:
      apply (subst unat_shiftl_absorb[where p = "sz - bits"])
         apply (rule order_trans[OF le_shiftr])
          apply (rule space)
-       apply (simp add: shiftr_div_2n_w word_bits_def)+
+       apply (simp add: word_bits_def power_minus_is_div)+
      apply (simp add: shiftl_t2n[symmetric] field_simps shiftr_shiftl1)
      apply (subst is_aligned_diff_neg_mask[OF is_aligned_weaken])
        apply (rule is_aligned_triv)
@@ -512,7 +510,7 @@ lemma range_cover_stuff:
       apply (subst word_of_nat_le)
        apply (subst unat_power_lower_machine)
         apply ((simp add: word_bits_def)+)[3]
-     apply (simp del: word_of_nat_eq_0_iff)
+     apply simp
      apply (erule of_nat_neq_0)
      apply (erule le_less_trans)
      apply (rule power_strict_increasing)
@@ -1331,6 +1329,13 @@ lemma retype_region_invs_extras:
      and K (ty = CapTableObject \<longrightarrow> 0 < us)
      and K (range_cover ptr sz (obj_bits_api ty us) n)\<rbrace>
       retype_region ptr n us ty dev \<lbrace>\<lambda>rv. valid_arch_state\<rbrace>"
+  "\<lbrace>invs and pspace_no_overlap_range_cover ptr sz and caps_no_overlap ptr sz
+     and caps_overlap_reserved {ptr..ptr + of_nat n * 2 ^ obj_bits_api ty us - 1}
+     and region_in_kernel_window {ptr..(ptr && ~~ mask sz) + 2 ^ sz - 1}
+     and (\<lambda>s. \<exists>slot. cte_wp_at (\<lambda>c.  {ptr..(ptr && ~~ mask sz) + (2 ^ sz - 1)} \<subseteq> cap_range c \<and> cap_is_device c = dev) slot s)
+     and K (ty = CapTableObject \<longrightarrow> 0 < us)
+     and K (range_cover ptr sz (obj_bits_api ty us) n)\<rbrace>
+      retype_region ptr n us ty dev \<lbrace>\<lambda>rv. valid_vspace_objs\<rbrace>"
   apply (wp hoare_strengthen_post [OF retype_region_post_retype_invs],
     auto simp: post_retype_invs_def split: if_split_asm)+
   done

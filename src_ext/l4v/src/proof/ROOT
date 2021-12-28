@@ -38,14 +38,17 @@ session Refine in "refine" = BaseRefine +
     "$L4V_ARCH/Refine"
     "$L4V_ARCH/RAB_FN"
     "$L4V_ARCH/EmptyFail_H"
+    "$L4V_ARCH/Init_R"
   theories [condition = "SKIP_REFINE_PROOFS", quick_and_dirty, skip_proofs]
     "$L4V_ARCH/Refine"
     "$L4V_ARCH/RAB_FN"
     "$L4V_ARCH/EmptyFail_H"
+    "$L4V_ARCH/Init_R"
   theories
     "$L4V_ARCH/Refine"
     "$L4V_ARCH/RAB_FN"
     "$L4V_ARCH/EmptyFail_H"
+    "$L4V_ARCH/Init_R"
 
 (*
  * This theory is in a separate session because the proofs currently
@@ -140,11 +143,15 @@ session DPolicy in "dpolicy" = DRefine +
  *)
 
 session Access in "access-control" = AInvs +
+  directories
+    "$L4V_ARCH"
   theories
-    "ADT_AC"
+    "ArchADT_AC"
     "ExampleSystem"
 
 session InfoFlow in "infoflow" = Access +
+  directories
+    "$L4V_ARCH"
   theories
     "InfoFlow_Image_Toplevel"
 
@@ -159,6 +166,8 @@ session InfoFlowCBase in "infoflow/refine/base" = CRefine +
     "Include_IF_C"
 
 session InfoFlowC in "infoflow/refine" = InfoFlowCBase +
+  directories
+    "$L4V_ARCH"
   theories
     "Noninterference_Refinement"
     "Example_Valid_StateH"
@@ -206,18 +215,7 @@ session SimplExportAndRefine in "asmrefine" = SimplExport +
     "SEL4GraphRefine"
 
 session SimplExport in "asmrefine/export" = CSpec +
+  directories
+    "$L4V_ARCH"
   theories
     "SEL4SimplExport"
-
-(*
- * Libraries
- *)
-(* unused:
-session AutoLevity = AutoLevity_Base +
-  theories
-   "../lib/autolevity_buckets/AutoLevity_Top"
-
-session AutoLevity_Base = Word_Lib +
-  theories
-    "../lib/autolevity_buckets/AutoLevity_Base"
-*)

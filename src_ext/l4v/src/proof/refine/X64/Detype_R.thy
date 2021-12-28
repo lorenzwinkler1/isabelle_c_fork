@@ -7,6 +7,7 @@
 theory Detype_R
 imports Retype_R
 begin
+
 context begin interpretation Arch . (*FIXME: arch_split*)
 
 text \<open>Establishing that the invariants are maintained
@@ -84,10 +85,6 @@ lemma descendants_range_inD':
   apply (auto simp:descendants_range_in'_def cte_wp_at_ctes_of dest!:bspec)
   done
 end
-
-interpretation clear_um:
-  p_arch_idle_update_int_eq "clear_um S"
-  by unfold_locales (simp_all add: clear_um_def)
 
 context begin interpretation Arch . (*FIXME: arch_split*)
 
@@ -428,35 +425,30 @@ lemma map_to_ctes_delete:
 
 lemma word_range_card:
   "base \<le>base + h \<Longrightarrow> card {base..base + (h::machine_word)} = (unat h) + 1"
-proof (induct h)
-  case 1 show ?case by simp
+proof (induct h rule: word_induct2)
+  case zero show ?case by simp
 next
-  case (2 h)
+  case (suc h)
   have interval_plus_one_machine_word:
     "\<And>base ceil. \<lbrakk>base \<le> ceil + 1;ceil \<le> ceil + 1\<rbrakk> \<Longrightarrow>
                  {base..ceil + 1} = {base .. ceil } \<union> {ceil + (1::machine_word)}"
     by (auto intro:order_antisym simp:not_le inc_le)
   show ?case
+    using suc plus_one_helper2[where n = h and x = h,simplified]
     apply (subst add.commute[where a = 1])
     apply (subst add.assoc[symmetric])
     apply (subst interval_plus_one_machine_word)
-      using 2
       apply (simp add: field_simps)
      apply (subst add.assoc)
      apply (rule word_plus_mono_right)
-      using 2 plus_one_helper2[where n = h and x = h,simplified]
       apply (simp add: field_simps)
-     using 2
      apply (simp add: field_simps)
-    apply (subst card_Un_disjoint,simp+)
-     using 2
+    apply (subst card_Un_disjoint; simp)
      apply (clarsimp simp: field_simps)
-    using 2
-    apply (subst 2)
-    apply (erule word_plus_mono_right2)
-     using 2 plus_one_helper2[where n = h and x = h,simplified]
+    apply (subst suc)
+     apply (erule word_plus_mono_right2)
      apply (simp add: field_simps)
-     apply simp
+    apply simp
     apply (simp add: unatSuc)
     done
 qed
@@ -613,7 +605,7 @@ lemma sym_refs_hyp_refs_triv[simp]: "sym_refs (state_hyp_refs_of s)"
   apply (clarsimp simp: state_hyp_refs_of_def sym_refs_def)
   by (case_tac "kheap s x"; simp)
 
-lemma detype_corres:
+lemma deleteObjects_corres:
   "is_aligned base magnitude \<Longrightarrow> magnitude \<ge> 3 \<Longrightarrow>
    corres dc
       (\<lambda>s. einvs s
@@ -648,7 +640,7 @@ lemma detype_corres:
                         valid_pspace' s" in corres_split')
      apply (rule corres_bind_return)
      apply (rule corres_guard_imp[where r=dc])
-       apply (rule corres_split[OF cNodeNoPartialOverlap])
+       apply (rule corres_split_deprecated[OF cNodeNoPartialOverlap])
          apply (rule corres_machine_op[OF corres_Id], simp+)
          apply (rule no_fail_freeMemory, simp+)
         apply (wp hoare_vcg_ex_lift)+
@@ -1506,7 +1498,7 @@ proof (simp add: invs'_def valid_state'_def valid_pspace'_def
     done
 
   from sa_simp ctnotinQ
-  show "ct_not_inQ ?state''"
+  show "ct_not_inQ state'"
     apply (clarsimp simp: ct_not_inQ_def pred_tcb_at'_def)
     apply (drule obj_at'_and
                    [THEN iffD2, OF conjI,
@@ -1519,7 +1511,7 @@ proof (simp add: invs'_def valid_state'_def valid_pspace'_def
     apply (clarsimp dest!: ex_nonz_cap_notRange)
     done
 
-  from ctcd show "ct_idle_or_in_cur_domain' ?state''"
+  from ctcd show "ct_idle_or_in_cur_domain' state'"
     apply (simp add: ct_idle_or_in_cur_domain'_def tcb_in_cur_domain'_def)
     apply (intro impI)
     apply (elim disjE impE)
@@ -1688,13 +1680,6 @@ lemma deleteObjects_st_tcb_at':
   apply (simp add: delete_locale_def)
   done
 
-lemma ex_cte_cap_wp_to'_gsCNodes_update[simp]:
-  "ex_cte_cap_wp_to' P p (gsCNodes_update f s') = ex_cte_cap_wp_to' P p s'"
-  by (simp add: ex_cte_cap_wp_to'_def)
-lemma ex_cte_cap_wp_to'_gsUserPages_update[simp]:
-  "ex_cte_cap_wp_to' P p (gsUserPages_update f s') = ex_cte_cap_wp_to' P p s'"
-  by (simp add: ex_cte_cap_wp_to'_def)
-
 lemma deleteObjects_cap_to':
   "\<lbrace>cte_wp_at' (\<lambda>c. cteCap c = UntypedCap d ptr bits idx) p
      and invs' and ct_active' and sch_act_simple
@@ -1742,19 +1727,6 @@ lemma valid_untyped_no_overlap:
     apply (clarsimp simp:p_assoc_help)
    apply fastforce+
   done
-
-lemma pspace_no_overlap'_gsCNodes_update[simp]:
-  "pspace_no_overlap' p b (gsCNodes_update f s') = pspace_no_overlap' p b s'"
-  by (simp add: pspace_no_overlap'_def)
-
-lemma pspace_no_overlap'_gsUserPages_update[simp]:
-  "pspace_no_overlap' p b (gsUserPages_update f s') = pspace_no_overlap' p b s'"
-  by (simp add: pspace_no_overlap'_def)
-
-lemma pspace_no_overlap'_ksMachineState_update[simp]:
-  "pspace_no_overlap' p n (ksMachineState_update f s) =
-   pspace_no_overlap' p n s"
-  by (simp add: pspace_no_overlap'_def)
 
 lemma deleteObject_no_overlap[wp]:
   "\<lbrace>valid_cap' (UntypedCap d ptr bits idx) and valid_pspace'\<rbrace>
@@ -2082,7 +2054,8 @@ proof -
     fix obj src a m
     show "\<And>s'. \<lbrakk>cte_check obj src a m; ksPSpace s' a = Some obj\<rbrakk> \<Longrightarrow> src \<in> {a..a + 2 ^ objBitsKO obj - 1}"
       by (case_tac obj)
-         (auto simp add: cte_check_def objBits_simps' field_simps
+         (auto simp add: cte_check_def objBits_simps' diff_eq_eq
+                         add.commute[where b=a]
                          word_plus_mono_right is_aligned_no_wrap'
                          tcbVTableSlot_def tcbCTableSlot_def tcbReplySlot_def
                          tcbCallerSlot_def tcbIPCBufferSlot_def )
@@ -3932,11 +3905,6 @@ lemma new_cap_object_comm_helper:
    apply clarsimp
   done
 
-lemma pspace_no_overlap_gsUntypedZeroRanges[simp]:
-  "pspace_no_overlap' ptr n (gsUntypedZeroRanges_update f s)
-    = pspace_no_overlap' ptr n s"
-  by (simp add: pspace_no_overlap'_def)
-
 crunch pspace_aligned'[wp]: updateNewFreeIndex "pspace_aligned'"
 crunch pspace_canonical'[wp]: updateNewFreeIndex "pspace_canonical'"
 crunch pspace_in_kernel_mappings'[wp]: updateNewFreeIndex "pspace_in_kernel_mappings'"
@@ -4297,6 +4265,7 @@ lemma createNewCaps_ret_len:
               | intro conjI impI)+)+
    done
 
+
 lemma no_overlap_check:
   "\<lbrakk>range_cover ptr sz bits n; pspace_no_overlap' ptr sz s;
     pspace_aligned' s;n\<noteq> 0\<rbrakk>
@@ -4305,6 +4274,7 @@ lemma no_overlap_check:
                    (fst (lookupAround2 (ptr + of_nat (shiftL n bits - Suc 0))
                                        (ksPSpace s))) s =
        return () s"
+  including no_0_dvd
   apply (clarsimp split:option.splits simp:assert_def lookupAround2_char1 not_less)
   apply (rule ccontr)
   apply (frule(1) pspace_no_overlapD')
@@ -4494,7 +4464,7 @@ lemma createObjects_Cons:
            createObjects' (((1 + of_nat n) << (objBitsKO val + us)) + ptr)
                           (Suc 0) val us
         od) s"
-  supply option.case_cong_weak[cong]
+  supply option.case_cong_weak [cong] subst_all [simp del]
   apply (clarsimp simp:createObjects'_def split_def bind_assoc)
   apply (subgoal_tac "is_aligned (((1::machine_word) + of_nat n << objBitsKO val + us) + ptr) (objBitsKO val + us)")
    prefer 2
@@ -4911,8 +4881,8 @@ lemma new_cap_addrs_def2:
   "n < 2 ^ 64
    \<Longrightarrow> new_cap_addrs (Suc n) ptr obj
    = map (\<lambda>n. ptr + (n << objBitsKO obj)) [0.e.of_nat n]"
-  by (simp add:new_cap_addrs_def upto_enum_word unat_of_nat
-    Fun.comp_def)
+  including no_take_bit
+  by (simp add:new_cap_addrs_def upto_enum_word unat_of_nat Fun.comp_def)
 
 lemma createTCBs_tcb_at':
   "\<lbrace>\<lambda>s. pspace_aligned' s \<and> pspace_distinct' s \<and>
@@ -5017,7 +4987,7 @@ proof -
         done
 
   show ?thesis
-  using assms
+  including no_take_bit using assms
   apply (clarsimp simp:valid_pspace'_def)
   apply (frule range_cover.aligned)
   apply (frule(3) pspace_no_overlap'_tail)
@@ -5481,6 +5451,7 @@ lemma createNewObjects_def2:
           apply (simp add:range_cover_def objSize_eq_capBits)+
          done
       show ?case
+      including no_take_bit
       apply simp
       using snoc.prems
       apply (subst upto_enum_inc_1_len)
@@ -5772,7 +5743,7 @@ lemma createNewObjects_Cons:
       case Nil thus ?case by simp
     next
       case (Cons x xs)
-      thus ?case by (simp add:unat_of_nat64)
+      thus ?case including no_take_bit by (simp add:unat_of_nat64)
     qed
 
     show ?thesis

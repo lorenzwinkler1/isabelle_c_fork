@@ -195,13 +195,13 @@ lemma tcb_in_valid_state':
   apply (fastforce simp add: valid_obj'_def valid_tcb'_def)
   done
 
-lemma gct_corres: "corres (=) \<top> \<top> (gets cur_thread) getCurThread"
+lemma getCurThread_corres: "corres (=) \<top> \<top> (gets cur_thread) getCurThread"
   by (simp add: getCurThread_def curthread_relation)
 
 lemma gct_wp [wp]: "\<lbrace>\<lambda>s. P (ksCurThread s) s\<rbrace> getCurThread \<lbrace>P\<rbrace>"
   by (unfold getCurThread_def, wp)
 
-lemma git_corres:
+lemma getIdleThread_corres:
   "corres (=) \<top> \<top> (gets idle_thread) getIdleThread"
   by (simp add: getIdleThread_def state_relation_def)
 
@@ -242,7 +242,7 @@ lemma corres_injection:
      \<Longrightarrow> corres (f \<oplus> r) P P' (t m) (t' m')"
   apply (simp add: injection_handler_def handleE'_def x y)
   apply (rule corres_guard_imp)
-    apply (rule corres_split)
+    apply (rule corres_split_deprecated)
        defer
        apply assumption
       apply (rule wp_post_taut)
