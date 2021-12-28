@@ -315,15 +315,12 @@ struct
       val (varN, var) = markup_elem (desc (case global of Left b => SOME b
                                                         | Right (SOME b, _, _) => SOME b
                                                         | _ => NONE));
-      val entity = Markup.entity varN name
       val cons' = cons o markup_init
     in
      (cons' var
       #> report' cons' def global
       #> (case typing of NONE => I | SOME x => cons x))
-       (map (fn pos =>
-              markup_init (Markup.properties (Position.entity_properties_of def id pos) entity))
-            ps)
+       (map (markup_init o Position.make_entity_markup {def = def} id varN o pair name) ps)
     end)
 
   fun markup_make' typing get_global desc report =
@@ -808,7 +805,7 @@ struct
 local
 
 fun ml_text name ml =
-  Thy_Output.antiquotation_raw_embedded name (Scan.lift Args.text_input \<comment> \<open>TODO: enable reporting with \<^ML_type>\<open>Token.file\<close> as in \<^ML>\<open>Resources.parse_files\<close>\<close>)
+  Document_Output.antiquotation_raw_embedded name (Scan.lift Args.text_input \<comment> \<open>TODO: enable reporting with \<^ML_type>\<open>Token.file\<close> as in \<^ML>\<open>Resources.parse_files\<close>\<close>)
     (fn ctxt => fn text =>
       let val file_content =
             Token.file_source
@@ -837,8 +834,8 @@ fun ml_text name ml =
          |> Symbol_Pos.implode
          |> enclose "\n" "\n"
          |> cartouche
-         |> Thy_Output.output_source ctxt
-         |> Thy_Output.isabelle ctxt
+         |> Document_Output.output_source ctxt
+         |> Document_Output.isabelle ctxt
       end);
 
 fun ml_enclose bg en source =

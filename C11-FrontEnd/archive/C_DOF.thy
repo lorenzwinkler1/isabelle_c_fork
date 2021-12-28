@@ -105,8 +105,11 @@ val attributes_upd =
      --| Parse.$$$ "]")
      --| improper
 
-fun enriched_document_command _ {markdown} ((_, opt), src) =
-  Pure_Syn.document_command {markdown = markdown} (opt, src)
+fun enriched_document_command name _ {markdown} ((_, opt), src) =
+  Document_Output.document_output
+    {markdown = markdown, markup = fn body => [XML.Elem (Markup.latex_body name, body)]}
+    (opt, src)
+
 fun open_monitor_command _ = I
 fun close_monitor_command _ = I
 fun update_instance_command _ = I
@@ -147,9 +150,9 @@ ML\<open>
 structure OntoParser =
 struct
 val _ = Theory.setup
- (Thy_Output.antiquotation_verbatim  @{binding figure}
+ (Document_Output.antiquotation_verbatim  @{binding figure}
    OntoLinkParser.docitem_antiquotation_parser (fn _ => fn _ => "") #>
-  Thy_Output.antiquotation_verbatim  @{binding docitem}
+  Document_Output.antiquotation_verbatim  @{binding docitem}
    OntoLinkParser.docitem_antiquotation_parser (fn _ => fn _ => ""))
 end\<close>
 
@@ -167,59 +170,59 @@ in
 val _ =
   Outer_Syntax.command ("title*", @{here}) "section heading"
     (attributes -- Parse.opt_target -- Parse.document_source --| semi
-      >> ((enriched_document_command NONE {markdown = false} ))) ;
+      >> ((enriched_document_command "" NONE {markdown = false} ))) ;
 
 val _ =
   Outer_Syntax.command ("subtitle*", @{here}) "section heading"
     (attributes -- Parse.opt_target -- Parse.document_source --| semi
-      >> ((enriched_document_command NONE {markdown = false} )));
+      >> ((enriched_document_command "" NONE {markdown = false} )));
 
 val _ =
   Outer_Syntax.command ("chapter*", @{here}) "section heading"
     (attributes -- Parse.opt_target -- Parse.document_source --| semi
-      >> ((enriched_document_command (SOME(SOME 0)) {markdown = false} )));
+      >> ((enriched_document_command "" (SOME(SOME 0)) {markdown = false} )));
 
 val _ =
   Outer_Syntax.command ("section*", @{here}) "section heading"
     (attributes -- Parse.opt_target -- Parse.document_source --| semi
-      >> ((enriched_document_command (SOME(SOME 1)) {markdown = false} )));
+      >> ((enriched_document_command "" (SOME(SOME 1)) {markdown = false} )));
 
 
 val _ =
   Outer_Syntax.command ("subsection*", @{here}) "subsection heading"
     (attributes -- Parse.opt_target -- Parse.document_source --| semi
-      >> ((enriched_document_command (SOME(SOME 2)) {markdown = false} )));
+      >> ((enriched_document_command "" (SOME(SOME 2)) {markdown = false} )));
 
 val _ =
   Outer_Syntax.command ("subsubsection*", @{here}) "subsubsection heading"
     (attributes -- Parse.opt_target -- Parse.document_source --| semi
-      >> ((enriched_document_command (SOME(SOME 3)) {markdown = false} )));
+      >> ((enriched_document_command "" (SOME(SOME 3)) {markdown = false} )));
 
 val _ =
   Outer_Syntax.command ("paragraph*", @{here}) "paragraph heading"
     (attributes --  Parse.opt_target -- Parse.document_source --| semi
-      >> ((enriched_document_command (SOME(SOME 4)) {markdown = false} )));
+      >> ((enriched_document_command "" (SOME(SOME 4)) {markdown = false} )));
 
 val _ =
   Outer_Syntax.command ("subparagraph*", @{here}) "subparagraph heading"
     (attributes -- Parse.opt_target -- Parse.document_source --| semi
-      >> ((enriched_document_command (SOME(SOME 5)) {markdown = false} )));
+      >> ((enriched_document_command "" (SOME(SOME 5)) {markdown = false} )));
 
 val _ =
   Outer_Syntax.command ("figure*", @{here}) "figure"
     (attributes --  Parse.opt_target -- Parse.document_source --| semi
-      >> ((enriched_document_command NONE {markdown = false} )));
+      >> ((enriched_document_command "" NONE {markdown = false} )));
 
 val _ =
   Outer_Syntax.command ("side_by_side_figure*", @{here}) "multiple figures"
     (attributes --  Parse.opt_target -- Parse.document_source --| semi
-      >> ((enriched_document_command NONE {markdown = false} )));
+      >> ((enriched_document_command "" NONE {markdown = false} )));
 
 
 val _ =
   Outer_Syntax.command ("text*", @{here}) "formal comment (primary style)"
     (attributes -- Parse.opt_target -- Parse.document_source 
-      >> ((enriched_document_command NONE {markdown = true} )));
+      >> ((enriched_document_command "" NONE {markdown = true} )));
 
 val _ =
   Outer_Syntax.command @{command_keyword "declare_reference*"} 

@@ -78,13 +78,13 @@ local
 fun error_var msg (xi, pos) =
   error (msg ^ quote (Term.string_of_vname xi) ^ Position.here pos);
 
-fun the_sort tvars (xi, pos) : sort =
-  (case AList.lookup (op =) tvars xi of
+fun the_sort tvars (ai, pos) : sort =
+  (case TVars.get_first (fn ((bi, S), _) => if ai = bi then SOME S else NONE) tvars of
     SOME S => S
-  | NONE => error_var "No such type variable in theorem: " (xi, pos));
+  | NONE => error_var "No such type variable in theorem: " (ai, pos));
 
 fun the_type vars (xi, pos) : typ =
-  (case AList.lookup (op =) vars xi of
+  (case Vartab.lookup vars xi of
     SOME T => T
   | NONE => error_var "No such variable in theorem: " (xi, pos));
 
@@ -97,17 +97,23 @@ fun read_type ctxt tvars ((xi, pos), s) =
     else error_var "Bad sort for instantiation of type variable: " (xi, pos)
   end;
 
-fun make_instT f v =
+fun make_instT f (tvars: TVars.set) =
   let
-    val T = TVar v;
-    val T' = f T;
-  in if T = T' then NONE else SOME (v, T') end;
+    fun add v =
+      let
+        val T = TVar v;
+        val T' = f T;
+      in if T = T' then I else cons (v, T') end;
+  in TVars.fold (add o #1) tvars [] end;
 
-fun make_inst f v =
+fun make_inst f vars =
   let
-    val t = Var v;
-    val t' = f t;
-  in if t aconv t' then NONE else SOME (v, t') end;
+    fun add v =
+      let
+        val t = Var v;
+        val t' = f t;
+      in if t aconv t' then I else cons (v, t') end;
+  in fold add vars [] end;
 
 fun read_terms ss Ts ctxt =
   let
@@ -118,7 +124,7 @@ fun read_terms ss Ts ctxt =
       |> Syntax.check_terms ctxt'
       |> Variable.polymorphic ctxt';
     val Ts' = map Term.fastype_of ts';
-    val tyenv = fold (Sign.typ_match (Proof_Context.theory_of ctxt)) (Ts ~~ Ts') Vartab.empty;
+    val tyenv = Vartab.build (fold (Sign.typ_match (Proof_Context.theory_of ctxt)) (Ts ~~ Ts'));
     val tyenv' = Vartab.fold (fn (xi, (S, T)) => cons ((xi, S), T)) tyenv [];
   in ((ts', tyenv'), ctxt') end;
 
@@ -135,18 +141,21 @@ fun read_insts thm raw_insts raw_fixes ctxt =
     val (type_insts, term_insts) =
       List.partition (fn (((x, _), _), _) => String.isPrefix "'" x) raw_insts;
 
-    val tvars = Thm.fold_terms Term.add_tvars thm [];
-    val vars = Thm.fold_terms Term.add_vars thm [];
+    val tvars = TVars.build (Thm.fold_terms {hyps = false} TVars.add_tvars thm);
+    val vars = Vars.build (Thm.fold_terms {hyps = false} Vars.add_vars thm);
 
     (*eigen-context*)
     val (_, ctxt1) = ctxt
-      |> fold (Variable.declare_internal o Logic.mk_type o TVar) tvars
-      |> fold (Variable.declare_internal o Var) vars
+      |> TVars.fold (Variable.declare_internal o Logic.mk_type o TVar o #1) tvars
+      |> Vars.fold (Variable.declare_internal o Var o #1) vars
       |> Proof_Context.add_fixes_cmd raw_fixes;
 
     (*explicit type instantiations*)
-    val instT1 = Term_Subst.instantiateT (map (read_type ctxt1 tvars) type_insts);
-    val vars1 = map (apsnd instT1) vars;
+    val instT1 =
+      Term_Subst.instantiateT (TVars.make (map (read_type ctxt1 tvars) type_insts));
+    val vars1 =
+      Vartab.build (vars |> Vars.fold (fn ((v, T), _) =>
+        Vartab.insert (K true) (v, instT1 T)));
 
     (*term instantiations*)
     val (xs, ss) = split_list term_insts;
@@ -154,14 +163,15 @@ fun read_insts thm raw_insts raw_fixes ctxt =
     val ((ts, inferred), ctxt2) = read_terms ss Ts ctxt1;
 
     (*implicit type instantiations*)
-    val instT2 = Term_Subst.instantiateT inferred;
-    val vars2 = map (apsnd instT2) vars1;
+    val instT2 = Term_Subst.instantiateT (TVars.make inferred);
+    val vars2 = Vartab.fold (fn (v, T) => cons (v, instT2 T)) vars1 [];
     val inst2 =
-      Term_Subst.instantiate ([], map2 (fn (xi, _) => fn t => ((xi, Term.fastype_of t), t)) xs ts)
+      Term_Subst.instantiate (TVars.empty,
+        Vars.build (fold2 (fn (xi, _) => fn t => Vars.add ((xi, Term.fastype_of t), t)) xs ts))
       #> Envir.beta_norm;
 
-    val inst_tvars = map_filter (make_instT (instT2 o instT1)) tvars;
-    val inst_vars = map_filter (make_inst inst2) vars2;
+    val inst_tvars = make_instT (instT2 o instT1) tvars;
+    val inst_vars = make_inst inst2 vars2;
   in ((inst_tvars, inst_vars), ctxt2) end;
 
 end;
@@ -176,8 +186,8 @@ fun where_rule ctxt raw_insts raw_fixes thm =
   in
     thm
     |> Drule.instantiate_normalize
-      (map (apsnd (Thm.ctyp_of ctxt')) inst_tvars,
-       map (apsnd (Thm.cterm_of ctxt')) inst_vars)
+      (TVars.make (map (apsnd (Thm.ctyp_of ctxt')) inst_tvars),
+       Vars.make (map (apsnd (Thm.cterm_of ctxt')) inst_vars))
     |> singleton (Variable.export ctxt' ctxt)
     |> Rule_Cases.save thm
   end;
@@ -189,8 +199,8 @@ fun of_rule ctxt (args, concl_args) fixes thm =
       | zip_vars ((x, _) :: xs) (SOME t :: rest) = ((x, Position.none), t) :: zip_vars xs rest
       | zip_vars [] _ = error "More instantiations than variables in theorem";
     val insts =
-      zip_vars (rev (Term.add_vars (Thm.full_prop_of thm) [])) args @
-      zip_vars (rev (Term.add_vars (Thm.concl_of thm) [])) concl_args;
+      zip_vars (Vars.build (Vars.add_vars (Thm.full_prop_of thm)) |> Vars.list_set) args @
+      zip_vars (Vars.build (Vars.add_vars (Thm.concl_of thm)) |> Vars.list_set) concl_args;
   in where_rule ctxt insts fixes thm end;
 
 fun read_instantiate ctxt insts xs =
@@ -204,7 +214,7 @@ fun read_instantiate ctxt insts xs =
 
 val named_insts =
   Parse.and_list1
-    (Parse.position Args'.var -- (Args.$$$ "=" |-- Parse.!!! Args.embedded_inner_syntax))
+    (Parse.position Args'.var -- (Args.$$$ "=" |-- Parse.!!! Parse.embedded_inner_syntax))
     -- Parse.for_fixes;
 
 val _ = Theory.setup
@@ -218,7 +228,7 @@ val _ = Theory.setup
 
 local
 
-val inst = Args.maybe Args.embedded_inner_syntax;
+val inst = Args.maybe Parse.embedded_inner_syntax;
 val concl = Args.$$$ "concl" -- Args.colon;
 
 val insts =
@@ -271,10 +281,12 @@ fun bires_inst_tac bires_flag ctxt raw_insts raw_fixes thm i st = CSUBGOAL (fn (
     fun lift_var ((a, j), T) = ((a, j + inc), paramTs ---> lift_type T);
     fun lift_term t = fold_rev Term.absfree params (Logic.incr_indexes (fixed, paramTs, inc) t);
 
-    val inst_tvars' = inst_tvars
-      |> map (fn (((a, i), S), T) => (((a, i + inc), S), Thm.ctyp_of inst_ctxt (lift_type T)));
-    val inst_vars' = inst_vars
-      |> map (fn (v, t) => (lift_var v, Thm.cterm_of inst_ctxt (lift_term t)));
+    val inst_tvars' =
+      TVars.build (inst_tvars |> fold (fn (((a, i), S), T) =>
+        TVars.add (((a, i + inc), S), Thm.ctyp_of inst_ctxt (lift_type T))));
+    val inst_vars' =
+      Vars.build (inst_vars |> fold (fn (v, t) =>
+        Vars.add (lift_var v, Thm.cterm_of inst_ctxt (lift_term t))));
 
     val thm' = Thm.lift_rule cgoal thm
       |> Drule.instantiate_normalize (inst_tvars', inst_vars')
@@ -293,8 +305,8 @@ fun make_elim_preserve ctxt rl =
     fun var x = ((x, 0), propT);
     fun cvar xi = Thm.cterm_of ctxt (Var (xi, propT));
     val revcut_rl' =
-      Drule.instantiate_normalize ([], [(var "V", cvar ("V", maxidx + 1)),
-        (var "W", cvar ("W", maxidx + 1))]) Drule.revcut_rl;
+      Drule.revcut_rl |> Drule.instantiate_normalize
+        (TVars.empty, Vars.make [(var "V", cvar ("V", maxidx + 1)), (var "W", cvar ("W", maxidx + 1))]);
   in
     (case Seq.list_of
       (Thm.bicompose (SOME ctxt) {flatten = true, match = false, incremented = false}
@@ -357,12 +369,12 @@ val _ = Theory.setup
   Method.setup \<^binding>\<open>cut_tac\<close> (method cut_inst_tac (K cut_rules_tac))
     "cut rule (dynamic instantiation)" #>
   Method.setup \<^binding>\<open>subgoal_tac\<close>
-    (Args.goal_spec -- Scan.lift (Scan.repeat1 Args.embedded_inner_syntax -- Parse.for_fixes) >>
+    (Args.goal_spec -- Scan.lift (Scan.repeat1 Parse.embedded_inner_syntax -- Parse.for_fixes) >>
       (fn (quant, (props, fixes)) => fn ctxt =>
         SIMPLE_METHOD'' quant (EVERY' (map (fn prop => subgoal_tac ctxt prop fixes) props))))
     "insert subgoal (dynamic instantiation)" #>
   Method.setup \<^binding>\<open>thin_tac\<close>
-    (Args.goal_spec -- Scan.lift (Args.embedded_inner_syntax -- Parse.for_fixes) >>
+    (Args.goal_spec -- Scan.lift (Parse.embedded_inner_syntax -- Parse.for_fixes) >>
       (fn (quant, (prop, fixes)) => fn ctxt => SIMPLE_METHOD'' quant (thin_tac ctxt prop fixes)))
     "remove premise (dynamic instantiation)");
 
@@ -390,19 +402,19 @@ fun restore_tags thm = Thm.map_tags (K (Thm.get_tags thm));
 val mk_term_type_internal = Logic.protect o Logic.mk_term o Logic.mk_type;
 
 fun term_type_cases f g t = 
-  (case (try (Logic.dest_type o Logic.dest_term o Logic.unprotect) t) of
+  (case \<^try>\<open>Logic.dest_type (Logic.dest_term (Logic.unprotect t))\<close> of
     SOME T => f T
-  | NONE => 
-    (case (try Logic.dest_term t) of
-      SOME t => g t
-    | NONE => raise Fail "Lost encoded instantiation"))
+  | NONE =>
+      (case \<^try>\<open>Logic.dest_term t\<close> of
+        SOME t => g t
+      | NONE => raise Fail "Lost encoded instantiation"))
 
 fun add_thm_insts ctxt thm =
   let
-    val tyvars = Thm.fold_terms Term.add_tvars thm [];
+    val tyvars = Thm.fold_terms {hyps = false} Term.add_tvars thm [];
     val tyvars' = tyvars |> map (mk_term_type_internal o TVar);
 
-    val tvars = Thm.fold_terms Term.add_vars thm [];
+    val tvars = Thm.fold_terms {hyps = false} Term.add_vars thm [];
     val tvars' = tvars  |> map (Logic.mk_term o Var);
 
     val conj =
@@ -429,8 +441,8 @@ fun get_thm_insts thm =
 
 fun instantiate_xis ctxt insts thm =
   let
-    val tyvars = Thm.fold_terms Term.add_tvars thm [];
-    val tvars = Thm.fold_terms Term.add_vars thm [];
+    val tyvars = Thm.fold_terms {hyps = false} Term.add_tvars thm [];
+    val tvars = Thm.fold_terms {hyps = false} Term.add_vars thm [];
 
     fun add_inst (xi, t) (Ts, ts) =
       (case AList.lookup (op =) tyvars xi of
@@ -442,7 +454,7 @@ fun instantiate_xis ctxt insts thm =
 
     val (instT, inst) = fold add_inst insts ([], []);
   in
-    (Thm.instantiate (instT, []) thm
+    (Thm.instantiate (TVars.make instT, Vars.empty) thm
     |> infer_instantiate ctxt inst
     COMP_INCR asm_rl)
     |> Thm.adjust_maxidx_thm ~1
@@ -572,7 +584,7 @@ fun read_instantiate_closed ctxt (Named_Insts (insts, fixes)) thm  =
 
 val _ =
   Theory.setup
-    (Attrib.setup @{binding "where'"}
+    (Attrib.setup \<^binding>\<open>where'\<close>
       (Scan.lift
         (Parse.and_list1 (Args'.var -- (Args.$$$ "=" |-- Parse_Tools.name_term)) -- Parse.for_fixes)
         >> (fn args =>
@@ -584,7 +596,7 @@ val _ =
 
 val _ =
   Theory.setup
-    (Attrib.setup @{binding "of'"}
+    (Attrib.setup \<^binding>\<open>of'\<close>
       (Scan.lift
         (Args.mode "unchecked" --
           (Scan.repeat (Scan.unless concl inst) --
@@ -614,7 +626,6 @@ struct
 structure Data_Annot = Generic_Data
   (type T = (bool * string) list Inttab.table
    val empty = Inttab.empty
-   val extend = I
    val merge = K empty)
 end
 \<close>

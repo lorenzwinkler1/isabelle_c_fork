@@ -486,7 +486,7 @@ fun type_synonym top (Type_synonym ((n, v), l)) = #theory top (fn thy => let val
            (Isabelle_Typedecl.abbrev_cmd0 (SOME s_bind) thy (of_semi__typ l))) thy end)
 
 fun type_notation top (Type_notation (n, e)) = #local_theory top NONE NONE
-  (Specification.type_notation_cmd true ("", true) [(To_string0 n, Mixfix (Input.string (To_string0 e), [], 1000, Position.no_range))])
+  (Local_Theory.type_notation_cmd true ("", true) [(To_string0 n, Mixfix (Input.string (To_string0 e), [], 1000, Position.no_range))])
 
 fun instantiation1 name thy = thy
   |> Class.instantiation ([ let val Term.Type (s, _) = Isabelle_Typedecl.abbrev_cmd0 NONE thy name in s end ],
@@ -561,6 +561,11 @@ fun section n s _ =
   let fun mk s n = if n <= 0 then s else mk ("  " ^ s) (n - 1) in
     out_intensify (mk (Markup.markup Markup.keyword3 (To_string0 s)) n) ""
   end
+
+fun text name s =
+  Document_Output.document_output
+    {markdown = true, markup = fn body => [XML.Elem (Markup.latex_body name, body)]}
+    (NONE, Input.string (To_string0 s))
 
 fun ml top (SMLa ml) = #generic_theory top
   (ML_Context.exec let val source = input_source ml in
@@ -647,18 +652,27 @@ fun semi__theory (top : ('transitionM, 'transitionM, 'state) toplevel) = let ope
 | Theory_axiomatization axiomatization =>
   cons (\<^command_keyword>\<open>axiomatization\<close>, Cmd.axiomatization top axiomatization)
 | Theory_section (Section (n, s)) => let val n = To_nat n in fn st => st
-  |>:: (case n of 0 =>
+  |>:: let val (name, pos) = case n of 0 =>
         \<^command_keyword>\<open>section\<close> | 1 =>
         \<^command_keyword>\<open>subsection\<close> | _ =>
-        \<^command_keyword>\<open>subsubsection\<close>,
-     #tr_raw top (Pure_Syn.document_command {markdown = false} (NONE, Input.string (To_string0 s))))
+        \<^command_keyword>\<open>subsubsection\<close>
+       in
+         ( (name, pos)
+         , #tr_raw
+             top
+             (Document_Output.document_output
+               {markdown = false, markup = fn body => [XML.Elem (Markup.latex_heading name, body)]}
+               (NONE, Input.string (To_string0 s))))
+       end
   |>:: (\<^command_keyword>\<open>print_syntax\<close>, #keep top (Cmd.section n s)) end
 | Theory_text (Text s) =>
-  cons (\<^command_keyword>\<open>text\<close>,
-     #tr_raw top (Pure_Syn.document_command {markdown = true} (NONE, Input.string (To_string0 s))))
+  cons let val (name, pos) =
+        \<^command_keyword>\<open>text\<close>
+       in ((name, pos), #tr_raw top (Cmd.text name s)) end
 | Theory_text_raw (Text_raw s) =>
-  cons (\<^command_keyword>\<open>text_raw\<close>,
-     #tr_raw top (Pure_Syn.document_command {markdown = true} (NONE, Input.string (To_string0 s))))
+  cons let val (name, pos) =
+        \<^command_keyword>\<open>text_raw\<close>
+       in ((name, pos), #tr_raw top (Cmd.text name s)) end
 | Theory_ML ml =>
   cons (\<^command_keyword>\<open>ML\<close>, Cmd.ml top ml)
 | Theory_setup setup =>
@@ -755,7 +769,6 @@ structure Meta_Cmd_Data = Theory_Data
   (open META
    type T = T
    val empty = []
-   val extend = I
    val merge = #2)
 
 fun ML_context_exec pos ants =
@@ -771,7 +784,7 @@ fun meta_command0 s_put f_get constraint source =
   Context.Theory 
   #> ML_context_exec (Input.pos_of source)
        (ML_Lex.read "let open META val ML = META.SML val "
-        @ ML_Lex.read_set_range (Input.range_of source) name
+        @ ML_Lex.read_range (Input.range_of source) name
         @ ML_Lex.read (" : " ^ constraint ^ " = ")
         @ ML_Lex.read_source source
         @ ML_Lex.read (" in Context.>> (Context.map_theory (" ^ s_put ^ " " ^ name ^ ")) end"))
@@ -952,7 +965,6 @@ type T = (unit META.compiler_env_config_ext, theory) generation_mode
 structure Data_gen = Theory_Data
   (type T = T
    val empty = {deep = [], shallow = [], syntax_print = [NONE]}
-   val extend = I
    fun merge (e1, e2) = { deep = #deep e1 @ #deep e2
                         , shallow = #shallow e1 @ #shallow e2
                         , syntax_print = #syntax_print e1 @ #syntax_print e2 })
@@ -1061,7 +1073,7 @@ fun meta_command0 s_put f_get f_get0 constraint source =
   Context.Theory 
   #> Bind_META.ML_context_exec (Input.pos_of source)
        (ML_Lex.read "let open META val ML = META.SML val "
-        @ ML_Lex.read_set_range (Input.range_of source) name
+        @ ML_Lex.read_range (Input.range_of source) name
         @ ML_Lex.read (" : " ^ constraint ^ " = ")
         @ ML_Lex.read_source source
         @ ML_Lex.read (" in Context.>> (Context.map_theory (fn thy => " ^ s_put ^ " (" ^ name ^ " (" ^ f_get0 ^ " thy)) thy)) end"))
@@ -1927,7 +1939,6 @@ end
 structure Haskabelle_Data = Theory_Data
   (type T = Haskabelle_Data_T
    val empty = ([], [])
-   val extend = I
    val merge = #2)
 
 local
@@ -1938,7 +1949,7 @@ in
   fun parse meta_parse_shallow meta_parse_imports meta_parse_code meta_parse_functions hsk_name check_dir hsk_str ((((((((old_datatype, try_import), only_types), ignore_not_in_scope), abstract_mutual_data_params), concat_modules), base_path_abs), l_rewrite), source) thy =
     let fun string_of_bool b = if b then "true" else "false"
         val st =
-          Bash.process
+          (Isabelle_System.bash_process o Bash.script)
            (space_implode " "
              ( [ Path.implode haskabelle_bin
                , "--internal", Path.implode haskabelle_default
@@ -1961,8 +1972,8 @@ in
                     ([], [ Resources'.check_file (Proof_Context.init_global thy) (SOME Path.current) source ])
                 of (cts, files) => List.concat [ ["--hsk-contents"], cts, ["--files"], files ])))
     in
-      if #rc st = 0 then
-        Bind_META.meta_command0 "Haskabelle_Data.put" Haskabelle_Data.get "Haskabelle_Data_T" (Input.string (#out st)) thy
+      if Process_Result.rc st = 0 then
+        Bind_META.meta_command0 "Haskabelle_Data.put" Haskabelle_Data.get "Haskabelle_Data_T" (Input.string (Process_Result.out st)) thy
         |> (fn (l_mod, l_rep) =>
               let
                 val _ =
@@ -1971,7 +1982,7 @@ in
                       let fun advance_offset n =
                             if n = 0 then I
                             else fn (x :: xs, p) =>
-                                   advance_offset (n - String.size x) (xs, Position.advance x p)
+                                   advance_offset (n - String.size x) (xs, Position.symbol x p)
                           val l_rep =
                         fold (fn ((offset, end_offset), (markup, prop)) => fn (content, (pos, pos_o), acc) =>
                                 let val offset = To_nat offset
@@ -1995,12 +2006,14 @@ in
                                                 , From.string (Context.theory_name thy)
                                                 , (m, concat_modules)))
                        |> META.META_haskell end)
-        |> tap (fn _ => warning (#err st))
+        |> tap (fn _ => warning (Process_Result.err st))
       else
-          let val _ = #terminate st ()
-          in error (if #err st = "" then
-                      "Failed executing the ML process (" ^ Int.toString (#rc st) ^ ")"
-                    else #err st |> String.explode |> trim (fn #"\n" => true | _ => false) |> String.implode) end
+          error (if Process_Result.err st = "" then
+                   "Failed executing the ML process (" ^ Int.toString (Process_Result.rc st) ^ ")"
+                 else
+                   Process_Result.err st |> String.explode
+                                         |> trim (fn #"\n" => true | _ => false)
+                                         |> String.implode)
     end
   val parse' = parse false [] NONE META.Gen_no_apply NONE Resources'.check_dir
 end
@@ -2013,7 +2026,6 @@ local
   structure Data_lang = Theory_Data
     (type T = (haskell_parse * string option * (bool * string) list * string * (META.abr_string -> META.gen_meta)) Name_Space.table
      val empty = Name_Space.empty_table "meta_language"
-     val extend = I
      val merge = Name_Space.merge_tables)
   
   structure Parse' =

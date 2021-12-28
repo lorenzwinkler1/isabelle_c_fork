@@ -229,7 +229,6 @@ datatype code_printing = Code_printing of
 structure Data_code = Theory_Data
   (type T = code_printing list Symtab.table
    val empty = Symtab.empty
-   val extend = I
    val merge = Symtab.merge (K true))
 
 val code_empty = ""

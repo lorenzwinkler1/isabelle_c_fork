@@ -59,7 +59,6 @@ val empty' = ([], C_Env.empty_env_lang)
 structure Data_Lang = Generic_Data
   (type T = (stack_data * C_Env.env_lang) option
    val empty = NONE
-   val extend = I
    val merge = K empty)
 open Data_Lang
 fun get' context = case get context of NONE => empty' | SOME data => data
@@ -70,7 +69,6 @@ structure Data_Tree_Args : GENERIC_DATA_ARGS =
 struct
   type T = C_Position.reports_text * C_Env.error_lines
   val empty = ([], [])
-  val extend = I
   fun merge ((l11, l12), (l21, l22)) = (l11 @ l21, l12 @ l22)
 end
 
@@ -119,7 +117,6 @@ structure Directives = Generic_Data
                  (C_Lex.token_kind_directive -> C_Env.env_propagation_directive)))
             Symtab.table
    val empty = Symtab.empty
-   val extend = I
    val merge = Symtab.join (K #2));
 end
 \<close>
@@ -525,18 +522,18 @@ fun fun_decl a v s ctxt =
     fun decl (_: Proof.context) = (env, body);
   in (decl, ctxt') end;
 
-(* parsing and evaluation *)
+(* parsing *)
 
 local
 
 fun scan_antiq context syms =
   let val keywords = C_Thy_Header.get_keywords' (Context.proof_of context)
-  in ( C_Token.read_antiq'
+  in ( C_Parse_Read.read_antiq'
          keywords
          (C_Parse.!!! (Scan.trace (C_Annotation.parse_command (Context.theory_of context))
                        >> (I #>> C_Env.Antiq_stack)))
          syms
-     , C_Token.read_with_commands'0 keywords syms)
+     , C_Parse_Read.read_with_commands'0 keywords syms)
   end
 
 fun print0 s =
@@ -593,6 +590,9 @@ fun markup_directive_define in_direct =
       #> (case err of C_Ast.Left _ => I
                     | C_Ast.Right (_, msg, f) => tap (fn _ => Output.information msg) #> f)
       #> (if def then cons' Markup.free else if in_direct then I else cons' Markup.antiquote))
+
+
+(* evaluation *)
 
 fun eval env start err accept (ants, ants_err) {context, reports_text, error_lines} =
   let val error_lines = ants_err error_lines
@@ -804,7 +804,7 @@ fun expression struct_open range name constraint body ants context = context |>
     in fn () =>
       ML_Context.eval (ML_Compiler.verbose verbose ML_Compiler.flags) (#1 range)
        (ML_Lex.read ("Context.put_generic_context (SOME (let open " ^ struct_open ^ " val ") @
-                                                                 ML_Lex.read_set_range range name @
+                                                                 ML_Lex.read_range range name @
         ML_Lex.read (": " ^ constraint ^ " =") @ ants @
         ML_Lex.read ("in " ^ body ^ " end (Context.the_generic_context ())));"))
     end;

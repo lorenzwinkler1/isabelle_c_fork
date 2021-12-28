@@ -151,25 +151,21 @@ struct
 structure Data_In_Source = Generic_Data
   (type T = Input.source list
    val empty = []
-   val extend = I
    val merge = K empty)
 
 structure Data_In_Env = Generic_Data
   (type T = C_Env.env_lang
    val empty = C_Env.empty_env_lang
-   val extend = I
    val merge = K empty)
 
 structure Data_Accept = Generic_Data
   (type T = C_Grammar_Rule.start_happy -> C_Env.env_lang -> Context.generic -> Context.generic
    fun empty _ _ = I
-   val extend = I
    val merge = #2)
 
 structure Data_Term = Generic_Data
   (type T = (C_Grammar_Rule.start_happy -> C_Env.env_lang -> local_theory -> term) Symtab.table
    val empty = Symtab.empty
-   val extend = I
    val merge = #2)
 
 structure C_Term =
@@ -691,7 +687,7 @@ fun command_ml environment debug get_file gthy =
     val file = get_file (Context.theory_of gthy);
     val source = Token.file_source file;
 
-    val _ = Thy_Output.check_comments (Context.proof_of gthy) (Input.source_explode source);
+    val _ = Document_Output.check_comments (Context.proof_of gthy) (Input.source_explode source);
 
     val flags: ML_Compiler.flags =
       {environment = environment, redirect = true, verbose = true,
@@ -715,9 +711,9 @@ C_Thy_Header.add_keywords_minor
           [ ((C_Inner_Syntax.pref_lex name, pos_lex), ty)
           , ((C_Inner_Syntax.pref_bot name, pos_bot), ty)
           , ((C_Inner_Syntax.pref_top name, pos_top), ty) ])
-        [ (("apply", \<^here>, \<^here>, \<^here>), (Keyword.prf_script, ["proof"]))
-        , (("by", \<^here>, \<^here>, \<^here>), (Keyword.qed, ["proof"]))
-        , (("done", \<^here>, \<^here>, \<^here>), (Keyword.qed_script, ["proof"])) ])
+        [ (("apply", \<^here>, \<^here>, \<^here>), Keyword.command_spec (Keyword.prf_script, ["proof"]))
+        , (("by", \<^here>, \<^here>, \<^here>), Keyword.command_spec (Keyword.qed, ["proof"]))
+        , (("done", \<^here>, \<^here>, \<^here>), Keyword.command_spec (Keyword.qed_script, ["proof"])) ])
 \<close>
 
 ML \<comment> \<open>\<^theory>\<open>Pure\<close>\<close> \<open>

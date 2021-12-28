@@ -494,7 +494,7 @@ fun type_synonym top (Type_synonym ((n, v), l)) = #theory top (fn thy => let val
            (Isabelle_Typedecl.abbrev_cmd0 (SOME s_bind) thy (of_semi__typ l))) thy end)
 
 fun type_notation top (Type_notation (n, e)) = #local_theory top NONE NONE
-  (Specification.type_notation_cmd true ("", true) [(To_string0 n, Mixfix (Input.string (To_string0 e), [], 1000, Position.no_range))])
+  (Local_Theory.type_notation_cmd true ("", true) [(To_string0 n, Mixfix (Input.string (To_string0 e), [], 1000, Position.no_range))])
 
 fun instantiation1 name thy = thy
   |> Class.instantiation ([ let val Term.Type (s, _) = Isabelle_Typedecl.abbrev_cmd0 NONE thy name in s end ],
@@ -569,6 +569,11 @@ fun section n s _ =
   let fun mk s n = if n <= 0 then s else mk ("  " ^ s) (n - 1) in
     out_intensify (mk (Markup.markup Markup.keyword3 (To_string0 s)) n) ""
   end
+
+fun text name s =
+  Document_Output.document_output
+    {markdown = true, markup = fn body => [XML.Elem (Markup.latex_body name, body)]}
+    (NONE, Input.string (To_string0 s))
 
 fun ml top (SMLa ml) = #generic_theory top
   (ML_Context.exec let val source = input_source ml in
@@ -655,18 +660,27 @@ fun semi__theory (top : ('transitionM, 'transitionM, 'state) toplevel) = let ope
 | Theory_axiomatization axiomatization =>
   cons (\<^command_keyword>\<open>axiomatization\<close>, Cmd.axiomatization top axiomatization)
 | Theory_section (Section (n, s)) => let val n = To_nat n in fn st => st
-  |>:: (case n of 0 =>
+  |>:: let val (name, pos) = case n of 0 =>
         \<^command_keyword>\<open>section\<close> | 1 =>
         \<^command_keyword>\<open>subsection\<close> | _ =>
-        \<^command_keyword>\<open>subsubsection\<close>,
-     #tr_raw top (Pure_Syn.document_command {markdown = false} (NONE, Input.string (To_string0 s))))
+        \<^command_keyword>\<open>subsubsection\<close>
+       in
+         ( (name, pos)
+         , #tr_raw
+             top
+             (Document_Output.document_output
+               {markdown = false, markup = fn body => [XML.Elem (Markup.latex_heading name, body)]}
+               (NONE, Input.string (To_string0 s))))
+       end
   |>:: (\<^command_keyword>\<open>print_syntax\<close>, #keep top (Cmd.section n s)) end
 | Theory_text (Text s) =>
-  cons (\<^command_keyword>\<open>text\<close>,
-     #tr_raw top (Pure_Syn.document_command {markdown = true} (NONE, Input.string (To_string0 s))))
+  cons let val (name, pos) =
+        \<^command_keyword>\<open>text\<close>
+       in ((name, pos), #tr_raw top (Cmd.text name s)) end
 | Theory_text_raw (Text_raw s) =>
-  cons (\<^command_keyword>\<open>text_raw\<close>,
-     #tr_raw top (Pure_Syn.document_command {markdown = true} (NONE, Input.string (To_string0 s))))
+  cons let val (name, pos) =
+        \<^command_keyword>\<open>text_raw\<close>
+       in ((name, pos), #tr_raw top (Cmd.text name s)) end
 | Theory_ML ml =>
   cons (\<^command_keyword>\<open>ML\<close>, Cmd.ml top ml)
 | Theory_setup setup =>
@@ -763,7 +777,6 @@ structure Meta_Cmd_Data = Theory_Data
   (open META
    type T = T
    val empty = []
-   val extend = I
    val merge = #2)
 
 fun ML_context_exec pos ants =
@@ -779,7 +792,7 @@ fun meta_command0 s_put f_get constraint source =
   Context.Theory 
   #> ML_context_exec (Input.pos_of source)
        (ML_Lex.read "let open META val ML = META.SML val "
-        @ ML_Lex.read_set_range (Input.range_of source) name
+        @ ML_Lex.read_range (Input.range_of source) name
         @ ML_Lex.read (" : " ^ constraint ^ " = ")
         @ ML_Lex.read_source source
         @ ML_Lex.read (" in Context.>> (Context.map_theory (" ^ s_put ^ " " ^ name ^ ")) end"))
@@ -954,10 +967,11 @@ structure Export_code_env = struct
 end
 
 fun compile l cmd =
-  let val (l, rc) = fold (fn cmd => (fn (l, 0) =>
-                                         let val {out, err, rc, ...} = Bash.process cmd in
-                                         ((out, err) :: l, rc) end
-                                     | x => x)) l ([], 0)
+  let val (l, rc) = fold (fn cmd =>
+        (fn (l, 0) =>
+             let val res = Isabelle_System.bash_process (Bash.script cmd) in
+             ((Process_Result.out res, Process_Result.err res) :: l, Process_Result.rc res) end
+         | x => x)) l ([], 0)
       val l = rev l in
   if rc = 0 then
     (l, Isabelle_System.bash_output cmd)
@@ -1279,7 +1293,6 @@ type T = (unit META.compiler_env_config_ext, theory) generation_mode
 structure Data_gen = Theory_Data
   (type T = T
    val empty = {deep = [], shallow = [], syntax_print = [NONE]}
-   val extend = I
    fun merge (e1, e2) = { deep = #deep e1 @ #deep e2
                         , shallow = #shallow e1 @ #shallow e2
                         , syntax_print = #syntax_print e1 @ #syntax_print e2 })
@@ -1369,7 +1382,7 @@ fun f_command l_mode =
                         let val tmp_export_code = Deep.mk_path_export_code (#tmp_export_code i_deep) ml_compiler i
                             fun mk_fic s = Path.append tmp_export_code (Path.make [s])
                             val () = Deep0.Find.check_compil ml_compiler ()
-                            val () = Isabelle_System.mkdir(*TODO?*) tmp_export_code in
+                            val _ = Isabelle_System.make_directory(*TODO?*) tmp_export_code in
                         (( ( (ml_compiler, ml_module)
                            , ( Path.implode (if Deep0.Find.export_mode ml_compiler = Deep0.Export_code_env.Directory then
                                                tmp_export_code
@@ -1416,7 +1429,7 @@ fun meta_command0 s_put f_get f_get0 constraint source =
   Context.Theory 
   #> Bind_META.ML_context_exec (Input.pos_of source)
        (ML_Lex.read "let open META val ML = META.SML val "
-        @ ML_Lex.read_set_range (Input.range_of source) name
+        @ ML_Lex.read_range (Input.range_of source) name
         @ ML_Lex.read (" : " ^ constraint ^ " = ")
         @ ML_Lex.read_source source
         @ ML_Lex.read (" in Context.>> (Context.map_theory (fn thy => " ^ s_put ^ " (" ^ name ^ " (" ^ f_get0 ^ " thy)) thy)) end"))

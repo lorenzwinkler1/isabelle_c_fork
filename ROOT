@@ -37,7 +37,7 @@
 session Isabelle_C_README in README = HOL +
   theories
     "./README"
-
+(*
 session Isabelle_C_archive = Isabelle_C_AutoCorres +
   options [quick_and_dirty]
   sessions
@@ -52,3 +52,4 @@ session Isabelle_C_archive = Isabelle_C_AutoCorres +
     "C11-FrontEnd/archive/Prime"
     "C11-BackEnds/AutoCorres/examples/program-based/Example1"
     "C11-BackEnds/AutoCorres/examples/program-based/Example2"
+*)

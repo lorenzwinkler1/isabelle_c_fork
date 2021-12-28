@@ -39,7 +39,8 @@
    into a unique session. *)
 
 session Isabelle_C in main = HOL +
-  directories "../src"
+  directories
+    "../src"
   theories
     C_Main
 

@@ -469,7 +469,7 @@ lemma h_val_not_id_list:
      \<Longrightarrow> h_val (hrs_mem (hrs_mem_update (heap_update_list x vs) s)) y = h_val (hrs_mem s) y"
   apply (subst h_val_not_id_general)
    apply clarsimp
-   apply (metis (erased, hide_lams) disjoint_iff_not_equal heap_update_nmem_same intvlD intvlI
+   apply (metis (erased, opaque_lifting) disjoint_iff_not_equal heap_update_nmem_same intvlD intvlI
           monoid_add_class.add.left_neutral)
   apply clarsimp
   done
@@ -802,7 +802,7 @@ lemma memcpy_int_wp'[unfolded memcpy_int_spec_def]: "memcpy_int_spec dst src"
    prefer 2
    apply (cut_tac h="hrs_mem (t_hrs_' s)" and p="ptr_val src + 2" and n=3 in heap_list_rec)
    apply (clarsimp simp:h_val_def ptr_add_def from_bytes_eq)
-   apply (metis (no_types, hide_lams) Suc_eq_plus1 heap_list_base heap_list_rec is_num_normalize(1)
+   apply (metis (no_types, opaque_lifting) Suc_eq_plus1 heap_list_base heap_list_rec is_num_normalize(1)
                 monoid_add_class.add.left_neutral one_add_one one_plus_numeral semiring_norm(3))
   apply (clarsimp simp:h_val_def ptr_add_def from_bytes_eq)
   done
@@ -869,7 +869,7 @@ lemma memcpy_int_wp''[unfolded memcpy_int_spec_def]: "memcpy_int_spec dst src"
    prefer 2
    apply (cut_tac h="hrs_mem (t_hrs_' s)" and p="ptr_val src + 2" and n=3 in heap_list_rec)
    apply (clarsimp simp:h_val_def ptr_add_def from_bytes_eq)
-   apply (metis (no_types, hide_lams) Suc_eq_plus1 heap_list_base heap_list_rec is_num_normalize(1)
+   apply (metis (no_types, opaque_lifting) Suc_eq_plus1 heap_list_base heap_list_rec is_num_normalize(1)
                 monoid_add_class.add.left_neutral one_add_one one_plus_numeral semiring_norm(3))
   apply (clarsimp simp:h_val_def ptr_add_def from_bytes_eq)
   done
