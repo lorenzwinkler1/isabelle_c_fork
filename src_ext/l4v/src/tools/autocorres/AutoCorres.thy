@@ -208,7 +208,6 @@ structure Data_autocorres =
     (struct
       type T = declare_autocorres
       val empty = Decl_none
-      val extend = I
       val merge = fn (x, Decl_none) => x
                    | (x, Decl_inner) => x
                    | (_, x) => x
