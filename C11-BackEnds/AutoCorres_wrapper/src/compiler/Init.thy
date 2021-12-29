@@ -624,9 +624,11 @@ ML \<comment> \<open>\<^theory>\<open>Isabelle_C.C_Eval\<close>\<close> \<open>
 structure C_Module' =
 struct
 structure Data_Annot = Generic_Data
-  (type T = (bool * string) list Inttab.table
-   val empty = Inttab.empty
-   val merge = K empty)
+(
+  type T = (bool * string) list Inttab.table
+  val empty = Inttab.empty
+  val merge = K empty
+)
 end
 \<close>
 

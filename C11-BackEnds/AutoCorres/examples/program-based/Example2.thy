@@ -65,8 +65,13 @@ setup \<open>ML_Antiquotation.inline @{binding print_stack}
                                (Scan.peek (fn _ => Scan.option Args.text) >> (fn name => ("print_stack " ^ (case name of NONE => "NONE" | SOME s => "(SOME \"" ^ s ^ "\")") ^ " " ^ ML_Pretty.make_string_fn)))\<close>
 
 ML\<open>
-structure Example_Data = Generic_Data (type T = string list
-                                       val empty = [] val merge = K empty)
+structure Example_Data = Generic_Data
+(
+  type T = string list
+  val empty = []
+  val merge = K empty
+)
+
 fun add_ex s1 s2 =
   Example_Data.map (cons s2)
   #> (fn context => let val () = warning (s1 ^ s2)

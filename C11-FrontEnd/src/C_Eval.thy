@@ -57,9 +57,11 @@ structure Data_Lang =
 struct
 val empty' = ([], C_Env.empty_env_lang)
 structure Data_Lang = Generic_Data
-  (type T = (stack_data * C_Env.env_lang) option
-   val empty = NONE
-   val merge = K empty)
+(
+  type T = (stack_data * C_Env.env_lang) option
+  val empty = NONE
+  val merge = K empty
+)
 open Data_Lang
 fun get' context = case get context of NONE => empty' | SOME data => data
 fun setmp data f context = put (get context) (f (put data context))
@@ -106,18 +108,20 @@ type env_direct = bool (* internal result for conditional directives: branch ski
                 * (C_Env.env_directives * C_Env.env_tree)
 
 structure Directives = Generic_Data
-  (type T = (Position.T list
-             * serial
-             * ( (* evaluated during lexing phase *)
-                 (C_Lex.token_kind_directive
-                  -> env_direct
-                  -> C_Env.antiq_language list (* nested annotations from the input *)
-                     * env_direct (*NOTE: remove the possibility of returning a too modified env?*))
-               * (* evaluated during parsing phase *)
-                 (C_Lex.token_kind_directive -> C_Env.env_propagation_directive)))
-            Symtab.table
-   val empty = Symtab.empty
-   val merge = Symtab.join (K #2));
+(
+  type T = (Position.T list
+            * serial
+            * ( (* evaluated during lexing phase *)
+                (C_Lex.token_kind_directive
+                 -> env_direct
+                 -> C_Env.antiq_language list (* nested annotations from the input *)
+                    * env_direct (*NOTE: remove the possibility of returning a too modified env?*))
+              * (* evaluated during parsing phase *)
+                (C_Lex.token_kind_directive -> C_Env.env_propagation_directive)))
+           Symtab.table
+  val empty = Symtab.empty
+  val merge = Symtab.join (K #2)
+);
 end
 \<close>
 
