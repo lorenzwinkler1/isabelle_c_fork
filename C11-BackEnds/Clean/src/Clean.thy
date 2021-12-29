@@ -448,7 +448,6 @@ structure Data = Generic_Data
 (
   type T                      = (state_field_tab * typ (* current extensible record *)) 
   val  empty                  = (Symtab.empty,control_stateS)
-  val  extend                 = I
   fun  merge((s1,t1),(s2,t2)) = (Symtab.merge (op =)(s1,s2),merge_control_stateS(t1,t2))
 );
 
