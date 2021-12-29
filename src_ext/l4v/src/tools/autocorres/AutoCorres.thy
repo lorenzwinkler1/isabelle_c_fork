@@ -203,15 +203,14 @@ datatype declare_autocorres =
   | Decl_none
   | Decl_inner
 
-structure Data_autocorres =
-  Generic_Data
-    (struct
-      type T = declare_autocorres
-      val empty = Decl_none
-      val merge = fn (x, Decl_none) => x
-                   | (x, Decl_inner) => x
-                   | (_, x) => x
-     end)
+structure Data_autocorres = Generic_Data
+(
+  type T = declare_autocorres
+  val empty = Decl_none
+  val merge = fn (x, Decl_none) => x
+               | (x, Decl_inner) => x
+               | (_, x) => x
+)
 
 local
 
