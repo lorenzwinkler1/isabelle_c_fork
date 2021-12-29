@@ -135,8 +135,8 @@ The AFP version of Isabelle/C does not include semantic back-ends (these are dis
 AFP submissions or available via the web; see below). The structure of \<^dir>\<open>.\<close> has
 been designed to create a directory \<^dir>\<open>C11-BackEnds\<close> into which back-ends can be
 installed. The structure of \<^dir>\<open>.\<close> is actually similar as
-\<^url>\<open>https://gitlri.lri.fr/ftuong/isabelle_c\<close>: see for example
-\<^url>\<open>https://gitlri.lri.fr/ftuong/isabelle_c/tree/C/C11-BackEnds\<close> where several
+\<^url>\<open>https://gitlab.lisn.upsaclay.fr/burkhart.wolff/Isabelle_C\<close>: see for example
+\<^url>\<open>https://gitlab.lisn.upsaclay.fr/burkhart.wolff/Isabelle_C/-/tree/C/C11-BackEnds\<close> where several
 back-ends can be copied and tried.
 \<close>
 

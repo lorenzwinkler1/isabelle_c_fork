@@ -57,7 +57,7 @@ which is available via the Isabelle AFP~\cite{journals/afp/TuongW19}.
 
 We show how the translation process from C11-AST's via a C99-AST and its library can be done for
 similar semantic back-ends such as AutoCorres (see @{url
-  "https://gitlri.lri.fr/ftuong/isabelle_c/tree/C/C11-BackEnds"}) or IMP2.
+  "https://gitlab.lisn.upsaclay.fr/burkhart.wolff/Isabelle_C/-/tree/C/C11-BackEnds"}) or IMP2.
 
 Isabelle/C as a framework offers:
 \<^enum> a C11 AST definition in SML
