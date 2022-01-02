@@ -93,12 +93,13 @@ end
 \<close>
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_context.ML\<close>\<close>
-(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Author:     Frédéric Tuong, Université Paris-Saclay
+    Analogous to:
 (*  Title:      Pure/ML/ml_context.ML
     Author:     Makarius
 
 ML context and antiquotations.
-*)
+*)*)
 \<open>
 structure C_Context0 =
 struct
@@ -497,12 +498,13 @@ subsection \<open>Full Evaluation Engine (Core Language with Annotations)\<close
                                                                          \<^theory>\<open>Isabelle_C.C_Parser_Annotation\<close>\<close>
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_context.ML\<close>\<close>
-(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Author:     Frédéric Tuong, Université Paris-Saclay
+    Analogous to:
 (*  Title:      Pure/ML/ml_context.ML
     Author:     Makarius
 
 ML context and antiquotations.
-*)
+*)*)
 \<open>
 structure C_Context =
 struct
