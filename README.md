@@ -83,9 +83,9 @@ might browse in there or modify any files.
 text ‹
 ▪ The example 🗏‹C11-FrontEnd/examples/C0.thy› is basically used to
 demonstrate the faithfulness of the C11 parser implementation.
-▪ The example 🗏‹C11-FrontEnd/examples/C2.thy› shows common cases of C and
+▪ The example 🗏‹C11-FrontEnd/examples/C1.thy› shows common cases of C and
 C editing support in PIDE; it also contains annotation commands without any semantics.
-▪ The example 🗏‹C11-FrontEnd/examples/C1.thy› is a show-case for markup
+▪ The example 🗏‹C11-FrontEnd/examples/C2.thy› is a show-case for markup
 generation and the use of bindings resulting from the static C environment.
 ▪ The example 🗏‹C18-FrontEnd/examples/C0.thy› is basically used to
 demonstrate the faithfulness of the C18 parser implementation.
@@ -98,8 +98,8 @@ The AFP version of Isabelle/C does not include semantic back-ends (these are dis
 AFP submissions or available via the web; see below). The structure of 🗀‹.› has
 been designed to create a directory 🗀‹C11-BackEnds› into which back-ends can be
 installed. The structure of 🗀‹.› is actually similar as
-🌐‹https://gitlri.lri.fr/ftuong/isabelle_c›: see for example
-🌐‹https://gitlri.lri.fr/ftuong/isabelle_c/tree/C/C11-BackEnds› where several
+🌐‹https://gitlab.lisn.upsaclay.fr/burkhart.wolff/Isabelle_C›: see for example
+🌐‹https://gitlab.lisn.upsaclay.fr/burkhart.wolff/Isabelle_C/-/tree/C/C11-BackEnds› where several
 back-ends can be copied and tried.
 ›
 
