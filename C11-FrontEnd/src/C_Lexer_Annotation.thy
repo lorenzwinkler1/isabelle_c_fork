@@ -41,12 +41,13 @@ theory C_Lexer_Annotation
 begin
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/keyword.ML\<close>\<close>
-(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Author:     Frédéric Tuong, Université Paris-Saclay
+    Analogous to:
 (*  Title:      Pure/Isar/keyword.ML
     Author:     Makarius
 
 Isar keyword classification.
-*)
+*)*)
 \<open>
 structure C_Keyword =
 struct
@@ -199,12 +200,13 @@ text \<open> Notes:
 \<close>
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/token.ML\<close>\<close>
-(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Author:     Frédéric Tuong, Université Paris-Saclay
+    Analogous to:
 (*  Title:      Pure/Isar/token.ML
     Author:     Markus Wenzel, TU Muenchen
 
 Outer token syntax for Isabelle/Isar.
-*)
+*)*)
 \<open>
 structure C_Token =
 struct
@@ -805,12 +807,13 @@ type 'a c_context_parser = 'a C_Token.context_parser;
 \<close>
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/parse.ML\<close>\<close>
-(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Author:     Frédéric Tuong, Université Paris-Saclay
+    Analogous to:
 (*  Title:      Pure/Isar/parse.ML
     Author:     Markus Wenzel, TU Muenchen
 
 Generic parsers for Isabelle/Isar outer syntax.
-*)
+*)*)
 \<open>
 signature C_PARSE =
 sig
@@ -1404,12 +1407,13 @@ end
 \<close>
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/thy_header.ML\<close>\<close>
-(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Author:     Frédéric Tuong, Université Paris-Saclay
+    Analogous to:
 (*  Title:      Pure/Thy/thy_header.ML
     Author:     Makarius
 
 Static theory header information.
-*)
+*)*)
 \<open>
 structure C_Thy_Header =
 struct

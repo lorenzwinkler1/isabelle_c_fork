@@ -43,12 +43,13 @@ begin
 
 (*<*)
 ML \<comment> \<open>\<^file>\<open>~~/src/Doc/antiquote_setup.ML\<close>\<close>
-(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Author:     Frédéric Tuong, Université Paris-Saclay
+    Analogous to:
 (*  Title:      Doc/antiquote_setup.ML
     Author:     Makarius
 
 Auxiliary antiquotations for the Isabelle manuals.
-*)
+*)*)
 \<open>
 structure C_Antiquote_Setup =
 struct

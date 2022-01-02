@@ -41,12 +41,13 @@ theory C_Document
 begin
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/document_output.ML\<close>\<close>
-(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Author:     Frédéric Tuong, Université Paris-Saclay
+    Analogous to:
 (*  Title:      Pure/Thy/document_output.ML
     Author:     Makarius
 
 Theory document output.
-*)
+*)*)
 \<open>
 structure C_Document_Output =
 struct
@@ -163,12 +164,13 @@ end;
 \<close>
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/document_antiquotations.ML\<close>\<close>
-(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Author:     Frédéric Tuong, Université Paris-Saclay
+    Analogous to:
 (*  Title:      Pure/Thy/document_antiquotations.ML
     Author:     Makarius
 
 Miscellaneous document antiquotations.
-*)
+*)*)
 \<open>
 structure C_Document_Antiquotations =
 struct

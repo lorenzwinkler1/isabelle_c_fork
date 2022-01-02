@@ -49,12 +49,13 @@ begin
 subsection \<open>Parsing Entry-Point: Error and Acceptance Cases\<close>
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Tools/ghc.ML\<close>\<close>
-(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Author:     Frédéric Tuong, Université Paris-Saclay
+    Analogous to:
 (*  Title:      Pure/Tools/ghc.ML
     Author:     Makarius
 
 Support for GHC: Glasgow Haskell Compiler.
-*)
+*)*)
 \<open>
 structure C_Serialize =
 struct
@@ -92,12 +93,13 @@ end
 \<close>
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Tools/generated_files.ML\<close>\<close>
-(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Author:     Frédéric Tuong, Université Paris-Saclay
+    Analogous to:
 (*  Title:      Pure/Tools/generated_files.ML
     Author:     Makarius
 
 Generated source files for other languages: with antiquotations, without Isabelle symbols.
-*)
+*)*)
 \<open>
 structure C_Generated_Files =
 struct
@@ -842,12 +844,13 @@ in end
 
 subsection \<open>Definitions of Outer Classical Commands\<close>
 subsubsection \<open>Library\<close>
-(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Author:     Frédéric Tuong, Université Paris-Saclay
+    Analogous to:
 (*  Title:      Pure/Pure.thy
     Author:     Makarius
 
 The Pure theory, with definitions of Isar commands and some lemmas.
-*)
+*)*)
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/parse.ML\<close>\<close> \<open>
 structure C_Outer_Parse =
