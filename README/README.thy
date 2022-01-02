@@ -120,9 +120,9 @@ might browse in there or modify any files.
 text \<open>
 \<^item> The example \<^file>\<open>C11-FrontEnd/examples/C0.thy\<close> is basically used to
 demonstrate the faithfulness of the C11 parser implementation.
-\<^item> The example \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close> shows common cases of C and
+\<^item> The example \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close> shows common cases of C and
 C editing support in PIDE; it also contains annotation commands without any semantics.
-\<^item> The example \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close> is a show-case for markup
+\<^item> The example \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close> is a show-case for markup
 generation and the use of bindings resulting from the static C environment.
 \<^item> The example \<^file>\<open>C18-FrontEnd/examples/C0.thy\<close> is basically used to
 demonstrate the faithfulness of the C18 parser implementation.

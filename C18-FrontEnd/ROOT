@@ -47,4 +47,4 @@ session Isabelle_C_Advance in main = HOL +
 session Isabelle_C_Advance_examples in examples = Isabelle_C_Advance + (* a standard test suite *)
   theories
     C0
-    C2
+    C1

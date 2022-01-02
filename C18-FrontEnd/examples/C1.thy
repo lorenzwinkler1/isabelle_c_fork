@@ -36,7 +36,7 @@
 
 chapter \<open>Example: A Simple C Program with Directives and Annotations\<close>
 
-theory C2
+theory C1
   imports Isabelle_C_Advance.C_Main
 begin
 

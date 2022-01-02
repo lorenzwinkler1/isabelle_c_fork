@@ -38,7 +38,7 @@ chapter \<open>Appendices\<close>
 
 (*<*)
 theory C_Appendices_draft
-  imports Isabelle_C_examples.C1
+  imports Isabelle_C_examples.C2
           "~~/src/Doc/Isar_Ref/Base"
 begin
 
