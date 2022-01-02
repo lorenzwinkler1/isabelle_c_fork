@@ -48,7 +48,7 @@ text\<open>The following setup just stores the result of the parsed values in th
 ML\<open>
 structure Data_Out = Generic_Data
 (
-  type T = (C_Grammar_Rule.start_happy * C_Antiquote.antiq C_Env.stream) list
+  type T = (C_Grammar_Rule.ast_generic * C_Antiquote.antiq C_Env.stream) list
   val empty = []
   val merge = K empty
 )
@@ -56,7 +56,7 @@ structure Data_Out = Generic_Data
 fun get_module thy =
   let val context = Context.Theory thy
   in (Data_Out.get context 
-      |> map (apfst (C_Grammar_Rule.start_happy1 #> the)), C_Module.Data_In_Env.get context)
+      |> map (apfst (C_Grammar_Rule.get_CTranslUnit #> the)), C_Module.Data_In_Env.get context)
   end
 \<close>
 

@@ -166,14 +166,14 @@ structure Data_In_Env = Generic_Data
 
 structure Data_Accept = Generic_Data
 (
-  type T = C_Grammar_Rule.start_happy -> C_Env.env_lang -> Context.generic -> Context.generic
+  type T = C_Grammar_Rule.ast_generic -> C_Env.env_lang -> Context.generic -> Context.generic
   fun empty _ _ = I
   val merge = #2
 )
 
 structure Data_Term = Generic_Data
 (
-  type T = (C_Grammar_Rule.start_happy -> C_Env.env_lang -> local_theory -> term) Symtab.table
+  type T = (C_Grammar_Rule.ast_generic -> C_Env.env_lang -> local_theory -> term) Symtab.table
   val empty = Symtab.empty
   val merge = #2
 )
@@ -217,10 +217,10 @@ local
 fun map_upd0 key v = Context.theory_map (Data_Term.map (Symtab.update (key, v)))
 fun map_upd key start f = map_upd0 key (f o the o start)
 in
-val map_translation_unit = map_upd key0_translation_unit C_Grammar_Rule.start_happy1
-val map_external_declaration = map_upd key0_external_declaration C_Grammar_Rule.start_happy2
-val map_statement = map_upd key0_statement C_Grammar_Rule.start_happy3
-val map_expression = map_upd key0_expression C_Grammar_Rule.start_happy4
+val map_translation_unit = map_upd key0_translation_unit C_Grammar_Rule.get_CTranslUnit
+val map_external_declaration = map_upd key0_external_declaration C_Grammar_Rule.get_CExtDecl
+val map_statement = map_upd key0_statement C_Grammar_Rule.get_CStat
+val map_expression = map_upd key0_expression C_Grammar_Rule.get_CExpr
 val map_default = map_upd0 key0_default
 end
 
