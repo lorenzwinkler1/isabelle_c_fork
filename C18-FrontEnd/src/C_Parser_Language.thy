@@ -795,6 +795,29 @@ subsection \<open>Loading the Generated Grammar (SML signature)\<close>
 
 ML_file "../generated/c_grammar_fun.grm.sig"
 
+ML \<comment> \<open>\<^file>\<open>../generated/c_grammar_fun.grm.sig\<close>\<close>
+(*TODO: the whole part should be maximally generated and integrated in the signature file*)
+\<open>
+structure C_Grammar_Rule = struct
+open C_Grammar_Rule
+
+(* ast_generic is an untyped universe of (some) ast's with the specific lenses put ... get ... *)
+
+type ast_generic = start_happy
+
+val get_CExpr = start_happy4
+val get_CStat = start_happy3
+val get_CExtDecl = start_happy2
+val get_CTranslUnit = start_happy1
+
+fun put_CExpr x       = Right (Right (Right (Left x))) : ast_generic
+fun put_CStat x       = Right (Right (Left x))         : ast_generic
+fun put_CExtDecl x    = Right (Left x)                 : ast_generic
+fun put_CTranslUnit x = Left x                         : ast_generic
+
+end
+\<close>
+
 subsection \<open>Overloading Grammar Rules (Optional Part)\<close>
 
 ML \<comment> \<open>\<^file>\<open>../generated/c_grammar_fun.grm.sml\<close>\<close> \<open>
