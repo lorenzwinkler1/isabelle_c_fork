@@ -376,7 +376,7 @@ subsection \<open>Continuation Calculus with the C Environment: Presentation in 
 declare [[C_parser_trace = false]]
 
 ML\<open>
-val C = tap o C_Module.C
+fun C src = C_Module.C' (C_Module.env (Context.the_generic_context ())) src
 val C' = C_Module.C'
 \<close>
 
