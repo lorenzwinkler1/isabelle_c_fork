@@ -360,19 +360,25 @@ fun C source =
   exec_eval source
   #> Local_Theory.propagate_ml_env
 
-fun C' env_lang src context =
-  context
-  |> C_Env.empty_env_tree
-  |> C_Context.eval_source'
-       env_lang
-       (fn src => start src context)
-       err
-       accept
-       src
-  |> (fn (_, {context, reports_text, error_lines}) => 
-     tap (fn _ => case error_lines of [] => () | l => warning (cat_lines (rev l)))
-         (C_Stack.Data_Tree.map (curry C_Stack.Data_Tree_Args.merge (reports_text, []))
-                                context))
+val C' =
+  let
+    fun C env_lang src context =
+      context
+      |> C_Env.empty_env_tree
+      |> C_Context.eval_source'
+           env_lang
+           (fn src => start src context)
+           err
+           accept
+           src
+      |> (fn (_, {context, reports_text, error_lines}) => 
+         tap (fn _ => case error_lines of [] => () | l => warning (cat_lines (rev l)))
+             (C_Stack.Data_Tree.map (curry C_Stack.Data_Tree_Args.merge (reports_text, []))
+                                    context))
+  in
+    fn NONE => (fn src => C (env (Context.the_generic_context ())) src)
+     | SOME env_lang => C env_lang
+  end
 
 fun C_export_file (pos, _) lthy =
   let
