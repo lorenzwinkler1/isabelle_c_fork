@@ -266,21 +266,17 @@ lemma bang_big_nonneg:
   apply arith
   done
 
-(* FIXME: move to Word_Lib *)
 lemma int_shiftr_nth[simp]:
   "(i >> n) !! m = i !! (n + m)" for i :: int
   by (simp add: shiftr_def bin_nth_shiftr)
 
-(* FIXME: move to Word_Lib *)
 lemma int_shiftl_nth[simp]:
   "(i << n) !! m = (n \<le> m \<and> i !! (m - n))" for i :: int
   by (simp add: shiftl_def bin_nth_shiftl)
 
 lemma sint_shiftr_nonneg:
   "\<lbrakk> 0 <=s (x :: 'a::len signed word); 0 \<le> n; n < LENGTH('a) \<rbrakk> \<Longrightarrow> sint (x >> n) = sint x >> n"
-  apply (rule int_eq_test_bitI)
-  apply (clarsimp simp: bang_big_nonneg[simplified word_size] nth_sint nth_shiftr field_simps)
-  done
+  by (word_eqI simp: min_def bang_big_nonneg[simplified word_size])
 
 lemma abstract_val_unsigned_unary_minus:
   "\<lbrakk> abstract_val P r unat r' \<rbrakk> \<Longrightarrow>
@@ -322,32 +318,13 @@ lemma abstract_val_signed_shiftr_unsigned:
 lemma sint_shiftl_nonneg:
   "\<lbrakk> 0 <=s (x :: 'a::len signed word); n < LENGTH('a); sint x << n < 2^(LENGTH('a) - 1) \<rbrakk> \<Longrightarrow>
    sint (x << n) = sint x << n"
-  apply (rule int_eq_test_bitI)
-  apply (clarsimp simp: bang_big_nonneg[simplified word_size] nth_sint nth_shiftl
-                        int_shiftl_less_cancel word_sle_def int_2p_eq_shiftl
-                  simp del: Bit_Shifts_Infix_Syntax.shiftl_1)
-  apply (rename_tac i)
-  (* FIXME: cleanup *)
-  apply (intro impI iffI conjI; (solves simp)?)
-    apply (drule(1) int_shiftl_lt_2p_bits[rotated])
-    apply (clarsimp simp: nth_sint)
-    apply (drule_tac x="LENGTH('a) - 1 - n" in spec)
-    apply (subgoal_tac "LENGTH('a) - 1 - n < LENGTH('a) - 1")
-     apply simp
-    apply arith
-   apply (drule(1) int_shiftl_lt_2p_bits[rotated])
-   apply (clarsimp simp: nth_sint)
-   apply (drule_tac x="i - n" in spec)
-   apply simp
-  apply (case_tac "n = 0")
-   apply (simp add: word_sle_msb_le[where x=0, simplified word_sle_def, simplified] msb_nth)
-  apply (drule(1) int_shiftl_lt_2p_bits[rotated])
-  apply (clarsimp simp: nth_sint)
-  apply (drule_tac x="LENGTH('a) - 1 - n" in spec)
-  apply (subgoal_tac "LENGTH('a) - 1 - n < LENGTH('a) - 1")
-   apply simp
-  apply simp
-  done
+  apply (word_eqI simp_del: shiftl_1 simp: int_2p_eq_shiftl int_shiftl_less_cancel word_sle_def)
+  apply (drule (1) int_shiftl_lt_2p_bits[rotated])
+  apply (clarsimp simp: min_def split: if_split_asm)
+  apply (rule conjI; clarsimp)
+   apply (smt (z3) decr_length_less_iff diff_Suc_Suc diff_is_0_eq diff_le_mono diff_le_self
+                   diff_zero le_def less_handy_casesE nat_less_le order_refl)
+  using less_eq_decr_length_iff nat_le_linear by blast
 
 lemma abstract_val_signed_shiftl_signed:
   "\<lbrakk> abstract_val Px x sint (x' :: ('a :: len) signed word);

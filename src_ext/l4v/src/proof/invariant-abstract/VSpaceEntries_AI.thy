@@ -87,11 +87,6 @@ lemma ucast_neg_mask:
   apply (auto simp:nth_ucast neg_mask_test_bit word_size)
   done
 
-(* FIXME isa: move to Word_Lib *)
-lemma shiftr_eq_neg_mask_eq:
-  "a >> b = c >> b \<Longrightarrow> a && ~~ mask b = c && ~~ mask b"
-  by word_eqI (metis le_iff_add)
-
 lemma delete_objects_reduct:
   "valid (\<lambda>s. P (kheap (s :: ('z::state_ext) state))) (modify (detype {ptr..ptr + 2 ^ bits - 1}))
          (\<lambda>_ s. P(kheap (s :: ('z::state_ext) state))) \<Longrightarrow>

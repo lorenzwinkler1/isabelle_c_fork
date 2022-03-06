@@ -1518,15 +1518,13 @@ lemma lift_t_field_ind:
    apply(simp add: size_of_def)
    apply(drule td_set_field_lookupD[where k="(c,da)"])
    apply(drule td_set_offset_size)
-   apply (metis add.commute add_leD1 addr_bitsize_def addr_card len32 max_size of_nat_inverse
-                order_le_less_trans size_of_def)
+   apply(smt (verit) add.commute add_le_imp_le_right le_trans le_unat_uoi nat_le_linear)
   apply(rule intvl_sub_offset)
   apply(simp add: size_of_def)
   apply(drule td_set_field_lookupD)
   apply(drule td_set_offset_size)
-  by (metis add.commute add_leD1 addr_bitsize_def addr_card le_unat_uoi len32 max_size
-            of_nat_inverse size_of_def)
-
+  apply(smt (verit) add.commute add_le_imp_le_right le_trans le_unat_uoi nat_le_linear)
+  done
 
 (* case where 'b contains a field of type of 'a *)
 

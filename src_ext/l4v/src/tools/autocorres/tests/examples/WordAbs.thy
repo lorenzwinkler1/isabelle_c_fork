@@ -234,7 +234,7 @@ lemma "x << n > INT_MAX \<Longrightarrow> \<not> no_fail \<top> (S_shiftl_U_abs_
 lemma "\<lbrace>\<lambda>s. n < 32 \<and> 0 \<le> x \<and> x << n \<le> INT_MAX\<rbrace>
          S_shiftl_U_abs_US' (x::int) (n::nat)
        \<lbrace>\<lambda>r s. r = x << n\<rbrace>!"
-  apply (wpsimp simp: S_shiftl_U_abs_US'_def INT_MAX_def shiftl_def shiftl_int_def)
+  apply (wpsimp simp: S_shiftl_U_abs_US'_def INT_MAX_def shiftl_int_def)
   apply (subst unat_of_int)
     apply simp
    apply (drule le_less_trans[where x="x*2^n" and z="2^32"])
@@ -362,7 +362,7 @@ lemma "x << nat n > INT_MAX \<Longrightarrow> \<not> no_fail \<top> (S_shiftl_S_
   by (monad_eq simp: S_shiftl_S_abs_S'_def no_fail_def INT_MAX_def)
 lemma "\<lbrace>\<lambda>s. 0 \<le> n \<and> n < 32 \<and> 0 \<le> x \<and> x << nat n \<le> INT_MAX\<rbrace>
          S_shiftl_S_abs_S' (x::int) (n::int)
-       \<lbrace>\<lambda>r s. r = x << nat n\<rbrace>!"                                                              
+       \<lbrace>\<lambda>r s. r = x << nat n\<rbrace>!"
   apply (wpsimp simp: S_shiftl_S_abs_S'_def INT_MAX_def shiftl_nat_def shiftl_int_def shiftl_def)
   apply (subst unat_of_int)
     apply simp
