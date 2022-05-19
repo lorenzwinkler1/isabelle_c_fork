@@ -39,10 +39,16 @@ In the sequel, with ▩‹isabelle› we refer to your local Isabelle2021-1
 installation, and assume your current working directory is at the root of ▩‹Isabelle_C›
 (i.e. the directory that contains this 🗏‹README.md› file).
 
+It is recommended to set 
+  ▩‹export L4V_ARCH = ARM› 
+before nost configurations of  ▩‹Isabelle_C›; this feature relevant for ▩‹AutoCorres› 
+configurations can be made effective permanently by appropriate 🗏‹$ISABELLE_HOME_USER/etc/settings››.
+
 ▪ Building Isabelle_C : 
+  ▩‹export L4V_ARCH = ARM› 
   ▩‹isabelle build -d› 🗀‹.› ▩‹-b Isabelle_C›
 ▪ Building Isabelle_C_AutoCorres : 
-  ▩‹export L4V_ARCH = ARM› ∗‹‹#› the same effect can be permanently made in 🗏‹$ISABELLE_HOME_USER/etc/settings››
+  ▩‹export L4V_ARCH = ARM› 
   ▩‹isabelle build -d› 🗀‹.› ▩‹-b Isabelle_C_AutoCorres›
 ▪ Running an example: 
   ▩‹isabelle jedit -d› 🗀‹.› ▩‹-l Isabelle_C_AutoCorres› 🗏‹C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_linear_CCT.thy›
