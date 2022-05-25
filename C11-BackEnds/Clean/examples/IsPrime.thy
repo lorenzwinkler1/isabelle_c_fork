@@ -44,14 +44,14 @@ chapter \<open> Clean Semantics : Another Clean Example\<close>
 
 
 theory IsPrime
-  imports "../src/Clean"
-          "../src/Hoare_Clean"
-          "../src/Clean_Symbex"
-          (* 
+  imports (* "../src/Clean"
+             "../src/Hoare_Clean"
+              "../src/Clean_Symbex"
+              "HOL-Computational_Algebra.Primes"
+           *)
           Clean.Clean
           Clean.Hoare_MonadSE
           Clean.Clean_Symbex 
-          *)
           "HOL-Computational_Algebra.Primes"
 begin
 

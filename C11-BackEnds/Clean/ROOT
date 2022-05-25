@@ -43,6 +43,7 @@ session Clean in src = HOL +
   sessions
     "HOL-Eisbach"
   theories
+    "Clean"
     "Clean_Main"
 
 session Clean_examples in examples = Clean +
@@ -59,9 +60,11 @@ session Clean_document = Clean_examples +
   options [document = pdf, document_output = "output"]
   document_theories
     Clean.Clean
+    Clean_examples.IsPrime
+    Clean_examples.LinearSearch
+    Clean_examples.Quicksort
     Clean_examples.Quicksort_concept
     Clean_examples.SquareRoot_concept
-    Clean_examples.LinearSearch
 
     Clean.MonadSE
     Clean.Seq_MonadSE

@@ -46,12 +46,12 @@ well as direct-recursive operations (i.e. C-like functions with side-effects on 
 local variables. \<close>
 
 theory LinearSearch
-  imports (*
-          Clean.Clean
+  imports Clean.Clean
           Clean.Hoare_MonadSE
+          (*  "../src/Clean"
+              "../src/Hoare_Clean"
            *)
-          "../src/Clean"
-          "../src/Hoare_Clean"
+
 begin
 
 
