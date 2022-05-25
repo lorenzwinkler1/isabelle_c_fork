@@ -79,7 +79,6 @@ defines " if\<^sub>C \<open>n < 2\<close>
             od ;-
          return\<^bsub>local_isPrime_state.result_value_update\<^esub> \<open>True\<close>"
 
-
 find_theorems name:isPrime name:core
 term\<open>isPrime_core\<close>
 

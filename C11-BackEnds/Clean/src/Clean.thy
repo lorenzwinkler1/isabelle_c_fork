@@ -448,6 +448,7 @@ structure Data = Generic_Data
 (
   type T                      = (state_field_tab * typ (* current extensible record *)) 
   val  empty                  = (Symtab.empty,control_stateS)
+  val  extend                 = I
   fun  merge((s1,t1),(s2,t2)) = (Symtab.merge (op =)(s1,s2),merge_control_stateS(t1,t2))
 );
 
@@ -1131,7 +1132,7 @@ structure Function_Specification_Parser  =
                                    $ Const(read_constname ctxt (Binding.name_of pop_name),rmty))))
            val eq_main = mk_meta_eq(lhs_main, if x then rhs_main_rec else rhs_main )
            val args_main = (SOME(binding,NONE,NoSyn), (Binding.empty_atts,eq_main),[],[]) 
-       in  ctxt |> StateMgt.cmd args_main
+       in  ctxt |> StateMgt.cmd args_main 
        end 
 
 val _ = Local_Theory.exit_result_global;
@@ -1417,8 +1418,6 @@ Note, furthermore, that expressions may not only be right-hand-sides of (local o
 assignments or conceptually similar return-statements,  but also passed as argument of other 
 function calls, where the same problem arises.  
 \<close>
-
-
 
 end
 

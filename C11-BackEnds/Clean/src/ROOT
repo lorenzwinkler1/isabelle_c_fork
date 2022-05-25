@@ -39,43 +39,6 @@
  * Authors : Burkhart Wolff, Frédéric Tuong
  *)
 
-session Clean in src = HOL +
-  sessions
-    "HOL-Eisbach"
-  theories
-    "Clean_Main"
-
-session Clean_examples in examples = Clean +
-  sessions
-    "HOL-Computational_Algebra"
-  theories
-    "IsPrime"
-    "LinearSearch" 
-    "Quicksort"
-    "Quicksort_concept"
-    "SquareRoot_concept"
-
-session Clean_document = Clean_examples +
-  options [document = pdf, document_output = "output"]
-  document_theories
-    Clean.Clean
-    Clean_examples.Quicksort_concept
-    Clean_examples.SquareRoot_concept
-    Clean_examples.LinearSearch
-
-    Clean.MonadSE
-    Clean.Seq_MonadSE
-    Clean.Symbex_MonadSE
-    Clean.Clean_Symbex
-    Clean.Test_Clean
-    Clean.Hoare_MonadSE
-    Clean.Hoare_Clean
-  document_files
-    "lstisadof.sty"
-    "root.tex"
-    "root.bib"
-
-(*
 chapter AFP
 
 session Clean (AFP) = HOL +
@@ -98,7 +61,3 @@ session Clean (AFP) = HOL +
     "root.bib"
     "lstisadof.sty"
 
-stems from cherrypicking Isabelle2021-1
->>>>>>> 61f33a696 (included Clean AFP; strengthened thm in Symbex)
-
-*)
