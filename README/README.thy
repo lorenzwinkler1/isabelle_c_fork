@@ -76,13 +76,19 @@ In the sequel, with \<^verbatim>\<open>isabelle\<close> we refer to your local I
 installation, and assume your current working directory is at the root of \<^verbatim>\<open>Isabelle_C\<close>
 (i.e. the directory that contains this \<^file>\<open>README.md\<close> file).
 
+It is recommended to set
+  \<^verbatim>\<open>export L4V_ARCH = ARM\<close>
+before most configurations of  \<^verbatim>\<open>Isabelle_C\<close>; this feature relevant for \<^verbatim>\<open>AutoCorres\<close>
+configurations can be made effective permanently by appropriate \<^verbatim>\<open>$ISABELLE_HOME_USER/etc/settings\<close>.
+
+
 \<^item> Building Isabelle_C : 
   \<^verbatim>\<open>isabelle build -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-b Isabelle_C\<close>
 \<^item> Building Isabelle_C_AutoCorres : 
-  \<^verbatim>\<open>export L4V_ARCH = ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be permanently made in \<^file>\<open>$ISABELLE_HOME_USER/etc/settings\<close>\<close>
+  \<^verbatim>\<open>export L4V_ARCH = ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be permanently made in \<^verbatim>\<open>$ISABELLE_HOME_USER/etc/settings\<close>\<close>
   \<^verbatim>\<open>isabelle build -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-b Isabelle_C_AutoCorres\<close>
 \<^item> Running an example: 
-  \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C_AutoCorres\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_linear_CCT.thy\<close>
+  \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C_AutoCorres\<close> \<^verbatim>\<open>C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_linear_CCT.thy\<close>
 \<close>
 
 section \<open>Getting started (for developers)\<close>
@@ -160,7 +166,7 @@ text \<open>
 Before using the \<^dir>\<open>C11-BackEnds/AutoCorres_wrapper\<close> back-end, the shell variable
 \<open>L4V_ARCH\<close> must be additionally set to \<open>ARM\<close>.
 
-\<^item> \<^verbatim>\<open>export L4V_ARCH = ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be permanently made in \<^file>\<open>$ISABELLE_HOME_USER/etc/settings\<close>\<close>
+\<^item> \<^verbatim>\<open>export L4V_ARCH = ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be permanently made in \<^verbatim>\<open>$ISABELLE_HOME_USER/etc/settings\<close>\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l CParser\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/TestSEL4.thy\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l AutoCorres\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_linear_CCT.thy\<close>
 \<close>
