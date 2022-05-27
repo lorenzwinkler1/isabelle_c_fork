@@ -78,7 +78,7 @@ installation, and assume your current working directory is at the root of \<^ver
 
 It is recommended to set
   \<^verbatim>\<open>export L4V_ARCH=ARM\<close>
-before nost configurations of  \<^verbatim>\<open>Isabelle_C\<close>; this feature relevant for \<^verbatim>\<open>AutoCorres\<close>
+before nost configurations of  \<^verbatim>\<open>Isabelle_C\<close>; this feature is relevant for \<^verbatim>\<open>AutoCorres\<close>
 configurations can be made effective permanently by appropriate \<^verbatim>\<open>$ISABELLE_HOME_USER/etc/settings\<close>.
 
 
@@ -88,7 +88,7 @@ configurations can be made effective permanently by appropriate \<^verbatim>\<op
 \<^item> Building Isabelle_C_AutoCorres : 
   \<^verbatim>\<open>isabelle build -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-b Isabelle_C_AutoCorres\<close>
 \<^item> Running an example: 
-  \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C_AutoCorres\<close> \<^verbatim>\<open>C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_linear_CCT.thy\<close>
+  \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C_AutoCorres\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_linear_CCT.thy\<close>
 \<close>
 
 section \<open>Getting started (for developers)\<close>
@@ -166,11 +166,7 @@ text \<open>
 Before using the \<^dir>\<open>C11-BackEnds/AutoCorres_wrapper\<close> back-end, the shell variable
 \<open>L4V_ARCH\<close> must be additionally set to \<open>ARM\<close>.
 
-<<<<<<< HEAD
-\<^item> \<^verbatim>\<open>export L4V_ARCH = ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be permanently made in \<^verbatim>\<open>$ISABELLE_HOME_USER/etc/settings\<close>\<close>
-=======
 \<^item> \<^verbatim>\<open>export L4V_ARCH=ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be permanently made in \<^verbatim>\<open>$ISABELLE_HOME_USER/etc/settings\<close>\<close>
->>>>>>> 4bcb768320806c0ac57fa1d9d27a0e50d00faeb4
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l CParser\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/TestSEL4.thy\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l AutoCorres\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_linear_CCT.thy\<close>
 \<close>
@@ -212,7 +208,7 @@ text \<open> Note that this shell-script requires the prior installation of
 section \<open>Authors\<close>
 
 text \<open>
-\<^item> Frédéric Tuong (\<^url>\<open>https://www.lri.fr/~ftuong\<close>)
+\<^item> Frédéric Tuong (\<^url>\<open>https://gitlab.lisn.upsaclay.fr/frederictuong/isabelle_contrib\<close>)
 \<^item> Burkhart Wolff (\<^url>\<open>https://www.lri.fr/~wolff\<close>)
 \<close>
 
