@@ -78,7 +78,7 @@ installation, and assume your current working directory is at the root of \<^ver
 
 It is recommended to set
   \<^verbatim>\<open>export L4V_ARCH=ARM\<close>
-before nost configurations of  \<^verbatim>\<open>Isabelle_C\<close>; this feature is relevant for \<^verbatim>\<open>AutoCorres\<close>
+before most configurations of  \<^verbatim>\<open>Isabelle_C\<close>; this feature is relevant for \<^verbatim>\<open>AutoCorres\<close>
 configurations can be made effective permanently by appropriate \<^verbatim>\<open>$ISABELLE_HOME_USER/etc/settings\<close>.
 
 
