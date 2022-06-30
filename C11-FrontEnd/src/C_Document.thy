@@ -34,20 +34,15 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-section \<open>Interface: Ontology Document\<close>
+section \<open>Support for Document Preparation: Text-Antioquotations.\<close>
 
 theory C_Document
   imports C_Command
 begin
 
-ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/document_output.ML\<close>\<close>
-(*  Author:     Frédéric Tuong, Université Paris-Saclay
-    Analogous to:
-(*  Title:      Pure/Thy/document_output.ML
-    Author:     Makarius
-
-Theory document output.
-*)*)
+ML \<comment> \<open>analogous to \<^file>\<open>~~/src/Pure/Thy/document_output.ML\<close>\<close>
+(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Text Antiquotations and Theory document output. *)
 \<open>
 structure C_Document_Output =
 struct
@@ -60,11 +55,11 @@ fun output_comment ctxt (kind, syms) =
       Input.cartouche_content syms
       |> output_document (ctxt |> Config.put Document_Antiquotation.thy_output_display false)
           {markdown = false}
-      |> XML.enclose "%\n\\isamarkupcmt{" "%\n}"
+      |> Latex.enclose_text "%\n\\isamarkupcmt{" "%\n}"
   | Comment.Cancel =>
       Symbol_Pos.cartouche_content syms
       |> Latex.symbols_output
-      |> XML.enclose "%\n\\isamarkupcancel{" "}"
+      |> Latex.enclose_text "%\n\\isamarkupcancel{" "}"
   | Comment.Latex => Latex.symbols (Symbol_Pos.cartouche_content syms)
   | Comment.Marker => [])
 and output_comment_document ctxt (comment, syms) =
@@ -120,7 +115,7 @@ val output_symbols_antiq =
         Latex.string (Latex.output_symbols [Symbol.encode (Symbol.Control name)]) @
           Latex.symbols_output body
     | Antiquote.Antiq {body, ...} =>
-        XML.enclose "%\n\\isaantiq\n" "{}%\n\\endisaantiq\n" (Latex.symbols_output body));
+        Latex.enclose_text "%\n\\isaantiq\n" "{}%\n\\endisaantiq\n" (Latex.symbols_output body));
 
 fun output_comment_symbols ctxt {antiq} (comment, syms) =
   (case (comment, antiq) of
@@ -133,7 +128,7 @@ fun output_comment_symbols ctxt {antiq} (comment, syms) =
 fun output_body ctxt antiq bg en syms =
   Comment.read_body syms
   |> maps (output_comment_symbols ctxt {antiq = antiq})
-  |> XML.enclose bg en;
+  |> Latex.enclose_text bg en;
 
 in
 
@@ -154,7 +149,6 @@ fun output_token ctxt tok =
     | Token.Alt_String => output false "{\\isacharbackquoteopen}" "{\\isacharbackquoteclose}"
     | Token.Verbatim => output true "{\\isacharverbatimopen}" "{\\isacharverbatimclose}"
     | Token.Cartouche => output false "{\\isacartoucheopen}" "{\\isacartoucheclose}"
-    | Token.Control control => output_body ctxt false "" "" (Antiquote.control_symbols control)
     | _ => output false "" "")
   end handle ERROR msg => error (msg ^ Position.here (C_Token.pos_of tok));
 
@@ -164,13 +158,12 @@ end;
 \<close>
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/document_antiquotations.ML\<close>\<close>
-(*  Author:     Frédéric Tuong, Université Paris-Saclay
-    Analogous to:
+(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
 (*  Title:      Pure/Thy/document_antiquotations.ML
     Author:     Makarius
 
 Miscellaneous document antiquotations.
-*)*)
+*)
 \<open>
 structure C_Document_Antiquotations =
 struct

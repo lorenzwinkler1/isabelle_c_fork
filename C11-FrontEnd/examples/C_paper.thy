@@ -37,11 +37,10 @@
 chapter \<open>Examples from the F-IDE Paper\<close>
 
 theory C_paper
-  imports Isabelle_C.C_Main
+  imports "../main/C_Main"
 begin
 
-text \<open> This theory contains the examples presented in F-IDE
-2019~\cite{Tuong-IsabelleC:2019}. \<close>
+text \<open> This theory contains the examples presented in F-IDE 2019 paper~\cite{Tuong-IsabelleC:2019}. \<close>
 
 section \<open>Setup\<close>
 
@@ -50,14 +49,17 @@ ML\<open>
 val _ = Theory.setup
           (C_Inner_Syntax.command C_Inner_Isar_Cmd.setup' C_Parse.ML_source ("\<simeq>setup", \<^here>, \<^here>))
 
-val C = C_Module.C'
+val C' = C_Module.C'
+
+fun C opt = case opt of NONE => C' (C_Module.env (Context.the_generic_context ()))
+                      | SOME env => C' env
 
 fun C_def dir name _ _ =
   Context.map_theory 
     (C_Inner_Syntax.command'
       (C_Inner_Syntax.drop1
         (C_Scan.Right ( (fn src => fn context =>
-                          C_Module.C' (SOME (C_Stack.Data_Lang.get' context |> #2)) src context)
+                          C' (C_Stack.Data_Lang.get' context |> #2) src context)
                       , dir)))
       C_Parse.C_source
       name)
@@ -134,13 +136,13 @@ int a (int b) { return &a + b + c; }
             C (SOME env) \<open>int c = &a + b + c;\<close>\<close>
     \<simeq>setup \<open>fn stack_top => fn env =>
             C  NONE      \<open>int c = &a + b + c;\<close>\<close>
-    declare [[C_starting_env = last]]
+    declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
     C        (*SOME*)    \<open>int c = &a + b + c;\<close>
 */\<close>
 
 section \<open>Proofs inside C-Annotations\<close>
 
-\<comment> \<open>See also: \<^file>\<open>../../C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_linear_CCT.thy\<close>\<close>
+\<comment> \<open>See also: \<^url>\<open>https://gitlri.lri.fr/ftuong/isabelle_c/blob/C/C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_TEC.thy\<close>\<close>
 
 C \<open>
 #define SQRT_UINT_MAX 65536

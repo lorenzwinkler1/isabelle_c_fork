@@ -52,6 +52,8 @@ session Isabelle_C_examples in examples = Isabelle_C + (* a standard test suite 
     C0
     C1
     C2
+    C3
+    C4
     C_paper
 
 session Isabelle_C_document in appendices = Isabelle_C_examples +

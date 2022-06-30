@@ -620,7 +620,7 @@ val _ =
 
 end;
 \<close>
-
+ML\<open>open Resources\<close>
 section \<open>User Defined Commands in the Semantic Verification Space\<close>
 
 ML \<comment> \<open>\<^theory>\<open>Isabelle_C.C_Eval\<close>\<close> \<open>
