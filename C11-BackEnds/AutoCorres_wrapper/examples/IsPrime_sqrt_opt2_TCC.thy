@@ -509,9 +509,10 @@ proof (rule validNF_assume_pre)
                  assume "\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n"
                  show "r + 6 \<le> SQRT_UINT_MAX - Suc 0"
                    apply(simp add: SQRT_UINT_MAX_def)
-                   apply(insert \<open>r < 65531\<close>)
-                   (* feasible : cant be 65530 because even. *)
-                   sorry
+                   apply(insert \<open>r < 65531\<close> \<open>\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n\<close> \<open>odd n\<close>)
+                   apply(cases "r=65530",simp) 
+                    apply (metis \<open>r mod 6 = 5\<close> cong_exp_iff_simps(10) mod_mod_trivial)
+                   by(linarith)
                next
                  show "r + 6 \<le> n"
                    apply(insert \<open>r * r \<le> n\<close> \<open>5 \<le> r\<close>)
