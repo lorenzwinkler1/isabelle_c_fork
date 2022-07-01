@@ -392,6 +392,9 @@ lemma aux101 : "even 65530" by simp
 lemma aux102 : "(3::nat) dvd 65529" by simp
 lemma aux104 : "(7::nat) dvd 65527" by simp
 lemma aux106 : "(3::nat) dvd 65523" by simp
+
+lemma aux107 : "r * r \<le> n \<Longrightarrow> n \<le> UINT_MAX \<Longrightarrow> r < SQRT_UINT_MAX"
+  by (metis One_nat_def aux95 order_trans uint_max_factor)
 (*  65521 is prime. Largest prime number smaller SQRT_UINT_MAX. *)
 
 
@@ -499,7 +502,7 @@ proof (rule validNF_assume_pre)
                 show "partial_prime n (r + 6)"
                  apply(rule inv_preserved0)
                   apply (simp add: \<open>5 \<le> r\<close> \<open>partial_prime n r\<close> \<open>r \<le> SQRT_UINT_MAX - Suc 0\<close> 
-                                       \<open>r \<le> n\<close> \<open>r mod 6 = 5\<close>)
+                                   \<open>r \<le> n\<close> \<open>r mod 6 = 5\<close>)
                   apply (simp add: \<open>\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n\<close>)
                   apply (simp add: \<open>\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n\<close>)
                   apply (simp add: "**")
@@ -514,26 +517,45 @@ proof (rule validNF_assume_pre)
                     apply (metis \<open>r mod 6 = 5\<close> cong_exp_iff_simps(10) mod_mod_trivial)
                    by(linarith)
                next
+                 assume "\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n"
                  show "r + 6 \<le> n"
-                   apply(insert \<open>r * r \<le> n\<close> \<open>5 \<le> r\<close>)
+                   apply(insert \<open>r * r \<le> n\<close> \<open>5 \<le> r\<close> \<open>\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n\<close> \<open>r < 65531\<close>)
                    (* feasible : proof below. *) 
                    sorry
                qed
-             next
+            next
               text\<open>@{term is_prime_inv} implies postcond when leaving the loop.\<close>
               fix r::nat fix s::lifted_globals
               assume * :"\<not> (r < 65531 \<and> r * r \<le> n)"
                 have  ** : "r\<ge>65531 \<or> r * r>n"  using "*" leI by blast
+                have  **** : "\<not> n < r * r \<Longrightarrow> r < SQRT_UINT_MAX" 
+                  apply(rule aux107[where n="n"],simp) 
+                  using "1" by blast
               assume  ***: "is_prime_inv n r s"
               show "((1::nat) \<noteq> 0) = prime n"
                 apply simp
-                apply(case_tac "r\<ge>65531") defer 1
+                apply(case_tac "r * r>n",insert **,simp_all) 
                 using "*" "***" apply auto[1]                
                 using "**" partial_prime_sqr apply blast
-                apply(insert ***) 
-                   (* feasible : between 65531 and 65536 (the integer square of no primes, 
-                                SQRT_UINT_MAX), there are no primes. *)
-                sorry
+                apply(drule ****, simp only: SQRT_UINT_MAX_def)
+                apply(insert 1 ***, auto ) 
+                apply(subst partial_prime_sqr[of n SQRT_UINT_MAX, symmetric]) 
+                 apply(meson "1" aux107 le_def order.refl, simp add: SQRT_UINT_MAX_def)
+                apply(rule_tac s = "Suc 65535" and t = "65536" in subst, simp)
+                 apply(rule partial_prime_Suc [THEN iffD2, simp],rule conjI)
+                 apply(rule_tac s = "Suc 65534" and t = "65535" in subst, simp)
+                  apply(rule partial_prime_Suc [THEN iffD2, simp],rule conjI)
+                  apply(rule_tac s = "Suc 65533" and t = "65534" in subst, simp)
+                   apply(rule partial_prime_Suc [THEN iffD2, simp],rule conjI)
+                   apply(rule_tac s = "Suc 65532" and t = "65533" in subst, simp)
+                    apply(rule partial_prime_Suc [THEN iffD2, simp],rule conjI)
+                    apply(rule_tac s = "Suc 65531" and t = "65532" in subst, simp)
+                     apply(rule partial_prime_Suc [THEN iffD2, simp],rule conjI)
+                     using partial_prime_def apply auto[1]
+                    apply(insert aux100)
+
+                     sorry (* tedious *)
+
             qed
         qed
       qed
