@@ -457,7 +457,13 @@ proof (rule validNF_assume_pre)
             next
               text\<open>@{term is_prime_inv} initially holds when entering the loop.\<close>
               fix s::lifted_globals 
-              have **** : "\<not> n < 4 \<Longrightarrow> partial_prime n 5" sorry
+              have **** : "\<not> n < 4 \<Longrightarrow> partial_prime n 5"
+                unfolding partial_prime_def apply(auto,rename_tac i)
+                apply(insert \<open>odd n\<close>  \<open>\<not> 3 dvd n\<close>)
+                apply(case_tac "i=2",simp)
+                apply(case_tac "i=3",simp)
+                apply(case_tac "i=4",simp add: even_even_mod_4_iff)
+                by linarith  
               show "if n < 2 then (0 \<noteq> 0) = prime n
                              else if n < 4 then (1 \<noteq> 0) = prime n
                                   else is_prime_inv n 5 s"
