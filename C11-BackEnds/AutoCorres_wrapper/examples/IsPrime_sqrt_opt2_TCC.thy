@@ -172,11 +172,18 @@ lemma three_is_prime_nat: "prime (3::nat)"
   by (metis One_nat_def atLeastLessThan_iff dvd_triv_left even_Suc le_Suc_eq le_def 
             nat_mult_1_right not_less_eq numeral_2_eq_2 numeral_3_eq_3 prime_nat_numeral_eq set_upt)
 
-lemma numeral_5_eq_5_nat : "5 = Suc(Suc(Suc(Suc(Suc 0))))"
-  by simp
+
+lemma partial_prime_Suc':"\<not> r dvd n \<Longrightarrow> partial_prime n r = partial_prime n (Suc r)" 
+  using partial_prime_Suc by blast
+
+lemma partial_prime_Suc'' : 
+  "k dvd r \<Longrightarrow> partial_prime n r \<Longrightarrow> 1 < k \<Longrightarrow> k < r \<Longrightarrow> partial_prime n (Suc r)"
+  apply( subst partial_prime_Suc'[symmetric], simp_all add: partial_prime_def)
+  by (metis One_nat_def Suc_1 Suc_le_eq atLeastLessThan_iff gcd_nat.trans gr0_conv_Suc
+            min.absorb4 min_less_iff_conj nat_dvd_not_less nat_neq_iff)
 
 lemma five_is_prime_nat: "prime (5::nat)"
-  apply(subst numeral_5_eq_5_nat)
+  apply(rule_tac  t= "5" and s="Suc(Suc(Suc(Suc(Suc 0))))" in subst,simp)
   apply(auto simp: Primes.prime_nat_iff')
   by (smt Suc_lessI diff_Suc_Suc diff_zero dvd_minus_self linorder_not_le nat_dvd_not_less 
           not_less_eq_eq numeral_2_eq_2)
@@ -191,7 +198,9 @@ lemma five_and_divides : "prime (p::nat) \<Longrightarrow> 5 < p \<Longrightarro
 
 
 
-section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
+
+
+section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm based on a 6-sieve\<close>
 
 text \<open>The invocation of AutoCorres:\<close>
 
@@ -207,28 +216,31 @@ text\<open> This C code contains a function that determines if the given number
  
       This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
 
+
 C \<open>
 #define SQRT_UINT_MAX 65536
 #define TRUE  1
 #define FALSE 0
 
 unsigned int is_prime(unsigned int n)
-{
-    if (n < 2) return FALSE;
-    if (n < 4) return TRUE;
-    if (n % 2 == 0 || n % 3 == 0) return FALSE;
-
-    for (unsigned i = 5; i < SQRT_UINT_MAX - 5 && i * i <= n; i+=6) {
-        if (n % i == 0 || n % (i+2) == 0)
-            return FALSE; 
-    }
-
-    return TRUE;
-}\<close>
-
-section\<open>The Results of the AutoCorres Evaluation\<close>
+   {
+       if (n < 2) return FALSE;
+       if (n < 4) return TRUE;
+       if (n % 2 == 0 || n % 3 == 0) return FALSE;
+   
+       for (unsigned i = 5; i < SQRT_UINT_MAX - 5 && i * i <= n; i+=6) {
+           if (n % i == 0 || n % (i+2) == 0)
+               return FALSE; 
+       }
+   
+       return TRUE;
+   }\<close>
 
 C_export_file  (* This exports the C code into a C file ready to be compiled by gcc. *)
+
+
+
+section\<open>The Results of the AutoCorres Evaluation\<close>
 
 text\<open>AutoCorres produced internally the following definitions of this input:\<close>
 find_theorems name:is_prime
@@ -240,108 +252,8 @@ thm is_prime_global_addresses.is_prime_body_def
 thm is_prime.is_prime'_def   
 thm SQRT_UINT_MAX_def
 
-text\<open>Note that the pre-processor macro has been converted into a definition in HOL.\<close>
-
-
-section\<open>The Specification and Some Corrollaries\<close>
-text\<open>This section contains the auxilliary definitions and lemmas for the 
-     final correctness proof; in particular, the loop invariant is stated here.\<close>
-
-
-definition 
-is_prime_inv
-  where [simp]: "is_prime_inv n i s \<equiv> (5 \<le> i \<and> i \<le> SQRT_UINT_MAX - 1 \<and> i \<le> n \<and> 
-                                       (i mod 6) = 5 \<and> partial_prime n i)"
-
-
-lemma "\<not> 2 dvd i = (i mod 2 = (1::nat))"
-  using odd_iff_mod_2_eq_one by blast
-
-lemma simple_binomial : "((a::nat) + b) *  (a + b) = a*a + a*b + a*b + b * b"
-  by (simp add: add_mult_distrib2 mult.commute)
-
-lemma inv_preserved0: "is_prime_inv n i s \<Longrightarrow> 
-                       \<not> i dvd n \<Longrightarrow>  \<not> (i+2) dvd n \<Longrightarrow> 
-                       odd n \<Longrightarrow> \<not> (3 dvd n) \<Longrightarrow> 4 < n \<Longrightarrow>
-                       partial_prime n (i + 6)"
-  unfolding  is_prime_inv_def partial_prime_def
-proof(elim conjE)
-  fix i :: nat
-  assume 1: "odd n"
-  and    2: "\<not> (3 dvd n)"
-  and    6: "5 \<le> i"
-  and    7: "\<forall>i\<in>{2..<min n i}. \<not> i dvd n"
-  and    8 :"\<not> i dvd n"
-  and    9 :"\<not> (i + 2) dvd n"
-  and   10 :  "i mod 6 = 5"
-  and   100: "4 < n"
-  and   1000: "i \<le> n"
-  have  11 : "\<exists> m::nat. i= m*6+5"
-             by (metis "6" "10" add.commute mod_mod_trivial mult.commute nat_mod_eq_lemma)
-  have  ** : "odd i"  
-             using "10" by presburger
-  have  ***: "\<not>(3 dvd i)"
-    apply(simp add: Rings.semidom_modulo_class.dvd_eq_mod_eq_0)
-    apply(insert 11, erule_tac exE, rename_tac m)
-    by (metis "10" One_nat_def add_Suc_shift gr0I le_add1 le_add_same_cancel1 mod_double_modulus 
-              mult_2  numeral_3_eq_3 numeral_Bit0 numeral_eq_iff plus_1_eq_Suc semiring_norm(83) 
-              semiring_norm(90) zero_less_numeral )
-  have  12 :"5 \<le> n" 
-    using "100" by auto 
-  have  *: "\<forall>i\<in>{2..<i}. \<not> i dvd n"
-    by (simp add: "1000" "7")
-  show "1 < n \<and> (\<forall>i\<in>{2..<min n (i + 6)}. \<not> i dvd n)"
-     proof(cases "n=5", simp_all)
-       case True
-       then show "\<forall>i\<in>{2..<5}. \<not> i dvd 5" 
-         by (metis "*" "6" "8" atLeastLessThan_iff dvd_refl five_is_prime_nat 
-                   le_neq_implies_less prime_ge_2_nat)
-     next
-       case False
-       assume ** : "n \<noteq> 5"
-       show "Suc 0 < n \<and> (\<forall>i\<in>{2..<min n (i + 6)}. \<not> i dvd n)"
-         apply auto
-         using "100" apply linarith
-       proof (erule contrapos_pp)
-         fix j :: nat
-         assume "2 \<le> j" and "j < n" and "j < i + 6" show "\<not> j dvd n"
-         proof(cases "j < i")
-           case True
-           then show ?thesis  
-             by (simp add: "*" \<open>2 \<le> j\<close>)
-         next
-           case False
-             have "j\<ge>i"  by (simp add: False le_def)
-             have *:"j = i+5 \<or> j = i+4 \<or> j = i+3 \<or> j = i+2 \<or> j = i+1 \<or> j = i " 
-               using False \<open>j < i + 6\<close> by linarith
-     
-           then show ?thesis
-              proof(insert *,elim disjE, simp_all)
-                show "\<not> i + 5 dvd n" 
-                   using "1" "11" by auto
-              next 
-                show "\<not> i + 4 dvd n" 
-                  by (smt "11" "2" Suc_numeral add.assoc add_Suc_right dvd_add_times_triv_left_iff 
-                          dvd_add_triv_right_iff dvd_refl dvd_trans numeral_3_eq_3 numeral_Bit0 
-                          numeral_eqs(3) plus_1_eq_Suc semiring_norm(5))
-              next 
-                show "\<not> i + 3 dvd n"
-                  using "1" "11" by auto
-              next 
-                show "\<not> Suc (Suc i) dvd n" 
-                  using "9" by auto
-              next
-                show "\<not> Suc i dvd n" 
-                  using "1" "11" by auto
-              next 
-                show "\<not> i dvd n" 
-                  by (simp add: "8")
-              qed
-         qed
-       qed
-     qed
-qed
-
+text\<open>Note that the pre-processor macro has been converted into a definition in HOL.
+     It induces the following semantic (!) properties:\<close>
   
 lemma uint_max_factor [simp]:  "UINT_MAX = SQRT_UINT_MAX * SQRT_UINT_MAX - 1"
   by (clarsimp simp: UINT_MAX_def SQRT_UINT_MAX_def)
@@ -356,6 +268,89 @@ lemma uint_max_factor_min1_dvd4 [simp]: "(4::nat) dvd (SQRT_UINT_MAX) "
   by (clarsimp simp:  SQRT_UINT_MAX_def) 
 
 
+
+section\<open>The Specification, the Invariant and Some Corrollaries\<close>
+
+text\<open>This section contains the auxilliary definitions and lemmas for the
+     final correctness proof; in particular, the loop invariant is stated here.\<close>
+
+definition is_prime_inv
+  where [simp]: "is_prime_inv n i s \<equiv> (5 \<le> i \<and> i \<le> SQRT_UINT_MAX - 1 \<and> i \<le> n \<and> 
+                                       (i mod 6) = 5 \<and> partial_prime n i)"
+
+lemma inv_preserved0: "is_prime_inv n i s 
+                       \<Longrightarrow> \<not> i dvd n \<Longrightarrow>  \<not> (i+2) dvd n 
+                       \<Longrightarrow> odd n \<Longrightarrow> \<not> (3 dvd n) \<Longrightarrow> 4 < n 
+                       \<Longrightarrow> partial_prime n (i + 6)"
+  unfolding  is_prime_inv_def partial_prime_def
+proof(elim conjE)
+  fix i :: nat
+  assume 1: "odd n"         and    2: "\<not> (3 dvd n)"
+  and    6: "5 \<le> i"         and    7: "\<forall>i\<in>{2..<min n i}. \<not> i dvd n"
+  and    8 :"\<not> i dvd n"     and    9 :"\<not> (i + 2) dvd n"
+  and   10 :  "i mod 6 = 5" and   11: "4 < n"
+  and   12: "i \<le> n"
+  have  * : "\<exists> m::nat. i= m*6+5"
+             by (metis "6" "10" add.commute mod_mod_trivial mult.commute nat_mod_eq_lemma)
+  have  ** : "odd i"  
+             using "10" by presburger
+  have  ***: "\<not>(3 dvd i)"
+    apply(simp add: Rings.semidom_modulo_class.dvd_eq_mod_eq_0)
+    apply(insert *, erule_tac exE, rename_tac m)
+    by (metis "10" One_nat_def add_Suc_shift gr0I le_add1 le_add_same_cancel1 mod_double_modulus 
+              mult_2  numeral_3_eq_3 numeral_Bit0 numeral_eq_iff plus_1_eq_Suc semiring_norm(83) 
+              semiring_norm(90) zero_less_numeral )
+  have  ****: "\<forall>i\<in>{2..<i}. \<not> i dvd n"
+    by (simp add: "12" "7")
+  show "1 < n \<and> (\<forall>i\<in>{2..<min n (i + 6)}. \<not> i dvd n)"
+     proof(cases "n=5", simp_all)
+       case True
+       then show "\<forall>i\<in>{2..<5}. \<not> i dvd 5" 
+         by (metis **** "6" "8" atLeastLessThan_iff dvd_refl five_is_prime_nat 
+                   le_neq_implies_less prime_ge_2_nat)
+     next
+       case False
+       assume ** : "n \<noteq> 5"
+       show "Suc 0 < n \<and> (\<forall>i\<in>{2..<min n (i + 6)}. \<not> i dvd n)"
+         apply auto
+         using "11" apply linarith
+       proof (erule contrapos_pp)
+         fix j :: nat
+         assume "2 \<le> j" and "j < n" and "j < i + 6" show "\<not> j dvd n"
+         proof(cases "j < i")
+           case True
+           then show ?thesis  
+             by (simp add: **** \<open>2 \<le> j\<close>)
+         next
+           case False
+             have *:"j = i+5 \<or> j = i+4 \<or> j = i+3 \<or> j = i+2 \<or> j = i+1 \<or> j = i " 
+               using False \<open>j < i + 6\<close> by linarith
+     
+           then show ?thesis
+           proof(insert *,elim disjE, simp_all)
+             show "\<not> i + 5 dvd n" 
+                using "1" \<open>\<exists> m::nat. i= m*6+5\<close> by auto
+           next 
+             show "\<not> i + 4 dvd n" 
+               by (smt \<open>\<exists> m::nat. i= m*6+5\<close> "2" Suc_numeral add.assoc add_Suc_right  
+                       dvd_add_times_triv_left_iff dvd_add_triv_right_iff dvd_refl dvd_trans 
+                       numeral_3_eq_3 numeral_Bit0 numeral_eqs(3) plus_1_eq_Suc semiring_norm(5))
+           next 
+             show "\<not> i + 3 dvd n"       using "1" \<open>\<exists> m::nat. i= m*6+5\<close> by auto
+           next 
+             show "\<not> Suc (Suc i) dvd n" using "9" by auto
+           next
+             show "\<not> Suc i dvd n"       using 1 \<open>\<exists> m::nat. i= m*6+5\<close> by auto
+           next 
+             show "\<not> i dvd n"           by (simp add: "8")
+           qed
+         qed
+       qed
+     qed
+qed
+
+
+text\<open>A few non-linear properites on inequalities come in handy:\<close>
 lemma sqr_less_mono [simp]:
     "((i::nat) * i < j * j) = (i < j)" 
   by (meson le_def mult_le_mono mult_strict_mono' zero_le)
@@ -373,29 +368,6 @@ declare mult_le_mono [intro]
 lemma sqr_le_sqr_minus_1 [simp]:
     "\<lbrakk> b \<noteq> 0 \<rbrakk> \<Longrightarrow> (a * a \<le> b * b - Suc 0) = (a < b)"
   by (metis gr0I sqr_less_mono nat_0_less_mult_iff nat_le_Suc_less)
-
-lemma sqr_bla : 
-  "Suc (Suc (Suc (Suc (r + (r + (r + (r + r * r))))))) = Suc(Suc r)*Suc(Suc r)"
-  by simp
-
-lemma aux95 : "r * r \<le> SQRT_UINT_MAX * SQRT_UINT_MAX - Suc 0 \<Longrightarrow> r < SQRT_UINT_MAX"
-  by (metis SQRT_UINT_MAX_def rel_simps(76) sqr_le_sqr_minus_1)
-
-lemma aux96 :  "r < SQRT_UINT_MAX - (1::nat) \<Longrightarrow> r \<le> 65534"
-  unfolding SQRT_UINT_MAX_def by simp
-
-lemma aux97 : "even 65534" by simp
-lemma aux98 : "(13::nat) dvd 65533" by simp
-lemma aux99 : "even 65532" by simp
-lemma aux100 : "(19::nat) dvd 65531" by simp
-lemma aux101 : "even 65530" by simp
-lemma aux102 : "(3::nat) dvd 65529" by simp
-lemma aux104 : "(7::nat) dvd 65527" by simp
-lemma aux106 : "(3::nat) dvd 65523" by simp
-
-lemma aux107 : "r * r \<le> n \<Longrightarrow> n \<le> UINT_MAX \<Longrightarrow> r < SQRT_UINT_MAX"
-  by (metis One_nat_def aux95 order_trans uint_max_factor)
-(*  65521 is prime. Largest prime number smaller SQRT_UINT_MAX. *)
 
 
 section\<open>The Correctness Proof \<close>
@@ -438,7 +410,8 @@ proof (rule validNF_assume_pre)
         then show ?thesis 
         proof(cases "3 dvd n")
           case True
-          then show ?thesis  by (clarsimp simp:  is_prime'_def, wp, insert *, auto simp: prime_odd_nat three_and_divides) 
+          then show ?thesis  by (clarsimp simp:  is_prime'_def, wp, insert *, 
+                                 auto simp: prime_odd_nat three_and_divides) 
         next
           case False
           assume *** :"\<not> 3 dvd n"
@@ -461,12 +434,9 @@ proof (rule validNF_assume_pre)
               text\<open>@{term is_prime_inv} initially holds when entering the loop.\<close>
               fix s::lifted_globals 
               have **** : "\<not> n < 4 \<Longrightarrow> partial_prime n 5"
-                unfolding partial_prime_def apply(auto,rename_tac i)
-                apply(insert \<open>odd n\<close>  \<open>\<not> 3 dvd n\<close>)
-                apply(case_tac "i=2",simp)
-                apply(case_tac "i=3",simp)
-                apply(case_tac "i=4",simp add: even_even_mod_4_iff)
-                by linarith  
+                by (metis "*" "**" False One_nat_def eq_numeral_Suc even_numeral  less_trans_Suc 
+                          numeral_eqs(4) numerals(2) partial_prime_2 partial_prime_Suc' lessI
+                          partial_prime_Suc'' pred_numeral_simps(3) zero_less_numeral) 
               show "if n < 2 then (0 \<noteq> 0) = prime n
                              else if n < 4 then (1 \<noteq> 0) = prime n
                                   else is_prime_inv n 5 s"
@@ -501,8 +471,8 @@ proof (rule validNF_assume_pre)
                 assume "\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n"
                 show "partial_prime n (r + 6)"
                  apply(rule inv_preserved0)
-                  apply (simp add: \<open>5 \<le> r\<close> \<open>partial_prime n r\<close> \<open>r \<le> SQRT_UINT_MAX - Suc 0\<close> 
-                                   \<open>r \<le> n\<close> \<open>r mod 6 = 5\<close>)
+                       apply (simp add: \<open>5 \<le> r\<close>  \<open>r \<le> n\<close> \<open>r mod 6 = 5\<close> 
+                                        \<open>partial_prime n r\<close> \<open>r \<le> SQRT_UINT_MAX - Suc 0\<close>)
                   apply (simp add: \<open>\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n\<close>)
                   apply (simp add: \<open>\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n\<close>)
                   apply (simp add: "**")
@@ -512,50 +482,50 @@ proof (rule validNF_assume_pre)
                  assume "\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n"
                  show "r + 6 \<le> SQRT_UINT_MAX - Suc 0"
                    apply(simp add: SQRT_UINT_MAX_def)
-                   apply(insert \<open>r < 65531\<close> \<open>\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n\<close> \<open>odd n\<close>)
-                   apply(cases "r=65530",simp) 
-                    apply (metis \<open>r mod 6 = 5\<close> cong_exp_iff_simps(10) mod_mod_trivial)
+                   apply(insert \<open>r < 65531\<close> \<open>r mod 6 = 5\<close>)
+                   apply(cases "r=65530", simp)
                    by(linarith)
-               next
-                 assume "\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n"
+              next
                  show "r + 6 \<le> n"
-                   apply(insert \<open>r * r \<le> n\<close> \<open>5 \<le> r\<close> \<open>\<not> r dvd n \<and> \<not> Suc (Suc r) dvd n\<close> \<open>r < 65531\<close>)
-                   (* feasible : proof below. *) 
-                   sorry
-               qed
+                   apply(insert \<open>r * r \<le> n\<close> \<open>5 \<le> r\<close>)
+                   apply(auto simp: le_iff_add)
+                   apply(rule_tac x = "14 + ca * ca + 9 * ca + c" in exI,simp)
+                   by(simp add:ring_distribs(1) ring_distribs(2))
+              qed
             next
               text\<open>@{term is_prime_inv} implies postcond when leaving the loop.\<close>
               fix r::nat fix s::lifted_globals
               assume * :"\<not> (r < 65531 \<and> r * r \<le> n)"
                 have  ** : "r\<ge>65531 \<or> r * r>n"  using "*" leI by blast
-                have  **** : "\<not> n < r * r \<Longrightarrow> r < SQRT_UINT_MAX" 
-                  apply(rule aux107[where n="n"],simp) 
-                  using "1" by blast
               assume  ***: "is_prime_inv n r s"
               show "((1::nat) \<noteq> 0) = prime n"
                 apply simp
-                apply(case_tac "r * r>n",insert **,simp_all) 
+                apply(case_tac "r\<ge>65531") defer 1
                 using "*" "***" apply auto[1]                
                 using "**" partial_prime_sqr apply blast
-                apply(drule ****, simp only: SQRT_UINT_MAX_def)
-                apply(insert 1 ***, auto ) 
-                apply(subst partial_prime_sqr[of n SQRT_UINT_MAX, symmetric]) 
-                 apply(meson "1" aux107 le_def order.refl, simp add: SQRT_UINT_MAX_def)
-                apply(rule_tac s = "Suc 65535" and t = "65536" in subst, simp)
-                 apply(rule partial_prime_Suc [THEN iffD2, simp],rule conjI)
-                 apply(rule_tac s = "Suc 65534" and t = "65535" in subst, simp)
-                  apply(rule partial_prime_Suc [THEN iffD2, simp],rule conjI)
-                  apply(rule_tac s = "Suc 65533" and t = "65534" in subst, simp)
-                   apply(rule partial_prime_Suc [THEN iffD2, simp],rule conjI)
-                   apply(rule_tac s = "Suc 65532" and t = "65533" in subst, simp)
-                    apply(rule partial_prime_Suc [THEN iffD2, simp],rule conjI)
-                    apply(rule_tac s = "Suc 65531" and t = "65532" in subst, simp)
-                     apply(rule partial_prime_Suc [THEN iffD2, simp],rule conjI)
-                     using partial_prime_def apply auto[1]
-                    apply(insert aux100)
-
-                     sorry (* tedious *)
-
+                apply(insert ***) 
+                proof - 
+                  have ** : "(19::nat) dvd 65531" by simp
+                  have *** : "even 65532" by simp
+                  have **** : "(13::nat) dvd 65533" by simp
+                  have ***** : "even 65534" by simp
+                  have  ****** : "(5::nat) dvd 65535" by simp
+                  show " 65531 \<le> r \<Longrightarrow> is_prime_inv n r s \<Longrightarrow> prime n"
+                   apply(insert *, simp add:  SQRT_UINT_MAX_def, elim conjE)
+                   apply(subst partial_prime_sqr[where p = "n" and n = "SQRT_UINT_MAX",symmetric])
+                   using "1" uint_max_factor apply linarith
+                   apply(cases "r = 65531", simp_all)
+                    apply(drule partial_prime_Suc''[OF **], simp_all)
+                    apply(drule partial_prime_Suc''[OF ***], simp_all)
+                    apply(drule partial_prime_Suc''[OF ****], simp_all)
+                    apply(drule partial_prime_Suc''[OF *****], simp_all)
+                    apply(drule partial_prime_Suc''[OF ******], simp_all add: SQRT_UINT_MAX_def)
+                    apply(subst (asm) le_less,simp)
+                   apply(cases "r = 65532", simp_all)
+                   apply(cases "r = 65533", simp_all)
+                   apply(cases "r = 65534", simp_all)
+                   by(cases "r = 65535", simp_all)
+               qed
             qed
         qed
       qed
