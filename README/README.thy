@@ -1,7 +1,9 @@
 (******************************************************************************
  * Isabelle/C
  *
- * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Authors: Frédéric Tuong, Burkhart Wolff
+ *
+ * Copyright (c) 2018-2022 Université Paris-Saclay, Univ. Paris-Sud, France
  *
  * All rights reserved.
  *
@@ -34,8 +36,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************)
 
-(* Authors: Frédéric Tuong, Burkhart Wolff *)
-
 theory README imports Main begin
 
 section \<open>Global Structure of the Isabelle/C Project\<close>
@@ -48,7 +48,7 @@ Isabelle AFP, or represent AFP submissions.
 \<^item> \<^dir>\<open>C18-FrontEnd\<close>
 \<^item> \<^dir>\<open>C11-BackEnds\<close>
   \<^item> \<^dir>\<open>C11-BackEnds/Clean\<close>: (AFP) Clean Library
-  \<^item> \<^dir>\<open>C11-BackEnds/Clean_wrapper\<close>: (AFP) adapter to \<^dir>\<open>C11-FrontEnd\<close>
+  \<^item> \<^dir>\<open>C11-BackEnds/Clean_wrapper\<close>: adapter to \<^dir>\<open>C11-FrontEnd\<close>
   \<^item> \<^dir>\<open>C11-BackEnds/AutoCorres\<close>: slightly modified version of AutoCorres library
   \<^item> \<^dir>\<open>C11-BackEnds/AutoCorres_wrapper\<close>: adapter to \<^dir>\<open>C11-FrontEnd\<close>
 \<^item> \<^dir>\<open>Citadelle\<close>: model-based framework generating the grammars and the AST of \<^dir>\<open>C11-FrontEnd\<close>
@@ -96,7 +96,9 @@ section \<open>Getting started (for developers)\<close>
 text \<open>
 A first installation step of Isabelle/C without back-ends is:
 
-\<^item> \<^verbatim>\<open>isabelle build -D\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^verbatim>\<open>-D\<close> \<^dir>\<open>C18-FrontEnd\<close>
+\<^item> \<^verbatim>\<open>isabelle build -D\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^verbatim>\<open>-D\<close> \<^dir>\<open>C18-FrontEnd\<close>   
+
+DOES NOT WORK CURRENTLY 
 
 which should work out of the box.
 \<close>
@@ -106,6 +108,8 @@ Alternatively, the full build of the \<^emph>\<open>developer repository\<close>
 all back-ends enabled is performed with:
 
 \<^item> \<^verbatim>\<open>isabelle build -b -v -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>Isabelle_C_all Isabelle_C_Advance_examples Clean_document Isabelle_C_AutoCorres_document Isabelle_C_Clean_document Isabelle_C_README Isabelle_C_archive\<close>
+
+DOES NOT WORK CURRENTLY 
 \<close>
 
 text \<open>
@@ -114,6 +118,9 @@ The following C examples or entry-points of documentation can be executed:
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C0.thy\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C3.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C4.thy\<close>
+\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C_paper.thy\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C18-FrontEnd/examples/C0.thy\<close>
 \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/appendices/C_Appendices.thy\<close>
 
@@ -125,11 +132,17 @@ might browse in there or modify any files.
 
 text \<open>
 \<^item> The example \<^file>\<open>C11-FrontEnd/examples/C0.thy\<close> is basically used to
-demonstrate the faithfulness of the C11 parser implementation.
-\<^item> The example \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close> shows common cases of C and
-C editing support in PIDE; it also contains annotation commands without any semantics.
+demonstrate the robustness and faithfulness of the C11 parser implementation.
+\<^item> The example \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close> shows examples for C_AST11 programming and
+translation as well as C editing support in PIDE; 
+it also contains coding-examples for C annotation commands without any semantics.
 \<^item> The example \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close> is a show-case for markup
 generation and the use of bindings resulting from the static C environment.
+\<^item> The example \<^file>\<open>C11-FrontEnd/examples/C3.thy\<close> is a show-case for markup
+generation and and navigation in the C11 AST's via C-Antiquotations as well as 
+serialization examples for C-Antiquotation execution.
+\<^item> The example \<^file>\<open>C11-FrontEnd/examples/C4.thy\<close> is a show-case for a simplistic 
+parse-and-store amd a CAS-oriented setup for C-Antiquotations.
 \<^item> The example \<^file>\<open>C18-FrontEnd/examples/C0.thy\<close> is basically used to
 demonstrate the faithfulness of the C18 parser implementation.
 \<^item> The example \<^file>\<open>C11-FrontEnd/appendices/C_Appendices.thy\<close> shows the use of

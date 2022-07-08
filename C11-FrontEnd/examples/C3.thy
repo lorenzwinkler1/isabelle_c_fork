@@ -177,7 +177,7 @@ int b = 7 / (3) * 50;
 /*@+++@@ highlight */
 long long f (int a) {
   while (0) { return 0; }
-}
+} 
 int b = 7 / (3) * 50;
 \<close>
 
