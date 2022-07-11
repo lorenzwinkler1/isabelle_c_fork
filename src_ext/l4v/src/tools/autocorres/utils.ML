@@ -177,7 +177,7 @@ fun gen_typ t params =
   let
     fun typ_convert (TFree (a, _)) =
         String.extract (a, 1, NONE)
-        |> (fn x => ord x - ord "a")
+        |> (fn x => SML90.ord x - SML90.ord "a")
         |> nth params
       | typ_convert x = x
   in
