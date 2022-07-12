@@ -209,9 +209,9 @@ project used is \<open>e3352826893db4d00fc402fad2a0125307ebe45e\<close>.
 subsection \<open>Isabelle/C/README\<close>
 
 text \<open>
-\<^file>\<open>README.md\<close> is automatically generated from \<^file>\<open>README/README.thy\<close>
+\<^file>\<open>README.md\<close> is automatically generated from \<^file>\<open>README.thy\<close>
 using:
-\<^item> \<^verbatim>\<open>isabelle env\<close> \<^file>\<open>README/README.sh\<close>
+\<^item> \<^verbatim>\<open>isabelle env\<close> \<^file>\<open>README.sh\<close>
 \<close>
 
 text \<open> Note that this shell-script requires the prior installation of
