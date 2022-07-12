@@ -37,7 +37,7 @@
 chapter \<open>Appendix IV : Examples for Annotation Navigation and Context Serialization\<close>
 
 theory C2
-  imports "../main/C_Main"
+  imports "Isabelle_C.C_Main"
           "HOL-ex.Cartouche_Examples"
 begin
 

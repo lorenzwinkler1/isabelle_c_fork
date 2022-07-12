@@ -37,7 +37,7 @@
 chapter \<open>Appendix III: Examples for the SML Interfaces to Generic and Specific C11 ASTs\<close>
 
 theory C1
-  imports "../main/C_Main"
+  imports "Isabelle_C.C_Main"
 begin
 
 section\<open>Access to Main C11 AST Categories via the Standard Interface \<close>
@@ -636,7 +636,7 @@ void display(int a[],const int size)
 
 
 
-section \<open>C Code: Floats Exist\<close>
+section \<open>C Code: Floats Exist Lexically.\<close>
 
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 
