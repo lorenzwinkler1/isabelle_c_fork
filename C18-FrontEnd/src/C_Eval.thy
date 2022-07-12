@@ -42,9 +42,9 @@ theory C_Eval
 begin
 
 subsection \<open>Evaluation Engine for the Core Language\<close> \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/thy_info.ML\<close>:
-                                                        \<^theory>\<open>Isabelle_C_Advance.C_Parser_Language\<close>\<close>
+                                                        \<^theory>\<open>Isabelle_C_Advanced.C_Parser_Language\<close>\<close>
 
-ML \<comment> \<open>\<^theory>\<open>Isabelle_C_Advance.C_Environment\<close>\<close> \<open>
+ML \<comment> \<open>\<^theory>\<open>Isabelle_C_Advanced.C_Environment\<close>\<close> \<open>
 structure C_Stack =
 struct
 type 'a stack_elem = (LALR_Table.state, 'a, Position.T) C_Env.stack_elem0

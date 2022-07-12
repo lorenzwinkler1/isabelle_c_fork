@@ -40,7 +40,7 @@ theory C_Parser_Language
   imports C_Environment
 begin
 
-text \<open> As mentioned in \<^theory>\<open>Isabelle_C_Advance.C_Ast\<close>, Isabelle/C depends
+text \<open> As mentioned in \<^theory>\<open>Isabelle_C_Advanced.C_Ast\<close>, Isabelle/C depends
 on certain external parsing libraries, such as \<^dir>\<open>../../src_ext/mlton\<close>, and more
 specifically \<^dir>\<open>../../src_ext/mlton/lib/mlyacc-lib\<close>. Actually, the sole theory
 making use of the files in \<^dir>\<open>../../src_ext/mlton/lib/mlyacc-lib\<close> is the present
@@ -83,7 +83,7 @@ ML \<comment> \<open>\<^file>\<open>../generated/c_grammar_fun.grm.sml\<close>\<
 \<open>
 signature C_GRAMMAR_RULE_LIB =
 sig
-  type arg = C_Env.T
+  type arg = (C_Antiquote.antiq * C_Env.antiq_language list) C_Env.T
   type 'a monad = arg -> 'a * arg
 
   (* type aliases *)
@@ -138,7 +138,7 @@ end
 structure C_Grammar_Rule_Lib : C_GRAMMAR_RULE_LIB =
 struct
   open C_Ast
-  type arg = C_Env.T
+  type arg = (C_Antiquote.antiq * C_Env.antiq_language list) C_Env.T
   type 'a monad = arg -> 'a * arg
 
   (**)
@@ -378,13 +378,13 @@ struct
   in
   fun quad s = case s of
     [] => 0
-  | c1 :: [] => ord c1
-  | c1 :: c2 :: [] => ord c2 * bits7 + ord c1
-  | c1 :: c2 :: c3 :: [] => ord c3 * bits14 + ord c2 * bits7 + ord c1
-  | c1 :: c2 :: c3 :: c4 :: s => ((ord c4 * bits21
-                                   + ord c3 * bits14
-                                   + ord c2 * bits7
-                                   + ord c1)
+  | c1 :: [] => SML90.ord c1
+  | c1 :: c2 :: [] => SML90.ord c2 * bits7 + SML90.ord c1
+  | c1 :: c2 :: c3 :: [] => SML90.ord c3 * bits14 + SML90.ord c2 * bits7 + SML90.ord c1
+  | c1 :: c2 :: c3 :: c4 :: s => ((SML90.ord c4 * bits21
+                                   + SML90.ord c3 * bits14
+                                   + SML90.ord c2 * bits7
+                                   + SML90.ord c1)
                                   mod bits28)
                                  + (quad s mod bits28)
   end
