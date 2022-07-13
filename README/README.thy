@@ -96,21 +96,29 @@ section \<open>Getting started (for developers)\<close>
 text \<open>
 A first installation step of Isabelle/C without back-ends is:
 
-\<^item> \<^verbatim>\<open>isabelle build -D\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^verbatim>\<open>-D\<close> \<^dir>\<open>C18-FrontEnd\<close>   
-
-DOES NOT WORK CURRENTLY 
+\<^item> \<^verbatim>\<open>isabelle build -D\<close> \<^dir>\<open>C11-FrontEnd\<close>
 
 which should work out of the box.
 \<close>
+
+(* WAS (and does not work any longer: 
+\<^item> \<^verbatim>\<open>isabelle build -D\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^verbatim>\<open>-D\<close> \<^dir>\<open>C18-FrontEnd\<close>   
+
+*)
 
 text \<open>
 Alternatively, the full build of the \<^emph>\<open>developer repository\<close> of Isabelle/C with
 all back-ends enabled is performed with:
 
+\<^item> \<^verbatim>\<open>isabelle build -b -v -d\<close> \<^dir>\<open>.\<close> 
+\<^verbatim>\<open>\<^verbatim>\<open>isabelle build -b -v -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>Isabelle_C Isabelle_C_examples Isabelle_C_document Clean_document Isabelle_C_AutoCorres_document Isabelle_C_Clean_document  Isabelle_C_archive
+Isabelle_C_README\<close>\<close>
+\<close>
+
+(* Was : (DOES NOT WORK ANY LONGER:
 \<^item> \<^verbatim>\<open>isabelle build -b -v -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>Isabelle_C_all Isabelle_C_Advance_examples Clean_document Isabelle_C_AutoCorres_document Isabelle_C_Clean_document Isabelle_C_README Isabelle_C_archive\<close>
 
-DOES NOT WORK CURRENTLY 
-\<close>
+*)
 
 text \<open>
 The following C examples or entry-points of documentation can be executed:
@@ -209,9 +217,9 @@ project used is \<open>e3352826893db4d00fc402fad2a0125307ebe45e\<close>.
 subsection \<open>Isabelle/C/README\<close>
 
 text \<open>
-\<^file>\<open>README.md\<close> is automatically generated from \<^file>\<open>README/README.thy\<close>
+\<^file>\<open>README.md\<close> is automatically generated from \<^file>\<open>README.thy\<close>
 using:
-\<^item> \<^verbatim>\<open>isabelle env\<close> \<^file>\<open>README/README.sh\<close>
+\<^item> \<^verbatim>\<open>isabelle env\<close> \<^file>\<open>README.sh\<close>
 \<close>
 
 text \<open> Note that this shell-script requires the prior installation of

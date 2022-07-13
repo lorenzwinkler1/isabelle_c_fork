@@ -45,8 +45,10 @@ session Isabelle_C_AutoCorres_examples in examples = Isabelle_C_AutoCorres +
   sessions
     "HOL-Computational_Algebra"
   theories
+    ArrayCmp
     BinarySearch
     C0
+    Check_Subsequence
     CList
     FactorialTest
     FibProof
@@ -55,6 +57,7 @@ session Isabelle_C_AutoCorres_examples in examples = Isabelle_C_AutoCorres +
     IsPrime_sqrt_CAS
     IsPrime_sqrt_opt_CCT
     IsPrime_sqrt_opt_TCC
+    IsPrime_sqrt_opt2_TCC
     IsPrime_sqrt_TCC
     ListRev
     Memcpy

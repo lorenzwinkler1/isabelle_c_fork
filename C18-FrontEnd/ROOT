@@ -36,15 +36,15 @@
 
 (* For modularity reasons, and to ease the importation of a specific session by
    semantic back-ends, theory files are (at the time of writing) not regrouped
-   into a unique session. *)
+   into a unique session (clash of name-spaces otherwise. *)
 
-session Isabelle_C_Advance in main = HOL +
+session Isabelle_C_Advanced in main = HOL +
   directories
     "../src"
   theories
     C_Main
 
-session Isabelle_C_Advance_examples in examples = Isabelle_C_Advance + (* a standard test suite *)
+session Isabelle_C_Advance_examples in examples = Isabelle_C_Advanced + (* a standard test suite *)
   theories
     C0
     C1

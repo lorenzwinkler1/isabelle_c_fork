@@ -37,7 +37,7 @@
 chapter \<open>Examples from the F-IDE Paper\<close>
 
 theory C_paper
-  imports "../main/C_Main"
+  imports "Isabelle_C.C_Main"
 begin
 
 text \<open> This theory contains the examples presented in F-IDE 2019 paper~\cite{Tuong-IsabelleC:2019}. \<close>

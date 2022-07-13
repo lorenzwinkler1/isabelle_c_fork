@@ -139,7 +139,7 @@ end;
 section \<open>Syntax Commands for Isabelle/C\<close>
 
 subsection \<open>Outer Classical Commands\<close>
-
+(* @{attribute_def C\<^sub>e\<^sub>n\<^sub>v\<^sub>0} or @{attribute_def C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0} cause LaTeX crashs, therefore: *)
 text \<open>
   \begin{matharray}{rcl}
     @{command_def "C_file"} & : & \<open>local_theory \<rightarrow> local_theory\<close> \\
@@ -153,8 +153,8 @@ text \<open>
     @{attribute_def C_lexer_trace} & : & \<open>attribute\<close> & default \<open>false\<close> \\
     @{attribute_def C_parser_trace} & : & \<open>attribute\<close> & default \<open>false\<close> \\
     @{attribute_def C_ML_verbose} & : & \<open>attribute\<close> & default \<open>true\<close> \\
-    @{attribute_def C_starting_env} & : & \<open>attribute\<close> & default \<open>empty\<close> \\
-    @{attribute_def C_starting_rule} & : & \<open>attribute\<close> & default \<open>translation_unit\<close> \\
+    \<^theory_text>\<open>C\<^sub>e\<^sub>n\<^sub>v\<^sub>0\<close>  & : & \<open>attribute\<close> & default \<open>empty\<close> \\
+    \<^theory_text>\<open>C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0\<close> & : & \<open>attribute\<close> & default \<open>translation_unit\<close> \\
   \end{tabular}
 
   \<^rail>\<open>
@@ -171,8 +171,8 @@ text \<open>
   semantic back-ends to proceed for further subsequent evaluation. Top-level C bindings are stored
   within the (global or local) theory context; the initial environment is set by default to be an
   empty one, or the one returned by a previous \<^theory_text>\<open>C_file\<close> (depending on
-  @{attribute_def C_starting_env}). The entry-point of the grammar taken as initial starting parser
-  is read from @{attribute_def C_starting_rule} (see
+  \<^theory_text>\<open>C\<^sub>e\<^sub>n\<^sub>v\<^sub>0\<close>). The entry-point of the grammar taken as initial starting parser
+  is read from \<^theory_text>\<open>C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0\<close> (see
   \<^url>\<open>https://www.haskell.org/happy/doc/html/sec-directives.html#sec-parser-name\<close>).
   Multiple \<^theory_text>\<open>C_file\<close> commands may be used to build larger C projects if
   they are all written in a single theory file (existing parent theories are ignored, and not
@@ -206,6 +206,7 @@ text \<open>
     \<^item> and any ML antiquotations in \<open>code\<close> are not analyzed by
     \<^theory_text>\<open>generate_file\<close> (in contrast with its default behavior). \<close>
 
+(* @{attribute C\<^sub>e\<^sub>n\<^sub>v\<^sub>0} or @{attribute C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0} cause LaTeX crashs, therefore: *)
 text \<open>
 
   \<^descr> @{attribute C_lexer_trace} indicates whether the list of C
@@ -221,12 +222,12 @@ text \<open>
   \<^theory_text>\<open>ML\<close> commands are acting similarly as
   their default verbose configuration in top-level.
 
-  \<^descr> @{attribute C_starting_env} makes the start of a C
+  \<^descr> \<^theory_text>\<open>C\<^sub>e\<^sub>n\<^sub>v\<^sub>0\<close> makes the start of a C
   command (e.g., \<^theory_text>\<open>C_file\<close>,
   \<^theory_text>\<open>C\<close>) initialized with the environment of
   the previous C command if existing.
 
-  \<^descr> @{attribute C_starting_rule} sets which parsing function will be used to parse the next
+  \<^descr> \<^theory_text>\<open>C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0\<close> sets which parsing function will be used to parse the next
   C commands (e.g., \<^theory_text>\<open>C_file\<close>, \<^theory_text>\<open>C\<close>).
 \<close>
 
@@ -302,7 +303,9 @@ text \<open>
 \<close>
 
 subsection \<open>Inner Directive Commands\<close>
-
+(*<*)
+declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]  \<comment> \<open>the following text-antiquotations C must be in toplevel.\<close>
+(*>*)
 text \<open>
   \<^descr> Among the directives provided as predefined in Isabelle/C, we currently have:
   \<^C>\<open>#define _\<close> and \<^C>\<open>#undef _\<close>. In particular, for the case of

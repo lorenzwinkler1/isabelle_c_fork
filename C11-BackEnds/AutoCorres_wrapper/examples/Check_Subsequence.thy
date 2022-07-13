@@ -59,11 +59,10 @@ int check_subsequence (char a[], char b[]) {
     c = d = 0;
     
     while (a[c] != '\0') {
-       while ((a[c] != b[d]) && b[d] != '\0') {
-         d++;
-       };
-       if (b[d] == '\0')
-          break;
+       while ((a[c] != b[d]) && b[d] != '\0') {
+          d++;
+       };
+       if (b[d] == '\0')  break;
        d++;
        c++;
      };
