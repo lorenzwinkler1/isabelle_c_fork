@@ -44,11 +44,12 @@
  * @TAG(NICTA_BSD)
  *)
 
-chapter \<open>Example: An even more optimized Sqrt Prime Sample Proof\<close>
+chapter \<open>Example: An even more optimized 0(sqrt(n)) Prime-Number Checking Algorithm and its Verification\<close>
 
 text\<open>This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
 the theory development of the background theory as well as the program annotations completely 
-\<^emph>\<open>separate\<close> from the C source. \<close>
+\<^emph>\<open>separate\<close> from the C source. The example is chosen to demonstrate the impact of low-level
+optimisations on verification.\<close>
 
 theory IsPrime_sqrt_opt2_TCC
 imports
@@ -515,7 +516,7 @@ the fastest in the average and in the considered interval up to  \<^term>\<open>
 And compared to an efficient general implementation in another platform such as OCaml I would
 bet my hat that the above code wins again. 
 
-\<^bold>M\<^bold>o\<^bold>r\<^bold>a\<^bold>l\<^bold>e: The pudding comes with the verification: while the program is optimized  to the 
+\<^bold>\<open>Morale\<close> The pudding comes with the verification: while the program is optimized  to the 
 input interval and the concrete implementation platform, the verification complexity increases
 substantially for justifying the gains in efficiency !
 
