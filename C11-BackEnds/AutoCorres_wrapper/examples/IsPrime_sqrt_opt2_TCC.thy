@@ -2,6 +2,7 @@
  * Isabelle/C/AutoCorres
  *
  * Copyright (c) 2018-2022 Université Paris-Saclay, Univ. Paris-Sud, France
+ *
  * Author: Burkhart Wolff
  *
  * All rights reserved.
@@ -47,9 +48,8 @@
 chapter \<open>Example: An even more optimized 0(sqrt(n)) Prime-Number Checking Algorithm and its Verification\<close>
 
 text\<open>This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
-the theory development of the background theory as well as the program annotations completely 
-\<^emph>\<open>separate\<close> from the C source. The example is chosen to demonstrate the impact of low-level
-optimisations on verification.\<close>
+the theory development of the background theory completely \<^emph>\<open>separate\<close> from the C source. 
+The example is chosen to demonstrate the impact of low-level optimisations on verification.\<close>
 
 theory IsPrime_sqrt_opt2_TCC
 imports
@@ -518,7 +518,9 @@ bet my hat that the above code wins again.
 
 \<^bold>\<open>Morale\<close> The pudding comes with the verification: while the program is optimized  to the 
 input interval and the concrete implementation platform, the verification complexity increases
-substantially for justifying the gains in efficiency !
+substantially for justifying the gains in efficiency ! As a consequence, there is a market
+in highly-optimized, strongly taylored programs tweaked for a particular platform, in particular
+if the latter has only limited resources.
 
 \<close>
 
