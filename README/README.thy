@@ -49,7 +49,7 @@ Isabelle AFP, or represent AFP submissions.
 \<^item> \<^dir>\<open>C11-BackEnds\<close>
   \<^item> \<^dir>\<open>C11-BackEnds/Clean\<close>: (AFP) Clean Library
   \<^item> \<^dir>\<open>C11-BackEnds/Clean_wrapper\<close>: adapter to \<^dir>\<open>C11-FrontEnd\<close>
-  \<^item> \<^dir>\<open>C11-BackEnds/AutoCorres\<close>: slightly modified version of AutoCorres library
+  \<^item> \<^dir>\<open>C11-BackEnds/AutoCorres\<close>: slightly modified version of AutoCorres library.   
   \<^item> \<^dir>\<open>C11-BackEnds/AutoCorres_wrapper\<close>: adapter to \<^dir>\<open>C11-FrontEnd\<close>
 \<^item> \<^dir>\<open>Citadelle\<close>: model-based framework generating the grammars and the AST of \<^dir>\<open>C11-FrontEnd\<close>
 \<close>
@@ -74,7 +74,7 @@ section \<open>Getting started (quickstart for users)\<close>
 text \<open>
 In the sequel, with \<^verbatim>\<open>isabelle\<close> we refer to your local Isabelle2021-1
 installation, and assume your current working directory is at the root of \<^verbatim>\<open>Isabelle_C\<close>
-(i.e. the directory that contains this \<^file>\<open>README.md\<close> file).
+(i.e. the directory that contains this \<^file>\<open>./README.md\<close> file).
 
 It is recommended to set
   \<^verbatim>\<open>export L4V_ARCH=ARM\<close>
@@ -82,13 +82,12 @@ before most configurations of  \<^verbatim>\<open>Isabelle_C\<close>; this featu
 configurations can be made effective permanently by appropriate \<^verbatim>\<open>$ISABELLE_HOME_USER/etc/settings\<close>.
 
 
-
-\<^item> Building Isabelle_C : 
-  \<^verbatim>\<open>isabelle build -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-b Isabelle_C\<close>
-\<^item> Building Isabelle_C_AutoCorres : 
-  \<^verbatim>\<open>isabelle build -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-b Isabelle_C_AutoCorres\<close>
-\<^item> Running an example: 
-  \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C_AutoCorres\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_linear_CCT.thy\<close>
+   \<^item> Building Isabelle_C : 
+     \<^verbatim>\<open>isabelle build -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-b Isabelle_C\<close>
+   \<^item> Building Isabelle_C_AutoCorres : 
+     \<^verbatim>\<open>isabelle build -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-b Isabelle_C_AutoCorres\<close>
+   \<^item> Running an example: 
+     \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C_AutoCorres\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_linear_CCT.thy\<close>
 \<close>
 
 section \<open>Getting started (for developers)\<close>
@@ -101,7 +100,7 @@ A first installation step of Isabelle/C without back-ends is:
 which should work out of the box.
 \<close>
 
-(* WAS (and does not work any longer: 
+(* WAS (and does not work any longer: )
 \<^item> \<^verbatim>\<open>isabelle build -D\<close> \<^dir>\<open>C11-FrontEnd\<close> \<^verbatim>\<open>-D\<close> \<^dir>\<open>C18-FrontEnd\<close>   
 
 *)
@@ -115,7 +114,7 @@ all back-ends enabled is performed with:
 Isabelle_C_README\<close>\<close>
 \<close>
 
-(* Was : (DOES NOT WORK ANY LONGER:
+(* Was : (DOES NOT WORK ANY LONGER: )
 \<^item> \<^verbatim>\<open>isabelle build -b -v -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>Isabelle_C_all Isabelle_C_Advance_examples Clean_document Isabelle_C_AutoCorres_document Isabelle_C_Clean_document Isabelle_C_README Isabelle_C_archive\<close>
 
 *)
@@ -123,14 +122,14 @@ Isabelle_C_README\<close>\<close>
 text \<open>
 The following C examples or entry-points of documentation can be executed:
 
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C0.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C3.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C4.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C_paper.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C18-FrontEnd/examples/C0.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/appendices/C_Appendices.thy\<close>
+   \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C0.thy\<close>
+   \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C1.thy\<close>
+   \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C2.thy\<close>
+   \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C3.thy\<close>
+   \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C4.thy\<close>
+   \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/examples/C_paper.thy\<close>
+   \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C11-FrontEnd/appendices/C_Appendices.thy\<close>
+   \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l Isabelle_C\<close> \<^file>\<open>C18-FrontEnd/examples/C0.thy\<close>
 
 The option \<^verbatim>\<open>-l Isabelle_C\<close> can be omitted; it instructs Isabelle to use a
 binary-built version of the \<^verbatim>\<open>Isabelle_C\<close> session. In case of omission,
@@ -151,10 +150,10 @@ generation and and navigation in the C11 AST's via C-Antiquotations as well as
 serialization examples for C-Antiquotation execution.
 \<^item> The example \<^file>\<open>C11-FrontEnd/examples/C4.thy\<close> is a show-case for a simplistic 
 parse-and-store amd a CAS-oriented setup for C-Antiquotations.
-\<^item> The example \<^file>\<open>C18-FrontEnd/examples/C0.thy\<close> is basically used to
-demonstrate the faithfulness of the C18 parser implementation.
 \<^item> The example \<^file>\<open>C11-FrontEnd/appendices/C_Appendices.thy\<close> shows the use of
 Isabelle/C documentation facilities.
+\<^item> The example \<^file>\<open>C18-FrontEnd/examples/C0.thy\<close> is basically used to
+demonstrate the faithfulness of the C18 parser implementation.
 \<close>
 
 text \<open>
@@ -167,9 +166,10 @@ installed. The structure of \<^dir>\<open>.\<close> is actually similar as
 back-ends can be copied and tried.
 \<close>
 
+
 subsection \<open>Isabelle/C/Clean\<close>
 
-text \<open>
+text \<open> Isabelle/C/Clean is under development and the release has the status: experimental.
 A first installation step of Isabelle/C/Clean is:
 
 \<^item> \<^verbatim>\<open>isabelle build -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-D\<close> \<^dir>\<open>C11-BackEnds/Clean_wrapper\<close>
@@ -182,17 +182,20 @@ text \<open>
 \<close>
 
 subsection \<open>Isabelle/C/AutoCorres\<close>
+text\<open>
+The integration Isabelle/C/AutoCorres of l4v into Isabelle/C is based on 
+revision \<^verbatim>\<open>e3352826893db4d00fc402fad2a0125307ebe45e\<close> in the 
+seL4-project (cf.: \<^url>\<open>https://zenodo.org/record/1168016#.YtEm7OxByjg\<close>).
+Note that the AutoCorres component is currently restricted to Linux-  and MacOS
+platforms.
 
-text \<open>
 Before using the \<^dir>\<open>C11-BackEnds/AutoCorres_wrapper\<close> back-end, the shell variable
 \<open>L4V_ARCH\<close> must be additionally set to \<open>ARM\<close>.
 
-\<^item> \<^verbatim>\<open>export L4V_ARCH=ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be permanently made in \<^verbatim>\<open>$ISABELLE_HOME_USER/etc/settings\<close>\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l CParser\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/TestSEL4.thy\<close>
-\<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l AutoCorres\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_linear_CCT.thy\<close>
-\<close>
+   \<^item> \<^verbatim>\<open>export L4V_ARCH=ARM\<close> \<^emph>\<open>\<open>#\<close> the same effect can be permanently made in \<^verbatim>\<open>$ISABELLE_HOME_USER/etc/settings\<close>\<close>
+   \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l CParser\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/TestSEL4.thy\<close>
+   \<^item> \<^verbatim>\<open>isabelle jedit -d\<close> \<^dir>\<open>.\<close> \<^verbatim>\<open>-l AutoCorres\<close> \<^file>\<open>C11-BackEnds/AutoCorres_wrapper/examples/IsPrime_linear_CCT.thy\<close>
 
-text \<open>
 For the case of \<^dir>\<open>C11-BackEnds/AutoCorres_wrapper\<close>, we were used to see a
 sub-window \<open>Bad session structure\<close> appearing just after starting Isabelle. This is
 because the back-end normally requires to execute some initialization script (for example using
