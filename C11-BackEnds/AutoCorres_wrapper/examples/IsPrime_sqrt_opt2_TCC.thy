@@ -1,7 +1,8 @@
 (******************************************************************************
  * Isabelle/C/AutoCorres
  *
- * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Copyright (c) 2018-2022 Université Paris-Saclay, Univ. Paris-Sud, France
+ * Author: Burkhart Wolff
  *
  * All rights reserved.
  *
@@ -43,56 +44,65 @@
  * @TAG(NICTA_BSD)
  *)
 
-chapter \<open>Example: A slightly optimized Sqrt Prime Sample Proof\<close>
+chapter \<open>Example: An even more optimized Sqrt Prime Sample Proof\<close>
 
 text\<open>This example is used to demonstrate Isabelle/C/AutoCorres in a version that keeps
 the theory development of the background theory as well as the program annotations completely 
-\<^emph>\<open>outside\<close> the C source. This particular development style that keeps the program
-separate from its theory we call TCC (\<^emph>\<open>Theories Carrying Code\<close>). It has the 
-advantage that developers of development and verification teams can be separated,
-as is required by many certification standards.
-Note that the opposite style that we call CCT (\<^emph>\<open>Code-carrying Theories\<close>) is also 
-supported by Isabelle/C. In CCT style, Programs become a kind of ``proof-carrying (high-level) code''.
-Exports of the C-sources will contain their theory (not only their annotations) as comments
-\<^emph>\<open>inside\<close> which might be also useful in certification as well as advanced  
-``proof-carrying code'' securization schemes of server platforms. 
-
-Of course, since developments can mix C code and HOL developments in an arbitrary manner,
-these two style have to be thought of as extremes in a continuum. \<close>
+\<^emph>\<open>separate\<close> from the C source. \<close>
 
 theory IsPrime_sqrt_opt2_TCC
 imports
   Isabelle_C_AutoCorres.AutoCorres_Wrapper
   "HOL-Computational_Algebra.Primes"
 begin
-\<comment> \<open>Derived from: \<^file>\<open>../../../src_ext/l4v/src/tools/autocorres/tests/examples/IsPrime.thy\<close>\<close>
 
-section\<open>The Theory of the \<open>O(sqrt(n))\<close> Primality Test Algorithm\<close>
+section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm based on a 6-Sieve\<close>
 
-text\<open>This section develops basic concepts of the invariant. This bit is presented here \<^emph>\<open>before\<close>
-the actual code, but could also be after or even inside the \<^theory_text>\<open>C\<close> command as comment-annotation of 
-the source.\<close>
+text \<open>The invocation of AutoCorres and the Setup of AutoCorres 
+      for representing the following C text-element semantically:\<close> 
+declare [[AutoCorres]]
+declare_autocorres is_prime [ts_rules = nondet,unsigned_word_abs = is_prime]
+
+text\<open> 
+  This C code contains a function that determines if the given number @{term n} is prime.
+  It returns 0 if @{term n}  is composite, or non-zero if @{term n}  is prime.
+  This is a faster version than a linear primality test; runs in O(sqrt(n)). 
+  The algorithm avoids divisability tests for 2 and 3 (thus implicitely applying a 
+  Erasthostenes sieve of size 6.
+
+  Hypothesis: This algorithm, if applied in its domain till \<open>UINT_MAX\<close> and compiled 
+  efficiently in C, runs faster than OCaml implementations using a full sieve. \<close>
 
 
-text\<open>The example is non-trivial both from the C semantics side as well as from its 
-algorithmic side. 
-\<^enum> From the C side: it is far from trivial to see that the precondition
-  @{term "\<lambda>\<sigma>. n \<le> UINT_MAX"} suffices to make sure that no arithmetic
-  overflow occurs.
-\<^enum> From the algorithmic side: the (small) amount of number theory required by
-  this exercise makes it impossible for automated provers to establish the result
-  without additional nonlinear axioms, i.e. the background theory is non-trivial.
-  In our example, everything is proven, the trust of this verification only relies
-  on:
-  \<^item> The logical consistency of HOL and its correct implementation in Isabelle/HOL, and
-  \<^item> that the assumptions of AutoCorres wrt. to the underlying C-semantics
-    are valid, in an ARM processor model. 
 
-The main optimisation compared to the theory \<^verbatim>\<open>IsPrime_sqrt\<close> is that in a reasonably
-large interval, it suffices to check only for odd divisors smaller the integer
-squareroot of \<open>n\<close>.\<close>
 
-section\<open>Background\<close>
+C \<open>
+#define SQRT_UINT_MAX 65536
+#define TRUE  1
+#define FALSE 0
+
+unsigned int is_prime(unsigned int n)
+   {
+       if (n < 2) return FALSE;
+       if (n < 4) return TRUE;
+       if (n % 2 == 0 || n % 3 == 0) return FALSE;
+   
+       for (unsigned i = 5; i < SQRT_UINT_MAX - 5 && i * i <= n; i+=6) {
+           if (n % i == 0 || n % (i+2) == 0)
+               return FALSE; 
+       }
+   
+       return TRUE;
+   }\<close>
+
+C_export_file  (* This exports the C code into a C file ready to be compiled by gcc. *)
+
+
+
+
+section\<open>The Verification\<close>
+
+subsection\<open>Background\<close>
 
 definition
   "partial_prime p (n :: nat) \<equiv>  (1 < p \<and> (\<forall>i \<in> {2 ..< min p n}. \<not> i dvd p))"
@@ -197,50 +207,7 @@ lemma five_and_divides : "prime (p::nat) \<Longrightarrow> 5 < p \<Longrightarro
   by (simp add: prime_nat_not_dvd)
 
 
-
-
-
-section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm based on a 6-sieve\<close>
-
-text \<open>The invocation of AutoCorres:\<close>
-
-declare [[AutoCorres]]
-
-text \<open>Setup of AutoCorres for semantically representing this C element:\<close>
-declare_autocorres is_prime [ ts_rules = nondet, unsigned_word_abs = is_prime ]
-
-text\<open> This C code contains a function that determines if the given number
-      @{term n} is prime.
-
-      It returns 0 if @{term n}  is composite, or non-zero if @{term n}  is prime.
- 
-      This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
-
-
-C \<open>
-#define SQRT_UINT_MAX 65536
-#define TRUE  1
-#define FALSE 0
-
-unsigned int is_prime(unsigned int n)
-   {
-       if (n < 2) return FALSE;
-       if (n < 4) return TRUE;
-       if (n % 2 == 0 || n % 3 == 0) return FALSE;
-   
-       for (unsigned i = 5; i < SQRT_UINT_MAX - 5 && i * i <= n; i+=6) {
-           if (n % i == 0 || n % (i+2) == 0)
-               return FALSE; 
-       }
-   
-       return TRUE;
-   }\<close>
-
-C_export_file  (* This exports the C code into a C file ready to be compiled by gcc. *)
-
-
-
-section\<open>The Results of the AutoCorres Evaluation\<close>
+subsection\<open>The Results of the AutoCorres Evaluation\<close>
 
 text\<open>AutoCorres produced internally the following definitions of this input:\<close>
 find_theorems name:is_prime
@@ -269,7 +236,7 @@ lemma uint_max_factor_min1_dvd4 [simp]: "(4::nat) dvd (SQRT_UINT_MAX) "
 
 
 
-section\<open>The Specification, the Invariant and Some Corrollaries\<close>
+subsection\<open>The Specification, the Invariant and Some Corrollaries\<close>
 
 text\<open>This section contains the auxilliary definitions and lemmas for the
      final correctness proof; in particular, the loop invariant is stated here.\<close>
@@ -370,11 +337,9 @@ lemma sqr_le_sqr_minus_1 [simp]:
   by (metis gr0I sqr_less_mono nat_0_less_mult_iff nat_le_Suc_less)
 
 
-section\<open>The Correctness Proof \<close>
+subsection\<open>The Correctness Proof \<close>
 
-text\<open>Note that the proof \<^emph>\<open>injects\<close> the loop invariant at the point where the proof
-     treats the loop.\<close>
-
+text\<open>Note that the proof \<^emph>\<open>injects\<close> the loop invariant at the point where the proof treats the loop.\<close>
 
 theorem (in is_prime) is_prime_correct':
     "\<lbrace> \<lambda>\<sigma>. n \<le> UINT_MAX \<rbrace> is_prime' n \<lbrace> \<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"
