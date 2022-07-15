@@ -52,6 +52,12 @@ Isabelle AFP, or represent AFP submissions.
   \<^item> \<^dir>\<open>C11-BackEnds/AutoCorres\<close>: slightly modified version of AutoCorres library.   
   \<^item> \<^dir>\<open>C11-BackEnds/AutoCorres_wrapper\<close>: adapter to \<^dir>\<open>C11-FrontEnd\<close>
 \<^item> \<^dir>\<open>Citadelle\<close>: model-based framework generating the grammars and the AST of \<^dir>\<open>C11-FrontEnd\<close>
+
+Public releases of this bundle of Isabelle/C, Isabelle/C/Clean and 
+Isabelle/C/AutoCorres were distributed via the ZENODO website 
+\<^url>\<open>https://zenodo.org/record/6827097#.YtEzROxBxUM\<close>, the read access to our development 
+repository is public as well \<^url>\<open>https://gitlab.lisn.upsaclay.fr/burkhart.wolff/Isabelle_C\<close>.
+
 \<close>
 
 section \<open>Isabelle/C\<close>
