@@ -519,8 +519,8 @@ bet my hat that the above code wins again.
 \<^bold>\<open>Morale\<close> The pudding comes with the verification: while the program is optimized  to the 
 input interval and the concrete implementation platform, the verification complexity increases
 substantially for justifying the gains in efficiency ! As a consequence, there is a market
-in highly-optimized, strongly taylored programs tweaked for a particular platform, in particular
-if the latter has only limited resources.
+for highly-optimized, strongly taylored verified  (!) C-programs tweaked for a particular 
+platform, in particular if the latter has only limited resources.
 
 \<close>
 
