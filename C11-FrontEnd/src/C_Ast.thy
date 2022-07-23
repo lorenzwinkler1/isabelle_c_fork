@@ -623,7 +623,7 @@ fun fold_cChar   g'  (CChar0(c : char, b:bool)) st          =
                                       |> String.concat 
                      in  st |> g' (TT"CChars0" #>> [data_string cs',data_bool b]) end
 fun fold_cFloat  g'  (CFloat0 (bstr: abr_string)) st          = 
-                     st |> g' (TT"CChars0"#>> [data_string (@{make_string} bstr)])
+                     st |> g' (TT"CFloat0"#>> [data_string (@{make_string} bstr)])
 fun fold_cString g' (CString0 (bstr: abr_string, b: bool)) st = 
                      st |> g' (TT"CString0"#>> [data_string (@{make_string} bstr), data_bool b])
 
