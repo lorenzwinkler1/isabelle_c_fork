@@ -15,8 +15,8 @@ fun is_global_Cid Cenv Cid   = map_option (fn (_,_,X) => #global X) (lookup_Cid_
 fun is_fun_Cid Cenv Cid      = map_option (fn (_,_,X) => [] <> #params X) (lookup_Cid_info Cenv Cid);
 fun get_CDeclSpecS_Cid Cenv id= map_option (fn (_,_,X) => #ret X) (lookup_Cid_info Cenv id);
 
-fun conv_CType_CDeclSpecS (SOME(C_Env.Parsed S)) = SOME S
-   |conv_CType_CDeclSpecS _ = NONE
+fun conv_ParseStatus_CDeclSpecS (SOME(C_Env.Parsed S)) = SOME S
+   |conv_ParseStatus_CDeclSpecS _ = NONE
 
 \<close>
 section \<open>expressions\<close>
@@ -36,48 +36,109 @@ ML\<open>val Const(longid_a,Type("fun",[sigma_i, _])) = @{term "a"} \<close>
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 
-C\<open> int a[10][Ø] = 1;
-   int f(int x [], double y);
+C\<open> int a[10+12][34][] = 1;
+   int f(short int x [], long double y);
 \<close>
 
-ML\<open>val env_expr : C_Module.Data_In_Env.T =  @{C\<^sub>e\<^sub>n\<^sub>v};
-   val SOME(pos_list,ser,S) = lookup_Cid_info env_expr "a";
+ML\<open>val env_expr : C_Module.Data_In_Env.T =  @{C\<^sub>e\<^sub>n\<^sub>v};\<close>
+
+ML\<open>
+   val SOME(pos_list,ser,S)    = lookup_Cid_info env_expr "a";
    val SOME(pos_list',ser',S') = lookup_Cid_info env_expr "f";
-HOLogic.listT
 \<close>
 
 ML\<open>
-val mm = #params S';
+local open C_Ast C_Env in
+
 (*
 fold (fn C_Ast.CArrDeclr0 _ => (fn tyf => HOLogic.listT o tyf)
         |C_Ast.CFunDeclr0 _ => (fn tyf => curry (op -->) tyf)
         | _ => error "non-convertible C-type")
 *)
+val _ = C_Ast.CTypeSpec0 : 'a C_Ast.cTypeSpecifier ->  'a C_Ast.cDeclarationSpecifier;
+val _ = C_Ast.CFunDeclr0;
+val _ = C_Ast.Right
+val [CArrDeclr0 (HH,CArrSize0 (_,CBinary0 X),_),
+     CArrDeclr0 (_,CArrSize0  (_,CConst0 Y), _), 
+     CArrDeclr0 (_,CNoArrSize0 Z,_)] = #params S
+val [CFunDeclr0 (Right([CDecl0 (A, A',_),CDecl0 (B,B',_)],s), _, _)] = #params S'
+
+end
 \<close>
 
 ML\<open>
+fold_rev (fn C_Ast.CDecl0 (A, _ ,_) => fn S => (SOME A) :: S) ;
+A;
+B;
+\<close>
+ML\<open>
+local open C_Ast C_Env in
+
+(* mk_CFunDeclr0; *)
 (*val CSpec = (get_CDeclSpecS_Cid env_expr "a"); *)
-val CTypeSpec = conv_CType_CDeclSpecS (get_CDeclSpecS_Cid env_expr "a");
+val CTypeSpec = conv_ParseStatus_CDeclSpecS (get_CDeclSpecS_Cid env_expr "a");
+val CTypeSpec' = conv_ParseStatus_CDeclSpecS (get_CDeclSpecS_Cid env_expr "f");
 (*
   and 'a cTypeSpecifier = CVoidType0 of 'a | CCharType0 of 'a | CShortType0 of 'a 
                        | CIntType0 of 'a | CLongType0 of 'a | CFloatType0 of 'a 
                        | CDoubleType0 of 'a | CSignedType0 of 'a | CUnsigType0 of 'a | CBoolType0 of 'a |
 *)
-local open C_Ast in
-fun conv_CType_CDeclSpecS (SOME([CTypeSpec0 (CUnsigType0 _)])) = SOME(HOLogic.intT)
-   |conv_CType_CDeclSpecS (SOME([CTypeSpec0 (CIntType0 _)]))   = SOME(HOLogic.intT)
-   |conv_CType_CDeclSpecS (SOME([CTypeSpec0 (CUnsigType0 _), 
-                                 CTypeSpec0 (CIntType0 _)]))   = SOME(HOLogic.natT)   
-   |conv_CType_CDeclSpecS (SOME([CTypeSpec0 (CShortType0 _)])) = SOME(HOLogic.intT)
-   |conv_CType_CDeclSpecS (SOME([CTypeSpec0 (CLongType0 _)]))  = SOME(HOLogic.intT)
-   |conv_CType_CDeclSpecS (SOME([CTypeSpec0 (CFloatType0 _)])) = SOME(HOLogic.realT)
-   |conv_CType_CDeclSpecS (SOME([CTypeSpec0 (CDoubleType0 _)]))= SOME(HOLogic.realT)
-   |conv_CType_CDeclSpecS (SOME([CTypeSpec0 (CVoidType0 _)]))  = SOME(HOLogic.unitT)
-   |conv_CType_CDeclSpecS (SOME([CTypeSpec0 (CCharType0 _)]))  = SOME(HOLogic.charT)
+fun conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _)])) = SOME(HOLogic.intT)
+   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CIntType0 _)]))   = SOME(HOLogic.intT)
+   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CLongType0 _),
+                                          CTypeSpec0 (CIntType0 _)]))   = SOME(HOLogic.intT)
+   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CShortType0 _),
+                                          CTypeSpec0 (CIntType0 _)]))   = SOME(HOLogic.intT)
+   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _), 
+                                          CTypeSpec0 (CIntType0 _)]))   = SOME(HOLogic.natT)   
+   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _),
+                                          CTypeSpec0 (CLongType0 _), 
+                                          CTypeSpec0 (CIntType0 _)]))   = SOME(HOLogic.natT)   
+   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CShortType0 _)])) = SOME(HOLogic.intT)
+   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CLongType0 _)]))  = SOME(HOLogic.intT)
+   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CFloatType0 _)])) = SOME(HOLogic.realT)
+   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CDoubleType0 _)]))= SOME(HOLogic.realT)
+   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CLongType0 _),
+                                          CTypeSpec0 (CDoubleType0 _)]))= SOME(HOLogic.realT)
+   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CVoidType0 _)]))  = SOME(HOLogic.unitT)
+   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CCharType0 _)]))  = SOME(HOLogic.charT)
+   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _),
+                                          CTypeSpec0 (CCharType0 _)]))  = SOME(HOLogic.charT)
+   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CSignedType0 _),
+                                          CTypeSpec0 (CCharType0 _)]))  = SOME(HOLogic.charT)
+   |conv_cDeclarationSpecifier_typ _ = error("Type format not defined. [Clean restriction]")
+
+fun conv_cDerivedDeclarator_cArraySize_term (CArrDeclr0 (_,CArrSize0 (_,C_expr),_)) C_env thy = 
+            SOME(hd((C11_Ast_Lib.fold_cExpression 
+                               (convertExpr_raw false sigma_i C_env thy) C_expr [])))
+   |conv_cDerivedDeclarator_cArraySize_term (CArrDeclr0 (_,CNoArrSize0 Z,_)) _ _ =NONE
+   |conv_cDerivedDeclarator_cArraySize_term (_)  _ _ = 
+            error("Derived declarator format not defined. [Clean restriction]")
+
+fun conv_cDerivedDeclarator_cSizeExpr_term (CArrDeclr0 (_,CArrSize0 (_,C_expr),_)) C_env thy = 
+            SOME(hd((C11_Ast_Lib.fold_cExpression 
+                                 (convertExpr_raw false sigma_i C_env thy) C_expr [])))
+   |conv_cDerivedDeclarator_cSizeExpr_term (CArrDeclr0 (_,CNoArrSize0 Z,_)) _ _ = NONE
+   |conv_cDerivedDeclarator_cSizeExpr_term (_)  _ _ =  
+            error("DeclarationSpec format not defined. [Clean restriction]")
+
+
+fun conv_cDerivedDeclarator_typS (CArrDeclr0 (_,CArrSize0 _ ,_)) C_env thy = HOLogic.listT 
+                    (*no enumerations ? nat ? *)
+   |conv_cDerivedDeclarator_typS (CFunDeclr0 (Right(S,_), _, _)) C_env thy = I
+
 end;
-conv_CType_CDeclSpecS CTypeSpec
+conv_cDeclarationSpecifier_typ CTypeSpec;
+conv_cDeclarationSpecifier_typ CTypeSpec';
+C_Ast.CFunSpec0;
+fun conv_CDecls_typS X = fold_rev (fn C_Ast.CDecl0 (A, _ ,_) => fn S => the (conv_cDeclarationSpecifier_typ (SOME A)) --> S) X ;
+val [C_Ast.CFunDeclr0 (C_Ast.Right(SS,_), _, _)] = #params S';
+conv_CDecls_typS SS HOLogic.boolT; 
 \<close>
-            
+
+ML\<open>
+A'
+\<close>
 
 (*1*****************************************************************************************************)
 

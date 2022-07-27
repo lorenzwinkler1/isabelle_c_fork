@@ -288,7 +288,7 @@ translate integers in booleans. That's what term_to_bool t do.
                                    $ mk_number realT ((String.size s'') - 1)))) 
                          ::c
                    end
-     |"CFloatConst0"=> (writeln "XXX"; c) (* skip this wrapper *)
+     |"CFloatConst0"=> (c) (* skip this wrapper *)
      |"CChars0" => (warning "bizarre rule in context float: CChars0"; c)
      |"CExpr0"  => c (* skip this wrapper *)
 
