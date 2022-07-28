@@ -2,7 +2,7 @@ theory "Coder_Example_1"
   imports "../src/CleanCoder"
 begin
 
-section \<open>Library and C-Env Stuff\<close>
+section \<open>Accessors to C-Env\<close>
 
 ML\<open>
 fun map_option f (SOME X) = SOME(f X)
@@ -10,16 +10,16 @@ fun map_option f (SOME X) = SOME(f X)
 
 fun lookup_Cid_info (C_env:C_Module.Data_In_Env.T) id = Symtab.lookup(#idents(#var_table C_env)) id
 
-
-fun is_global_Cid Cenv Cid   = map_option (fn (_,_,X) => #global X) (lookup_Cid_info Cenv Cid);
-fun is_fun_Cid Cenv Cid      = map_option (fn (_,_,X) => [] <> #params X) (lookup_Cid_info Cenv Cid);
-    (* this is wrong in general !!! [CFunDeclr0 *)
-fun get_CDeclSpecS_Cid Cenv id= map_option (fn (_,_,X) => #ret X) (lookup_Cid_info Cenv id);
+fun is_global_Cid Cenv Cid     = map_option (#global o #3) (lookup_Cid_info Cenv Cid);
+fun is_fun_Cid Cenv Cid        = map_option ((fn [C_Ast.CFunDeclr0 _] => true | _ => false) 
+                                               o (#params o #3)) 
+                                            (lookup_Cid_info Cenv Cid);
+fun get_CDeclSpecS_Cid Cenv id = map_option (#ret o #3) (lookup_Cid_info Cenv id);
 
 
 \<close>
 
-section \<open>converters for C-types\<close>
+section \<open>Converters for C-types\<close>
 
 ML\<open>
 local open C_Ast C_Env in
@@ -31,6 +31,7 @@ local open C_Ast C_Env in
 *)
 fun conv_ParseStatus_CDeclSpecS (SOME(C_Env.Parsed S)) = SOME S
    |conv_ParseStatus_CDeclSpecS _ = NONE
+
 
 fun conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _)])) = SOME(HOLogic.intT)
    |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CIntType0 _)]))   = SOME(HOLogic.intT)
@@ -57,12 +58,6 @@ fun conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _)])) = SOME(H
                                           CTypeSpec0 (CCharType0 _)]))  = SOME(HOLogic.charT)
    |conv_cDeclarationSpecifier_typ _ = error("Type format not defined. [Clean restriction]")
 
-fun conv_cDerivedDeclarator_cArraySize_term (CArrDeclr0 (_,CArrSize0 (_,C_expr),_)) C_env thy = 
-            SOME(hd((C11_Ast_Lib.fold_cExpression 
-                               (convertExpr_raw false dummyT C_env thy) C_expr [])))
-   |conv_cDerivedDeclarator_cArraySize_term (CArrDeclr0 (_,CNoArrSize0 Z,_)) _ _ =NONE
-   |conv_cDerivedDeclarator_cArraySize_term (_)  _ _ = 
-            error("Derived declarator format not defined. [Clean restriction]")
 
 fun conv_cDerivedDeclarator_cSizeExpr_term (CArrDeclr0 (_,CArrSize0 (_,C_expr),_)) C_env thy = 
             SOME(hd((C11_Ast_Lib.fold_cExpression 
@@ -76,6 +71,7 @@ fun conv_cDerivedDeclarator_typS (CArrDeclr0 (_,CArrSize0 _ ,_)) C_env thy = HOL
                     (*no enumerations ? nat ? *)
    |conv_cDerivedDeclarator_typS (CFunDeclr0 (Right(S,_), _, _)) C_env thy = I
 
+
 fun conv_CDerivedDecl_typ [CFunDeclr0 (Right(SS,_), _, _)] = 
         fold_rev (fn CDecl0 (A, _ ,_) => (fn S => the (conv_cDeclarationSpecifier_typ(SOME A)) --> S)
                      | _ => error "CDerivedDecl (0) format not defined. [Clean restriction]") SS 
@@ -84,9 +80,18 @@ fun conv_CDerivedDecl_typ [CFunDeclr0 (Right(SS,_), _, _)] =
                      | _ => error "CDerivedDecl (1) format not defined. [Clean restriction]") S I 
    |conv_CDerivedDecl_typ _ = error "CDerivedDecl (2) format not defined. [Clean restriction]"
 
+
 fun conv_GlobalIdDescr_typ (S:C_Env.markup_ident) = 
-    conv_CDerivedDecl_typ (#params S) 
-    ((the o conv_cDeclarationSpecifier_typ o conv_ParseStatus_CDeclSpecS o SOME) (#ret S));
+    conv_CDerivedDecl_typ 
+        (#params S) 
+        ((the o conv_cDeclarationSpecifier_typ o conv_ParseStatus_CDeclSpecS o SOME) (#ret S));
+
+fun conv_GlobalIdDescr_typ (S:C_Env.markup_ident) = 
+    conv_CDerivedDecl_typ 
+        (#params S) 
+        (SOME(#ret S)  |> conv_ParseStatus_CDeclSpecS 
+                       |> conv_cDeclarationSpecifier_typ
+                       |> the) ;
 
 end;
 \<close>
