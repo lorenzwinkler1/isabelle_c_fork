@@ -71,20 +71,24 @@ fun conv_cDerivedDeclarator_typS (CArrDeclr0 (_,CArrSize0 _ ,_)) C_env thy = HOL
                     (*no enumerations ? nat ? *)
    |conv_cDerivedDeclarator_typS (CFunDeclr0 (Right(S,_), _, _)) C_env thy = I
 
+(*
+val [((Some (CDeclr0 (_,s,_,_,_)),_),_)] = A'
+val [((Some (CDeclr0 (_,t,_,_,_)),_),_)] = B'
+*)
 
 fun conv_CDerivedDecl_typ [CFunDeclr0 (Right(SS,_), _, _)] = 
-        fold_rev (fn CDecl0 (A, _ ,_) => (fn S => the (conv_cDeclarationSpecifier_typ(SOME A)) --> S)
-                     | _ => error "CDerivedDecl (0) format not defined. [Clean restriction]") SS 
-   |conv_CDerivedDecl_typ (S as CArrDeclr0 _ :: _) = 
+        fold_rev (fn CDecl0 (A, [((Some (CDeclr0 (_,TT,_,_,_)),_),_)], _) => 
+                        (fn S => let val A_ty = the(conv_cDeclarationSpecifier_typ(SOME A))
+                                     val TT_ty= case TT of 
+                                                   [] => I
+                                                  | _ => conv_CDerivedDecl_typ TT
+                                 in  (TT_ty A_ty) --> S end)
+                    | _ => error "CDerivedDecl (0) format not defined. [Clean restriction]") SS 
+   |conv_CDerivedDecl_typ (S as (CArrDeclr0 _) :: _) = 
         fold     (fn (CArrDeclr0 _  ) => (fn tyF => HOLogic.listT o tyF)
                      | _ => error "CDerivedDecl (1) format not defined. [Clean restriction]") S I 
    |conv_CDerivedDecl_typ _ = error "CDerivedDecl (2) format not defined. [Clean restriction]"
 
-
-fun conv_GlobalIdDescr_typ (S:C_Env.markup_ident) = 
-    conv_CDerivedDecl_typ 
-        (#params S) 
-        ((the o conv_cDeclarationSpecifier_typ o conv_ParseStatus_CDeclSpecS o SOME) (#ret S));
 
 fun conv_GlobalIdDescr_typ (S:C_Env.markup_ident) = 
     conv_CDerivedDecl_typ 
@@ -97,7 +101,7 @@ end;
 \<close>
 
 
-section \<open>expressions\<close>
+section \<open>Tests on Expressions\<close>
 
 text \<open>
 First, we translate the expressions;
@@ -119,7 +123,7 @@ declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 
 C\<open> int a[10+12][34][] = 1;
-   int f(short int x [], long double y);
+   int f( int x [][], long double y);
 \<close>
 
 (* binding the resulting C_Env to env_expr *)
@@ -127,20 +131,28 @@ C\<open> int a[10+12][34][] = 1;
 ML\<open>val env_expr : C_Module.Data_In_Env.T =  @{C\<^sub>e\<^sub>n\<^sub>v};\<close>
 
 (* messing around with the C identifier "a" and "f" *)
-
 ML\<open>
    val SOME(pos_list,ser,S)    = lookup_Cid_info env_expr "a";
    val SOME(pos_list',ser',S') = lookup_Cid_info env_expr "f";
+\<close>
+(* handy decompositions *)
+ML\<open>
 
 local open C_Ast C_Env in
 
    val [CArrDeclr0 (HH,CArrSize0 (_,CBinary0 X),_),
         CArrDeclr0 (_,CArrSize0  (_,CConst0 Y), _), 
         CArrDeclr0 (_,CNoArrSize0 Z,_)] = #params S
-   val [CFunDeclr0 (Right([CDecl0 (A, A',_),CDecl0 (B,B',_)],s), _, _)] = #params S'
+   val [CFunDeclr0 (Right([CDecl0 (A,A' as [((Some (CDeclr0 (_,TT,_,_,_)),_),_)],_),
+                           CDecl0 (B,B' as [((Some (CDeclr0 (_,TT',_,_,_)),_),_)],_)],s), _, _)] = #params S'
+
+
+val [((Some (CDeclr0 (_,s,_,_,_)),_),_)] = A'
+val [((Some (CDeclr0 (_,t,_,_,_)),_),_)] = B'
 
 end
 \<close>
+
 
 (* and the whole thing a bit more abstract with "a" and "f" *)
 ML\<open>
