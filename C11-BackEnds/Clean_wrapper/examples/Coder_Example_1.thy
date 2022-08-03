@@ -2,6 +2,7 @@ theory "Coder_Example_1"
   imports "../src/CleanCoder"
 begin
 
+
 section \<open>Accessors to C-Env\<close>
 
 ML\<open>
@@ -18,6 +19,49 @@ fun get_CDeclSpecS_Cid Cenv id = map_option (#ret o #3) (lookup_Cid_info Cenv id
 
 
 \<close>
+section\<open>Preliminary Spy\<close>
+
+ML\<open>
+val ENV = Unsynchronized.ref (@{C\<^sub>e\<^sub>n\<^sub>v})
+fun print_env' s _ stack _ env thy =
+  let
+    val () = (ENV:=env; writeln ("ENV " ^ C_Env.string_of env))
+  in thy end
+\<close>
+setup \<open>ML_Antiquotation.inline @{binding print_env'}
+                               (Scan.peek (fn _ => Scan.option Args.text)
+                                >> (fn name => ("print_env' "
+                                                ^ (case name of NONE => "NONE"
+                                                              | SOME s => "(SOME \"" ^ s ^ "\")")
+                                                ^ " " ^ ML_Pretty.make_string_fn)))\<close>
+
+
+C \<comment> \<open>Nesting ML code in C comments\<close> \<open>
+int a (int b){int c; 
+              return c;
+              /*@@ \<approx>setup \<open>@{print_env'}\<close> */
+              /*@@ highlight */
+             }; 
+                 
+\<close>
+ML\<open>
+lookup_Cid_info (!ENV) "a";
+lookup_Cid_info (!ENV) "c"
+\<close>
+(* Problematic : *)
+C \<comment> \<open>Nesting ML code in C comments\<close> \<open>
+int a (int b){int b; 
+              return b;
+              /*@@ highlight */
+              /*@@ \<approx>setup \<open>@{print_env'}\<close> */}; 
+                 
+\<close>
+ML\<open>
+lookup_Cid_info (!ENV) "a";
+lookup_Cid_info (!ENV) "b"
+\<close>
+
+
 
 section \<open>Converters for C-types\<close>
 
