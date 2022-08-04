@@ -123,7 +123,7 @@ declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 
 C\<open> int a[10+12][34][] = 1;
-   int f( int x [][], long double y);
+   short int f(int x [][], long double y);
 \<close>
 
 (* binding the resulting C_Env to env_expr *)
