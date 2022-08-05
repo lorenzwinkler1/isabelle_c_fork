@@ -504,10 +504,10 @@ ML \<comment> \<open>analogous to \<^theory>\<open>Pure\<close>\<close> \<open>
 structure C_Directive :
  sig
     val setup_define:
-       Position.T ->
-         (C_Lex.token list -> string * Position.range -> Context.generic 
-          -> C_Lex.token list * Context.generic) ->
-           (string * Position.range -> Context.generic -> Context.generic) -> theory -> theory
+          Position.T ->
+             (C_Lex.token list -> string * Position.range -> Context.generic 
+              -> C_Lex.token list * Context.generic) ->
+              (string * Position.range -> Context.generic -> Context.generic) -> theory -> theory
   end =
 struct
 local
@@ -688,7 +688,87 @@ end
 \<close>
 
 ML \<comment> \<open>analogous to \<^file>\<open>~~/src/Pure/Isar/outer_syntax.ML\<close>\<close> \<open>
-structure C_Inner_Syntax =
+signature C_INNER_SYNTAX =
+  sig
+    val bottom_up: C_Env.env_propagation_ctxt -> C_Env.env_propagation
+    val command:  ('a -> C_Env.env_propagation_ctxt) 
+                  -> 'a C_Parse.parser 
+                  -> string * T * T 
+                  -> theory -> theory
+    val command': ('a -> C_Env.comment_style -> Context.generic -> Context.generic,
+                  ('a -> 'b) * ('b -> C_Env.env_propagation)) C_Scan.either
+                  -> 'a C_Parse.parser -> string * T -> theory -> theory
+    val command0: ('a -> Context.generic -> Context.generic) 
+                  ->  'a C_Parse.parser 
+                  -> string * T * T * T 
+                  -> theory -> theory
+    val command0':('a -> Context.generic -> Context.generic) 
+                  -> string 
+                  -> 'a C_Parse.parser 
+                  -> string * T * T * T 
+                  -> theory -> theory
+    val command00:('a -> range -> C_Env.comment_style -> Context.generic -> Context.generic,
+                   ('a -> range -> 'b) * ('b -> C_Env.env_propagation)) C_Scan.either
+                  -> string -> 'a C_Parse.parser -> string * T 
+                  -> theory -> theory
+    val command00_no_range:
+                  (range -> C_Env.comment_style -> Context.generic -> Context.generic,
+                   (range -> 'a) * ('a -> C_Env.env_propagation)) C_Scan.either
+                  -> string -> string * T -> theory -> theory
+(*    val command0_no_range:
+       (range -> Context.generic, (range -> 'a) * (('c -> 'b -> 'a) -> C_Env.env_propagation))
+       C_Scan.either
+         -> string * T -> theory -> theory
+*)
+    val command2:
+       (('a, 'b * (C_Env.env_propagation_ctxt -> C_Env.env_propagation)) C_Scan.either ->
+          string -> string * 'c -> 'd -> 'd)
+         -> 'b -> string * 'c * 'c -> 'd -> 'd
+    val command2':
+       (('a, 'b * (C_Env.env_propagation_ctxt -> C_Env.env_propagation)) C_Scan.either ->
+          string -> (string -> string) * 'c -> 'd -> 'd)
+         -> 'b -> 'c * 'c -> 'd -> 'd
+    val command3:
+       (('a, 'a * (C_Env.env_propagation_ctxt -> C_Env.env_propagation)) C_Scan.either ->
+          string * 'b -> 'c -> 'c)
+         -> 'a -> string * 'b * 'b * 'b -> 'c -> 'c
+    val command3':
+       (('a, 'a * (C_Env.env_propagation_ctxt -> C_Env.env_propagation)) C_Scan.either ->
+          (string -> string) * 'b -> 'c -> 'c)
+         -> 'a -> 'b * 'b * 'b -> 'c -> 'c
+    val command_no_range: C_Env.env_propagation_ctxt -> string * T * T -> theory -> theory
+    val command_no_range':
+       (range -> Context.generic -> Context.generic,
+       (range -> 'a) * (('b -> 'a) -> C_Env.env_propagation))
+       C_Scan.either
+         -> string * T -> theory -> theory
+    val command_range:
+       (range -> C_Env.comment_style -> Context.generic -> Context.generic,
+       (range -> 'a) * ('a -> C_Env.env_propagation))
+       C_Scan.either
+         -> string * T -> theory -> theory
+    val command_range':
+       (range -> Context.generic -> Context.generic) -> string * T * T * T -> theory -> theory
+    val drop1:
+       ('a -> 'b, ('c -> 'd) * 'e) C_Scan.either ->
+         ('a -> 'f -> 'b, ('c -> 'g -> 'd) * 'e) C_Scan.either
+    val drop2:
+       ('a -> 'b, ('c -> 'd) * 'e) C_Scan.either ->
+         ('a -> 'f -> 'g -> 'b, ('c -> 'h -> 'i -> 'd) * 'e) C_Scan.either
+    val local_command':
+       string * T * T * T ->
+         ((string -> string) -> Token.T list -> 'a * Token.T list) ->
+           ('a -> bool -> local_theory -> local_theory) -> theory -> theory
+    val local_command'':
+       string * T * T * T ->
+         (Token.T list -> 'a * Token.T list) ->
+           ('a -> bool -> local_theory -> local_theory) -> theory -> theory
+    val pref_bot: 'a -> 'a
+    val pref_lex: string -> string
+    val pref_top: string -> string
+  end
+
+structure C_Inner_Syntax : C_INNER_SYNTAX=
 struct
 val drop1 = fn C_Scan.Left f => C_Scan.Left (K o f)
              | C_Scan.Right (f, dir) => C_Scan.Right (K o f, dir)
@@ -802,7 +882,17 @@ end
 \<close>
 
 ML \<comment> \<open>analogous to \<^file>\<open>~~/src/Pure/ML/ml_file.ML\<close>\<close> \<open>
-structure C_Inner_File =
+signature C_INNER_FILE =
+ sig
+    val C: (theory -> Token.file list) -> Context.generic -> Context.generic
+    val ML: bool option -> (theory -> Token.file list) -> Context.generic -> generic_theory
+    val SML: bool option -> (theory -> Token.file list) -> Context.generic -> generic_theory
+    val command_c: Token.file -> Context.generic -> Context.generic
+    val command_ml:
+       string -> bool option -> (theory -> Token.file list) -> Context.generic -> generic_theory
+  end
+
+structure C_Inner_File : C_INNER_FILE =
 struct
 
 fun command_c ({lines, pos, ...}: Token.file) =
@@ -846,10 +936,33 @@ C_Thy_Header.add_keywords_minor
 \<close>
 
 ML \<comment> \<open>analogous to \<^theory>\<open>Pure\<close>\<close> \<open>
+signature C_ISAR_CMD =
+
+  sig
+    val ML     :    Input.source -> Context.generic -> generic_theory
+    val declare:    (Facts.ref * Token.src list) list list * 
+                    (binding * string option * mixfix) list 
+                    -> bool 
+                    -> local_theory -> local_theory
+    val definition: (((binding * string option * mixfix) option 
+                      * (Attrib.binding * string)) 
+                      * string list) 
+                    * (binding * string option * mixfix) list
+                    -> bool 
+                    -> local_theory -> local_theory
+    val theorem:  bool ->
+                   (bool * Attrib.binding * (xstring * T) list 
+                    * Element.context list * Element.statement) 
+                   * (Method.text_range list 
+                      * (Method.text_range * Method.text_range option) option)
+                   -> bool 
+                   -> local_theory -> Proof.context
+  end
+
 local
 val semi = Scan.option (C_Parse.$$$ ";");
 
-structure C_Isar_Cmd = 
+structure C_Isar_Cmd : C_ISAR_CMD = 
 struct
 fun ML source = ML_Context.exec (fn () =>
                    ML_Context.eval_source (ML_Compiler.verbose true ML_Compiler.flags) source) #>
@@ -988,7 +1101,15 @@ end
 \<close>
 
 ML \<comment> \<open>analogously to \<^file>\<open>~~/src/Pure/Isar/isar_cmd.ML\<close>\<close> \<open>
-structure C_Outer_Isar_Cmd =
+signature C_OUTER_ISAR_CMD =
+  sig
+    val C_diag: Input.source -> Toplevel.state -> unit
+    structure Diag_State: PROOF_DATA
+    val diag_goal: Proof.context -> {context: Proof.context, facts: thm list, goal: thm}
+    val diag_state: Proof.context -> Toplevel.state
+  end
+
+structure C_Outer_Isar_Cmd : C_OUTER_ISAR_CMD =
 struct
 (* diagnostic ML evaluation *)
 
@@ -1089,7 +1210,6 @@ C_Module.C_Term'.parse_translation
 (*test*)
 ML\<open>C_Module.env (Context.the_generic_context())\<close>
 
-ML\<open>open Args\<close>
 subsection\<open>C-env related ML-Antiquotations as Programming Support\<close>
 
 ML\<open>

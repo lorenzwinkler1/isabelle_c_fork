@@ -34,7 +34,30 @@ setup \<open>ML_Antiquotation.inline @{binding print_env'}
                                                 ^ (case name of NONE => "NONE"
                                                               | SOME s => "(SOME \"" ^ s ^ "\")")
                                                 ^ " " ^ ML_Pretty.make_string_fn)))\<close>
-
+(*
+ML\<open>
+C_Inner_Syntax.command;
+C_Inner_Toplevel.generic_theory oo C_Inner_Isar_Cmd.setup;
+C_Inner_Syntax.command  (C_Inner_Toplevel.generic_theory oo C_Inner_Isar_Cmd.setup);
+\<close>
+ML\<open>fn ((_, (_, pos1, pos2)) :: _) =>
+              (fn _ => fn _ =>
+                tap (fn ctxt:Context.generic =>
+                      Position.reports_text [((Position.range (pos1, pos2)
+                                               |> Position.range_position, Markup.intensify), "")]))
+           | _ => fn _ => fn _ => I:Context.generic -> Context.generic\<close>
+ML\<open>
+C_Inner_Syntax.command_no_range
+       (C_Inner_Toplevel.generic_theory oo C_Inner_Isar_Cmd.setup
+         \<open>fn ((_, (_, pos1, pos2)) :: _) =>
+              (fn _ => fn _ =>
+                tap (fn ctxt:Context.generic =>
+                      Position.reports_text [((Position.range (pos1, pos2)
+                                               |> Position.range_position, Markup.intensify), "")]))
+           | _ => fn _ => fn _ => I:Context.generic -> Context.generic\<close>)
+       ("highlight", \<^here>, \<^here>)
+\<close>
+*)
 
 C \<comment> \<open>Nesting ML code in C comments\<close> \<open>
 int a (int b){int c; 
@@ -354,7 +377,7 @@ ML\<open>val ast_stmt = @{C11_CStat}
 
 
 ML\<open>
-val S =  (C11_Ast_Lib.fold_cStatement (convertExpr false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_stmt []); 
+val S =  (C11_Ast_Lib.fold_cStatement (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_stmt []); 
 \<close>
 
 (*3*****************************************************************************************************)
@@ -375,7 +398,7 @@ val S =  (C11_Ast_Lib.fold_cStatement (convertExpr false unitT @{C\<^sub>e\<^sub
 (*4*****************************************************************************************************)
 
 C\<open>
-if(a = 1){
+if(a == 1){
   a = 1 + 2;
 }
 else{
@@ -421,25 +444,38 @@ ML\<open>val ast_ext_decl = @{C11_CExtDecl}
 \<close>
 
 ML \<open>
-val S =  (C11_Ast_Lib.fold_cExternalDeclaration (convertExpr false boolT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_ext_decl []);
+val S =  (C11_Ast_Lib.fold_cExternalDeclaration (convertExpr_raw false boolT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_ext_decl []);
 \<close>
 
 (*4*****************************************************************************************************)
 
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
-C\<open>int a = 0;
-\<close>
+
+C\<open>int a;\<close>
+
 ML\<open>val ast_unit = @{C11_CTranslUnit}
    val env_unit = @{C\<^sub>e\<^sub>n\<^sub>v}
-
   \<close>
 
+ML\<open>@{C\<^sub>e\<^sub>n\<^sub>v}\<close>
+
 ML \<open>
-val S =  (C11_Ast_Lib.fold_cTranslationUnit (convertExpr false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_unit []);
+val S =  (C11_Ast_Lib.fold_cTranslationUnit (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_unit []);
 \<close>
 
-
+ML\<open> open C_Ast;
+val CTranslUnit0
+    ([CDeclExt0
+       ( CDecl0
+           ([CTypeSpec0 ( CIntType0 (NodeInfo0 _))],
+            [((Some(CDeclr0(Some(Ident0(SS_base(ST "a"),97,NodeInfo0 _)),[],None,[],NodeInfo0 _)),
+               None), None)], NodeInfo0 _)
+       )
+    ],  
+    NodeInfo0 _):
+   C_Grammar_Rule_Lib.CTranslUnit = ast_unit
+\<close>
 
 
 
