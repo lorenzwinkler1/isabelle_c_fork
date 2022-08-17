@@ -74,7 +74,16 @@ ML \<comment> \<open>\<^file>\<open>~~/src/Pure/General/symbol.ML\<close>\<close
 Generalized characters with infinitely many named symbols.
 *)
 \<open>
-structure C_Symbol =
+structure C_Symbol:
+  sig
+    val is_ascii_blank_no_line: string -> bool
+    val is_ascii_digit1: string -> bool
+    val is_ascii_identifier: string -> bool
+    val is_ascii_letdig: string -> bool
+    val is_ascii_oct: string -> bool
+    val is_ascii_quasi: string -> bool
+    val is_identletter: string -> bool
+  end =
 struct
 fun is_ascii_quasi "_" = true
   | is_ascii_quasi "$" = true
@@ -116,7 +125,30 @@ ML \<comment> \<open>\<^file>\<open>~~/src/Pure/General/symbol_pos.ML\<close>\<c
 Symbols with explicit position information.
 *)
 \<open>
-structure C_Basic_Symbol_Pos =   (*not open by default*)
+structure C_Basic_Symbol_Pos:
+  sig
+    val $$ : string -> Symbol_Pos.T Symbol_Pos.scanner
+    val $$$ : string -> Symbol_Pos.T list Symbol_Pos.scanner
+    val many: (string -> bool) -> Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val many1: (string -> bool) -> Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val newline: Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val one: (string -> bool) -> Symbol_Pos.T list -> Symbol_Pos.T * Symbol_Pos.T list
+    val one': (string -> bool) -> Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val one_not_eof: Symbol_Pos.T list -> Symbol_Pos.T * Symbol_Pos.T list
+    val repeats_one_not_eof:
+       (Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list) ->
+         Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val repeats_until_nl: Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val scan_full:
+       ('a -> ('b -> 'c) -> Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list) ->
+         (string -> bool) -> 'a -> ('d -> 'e * Symbol_Pos.T list) -> 'd -> 'e * Symbol_Pos.T list
+    val this_string: string -> Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val unless_eof:
+       (Symbol_Pos.T list -> 'a * Symbol_Pos.T list) ->
+         Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val ~$$ : string -> Symbol_Pos.T Symbol_Pos.scanner
+    val ~$$$ : string -> Symbol_Pos.T list Symbol_Pos.scanner
+  end =   (*not open by default*)
 struct
 open Basic_Symbol_Pos;
 
@@ -140,7 +172,46 @@ val newline =   $$$ "\n"
 val repeats_until_nl = repeats_one_not_eof newline
 end
 
-structure C_Symbol_Pos =
+structure C_Symbol_Pos:
+  sig
+    val !!! : message -> 'a Symbol_Pos.scanner -> 'a Symbol_Pos.scanner
+    val !!!! :
+       (unit -> string) ->
+         ('a * (string * Position.T) list -> 'b) -> 'a * (string * Position.T) list -> 'b
+    val $$ : string -> Symbol_Pos.T Symbol_Pos.scanner
+    val $$$ : string -> Symbol_Pos.T list Symbol_Pos.scanner
+    val recover_comment: Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val scan_cartouche:
+       string ->
+         string ->
+           ((string * Position.T) list -> 'a * (string * Position.T) list) ->
+             Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val scan_cartouche_depth:
+       ((string * Position.T) list -> 'a * (string * Position.T) list) ->
+         int option * Symbol_Pos.T list -> Symbol_Pos.T list * (int option * Symbol_Pos.T list)
+    val scan_cartouche_inline: string -> Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val scan_cartouche_multi:
+       string ->
+         ((string * Position.T) list -> 'a * (string * Position.T) list) ->
+           Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val scan_comment: string -> Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val scan_comment_no_nest: string -> Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val scan_string_bq_inline:
+       string ->
+         Symbol_Pos.T list -> (Position.T * (Symbol_Pos.T list * Position.T)) * Symbol_Pos.T list
+    val scan_string_bq_multi:
+       string ->
+         ((string * Position.T) list -> 'a * (string * Position.T) list) ->
+           Symbol_Pos.T list -> (Position.T * (Symbol_Pos.T list * Position.T)) * Symbol_Pos.T list
+    val scan_string_qq_inline:
+       string ->
+         Symbol_Pos.T list -> (Position.T * (Symbol_Pos.T list * Position.T)) * Symbol_Pos.T list
+    val scan_string_qq_multi:
+       string ->
+         ((string * Position.T) list -> 'a * (string * Position.T) list) ->
+           Symbol_Pos.T list -> (Position.T * (Symbol_Pos.T list * Position.T)) * Symbol_Pos.T list
+    val ~$$$ : string -> Symbol_Pos.T list Symbol_Pos.scanner
+  end =
 struct
 
 (* basic scanners *)
@@ -272,7 +343,50 @@ ML \<comment> \<open>\<^file>\<open>~~/src/Pure/General/antiquote.ML\<close>\<cl
 Antiquotations within plain text.
 *)
 \<open>
-structure C_Antiquote =
+signature C_ANTIQUOTE = 
+  sig
+    val $$ : string -> Symbol_Pos.T Symbol_Pos.scanner
+    val $$$ : string -> Symbol_Pos.T list Symbol_Pos.scanner
+    type antiq =
+       {body: Symbol_Pos.T list,
+        body_begin: Symbol_Pos.T list,
+        body_end: Symbol_Pos.T list,
+        explicit: bool, range: Position.range, start: Position.T, stop: Position.T option}
+    val many: (string -> bool) -> Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val many1: (string -> bool) -> Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val newline: Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val one: (string -> bool) -> Symbol_Pos.T list -> Symbol_Pos.T * Symbol_Pos.T list
+    val one': (string -> bool) -> Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val one_not_eof: Symbol_Pos.T list -> Symbol_Pos.T * Symbol_Pos.T list
+    val repeats_one_not_eof:
+       (Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list) ->
+         Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val repeats_until_nl: Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val scan_antiq:
+       Symbol_Pos.T list ->
+         {body: Symbol_Pos.T list,
+          body_begin: Symbol_Pos.T list,
+          body_end: Symbol_Pos.T list,
+          explicit: bool, range: Position.range, start: Position.T, stop: Position.T option}
+         *
+         Symbol_Pos.T list
+    val scan_antiq_recover: Symbol_Pos.T list -> bool * Symbol_Pos.T list
+    val scan_control:
+       Symbol_Pos.T list ->
+         {body: (string * Position.T) list, name: string * Position.T, range: Position.range} *
+         Symbol_Pos.T list
+    val scan_full:
+       ('a -> ('b -> 'c) -> Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list) ->
+         (string -> bool) -> 'a -> ('d -> 'e * Symbol_Pos.T list) -> 'd -> 'e * Symbol_Pos.T list
+    val this_string: string -> Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val unless_eof:
+       (Symbol_Pos.T list -> 'a * Symbol_Pos.T list) ->
+         Symbol_Pos.T list -> Symbol_Pos.T list * Symbol_Pos.T list
+    val ~$$ : string -> Symbol_Pos.T Symbol_Pos.scanner
+    val ~$$$ : string -> Symbol_Pos.T list Symbol_Pos.scanner
+  end
+
+structure C_Antiquote : C_ANTIQUOTE=
 struct
 
 (* datatype antiquote *)
@@ -404,7 +518,14 @@ ML \<comment> \<open>\<^file>\<open>~~/src/Pure/ML/ml_options.ML\<close>\<close>
 ML configuration options.
 *)
 \<open>
-structure C_Options =
+structure C_Options :  
+  sig
+    val ML_verbose: bool Config.T
+    val lexer_trace: bool Config.T
+    val parser_trace: bool Config.T
+    val starting_env: string Config.T
+    val starting_rule: string Config.T
+  end =
 struct
 
 (* source trace *)
