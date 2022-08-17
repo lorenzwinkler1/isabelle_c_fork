@@ -634,6 +634,87 @@ the function specifications defined below.
 \<close>
 
 ML\<open>
+
+signature STATEMGT = sig
+    structure Data: GENERIC_DATA
+    datatype var_kind = global_var of typ | local_var of typ
+    type state_field_tab = var_kind Symtab.table
+    val MON_SE_T: typ -> typ -> typ
+    val add_record_cmd:
+       {overloaded: bool} ->
+         bool ->
+           (string * string option) list ->
+             binding -> string option -> (binding * string * mixfix) list -> theory -> theory
+    val add_record_cmd':
+       {overloaded: bool} ->
+         bool ->
+           (string * string option) list ->
+             binding -> string option -> (binding * typ * mixfix) list -> theory -> theory
+    val add_record_cmd0:
+       ('a -> Proof.context -> (binding * typ * mixfix) list * Proof.context) ->
+         {overloaded: bool} ->
+           bool -> (string * string option) list -> binding -> string option -> 'a -> theory -> theory
+    val cmd:
+       (binding * typ option * mixfix) option * (Attrib.binding * term) * term list *
+       (binding * typ option * mixfix) list
+         -> local_theory -> local_theory
+    val construct_update: bool -> binding -> typ -> theory -> term
+    val control_stateS: typ
+    val control_stateT: typ
+    val declare_state_variable_global: (typ -> var_kind) -> string -> theory -> theory
+    val declare_state_variable_local: (typ -> var_kind) -> string -> Context.generic -> Context.generic
+    val define_lense: binding -> typ -> binding * typ * 'a -> Proof.context -> local_theory
+    val fetch_state_field: string * 'a -> (string * string) * 'a
+    val filter_attr_of: string -> theory -> ((string * string) * var_kind) list
+    val filter_name: string -> string * 'a -> ((string * string) * 'a) option
+    val get_data: Proof.context -> Data.T
+    val get_data_global: theory -> Data.T
+    val get_result_value_conf: string -> theory -> (string * string) * var_kind
+    val get_state_field_tab: Proof.context -> state_field_tab
+    val get_state_field_tab_global: theory -> state_field_tab
+    val get_state_type: Proof.context -> typ
+    val get_state_type_global: theory -> typ
+    val is_global_program_variable: Symtab.key -> theory -> bool
+    val is_local_program_variable: Symtab.key -> theory -> bool
+    val is_program_variable: Symtab.key -> theory -> bool
+    val map_data: (Data.T -> Data.T) -> Context.generic -> Context.generic
+    val map_data_global: (Data.T -> Data.T) -> theory -> theory
+    val map_to_update: typ -> bool -> theory -> (string * string) * var_kind -> term -> term
+    val merge_control_stateS: typ * typ -> typ
+    val mk_global_state_name: binding -> binding
+    val mk_lense_name: binding -> binding
+    val mk_local_state_name: binding -> binding
+    val mk_lookup_result_value_term: string -> typ -> theory -> term
+    val mk_pop_def: binding -> typ -> typ -> Proof.context -> local_theory
+    val mk_pop_name: binding -> binding
+    val mk_push_def: binding -> typ -> Proof.context -> local_theory
+    val mk_push_name: binding -> binding
+    val new_state_record:
+       bool ->
+         (((string * string option) list * binding) * string option) * (binding * string * mixfix) list
+           -> theory -> theory
+    val new_state_record':
+       bool ->
+         (((string * string option) list * binding) * typ option) * (binding * typ * mixfix) list ->
+           theory -> theory
+    val new_state_record0:
+       ({overloaded: bool} ->
+          bool -> 'a -> binding -> string option -> (binding * 'b * mixfix) list -> theory -> theory)
+         -> bool -> (('a * binding) * 'b option) * (binding * 'b * mixfix) list -> theory -> theory
+    val optionT: typ -> typ
+    val parse_typ_'a: Proof.context -> binding -> typ
+    val pop_eq: binding -> string -> typ -> typ -> Proof.context -> term
+    val push_eq: binding -> string -> typ -> typ -> Proof.context -> term
+    val read_fields: ('a * string * 'b) list -> Proof.context -> ('a * typ * 'b) list * Proof.context
+    val read_parent: string option -> Proof.context -> (typ list * string) option * Proof.context
+    val result_name: string
+    val typ_2_string_raw: typ -> string
+    val type_of: var_kind -> typ
+    val upd_state_type: (typ -> typ) -> Context.generic -> Context.generic
+    val upd_state_type_global: (typ -> typ) -> theory -> theory
+
+  end
+
 structure StateMgt = 
 struct
 
