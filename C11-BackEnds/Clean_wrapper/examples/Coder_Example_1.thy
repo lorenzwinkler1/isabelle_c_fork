@@ -452,7 +452,10 @@ val S =  (C11_Ast_Lib.fold_cExternalDeclaration (convertExpr_raw false boolT @{C
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 
-C\<open>int a;\<close>
+C\<open>
+int 
+   x
+     ;\<close>
 
 ML\<open>val ast_unit = @{C11_CTranslUnit}
    val env_unit = @{C\<^sub>e\<^sub>n\<^sub>v}
@@ -460,23 +463,74 @@ ML\<open>val ast_unit = @{C11_CTranslUnit}
 
 ML\<open>@{C\<^sub>e\<^sub>n\<^sub>v}\<close>
 
+ML\<open>open Position\<close>
+
+ML\<open>
+local open C_Ast in
+fun conv_C11Positiona_Position (Position0(k : int, 
+                                SS_base(ST (st: string)), 
+                                m: int, n: int))
+   = (warning"Not Correct Position:"; Position.none)             
+  | conv_C11Positiona_Position NoPosition0  = Position.none
+  | conv_C11Positiona_Position BuiltinPosition0 =  Position.none
+  | conv_C11Positiona_Position InternalPosition0 = Position.none
+
+fun conv_C11NodeInfo (OnlyPos0 (p1: positiona, (p2 : positiona, lab: int))) =
+       (conv_C11Positiona_Position p1, conv_C11Positiona_Position p2, "")
+  | conv_C11NodeInfo (NodeInfo0 (p1 : C_Ast.positiona, (p2: positiona, lab: int), Name0 x)) =
+       (conv_C11Positiona_Position p1, conv_C11Positiona_Position p2, "")
+
+end
+\<close>
+
+
 ML \<open>
 val S =  (C11_Ast_Lib.fold_cTranslationUnit (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_unit []);
 \<close>
 
-ML\<open> open C_Ast;
+(*
+        fold_rev (fn CDecl0 (A, [((Some (CDeclr0 (_,TT,_,_,_)),_),_)], _) => 
+                        (fn S => let val A_ty = the(conv_cDeclarationSpecifier_typ(SOME A))
+                                     val TT_ty= case TT of 
+                                                   [] => I
+                                                  | _ => conv_CDerivedDecl_typ TT
+                                 in  (TT_ty A_ty) --> S end)
+                    | _ => error "CDerivedDecl (0) format not defined. [Clean restriction]") SS 
+
+*)
+ML\<open> local open C_Ast 
+in
 val CTranslUnit0
     ([CDeclExt0
        ( CDecl0
-           ([CTypeSpec0 ( CIntType0 (NodeInfo0 _))],
-            [((Some(CDeclr0(Some(Ident0(SS_base(ST "a"),97,NodeInfo0 _)),[],None,[],NodeInfo0 _)),
-               None), None)], NodeInfo0 _)
+           ([CTypeSpec0 ( CIntType0 (NodeInfo0 A))],
+            [((Some(CDeclr0(Some(Ident0(SS_base(ST "x"),120,NodeInfo0 AA)),[],None,[],NodeInfo0 AAA)),
+               None), None)], NodeInfo0 AAAA)
        )
     ],  
-    NodeInfo0 _):
+    NodeInfo0 XAAA):
    C_Grammar_Rule_Lib.CTranslUnit = ast_unit
+
+fun conv_cid [((Some(CDeclr0(Some(Ident0(SS_base(ST x),lab,nid1)),[],None,[],NodeInfo0 AAA)),
+               None), None)] ctxt = (x,lab,nid1)
+   | conv_cid _ _  = error "conv_cid (0) format not defined. [Clean restriction]"
+
+(* FIRST DRAFT - INCOMPLETE *)
+fun conv_transl_unit ( CTranslUnit0 (CDeclExt0 (CDecl0(tys,cid, nid1)) :: R,nid2)) thy = 
+         let val cid_name = #1(conv_cid cid thy)
+             val typ = conv_cDeclarationSpecifier_typ (SOME tys)
+             val pos = @{here} (* should be derived from nid1 *)
+        
+         in thy |> StateMgt.new_state_record true ((([],Binding.make(cid_name,pos)),Option.NONE),[])
+                |> conv_transl_unit (CTranslUnit0 ( R, nid2)) 
+         end
+    | conv_transl_unit (CTranslUnit0 ([], _)) thy  = thy 
+    | conv_transl_unit _ _  = error "transl_unit (0) format not defined. [Clean restriction]"
+
+end
 \<close>
 
+ML\<open>open Binding\<close>
 
 
 
