@@ -940,6 +940,7 @@ signature C_ISAR_CMD =
 
   sig
     val ML     :    Input.source -> Context.generic -> generic_theory
+    val text   :    Input.source -> Context.generic -> generic_theory
     val declare:    (Facts.ref * Token.src list) list list * 
                     (binding * string option * mixfix) list 
                     -> bool 
@@ -965,6 +966,9 @@ val semi = Scan.option (C_Parse.$$$ ";");
 structure C_Isar_Cmd : C_ISAR_CMD = 
 struct
 fun ML source = ML_Context.exec (fn () =>
+                   ML_Context.eval_source (ML_Compiler.verbose true ML_Compiler.flags) source) #>
+                 Local_Theory.propagate_ml_env
+fun text source = ML_Context.exec (fn () =>
                    ML_Context.eval_source (ML_Compiler.verbose true ML_Compiler.flags) source) #>
                  Local_Theory.propagate_ml_env
 
@@ -1033,6 +1037,9 @@ val _ = Theory.setup
   #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Isar_Cmd.ML)
                              C_Parse.ML_source
                              ("ML", \<^here>, \<^here>, \<^here>)
+  #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Isar_Cmd.ML)
+                             C_Parse.document_source
+                             ("text", \<^here>, \<^here>, \<^here>)
   #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Module.C)
                              C_Parse.C_source
                              ("C", \<^here>, \<^here>, \<^here>)
