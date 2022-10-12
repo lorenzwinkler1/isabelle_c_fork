@@ -181,7 +181,7 @@ global_vars test  (*intern label *)
             a     :: "int"
 
 (* creation of a global variable Clean state with "a" *)
-ML\<open>val Const(longid_a,Type("fun",[sigma_i, _])) = @{term "a"} \<close>
+ML\<open>val Const(longid_a,Type("fun",[sigma_i, _])) = @{term "a"}; \<close>
 
 
 (* creation of two declarations with "a" an array and "f" a function *)
@@ -454,7 +454,7 @@ declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 
 C\<open>
 int 
-   x
+   yyy
      ;\<close>
 
 ML\<open>val ast_unit = @{C11_CTranslUnit}
@@ -484,27 +484,14 @@ end
 \<close>
 
 
-ML \<open>
-val S =  (C11_Ast_Lib.fold_cTranslationUnit (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_unit []);
-\<close>
-
-(*
-        fold_rev (fn CDecl0 (A, [((Some (CDeclr0 (_,TT,_,_,_)),_),_)], _) => 
-                        (fn S => let val A_ty = the(conv_cDeclarationSpecifier_typ(SOME A))
-                                     val TT_ty= case TT of 
-                                                   [] => I
-                                                  | _ => conv_CDerivedDecl_typ TT
-                                 in  (TT_ty A_ty) --> S end)
-                    | _ => error "CDerivedDecl (0) format not defined. [Clean restriction]") SS 
-
-*)
+ML\<open>ast_unit\<close>
 ML\<open> local open C_Ast 
 in
 val CTranslUnit0
     ([CDeclExt0
        ( CDecl0
            ([CTypeSpec0 ( CIntType0 (NodeInfo0 A))],
-            [((Some(CDeclr0(Some(Ident0(SS_base(ST "x"),120,NodeInfo0 AA)),[],None,[],NodeInfo0 AAA)),
+            [((Some(CDeclr0(Some(Ident0(SS_base(ST "yyy"),_,NodeInfo0 AA)),[],None,[],NodeInfo0 AAA)),
                None), None)], NodeInfo0 AAAA)
        )
     ],  
@@ -520,9 +507,10 @@ fun conv_transl_unit ( CTranslUnit0 (CDeclExt0 (CDecl0(tys,cid, nid1)) :: R,nid2
          let val cid_name = #1(conv_cid cid thy)
              val typ = conv_cDeclarationSpecifier_typ (SOME tys)
              val pos = @{here} (* should be derived from nid1 *)
+             val S = [(Binding.make(cid_name, pos), "int", Mixfix.NoSyn)]
         
-         in thy |> StateMgt.new_state_record true ((([],Binding.make(cid_name,pos)),Option.NONE),[])
-                |> conv_transl_unit (CTranslUnit0 ( R, nid2)) 
+         in thy |> StateMgt.new_state_record true ((([],Binding.make("ttest",pos)),Option.NONE),S)
+                |> conv_transl_unit (CTranslUnit0 (R, nid2)) 
          end
     | conv_transl_unit (CTranslUnit0 ([], _)) thy  = thy 
     | conv_transl_unit _ _  = error "transl_unit (0) format not defined. [Clean restriction]"
@@ -530,7 +518,13 @@ fun conv_transl_unit ( CTranslUnit0 (CDeclExt0 (CDecl0(tys,cid, nid1)) :: R,nid2
 end
 \<close>
 
-ML\<open>open Binding\<close>
+ML\<open>StateMgt.get_state_field_tab_global @{theory};
+\<close>
+
+setup \<open>conv_transl_unit ast_unit\<close>
+ML \<open>
+val S =  (conv_transl_unit ast_unit) @{theory};
+\<close>
 
 
 
