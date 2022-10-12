@@ -62,6 +62,8 @@ definition bool2int where "bool2int x = (if x then 1::int else 0)"
 global_vars state
     t :: "int list"
 
+
+
 function_spec linearsearch (x::int, n::int) returns int
 pre          "\<open> 0 \<le> n \<and> n < int(length t) \<and> sorted t\<close>"    
 post         "\<open>\<lambda>res::int. res = bool2int (\<exists> i \<in> {0 ..< length t}. t!i = x) \<close>" 
