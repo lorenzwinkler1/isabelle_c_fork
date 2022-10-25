@@ -101,8 +101,23 @@ ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
 text\<open>The \<open>global_vars\<close> command, described and defined in \<^verbatim>\<open>Clean.thy\<close>,
 declares the global variable \<^verbatim>\<open>A\<close>. This has the following effect:\<close>
 
+ML\<open>
+(fst o  StateMgt_core.get_data_global) @{theory}
+\<close>
 global_vars state
     A :: "int list"
+ML\<open>
+(fst o  StateMgt_core.get_data_global) @{theory}
+\<close>
+global_vars state2 
+    B :: "int list"
+
+
+ML\<open>
+(Int.toString o length o Symtab.dest o fst o  StateMgt_core.get_data_global) @{theory}
+\<close>
+
+find_theorems (60) name:global_state2_state
 
 find_theorems create\<^sub>L name:"Quick"
 

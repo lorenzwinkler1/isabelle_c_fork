@@ -1299,15 +1299,15 @@ val ML_source = input (group (fn () => "ML source") text);
 val document_source = input (group (fn () => "document source") text);
 
 val document_marker =
-  group (fn () => "document marker")
-    (RESET_VALUE (Scan.one Token.is_document_marker >> Token.input_of));
+        group (fn () => "document marker")
+        (RESET_VALUE (Scan.one Token.is_document_marker >> Token.input_of));
 
 
 (* terms *)
 
 val const = group (fn () => "constant") (inner_syntax embedded);
-val term = group (fn () => "term") (inner_syntax embedded);
-val prop = group (fn () => "proposition") (inner_syntax embedded);
+val term = group (fn ()  => "term") (inner_syntax embedded);
+val prop = group (fn ()  => "proposition") (inner_syntax embedded);
 
 val literal_fact = inner_syntax (group (fn () => "literal fact") (alt_string || cartouche));
 

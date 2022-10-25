@@ -177,7 +177,7 @@ The attributs can be constantes or variables.
 In order to simulate the use of variables, we construct a "fake" record local_state
 \<close>
 
-global_vars test  (*intern label *)
+global_vars test   (*intern label *)
             a     :: "int"
 
 (* creation of a global variable Clean state with "a" *)

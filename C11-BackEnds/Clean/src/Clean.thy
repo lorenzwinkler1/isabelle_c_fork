@@ -910,15 +910,17 @@ val add_record_cmd    = add_record_cmd0 read_fields;
 val add_record_cmd'   = add_record_cmd0 pair;
 
 val new_state_record  = new_state_record0 add_record_cmd
-val new_state_record' = new_state_record0 add_record_cmd'
+val new_state_record' = new_state_record0 add_record_cmd';
 
+val _ = (Scan.option Parse.typ)
+     
+(*
 val _ =
   Outer_Syntax.command 
       \<^command_keyword>\<open>global_vars\<close>   
       "define global state record"
-      ((Parse.type_args_constrained -- Parse.binding)
-    -- Scan.succeed NONE
-    -- Scan.repeat1 Parse.const_binding
+      (((Parse.type_args_constrained -- Parse.binding) -- (Scan.option Parse.typ))
+       -- Scan.repeat1 Parse.const_binding
     >> (Toplevel.theory o new_state_record true));
 ;
 
@@ -926,11 +928,31 @@ val _ =
   Outer_Syntax.command 
       \<^command_keyword>\<open>local_vars_test\<close>  
       "define local state record"
-      ((Parse.type_args_constrained -- Parse.binding) 
-    -- (Parse.typ >> SOME)
-    -- Scan.repeat1 Parse.const_binding
+      (((Parse.type_args_constrained -- Parse.binding) -- (Scan.option Parse.typ))
+      -- Scan.repeat1 Parse.const_binding
+    >> (Toplevel.theory o new_state_record false))
+*)
+
+
+val _ =
+  Outer_Syntax.command 
+      \<^command_keyword>\<open>global_vars\<close>   
+      "define global state record"
+      (((Parse.type_args_constrained -- Parse.binding) -- Scan.succeed NONE)
+       -- Scan.repeat1 Parse.const_binding
+    >> (Toplevel.theory o new_state_record true));
+;
+
+val _ =
+  Outer_Syntax.command 
+      \<^command_keyword>\<open>local_vars_test\<close>  
+      "define local state record"
+      (((Parse.type_args_constrained -- Parse.binding) -- (Parse.typ >> SOME))
+      -- Scan.repeat1 Parse.const_binding
     >> (Toplevel.theory o new_state_record false))
 ;
+
+
 end
 \<close>
 

@@ -110,7 +110,7 @@ commands in C comments, called annotation commands, such as
 \<^theory_text>\<open>\<approx>setup\<close>. \<close>
 
 C \<comment> \<open>Nesting ML code in C comments\<close> \<open>
-int a = (((0))); /*@ highlight */
+int a = (((0))); /*@@ highlight */
                  /*@ \<approx>setup \<open>@{print_stack}\<close> */
                  /*@ \<approx>setup \<open>@{print_top}\<close> */
 \<close>

@@ -884,12 +884,12 @@ end
 ML \<comment> \<open>analogous to \<^file>\<open>~~/src/Pure/ML/ml_file.ML\<close>\<close> \<open>
 signature C_INNER_FILE =
  sig
-    val C: (theory -> Token.file list) -> Context.generic -> Context.generic
-    val ML: bool option -> (theory -> Token.file list) -> Context.generic -> generic_theory
-    val SML: bool option -> (theory -> Token.file list) -> Context.generic -> generic_theory
-    val command_c: Token.file -> Context.generic -> Context.generic
-    val command_ml:
-       string -> bool option -> (theory -> Token.file list) -> Context.generic -> generic_theory
+    val C: (theory -> Token.file list) -> generic_theory -> generic_theory
+    val ML: bool option -> (theory -> Token.file list) -> generic_theory -> generic_theory
+    val SML: bool option -> (theory -> Token.file list) -> generic_theory -> generic_theory
+    val command_c: Token.file -> generic_theory -> generic_theory
+    val command_ml: string -> bool option -> (theory -> Token.file list) 
+                    -> generic_theory -> generic_theory
   end
 
 structure C_Inner_File : C_INNER_FILE =
@@ -939,8 +939,8 @@ ML \<comment> \<open>analogous to \<^theory>\<open>Pure\<close>\<close> \<open>
 signature C_ISAR_CMD =
 
   sig
-    val ML     :    Input.source -> Context.generic -> generic_theory
-    val text   :    Input.source -> Context.generic -> generic_theory
+    val ML     :    Input.source -> generic_theory -> generic_theory
+    val text   :    Input.source -> generic_theory -> generic_theory
     val declare:    (Facts.ref * Token.src list) list list * 
                     (binding * string option * mixfix) list 
                     -> bool 
@@ -957,7 +957,7 @@ signature C_ISAR_CMD =
                    * (Method.text_range list 
                       * (Method.text_range * Method.text_range option) option)
                    -> bool 
-                   -> local_theory -> Proof.context
+                   -> local_theory -> local_theory
   end
 
 local
@@ -968,6 +968,12 @@ struct
 fun ML source = ML_Context.exec (fn () =>
                    ML_Context.eval_source (ML_Compiler.verbose true ML_Compiler.flags) source) #>
                  Local_Theory.propagate_ml_env
+
+fun output ctxt markdown markup txt  =
+      let
+        val _ = Context_Position.reports ctxt (Document_Output.document_reports txt);
+      in txt |> Document_Output.output_document ctxt {markdown = markdown} |> markup end;
+
 fun text source = ML_Context.exec (fn () =>
                    ML_Context.eval_source (ML_Compiler.verbose true ML_Compiler.flags) source) #>
                  Local_Theory.propagate_ml_env
