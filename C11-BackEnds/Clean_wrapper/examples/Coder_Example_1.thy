@@ -519,20 +519,10 @@ fun conv_transl_unit ( CTranslUnit0 (CDeclExt0 (CDecl0(tys,cid, nid1)) :: R,nid2
 end
 \<close>
 
-ML\<open>StateMgt.get_state_field_tab_global @{theory}; \<close>
+ML    \<open>(Symtab.dest)(StateMgt_core.get_state_field_tab_global @{theory})\<close>
 setup \<open>conv_transl_unit ast_unit\<close>
-
-ML \<open>
-val S =  (conv_transl_unit ast_unit) @{theory};
-StateMgt.get_state_field_tab_global @{theory};
-\<close>
-
+ML    \<open>(Symtab.dest)(StateMgt_core.get_state_field_tab_global @{theory})\<close>
 setup \<open>conv_transl_unit ast_unit'\<close>
-
-ML \<open>
-val A = (Symtab.dest)(StateMgt_core.get_state_field_tab_global @{theory});
-val S'=  (conv_transl_unit ast_unit') @{theory};
-val B = (Symtab.dest)(StateMgt_core.get_state_field_tab_global @{theory});
-\<close>
+ML    \<open>(Symtab.dest)(StateMgt_core.get_state_field_tab_global @{theory});\<close>
 
 end
