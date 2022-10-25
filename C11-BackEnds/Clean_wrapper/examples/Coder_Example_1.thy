@@ -177,7 +177,7 @@ The attributs can be constantes or variables.
 In order to simulate the use of variables, we construct a "fake" record local_state
 \<close>
 
-global_vars test  (*intern label *)
+global_vars (test)  (*intern label *)
             a     :: "int"
 
 (* creation of a global variable Clean state with "a" *)
@@ -452,18 +452,18 @@ val S =  (C11_Ast_Lib.fold_cExternalDeclaration (convertExpr_raw false boolT @{C
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 
-C\<open>
-int 
-   yyy
-     ;\<close>
+C\<open>int  yyy ;\<close>
 
 ML\<open>val ast_unit = @{C11_CTranslUnit}
    val env_unit = @{C\<^sub>e\<^sub>n\<^sub>v}
   \<close>
 
-ML\<open>@{C\<^sub>e\<^sub>n\<^sub>v}\<close>
+C\<open>int  zzz ;\<close>
 
-ML\<open>open Position\<close>
+ML\<open>val ast_unit' = @{C11_CTranslUnit}
+   val env_unit' = @{C\<^sub>e\<^sub>n\<^sub>v}
+  \<close>
+
 
 ML\<open>
 local open C_Ast in
@@ -485,6 +485,7 @@ end
 
 
 ML\<open>ast_unit\<close>
+
 ML\<open> local open C_Ast 
 in
 val CTranslUnit0
@@ -509,7 +510,7 @@ fun conv_transl_unit ( CTranslUnit0 (CDeclExt0 (CDecl0(tys,cid, nid1)) :: R,nid2
              val pos = @{here} (* should be derived from nid1 *)
              val S = [(Binding.make(cid_name, pos), "int", Mixfix.NoSyn)]
         
-         in thy |> StateMgt.new_state_record true ((([],Binding.make("ttest",pos)),Option.NONE),S)
+         in thy |> StateMgt.new_state_record true (NONE,S)
                 |> conv_transl_unit (CTranslUnit0 (R, nid2)) 
          end
     | conv_transl_unit (CTranslUnit0 ([], _)) thy  = thy 
@@ -518,16 +519,20 @@ fun conv_transl_unit ( CTranslUnit0 (CDeclExt0 (CDecl0(tys,cid, nid1)) :: R,nid2
 end
 \<close>
 
-ML\<open>StateMgt.get_state_field_tab_global @{theory};
-\<close>
-
+ML\<open>StateMgt.get_state_field_tab_global @{theory}; \<close>
 setup \<open>conv_transl_unit ast_unit\<close>
+
 ML \<open>
 val S =  (conv_transl_unit ast_unit) @{theory};
+StateMgt.get_state_field_tab_global @{theory};
 \<close>
 
+setup \<open>conv_transl_unit ast_unit'\<close>
 
-
-
+ML \<open>
+val A = (Symtab.dest)(StateMgt_core.get_state_field_tab_global @{theory});
+val S'=  (conv_transl_unit ast_unit') @{theory};
+val B = (Symtab.dest)(StateMgt_core.get_state_field_tab_global @{theory});
+\<close>
 
 end

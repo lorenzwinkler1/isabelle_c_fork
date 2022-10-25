@@ -1,4 +1,4 @@
-(******************************************************************************
+\(******************************************************************************
  * Isabelle/C
  *
  * Copyright (c) 2018-2019 Université Paris-Saclay, Univ. Paris-Sud, France
@@ -56,7 +56,7 @@ respect the lexical conventions of C (support for such lexical-extensions is lef
 theory Prime imports Isabelle_C_Clean.Clean_Wrapper
                   \<comment> \<open>Clean back-end is imported\<close>  
                      "../archive/Clean_backend_old" 
-                     "HOL-Computational_Algebra.Primes" 
+                     "HOL-Computational_Algebra.Primes"
 begin                
 
 no_syntax "_C" :: \<open>cartouche_position \<Rightarrow> _\<close> ("\<^C> _")

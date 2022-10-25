@@ -101,7 +101,7 @@ ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
 text\<open>The \<open>global_vars\<close> command, described and defined in \<^verbatim>\<open>Clean.thy\<close>,
 declares the global variable \<^verbatim>\<open>A\<close>. This has the following effect:\<close>
 
-global_vars state
+global_vars (state)
     A :: "int list"
 
 find_theorems create\<^sub>L name:"Quick"
@@ -109,7 +109,7 @@ find_theorems create\<^sub>L name:"Quick"
 text\<open>... which is reflected in Clean's state-management table:\<close>
 ML\<open> val Type("Quicksort_concept.global_state_state_scheme",t) 
         = StateMgt_core.get_state_type_global @{theory};
-    StateMgt_core.get_state_field_tab_global @{theory}\<close>
+    (Int.toString o length o Symtab.dest)(StateMgt_core.get_state_field_tab_global @{theory})\<close>
 
 
 text\<open>Note that the state-management uses long-names for complete disambiguation.\<close>
@@ -201,7 +201,7 @@ text\<open>We simulate the effect of the local variable space declaration by the
      factoring out the functionality into the command \<open>local_vars_test\<close> \<close>
 
 
-local_vars_test swap' "unit"
+local_vars_test (swap' "unit")
    tmp :: "int"
 
 text\<open>The immediate effect of this command on the internal Clean State Management
@@ -355,7 +355,7 @@ definition "partition'_post \<equiv> \<lambda>(lo, hi) \<sigma>\<^sub>p\<^sub>r\
 subsubsection\<open>Memory-Model\<close>
 text\<open>Recall: list-lifting is automatic in \<open>local_vars_test\<close>:\<close>
 
-local_vars_test  partition' "nat"
+local_vars_test  (partition' "nat")
     pivot  :: "int"
     i      :: "nat"
     j      :: "nat"
@@ -448,7 +448,7 @@ text\<open>This is the most complex form a Clean function may have: it may be di
 recursive. Two subcases are to be distinguished: either a measure is provided or not.\<close>
 
 text\<open>We start again with our simulation: First, we define the local variable \<open>p\<close>.\<close>
-local_vars_test  quicksort' "unit"
+local_vars_test  (quicksort' "unit")
     p  :: "nat"
 
 ML\<open> val (x,y) = StateMgt_core.get_data_global @{theory}; \<close>
