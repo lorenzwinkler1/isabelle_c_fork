@@ -887,8 +887,14 @@ fun typ_2_string_raw (Type(s,[TFree _])) = if String.isSuffix "_scheme" s
    |typ_2_string_raw _ = error  "Illegal state type - not allowed in Clean." 
                                   
              
-fun new_state_record0 add_record_cmd is_global_kind (((raw_params, binding), res_ty), raw_fields) thy =
-    let val binding = if is_global_kind 
+fun new_state_record0 add_record_cmd is_global_kind (aS, raw_fields) thy =
+    let val state_index = (Int.toString o length o Symtab.dest)
+                                (StateMgt_core.get_state_field_tab_global thy)
+        val state_pos = (Binding.pos_of o #1 o hd) raw_fields
+        val ((raw_params, binding), res_ty) = case aS of 
+                                                SOME d => d
+                                              | NONE => (([], Binding.make(state_index,state_pos)), NONE)
+        val binding = if is_global_kind 
                       then mk_global_state_name binding
                       else mk_local_state_name binding
         val raw_parent = SOME(typ_2_string_raw (StateMgt_core.get_state_type_global thy))
@@ -912,45 +918,28 @@ val add_record_cmd'   = add_record_cmd0 pair;
 val new_state_record  = new_state_record0 add_record_cmd
 val new_state_record' = new_state_record0 add_record_cmd';
 
-val _ = (Scan.option Parse.typ)
-     
-(*
-val _ =
-  Outer_Syntax.command 
-      \<^command_keyword>\<open>global_vars\<close>   
-      "define global state record"
-      (((Parse.type_args_constrained -- Parse.binding) -- (Scan.option Parse.typ))
-       -- Scan.repeat1 Parse.const_binding
-    >> (Toplevel.theory o new_state_record true));
-;
 
-val _ =
-  Outer_Syntax.command 
-      \<^command_keyword>\<open>local_vars_test\<close>  
-      "define local state record"
-      (((Parse.type_args_constrained -- Parse.binding) -- (Scan.option Parse.typ))
-      -- Scan.repeat1 Parse.const_binding
-    >> (Toplevel.theory o new_state_record false))
-*)
-
+fun clean_ctxt_parser b = Parse.$$$ "(" 
+                          |--   (Parse.type_args_constrained -- Parse.binding)
+                           -- (if b then Scan.succeed NONE else Parse.typ >> SOME) 
+                          --| Parse.$$$ ")"
+                          : (((string * string option) list * binding) * string option) parser
 
 val _ =
   Outer_Syntax.command 
       \<^command_keyword>\<open>global_vars\<close>   
       "define global state record"
-      (((Parse.type_args_constrained -- Parse.binding) -- Scan.succeed NONE)
-       -- Scan.repeat1 Parse.const_binding
-    >> (Toplevel.theory o new_state_record true));
-;
+      (Scan.option (clean_ctxt_parser true) -- Scan.repeat1 Parse.const_binding
+       >> (Toplevel.theory o new_state_record true));
+
+
 
 val _ =
   Outer_Syntax.command 
       \<^command_keyword>\<open>local_vars_test\<close>  
       "define local state record"
-      (((Parse.type_args_constrained -- Parse.binding) -- (Parse.typ >> SOME))
-      -- Scan.repeat1 Parse.const_binding
-    >> (Toplevel.theory o new_state_record false))
-;
+      (Scan.option (clean_ctxt_parser false) -- Scan.repeat1 Parse.const_binding
+      >> (Toplevel.theory o new_state_record false));
 
 
 end
@@ -1284,7 +1273,7 @@ val _ = Named_Target.theory_map;
                                         #> define_postcond binding ret_ty sty_old params read_post)
                      in parse_contract
                      end
-                |> StateMgt.new_state_record false ((([],binding), SOME ret_type),locals)
+                |> StateMgt.new_state_record false (SOME (([],binding), SOME ret_type),locals)
                 |> theory_map
                          (fn params => fn ret_ty => fn ctxt => 
                           let val sty = StateMgt_core.get_state_type ctxt
