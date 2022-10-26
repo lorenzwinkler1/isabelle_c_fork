@@ -59,7 +59,7 @@ session Isabelle_C_Clean_document = Isabelle_C_Clean_examples +
   document_theories
     Isabelle_C_Clean.Clean_Wrapper
     Isabelle_C_Clean.Clean_Annotation
-    Isabelle_C_Clean.Meta_C
+    Isabelle_C_Clean.C11_to_99_API
     Isabelle_C_Clean.Core
 
     Isabelle_C_Clean_examples.Prime
