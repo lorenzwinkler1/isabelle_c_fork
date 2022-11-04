@@ -128,11 +128,9 @@ signature C_ENV =
                    stream_hook : stream_hook,
                    stream_lang : stream_lang_state * 'a stream}
 
-    val decode_positions: string -> Position.T list
     val empty_env_lang: env_lang
     val empty_env_tree: Context.generic -> env_tree
     val empty_rule_output: rule_output
-    val encode_positions: Position.T list -> string
     val get_scopes: env_lang -> (C_Ast.ident option * var_table) list
     val make: env_lang -> 'a stream -> env_tree -> 'a T
     val map_context: (Context.generic -> Context.generic) 
@@ -178,7 +176,11 @@ signature C_ENV =
                         -> var_table -> var_table
 
     val string_of: env_lang -> string
-  end
+
+    val decode_positions: string -> Position.T list
+    val encode_positions: Position.T list -> string
+
+ end
 
 \<close>
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/context.ML\<close>\<close> \<open>

@@ -59,7 +59,7 @@ signature C_ANNOTATION =
 
     datatype command_parser = Parser of command_config -> C_Env.eval_time c_parser
     datatype command  = Command of {command_parser: command_parser, 
-                                    comment: string, id: serial, pos: T}
+                                    comment: string, id: serial, pos: Position.T}
     val add_command   : Symtab.key -> command -> theory -> theory
 
     val before_command: (command_keyword list * (bool * command_keyword list)) c_parser
@@ -79,7 +79,7 @@ signature C_ANNOTATION =
                    -> theory -> theory
     val command_markup: bool -> string * command -> Markup.T
     val command_pos: command -> Position.T
-    val command_reports: theory -> C_Token.T -> ((T * Markup.T) * string) list
+    val command_reports: theory -> C_Token.T -> ((Position.T * Markup.T) * string) list
     val delete_command: Symtab.key * Position.T -> theory -> theory
     val new_command: string -> command_parser -> Position.T -> command
     val dest_commands: theory -> (Symtab.key * command) list
@@ -88,7 +88,7 @@ signature C_ANNOTATION =
     val err_dup_command: string -> Position.T list -> 'a
     val lookup_commands: theory -> Symtab.key -> command option
     val parse_command: theory -> C_Token.T list 
-                       -> (((T * Markup.T) * string) list * C_Env.eval_time) * C_Token.T list
+                       -> (((Position.T * Markup.T) * string) list * C_Env.eval_time) * C_Token.T list
     val raw_command: Symtab.key * Position.T -> string -> command_parser -> unit
     val raw_command0: string -> string * Position.T -> string -> command_parser -> theory -> theory
   end

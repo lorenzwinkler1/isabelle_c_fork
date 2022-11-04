@@ -459,6 +459,10 @@ signature C11_AST_LIB =
     val toString_abr_string: C_Ast.abr_string -> string
     val toString_nodeinfo  : C_Ast.nodeInfo -> string
 
+    val decode_positions   : string -> Position.T list
+    val encode_positions   : Position.T list -> string
+
+
 
     (* a generic iterator collection over the entire C11 - AST. The lexical 
        "leaves" of the AST's are parametric ('a). THe collecyot function "g" (see below)
@@ -568,6 +572,20 @@ fun toString_cBinaryOp (X:C_Ast.cBinaryOp)   = @{make_string} X
 fun toString_cIntFlag  (X:C_Ast.cIntFlag)    = @{make_string} X
                                              
 fun toString_cIntRepr  (X:C_Ast.cIntRepr)    = @{make_string} X
+
+
+val encode_positions =
+     map (Position.dest
+       #> (fn pos => ((#line pos, #offset pos, #end_offset pos), #props pos)))
+  #> let open XML.Encode in list (pair (triple int int int) properties) end
+  #> YXML.string_of_body
+  
+val decode_positions =
+     YXML.parse_body
+  #> let open XML.Decode in list (pair (triple int int int) properties) end
+  #> map ((fn ((line, offset, end_offset), props) =>
+           {line = line, offset = offset, end_offset = end_offset, props = props})
+          #> Position.make)
 
 fun dark_matter x = XML.content_of (YXML.parse_body x)
 
@@ -1052,7 +1070,5 @@ end
 end (*struct *)
 \<close>
 
-
-ML\<open>open Position\<close>
 
 end

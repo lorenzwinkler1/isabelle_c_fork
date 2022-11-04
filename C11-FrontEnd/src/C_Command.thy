@@ -693,28 +693,28 @@ signature C_INNER_SYNTAX =
     val bottom_up: C_Env.env_propagation_ctxt -> C_Env.env_propagation
     val command:  ('a -> C_Env.env_propagation_ctxt) 
                   -> 'a C_Parse.parser 
-                  -> string * T * T 
+                  -> string * Position.T * Position.T 
                   -> theory -> theory
     val command': ('a -> C_Env.comment_style -> Context.generic -> Context.generic,
                   ('a -> 'b) * ('b -> C_Env.env_propagation)) C_Scan.either
-                  -> 'a C_Parse.parser -> string * T -> theory -> theory
+                  -> 'a C_Parse.parser -> string * Position.T -> theory -> theory
     val command0: ('a -> Context.generic -> Context.generic) 
                   ->  'a C_Parse.parser 
-                  -> string * T * T * T 
+                  -> string * Position.T * Position.T * Position.T 
                   -> theory -> theory
     val command0':('a -> Context.generic -> Context.generic) 
                   -> string 
                   -> 'a C_Parse.parser 
-                  -> string * T * T * T 
+                  -> string * Position.T * Position.T * Position.T 
                   -> theory -> theory
-    val command00:('a -> range -> C_Env.comment_style -> Context.generic -> Context.generic,
-                   ('a -> range -> 'b) * ('b -> C_Env.env_propagation)) C_Scan.either
-                  -> string -> 'a C_Parse.parser -> string * T 
+    val command00:('a -> Position.range -> C_Env.comment_style -> Context.generic -> Context.generic,
+                   ('a -> Position.range -> 'b) * ('b -> C_Env.env_propagation)) C_Scan.either
+                  -> string -> 'a C_Parse.parser -> string * Position.T 
                   -> theory -> theory
     val command00_no_range:
-                  (range -> C_Env.comment_style -> Context.generic -> Context.generic,
-                   (range -> 'a) * ('a -> C_Env.env_propagation)) C_Scan.either
-                  -> string -> string * T -> theory -> theory
+                  (Position.range -> C_Env.comment_style -> Context.generic -> Context.generic,
+                   (Position.range -> 'a) * ('a -> C_Env.env_propagation)) C_Scan.either
+                  -> string -> string * Position.T -> theory -> theory
 (*    val command0_no_range:
        (range -> Context.generic, (range -> 'a) * (('c -> 'b -> 'a) -> C_Env.env_propagation))
        C_Scan.either
@@ -736,19 +736,21 @@ signature C_INNER_SYNTAX =
        (('a, 'a * (C_Env.env_propagation_ctxt -> C_Env.env_propagation)) C_Scan.either ->
           (string -> string) * 'b -> 'c -> 'c)
          -> 'a -> 'b * 'b * 'b -> 'c -> 'c
-    val command_no_range: C_Env.env_propagation_ctxt -> string * T * T -> theory -> theory
+    val command_no_range: C_Env.env_propagation_ctxt 
+                          -> string * Position.T * Position.T -> theory -> theory
     val command_no_range':
-       (range -> Context.generic -> Context.generic,
-       (range -> 'a) * (('b -> 'a) -> C_Env.env_propagation))
+       (Position.range -> Context.generic -> Context.generic,
+       (Position.range -> 'a) * (('b -> 'a) -> C_Env.env_propagation))
        C_Scan.either
-         -> string * T -> theory -> theory
+         -> string * Position.T -> theory -> theory
     val command_range:
-       (range -> C_Env.comment_style -> Context.generic -> Context.generic,
-       (range -> 'a) * ('a -> C_Env.env_propagation))
+       (Position.range -> C_Env.comment_style -> Context.generic -> Context.generic,
+       (Position.range -> 'a) * ('a -> C_Env.env_propagation))
        C_Scan.either
-         -> string * T -> theory -> theory
+         -> string * Position.T -> theory -> theory
     val command_range':
-       (range -> Context.generic -> Context.generic) -> string * T * T * T -> theory -> theory
+       (Position.range -> Context.generic -> Context.generic) 
+        -> string * Position.T * Position.T * Position.T -> theory -> theory
     val drop1:
        ('a -> 'b, ('c -> 'd) * 'e) C_Scan.either ->
          ('a -> 'f -> 'b, ('c -> 'g -> 'd) * 'e) C_Scan.either
@@ -756,11 +758,11 @@ signature C_INNER_SYNTAX =
        ('a -> 'b, ('c -> 'd) * 'e) C_Scan.either ->
          ('a -> 'f -> 'g -> 'b, ('c -> 'h -> 'i -> 'd) * 'e) C_Scan.either
     val local_command':
-       string * T * T * T ->
+       string * Position.T * Position.T * Position.T ->
          ((string -> string) -> Token.T list -> 'a * Token.T list) ->
            ('a -> bool -> local_theory -> local_theory) -> theory -> theory
     val local_command'':
-       string * T * T * T ->
+       string * Position.T * Position.T * Position.T ->
          (Token.T list -> 'a * Token.T list) ->
            ('a -> bool -> local_theory -> local_theory) -> theory -> theory
     val pref_bot: 'a -> 'a
@@ -952,7 +954,7 @@ signature C_ISAR_CMD =
                     -> bool 
                     -> local_theory -> local_theory
     val theorem:  bool ->
-                   (bool * Attrib.binding * (xstring * T) list 
+                   (bool * Attrib.binding * (xstring * Position.T) list 
                     * Element.context list * Element.statement) 
                    * (Method.text_range list 
                       * (Method.text_range * Method.text_range option) option)
