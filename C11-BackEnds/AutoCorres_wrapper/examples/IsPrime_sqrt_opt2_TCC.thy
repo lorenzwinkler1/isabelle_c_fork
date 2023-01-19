@@ -66,7 +66,7 @@ declare_autocorres is_prime [ts_rules = nondet,unsigned_word_abs = is_prime]
 
 text\<open> 
   This C code contains a function that determines if the given number @{term n} is prime.
-  It returns 0 if @{term n}  is composite, or non-zero if @{term n}  is prime.
+  It returns 0 if @{term "n"}  is composite, or non-zero if @{term n}  is prime.
   This is a faster version than a linear primality test; runs in O(sqrt(n)). 
   The algorithm avoids divisability tests for 2 and 3 (thus implicitely applying a 
   Erasthostenes sieve of size 6.
@@ -504,7 +504,30 @@ text\<open>I suppose that  this algorithm is more efficient than implementations
 
    \<^item> linear lists containing the full sieve upto \<^term>\<open>SQRT_UINT_MAX\<close>, so \<^term>\<open>2^32\<close> in C.
    \<^item> clever data-structures in OCaml implementations (Jean-Christophe Filiâtres suggestion.)
+text\<open>I suppose that  this algorithm is more efficient than implementations based on:
 
+   \<^item> linear lists containing the full sieve upto \<^term>\<open>SQRT_UINT_MAX\<close>, so \<^term>\<open>2^32\<close> in C.
+   \<^item> clever data-structures in OCaml implementations (Jean-Christophe Filiâtres suggestion.)
+
+According to the prime number theorem, the number of relevant prime divisors for \<open>n\<close> close 
+to \<^term>\<open>2^64\<close> is \<open>\<pi>(sqrt(n)) \<approx> sqrt n / ln(sqrt n)\<close>, so approximatively 5900. The algorithm checks 
+in the worst-case "\<open>n\<close> is indeed a prime number" \<open>2^32 / 3 \<approx> 21850\<close> divisors. It may thus 
+be a factor 4 slower than the optimum. On the other hand, the probability to run in such a worst 
+case is close to \<^term>\<open>2^64\<close> just \<open>1/ln(2^64) \<approx> 2,2%\<close> ! Given the fact that the above loop should 
+fit  in the TLB of any modern processor, there is a good chance that the above algorithm is
+the fastest in the average and in the considered interval up to  \<^term>\<open>2^64\<close> for \<open>n\<close>. 
+
+[I am not sure if the next bounded sieves algorithms with seave-size 30 or seave-size 210 would
+really perform better.]
+
+And compared to an efficient general implementation in another platform such as OCaml I would
+bet my hat that the above code wins again. 
+
+\<^bold>\<open>Morale:\<close> The pudding comes with the verification: while the program is optimized  to the 
+input interval and the concrete implementation platform, the verification complexity increases
+substantially for justifying the gains in efficiency ! As a consequence, there is a market
+for highly-optimized, strongly taylored verified  (!) C-programs tweaked for a particular 
+platform, in particular if the latter has only limited resources. \<close>
 According to the prime number theorem, the number of relevant prime divisors for \<open>n\<close> close 
 to \<^term>\<open>2^64\<close> is \<open>\<pi>(sqrt(n)) \<approx> sqrt n / ln(sqrt n)\<close>, so approximatively 5900. The algorithm checks 
 in the worst-case "\<open>n\<close> is indeed a prime number" \<open>2^32 / 3 \<approx> 21850\<close> divisors. It may thus 

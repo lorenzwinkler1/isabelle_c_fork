@@ -500,7 +500,7 @@ val CTranslUnit0
 
 fun conv_cid [((Some(CDeclr0(Some(Ident0(SS_base(ST x),lab,nid1)),[],None,[],NodeInfo0 AAA)),
                None), None)] ctxt = (x,lab,nid1)
-   | conv_cid _ _  = error "conv_cid (0) format not defined. [Clean restriction]"
+  | conv_cid _ _  = error "conv_cid (0) format not defined. [Clean restriction]"
 
 (* FIRST DRAFT - INCOMPLETE *)
 fun conv_transl_unit ( CTranslUnit0 (CDeclExt0 (CDecl0(tys,cid, nid1)) :: R,nid2)) thy = 
