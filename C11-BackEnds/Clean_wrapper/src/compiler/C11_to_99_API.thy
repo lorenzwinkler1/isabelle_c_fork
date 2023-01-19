@@ -35,8 +35,8 @@
  ******************************************************************************)
 
 chapter \<open>Appendix: C11 to C99 Toolkit\<close>
-
-theory Meta_C
+             
+theory C11_to_99_API
   imports Clean_Annotation
 begin
 

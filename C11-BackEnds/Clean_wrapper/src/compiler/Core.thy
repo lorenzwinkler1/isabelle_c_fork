@@ -40,7 +40,7 @@ text \<open> In the following, we define a few term-antiquotations (or cartouche
 C fragments are compiled into HOL-terms interpreted in the Clean theory.\<close>
 
 theory Core
-  imports Meta_C
+  imports C11_to_99_API
           Clean.Clean
 begin
 
@@ -505,12 +505,12 @@ subsection \<open>Test of C-to-Term Antiquotations (Cartouches)\<close>
 
 text\<open>Just to have a global and local state to build expressions and statements from: \<close>
 
-global_vars state
+global_vars (state)
   a\<^sub>g :: "nat list"
   aa\<^sub>g :: "nat list list"
   aaa\<^sub>g :: "nat list list list"
 
-local_vars_test swap nat
+local_vars_test (swap nat)
   a\<^sub>l :: "nat list"
   aa\<^sub>l :: "nat list list"
   aaa\<^sub>l :: "nat list list list"

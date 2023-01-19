@@ -508,6 +508,7 @@ int linearsearch(int x, int t[], int n) {
       loop invariant "forall integer j; 0<=j<i ==> (t[j] != x)"
       loop assigns i
       loop variant "n-i"
+      text \<open>"This implementation is problematic wrt. @{requirement \<open>efficiency\<close>}"\<close>
    */
   while (i < n) {
     if (t[i] < x) {

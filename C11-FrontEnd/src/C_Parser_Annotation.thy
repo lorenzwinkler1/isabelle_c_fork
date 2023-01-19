@@ -48,12 +48,59 @@ ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Isar/outer_syntax.ML\<close>\<cl
 Isabelle/Isar outer syntax.
 *)
 \<open>
-structure C_Annotation  =
+signature C_ANNOTATION =
+  sig
+    structure Data: THEORY_DATA
+    val get_commands: theory -> Data.T
+    val put_commands: Data.T -> theory -> theory
+
+    type command_keyword = string * Position.T
+    type command_config = (Symbol_Pos.T list * (bool * Symbol_Pos.T list)) * Position.range
+
+    datatype command_parser = Parser of command_config -> C_Env.eval_time c_parser
+    datatype command  = Command of {command_parser: command_parser, 
+                                    comment: string, id: serial, pos: Position.T}
+    val add_command   : Symtab.key -> command -> theory -> theory
+
+    val before_command: (command_keyword list * (bool * command_keyword list)) c_parser
+
+    val check_command: Proof.context -> Symtab.key * Position.T -> Symtab.key
+    val command  : command_keyword 
+                   -> string 
+                   -> (command_config -> C_Env.eval_time c_parser) 
+                   -> unit
+    val command' : command_keyword 
+                   -> string 
+                   -> (command_config -> C_Env.eval_time c_parser) 
+                   -> theory -> theory
+    val command'': string -> command_keyword 
+                   -> string 
+                   -> (command_config -> C_Env.eval_time c_parser) 
+                   -> theory -> theory
+    val command_markup: bool -> string * command -> Markup.T
+    val command_pos: command -> Position.T
+    val command_reports: theory -> C_Token.T -> ((Position.T * Markup.T) * string) list
+    val delete_command: Symtab.key * Position.T -> theory -> theory
+    val new_command: string -> command_parser -> Position.T -> command
+    val dest_commands: theory -> (Symtab.key * command) list
+    val eq_command: command * command -> bool
+    val err_command: string -> string -> Position.T list -> 'a
+    val err_dup_command: string -> Position.T list -> 'a
+    val lookup_commands: theory -> Symtab.key -> command option
+    val parse_command: theory -> C_Token.T list 
+                       -> (((Position.T * Markup.T) * string) list * C_Env.eval_time) * C_Token.T list
+    val raw_command: Symtab.key * Position.T -> string -> command_parser -> unit
+    val raw_command0: string -> string * Position.T -> string -> command_parser -> theory -> theory
+  end
+
+
+structure C_Annotation : C_ANNOTATION =
 struct
 
 (** outer syntax **)
 
 (* errors *)
+type command_config = (Symbol_Pos.T list * (bool * Symbol_Pos.T list)) * Position.range
 
 fun err_command msg name ps =
   error (msg ^ quote (Markup.markup Markup.keyword1 name) ^ Position.here_list ps);
@@ -107,6 +154,7 @@ structure Data = Theory_Data
 );
 
 val get_commands = Data.get;
+val put_commands = Data.put;
 val dest_commands = get_commands #> Symtab.dest #> sort_by #1;
 val lookup_commands = Symtab.lookup o get_commands;
 
@@ -239,8 +287,8 @@ Resources for theories and auxiliary files.
 \<open>
 signature C_RESOURCES = 
 sig 
-    val parse_files: (Path.T -> Path.T list) -> (theory -> Token.file list) C_Parse.parser  
-    val parse_file : (theory -> Token.file ) C_Parse.parser 
+    val parse_files: (Path.T -> Path.T list) -> (theory -> Token.file list) c_parser  
+    val parse_file : (theory -> Token.file ) c_parser 
 end
 
 structure C_Resources: C_RESOURCES=

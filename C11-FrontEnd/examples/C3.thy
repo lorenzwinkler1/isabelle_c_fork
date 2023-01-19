@@ -616,6 +616,33 @@ ML \<comment> \<open>Execution of annotations in term possible in (the outermost
 definition \<comment> \<open>Execution of annotations in term possible in \<^ML_type>\<open>local_theory\<close> commands (such as \<^theory_text>\<open>definition\<close>)\<close> \<open>
 term = \<^C> \<open>int c = 0; /*@ ML \<open>fac 100\<close> */\<close>
 \<close>
+definition\<open>
+term' = \<^C> \<open>int c = 0; /*@ text\<open>"This refers to @{requirement \<open>safety_1_1\<close>}"\<close> */\<close>
+\<close>
+
+text\<open>Experiment with C antiquotation text XXXXX\<close>
+
+ML\<open>
+fun document_output {markdown, markup} (loc, txt) =
+  let
+    fun output st =
+      let
+        val ctxt = Toplevel.presentation_context st;
+        val _ = Context_Position.reports ctxt (Document_Output.document_reports txt);
+      in txt |> Document_Output.output_document ctxt {markdown = markdown} |> markup end;
+  in
+    Toplevel.present (fn st =>
+      (case loc of
+        NONE => output st
+      | SOME (_, pos) =>
+          error ("Illegal target specification -- not a theory context" ^ Position.here pos))) o
+    Toplevel.present_local_theory loc output
+  end;
+\<close>
+
+ML\<open>fn name => Document_Output.document_output
+        {markdown = true, markup = fn body => [XML.Elem (Markup.latex_body name, body)]};
+\<close>
 
 section \<open>Scopes of Inner and Outer Terms\<close>
 

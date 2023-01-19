@@ -57,7 +57,7 @@ ML\<open>
   , ("c_types", \<^here>)
   , ("c_defs", \<^here>) ]
   |> map (fn cmd => (cmd, Keyword.command_spec ("", []))):
-   ((string * T) * Keyword.spec) list;
+   ((string * Position.T) * Keyword.spec) list;
 C_Thy_Header.add_keywords
 \<close>
 
