@@ -127,7 +127,7 @@ fun conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _)])) = SOME(H
 
 
 fun conv_cDerivedDeclarator_cSizeExpr_term (CArrDeclr0 (_,CArrSize0 (_,C_expr),_)) C_env thy = 
-            SOME(hd((C11_Ast_Lib.fold_cExpression 
+            SOME(hd((C11_Ast_Lib.fold_cExpression (K I)
                                  (convertExpr_raw false dummyT C_env thy) C_expr [])))
    |conv_cDerivedDeclarator_cSizeExpr_term (CArrDeclr0 (_,CNoArrSize0 Z,_)) _ _ = NONE
    |conv_cDerivedDeclarator_cSizeExpr_term (_)  _ _ =  
@@ -240,7 +240,7 @@ ML\<open>val ast_expr = @{C11_CExpr}
 
 ML\<open>
 
-val S = (C11_Ast_Lib.fold_cExpression (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
+val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
 val S = conv_Cexpr_term env_expr sigma_i @{theory} ast_expr
 
 \<close>
@@ -257,7 +257,7 @@ ML\<open>val ast_expr = @{C11_CExpr}
 
 ML\<open>
 
-val S = (C11_Ast_Lib.fold_cExpression (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
+val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
 val S = conv_Cexpr_term env_expr sigma_i @{theory} ast_expr
 
 \<close>
@@ -274,7 +274,7 @@ ML\<open>val ast_expr = @{C11_CExpr}
 
 ML\<open>
 
-val S = (C11_Ast_Lib.fold_cExpression (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
+val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
 val S = conv_Cexpr_term env_expr sigma_i @{theory} ast_expr
 
 \<close>
@@ -291,7 +291,7 @@ ML\<open>val ast_expr = @{C11_CExpr}
 
 ML\<open>
 
-val S = (C11_Ast_Lib.fold_cExpression (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
+val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
 val S' = conv_Cexpr_term env_expr sigma_i @{theory} ast_expr
 
 \<close>
@@ -306,7 +306,7 @@ ML\<open>val ast_expr = @{C11_CExpr}
 
 ML\<open>
 
-val S = (C11_Ast_Lib.fold_cExpression (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
+val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
 val S' = conv_Cexpr_term env_expr sigma_i @{theory} ast_expr
 
 \<close>
@@ -325,7 +325,7 @@ ML\<open>val ast_expr = @{C11_CExpr}
 
 ML\<open>
 
-val S = (C11_Ast_Lib.fold_cExpression (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr [])
+val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr [])
 val S' = conv_Cexpr_term env_expr sigma_i @{theory} ast_expr
 
 \<close>
@@ -340,7 +340,7 @@ ML\<open>val ast_expr = @{C11_CExpr}
 
 ML\<open>
 
-val S = (C11_Ast_Lib.fold_cExpression (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
+val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
 
 \<close>
 
@@ -352,16 +352,17 @@ text \<open>Then, start the study of the statements (while, for, if then else, r
 
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "statement"]]
 C\<open>
-while(1){
-  a = a + 1;
-  }
+{ a = a;
+while(1 && 1){ a = a; a = 1; }
+}
 \<close>
 ML\<open>val ast_stmt = @{C11_CStat}
    val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>
 
+ML\<open>val C_Ast.CCompound0(a, b, c) = ast_stmt;\<close>
 
 ML\<open>
-val S =  (C11_Ast_Lib.fold_cStatement (convertStmt_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_stmt []); 
+val S =  (C11_Ast_Lib.fold_cStatement regroup (convertStmt_raw true unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_stmt []); 
 \<close>
 
 (*2*****************************************************************************************************)
@@ -369,7 +370,7 @@ val S =  (C11_Ast_Lib.fold_cStatement (convertStmt_raw false unitT @{C\<^sub>e\<
 (*if the body is empty, then we put a skip :*)
 
 C\<open>
-while(1){
+while(1){ a = a+1;
   }
 \<close>
 ML\<open>val ast_stmt = @{C11_CStat}
@@ -377,7 +378,7 @@ ML\<open>val ast_stmt = @{C11_CStat}
 
 
 ML\<open>
-val S =  (C11_Ast_Lib.fold_cStatement (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_stmt []); 
+val S =  (C11_Ast_Lib.fold_cStatement regroup (convertStmt_raw true unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_stmt []); 
 \<close>
 
 (*3*****************************************************************************************************)
@@ -390,9 +391,9 @@ for(a = 0; a < 2; a = a + 1){
 ML\<open>val ast_stmt = @{C11_CStat}
    val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>
 
-
+(* crash due to typing problem *)
 ML\<open>
-val S =  (C11_Ast_Lib.fold_cStatement (convertExpr false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_stmt []); 
+val S =  (C11_Ast_Lib.fold_cStatement regroup (convertStmt_raw true unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_stmt []); 
 \<close>
 
 (*4*****************************************************************************************************)
@@ -408,6 +409,9 @@ else{
 ML\<open>val ast_stmt = @{C11_CStat}
    val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>
 
+ML\<open>
+val S =  (C11_Ast_Lib.fold_cStatement regroup (convertStmt_raw true unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_stmt []); 
+\<close>
 (*5*****************************************************************************************************)
 
 (*work in progress for skip, break and return : *)
@@ -417,17 +421,17 @@ for(a = 0; a < 10; a = a + 1){
   while(a < 10){
     break;
   }
-  continue;
   return a;
 }
 \<close>
 ML\<open>val ast_stmt = @{C11_CStat}
    val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>
 
-
+(* problems with typing *)
 ML\<open>
-val S =  (C11_Ast_Lib.fold_cStatement (convertExpr false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_stmt []); 
+val S =  (C11_Ast_Lib.fold_cStatement regroup (convertStmt_raw true unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_stmt []); 
 \<close>
+
 
 (*following : unfinished work.*)
 
@@ -443,6 +447,7 @@ ML\<open>val ast_ext_decl = @{C11_CExtDecl}
 
 \<close>
 
+(* language support incomplete *)
 ML \<open>
 val S =  (C11_Ast_Lib.fold_cExternalDeclaration (convertExpr_raw false boolT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_ext_decl []);
 \<close>

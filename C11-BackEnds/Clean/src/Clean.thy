@@ -1405,7 +1405,7 @@ struct
 
 fun mk_seq_C C C' = let val t = fastype_of C
                      val t' =  fastype_of C'
-                 in  Const(\<^const_name>\<open>bind_SE'\<close>, t --> t' --> t') end;
+                 in  Const(\<^const_name>\<open>bind_SE'\<close>, t --> t' --> t') $ C $ C' end;
 
 fun mk_skip_C sty = Const(\<^const_name>\<open>skip\<^sub>S\<^sub>E\<close>, StateMgt_core.MON_SE_T HOLogic.unitT sty)
 

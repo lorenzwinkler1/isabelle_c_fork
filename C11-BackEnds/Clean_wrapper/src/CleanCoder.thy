@@ -14,14 +14,12 @@ section\<open>A small compiler to Isabelle term's.\<close>
 text \<open>
 The goal of this project is to develop a translation function from the language C11 to
 Clean. In particular, the function take as an argument the result of the parser, and create 
-a typed \<lambda>-term which encoded the semanticaly equivalent program in Clean.
-
-\<close>
+a typed \<lambda>-term which encoded the semanticaly equivalent program in Clean.\<close>
 
 
 text \<open>We will use different auxiliary functions to do operations on the terms, and to help
-to understand what kind of types and objects we do manipulate. 
-\<close>
+to understand what kind of types and objects we do manipulate. \<close>
+
 
 ML\<open>
 
@@ -29,48 +27,16 @@ ML\<open>
 
 (*renvoie un string représentant un objet data*)
 fun toString_data data = case data of
-     C11_Ast_Lib.data_bool e => "Bool : "^Bool.toString e
+      C11_Ast_Lib.data_bool e => "Bool : "^Bool.toString e
      |C11_Ast_Lib.data_int e => "Int : "^Int.toString e
      |C11_Ast_Lib.data_string e => "String : "^e
      |C11_Ast_Lib.data_absstring e => "AbsString : "^e
  
-fun toString_args args = 
-    "["^(
-    case args of 
-      [] => "]"
-      |[x] => ((toString_data x)^"]")
-      |x::s => ((toString_data x)^","^toString_args s) 
-        )
-fun toString_nodeInfo nodeInfo = 
-        case nodeInfo of 
-     C_Ast.OnlyPos0(_, (_, _)) => ""
-    |C_Ast.NodeInfo0(_, (_, _), C_Ast.Name0 name) => Int.toString name
+fun toString_args args = "["^(String.concatWith ", "(List.map (toString_data) args))^ "]"
 
+fun toString_nodeInfo (C_Ast.OnlyPos0(_, (_, _))) = ""
+   |toString_nodeInfo (C_Ast.NodeInfo0(_, (_, _), C_Ast.Name0 name)) = Int.toString name
 
-
-(*applique une fonction a chaque éléments de la liste*)
-fun map f l = case l of [] => "" |[x] => f x | x::s => (f x^", "^ map f s)
-
-(*toString un objet sort*)
- fun toString_sort s = case s of
-  [] => ""
-  |[x] => x
-  |x::s => (x^", "^(toString_sort s))
-
-(*toString un objet typ*)
-fun toString_typ tab t = case t of
-  Type (ty, l) =>"\n" ^ tab ^ "Type("^ty^", ["^ (map (toString_typ (tab ^"  ")) l)^ "\n"^tab^"])"
-  |TFree(str, so) => "\n"^tab^ "TFree("^str^", ["^(toString_sort so)^"])"
-  |TVar((str, id), so) => "\n"^tab^ "TVar(("^str^", "^(Int.toString id)^"), ["^(toString_sort  so)^"\n"^tab^"])"
-
-(*toString un objet term*)
-fun toString_term tab t = case t of
-  Const (s, t) => ("Const("^s^", "^(toString_typ ("  "^tab) t )^"\n)")
-  |Free (s, t) =>  ("Free("^s^", "^(toString_typ ("  "^tab) t )^"\n)")
-  |Bound n =>  ("Bound("^Int.toString(n)^")")
-  |Abs (s, ty, te) =>  ("Abs("^s^(toString_typ "  " ty)^"\n"^tab^ (toString_term ("  "^tab) te)^ ")")
-  |g $ d => (toString_term (" "^tab) g)^"\n$\n"^(toString_term (" "^tab) d)
-  |_ => "term not implemented yet"
 
 (*affiche le contenue d'un nodeInfo*)
 fun print_node_info (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
@@ -78,11 +44,11 @@ fun print_node_info (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content)
            (c : term list) = 
            (writeln ("tag : \""^tag^"\""^
               (*("\ncode ascii :\n"^toString_ascii_code ((String.size tag) - 1) tag)^*)
-              "\nsubtag : "^sub_tag^
-              "\nargs : "^(toString_args args)^
-              "\nnodeInfo : "^(toString_nodeInfo b)^
-              "\ntermList : "^(map (toString_term "") c) 
-              ^"\n--------------------"))
+              "\n subtag : "^sub_tag^
+              "\n args : "^(toString_args args)^
+              "\n nodeInfo : "^(toString_nodeInfo b)^
+              "\n termList : "^(String.concatWith ","(List.map (@{make_string}) c)) 
+              ^"\n --------------------"))
 
 (*------------compiler-----------*)
 
@@ -114,8 +80,8 @@ fun remove_char_from_string c s =
 (*si le term est un nombre, alors le transforme en bool*)
 
 fun term_to_bool term = case term of
-      Const ("Groups.one_class.one", _) => \<^term>\<open>True\<close>
-      |Const ("Groups.zero_class.zero", _) => \<^term>\<open>False\<close> 
+        Const ("Groups.one_class.one", _) => \<^term>\<open>True\<close>
+      | Const ("Groups.zero_class.zero", _) => \<^term>\<open>False\<close> 
       |(Const ("Num.numeral_class.numeral", _) $ _) => \<^term>\<open>True\<close>
       |_ => term
 
@@ -129,37 +95,6 @@ fun  list_to_applications [] = raise EmptyList
    | list_to_applications [x] = x
    | list_to_applications (x::s) = (list_to_applications s) $ x
 
-(*fonction prenant en entrée une list de terms [t1, ..., Begin, b1, ..., bk, End, ..., tn]
-et renvoie la liste [t1, ...,  un terme représentant le bloc b1; ... bk;, ..., tn]
-si on a k = 0 : renvoie la term skip
-*)
-fun block_to_term l =
-  let
-    fun aux1 l acc = case l of    (*créé la list [b1, ..., bk, End, ..., tn]*)
-          [] => raise EmptyList
-          |x::s => if x = Const("Begin", dummyT) then (acc, s) else aux1 s (x::acc)
-
-    val (pre, rest) = aux1 l []
-
-    fun aux2 l n acc = case (l, n) of (*créé la liste [bk, ..., b1]*)
-          ([], _) => raise EmptyList
-          |(Const("End", _)::s, 0) => (acc, s)
-          |(Const("End", _)::s, n) => aux2 s (n - 1) (Const("End", dummyT)::acc)
-          |(Const("Begin", _)::s, n) => aux2 s (n + 1) (Const("Begin", dummyT)::acc) 
-          |(x::s, n) => aux2 s n (x::acc)
-
-    val (core, suff) = aux2 rest 0 []
-  
-    fun aux3 l = case l of (*créé le term Block $ b1 $ ... $ bk si k \<ge> 1, Skip sinon*)
-          [] => Clean_Term_interface.mk_skip_C dummyT
-          |[x] => x
-          |x::s => (let 
-                    val C' = aux3 s
-                    in 
-                   (Clean_Term_interface.mk_seq_C x C') $ x $ C' end)
-  in
-  (List.rev pre) @ (aux3 (List.rev core)) :: suff
-  end
 
 (*renvoie le type final d'une fonction, ou le type d'une constante*)
 fun lastype_of (Type(_, [x])) = x | lastype_of (Type(_, [_, y])) = y
@@ -172,8 +107,7 @@ fun mk_glob_upd name rhs =
     val ty   = fastype_of rhs
     val ty'  = lastype_of ty
     val ty'' = firstype_of ty
-  in
-  Const(name^"_update", (ty' --> ty') --> ty'' --> ty'')
+  in  Const(name^"_update", (ty' --> ty') --> ty'' --> ty'')
   end
 
 (*créé un term upd local*)
@@ -182,8 +116,7 @@ fun mk_loc_upd name rhs =
     val ty   = fastype_of rhs
     val ty'  = lastype_of ty
     val ty'' = firstype_of ty
-  in
-  Const(name^"_update", (HOLogic.listT ty' --> HOLogic.listT ty') --> ty'' --> ty'')
+  in  Const(name^"_update", (HOLogic.listT ty' --> HOLogic.listT ty') --> ty'' --> ty'')
   end
 
 (*fonction de traduction principale :*)
@@ -295,20 +228,75 @@ translate integers in booleans. That's what term_to_bool t do.
      | str => error("unsupported expression with parse tag: "^str)) (* global catch all *)
 
 fun conv_Cexpr_term C_env sigma_i thy C_expr = 
-    Abs("\<sigma>", sigma_i, hd((C11_Ast_Lib.fold_cExpression 
+    Abs("\<sigma>", sigma_i, hd((C11_Ast_Lib.fold_cExpression (K I)
                                (convertExpr_raw false sigma_i C_env thy) C_expr [])))
     (* Better: abstract_over (Free(\<sigma>, sigma_i)) ??? *)
 \<close>
-
-
-
-
+ML\<open>\<close>
 ML\<open>
+
+val start_term = Const("_BEGIN",dummyT)
+val end_term = Const("_END",dummyT)
+
+
+fun group tS = [end_term] @ tS @ [start_term] (* reverse order *)
+
+fun regroup pre post = let val pre' = rev pre
+                           val post' = rev post
+                           fun chop_common_prefix([],S) = S
+                              |chop_common_prefix(a::P,a'::P') = if a = a' then chop_common_prefix(P,P') 
+                                                               else error"Stack regrouping error" 
+                              |chop_common_prefix _ = error"Stack regrouping error"
+                       in  group (rev(chop_common_prefix (pre', post'))) @ pre end 
+
+
+(*fonction prenant en entrée une list de terms [t1, ..., Begin, b1, ..., bk, End, ..., tn]
+et renvoie la liste [t1, ...,  un terme représentant le bloc b1; ... bk;, ..., tn]
+si on a k = 0 : renvoie la term skip
+*)
+
+fun block_to_term (Const("_END",_)::Const("_BEGIN",_)::R) 
+              = Clean_Term_interface.mk_skip_C dummyT ::R
+   |block_to_term R = 
+         let val _ = (writeln("block_to_term::"^ @{make_string } R))
+             val (topS, restS) = chop_prefix (fn Const("_BEGIN",_) => false | _ => true) R
+             val (Const("_END",_)::topS, Const("_BEGIN",_)::restS) = (topS, restS)
+             val _ = Clean_Term_interface.mk_seq_C
+         in (foldl1 (uncurry Clean_Term_interface.mk_seq_C) (rev topS)) :: restS end
+
+(*
+fun block_to_term l =
+  let
+    val _ = (writeln("block_to_term::"^ @{make_string } l))
+    fun aux1 l acc = case l of    (*créé la list [b1, ..., bk, End, ..., tn]*)
+          [] => ([Clean_Term_interface.mk_skip_C dummyT],[]) (* ??? *)
+          |x::s => if x = Const("Begin", dummyT) then (acc, s) else aux1 s (x::acc)
+
+    val (pre, rest) = aux1 l []
+
+    fun aux2 l n acc = case (l, n) of (*créé la liste [bk, ..., b1]*)
+          ([], _) => raise EmptyList
+          |(Const("End", _)::s, 0) => (acc, s)
+          |(Const("End", _)::s, n) => aux2 s (n - 1) (Const("End", dummyT)::acc)
+          |(Const("Begin", _)::s, n) => aux2 s (n + 1) (Const("Begin", dummyT)::acc) 
+          |(x::s, n) => aux2 s n (x::acc)
+
+    val (core, suff) = aux2 rest 0 []
+  
+    fun aux3 l = case l of (*créé le term Block $ b1 $ ... $ bk si k \<ge> 1, Skip sinon*)
+            [] => Clean_Term_interface.mk_skip_C dummyT
+          | [x] => x
+          | x::s => (let  val C' = aux3 s
+                     in  (Clean_Term_interface.mk_seq_C x C') $ x $ C' end)
+  in (List.rev pre) @ (aux3 (List.rev core)) :: suff
+  end
+*)
+
 fun convertStmt_raw verbose sigma_i env thy
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo ) 
            (c : term list) =
-    ((if verbose then print_node_info a b c else ());
+    ((if verbose then (writeln("tag:"^tag);print_node_info a b c) else ());
     case tag of
 
 (*for the assignations, we only consider global variables for now, and we use the maker*)
@@ -340,7 +328,10 @@ and use the mk_seq_C functions to get only 1 term at the end. It delete begin an
 (*In C11, we have to types of if : if(...){...} and if(...){...} else{...}. but in
 Clean, we must use if then else, so we isolate both cases, and if needed, we encode if(...){...} ans 
 if ... then ... else skip*)
-     |"CIf0" => (case c of  (a::b::cond::R) => 
+     | "CBlockStmt0" => c
+     | "CBlockDecl0" => error"Nested Blocks not allowed in Clean"
+     | "CNestedFunDef0" =>  error"Nested Function Declarations not allowed in Clean"
+     |"CIf0" => (case c of  (a::b::cond::R) =>
                                 Clean_Term_interface.mk_if_C  (Abs("\<sigma>", dummyT --> boolT, cond)) b  a::R
                            |(a::cond::R) => (
                                 Clean_Term_interface.mk_if_C cond a (Clean_Term_interface.mk_skip_C dummyT)::R)
