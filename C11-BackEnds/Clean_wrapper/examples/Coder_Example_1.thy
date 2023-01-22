@@ -340,7 +340,7 @@ ML\<open>val ast_expr = @{C11_CExpr}
 
 ML\<open>
 
-val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
+val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
 
 \<close>
 
@@ -352,49 +352,72 @@ text \<open>Then, start the study of the statements (while, for, if then else, r
 
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "statement"]]
 C\<open>
-{ a = a;
-while(1 && 1){ a = a; a = 1; }
+{ a = a+a;
+while(1 && 1){ a = a * a; a = a + 1; }
 }
 \<close>
-ML\<open>val ast_stmt = @{C11_CStat}
-   val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>
+ML\<open>val ast_stmt = @{C11_CStat}   \<comment> \<open>C11 ast\<close>
+   val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>        \<comment> \<open>C11 c-env\<close>
 
-ML\<open>val C_Ast.CCompound0(a, b, c) = ast_stmt;\<close>
+ML\<open>val C_Ast.CCompound0(a, b, c) = ast_stmt;\<close> \<comment> \<open>grabbing into an AST\<close>
 
-ML\<open>
-val S =  (C11_Ast_Lib.fold_cStatement regroup (convertStmt_raw true unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_stmt []); 
+\<comment> \<open>a C11 AST to Clean compilation, written as the internal Isabelle representation in Term.term.\<close>
+\<comment> \<open>verbous tracing on.\<close>
+ML\<open> 
+val [S] =  (C11_Ast_Lib.fold_cStatement 
+               regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
+               (convertStmt_raw true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) 
+                          \<comment> \<open>combinator handlicng an individual statement\<close>
+                ast_stmt  \<comment> \<open>C11 ast\<close>
+                []        \<comment> \<open>mt stack\<close>); 
 \<close>
+
+ML\<open>S\<close>
+\<comment> \<open>pretty print of the latter\<close>
+ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 (*2*****************************************************************************************************)
 
 (*if the body is empty, then we put a skip :*)
 
 C\<open>
-while(1){ a = a+1;
-  }
+while(1){
+         a = a+1;
+}
 \<close>
 ML\<open>val ast_stmt = @{C11_CStat}
    val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>
 
 
 ML\<open>
-val S =  (C11_Ast_Lib.fold_cStatement regroup (convertStmt_raw true unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_stmt []); 
+val [S] =  (C11_Ast_Lib.fold_cStatement 
+              regroup 
+              (convertStmt_raw true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) 
+              ast_stmt []); 
 \<close>
+\<comment> \<open>Clean pretty print of the latter\<close>
+ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 (*3*****************************************************************************************************)
 
 C\<open>
 for(a = 0; a < 2; a = a + 1){
-  
-  }
+   a = a + 5;
+}
 \<close>
-ML\<open>val ast_stmt = @{C11_CStat}
+ ML\<open>val ast_stmt = @{C11_CStat}
    val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>
 
 (* crash due to typing problem *)
 ML\<open>
-val S =  (C11_Ast_Lib.fold_cStatement regroup (convertStmt_raw true unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_stmt []); 
+val [S] =  (C11_Ast_Lib.fold_cStatement 
+           regroup 
+           (convertStmt_raw true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) 
+           ast_stmt 
+           []); 
 \<close>
+\<comment> \<open>Clean pretty print of the latter\<close>
+ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 (*4*****************************************************************************************************)
 
@@ -410,8 +433,16 @@ ML\<open>val ast_stmt = @{C11_CStat}
    val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>
 
 ML\<open>
-val S =  (C11_Ast_Lib.fold_cStatement regroup (convertStmt_raw true unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_stmt []); 
+val [S] =  (C11_Ast_Lib.fold_cStatement 
+              regroup 
+              (convertStmt_raw true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) 
+              ast_stmt 
+              []); 
 \<close>
+\<comment> \<open>Clean pretty print of the latter\<close>
+ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
+
+
 (*5*****************************************************************************************************)
 
 (*work in progress for skip, break and return : *)
@@ -429,9 +460,14 @@ ML\<open>val ast_stmt = @{C11_CStat}
 
 (* problems with typing *)
 ML\<open>
-val S =  (C11_Ast_Lib.fold_cStatement regroup (convertStmt_raw true unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_stmt []); 
+val [S] =  (C11_Ast_Lib.fold_cStatement 
+            regroup 
+            (convertStmt_raw true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) 
+            ast_stmt []); 
 \<close>
-
+\<comment> \<open>Clean pretty print of the latter\<close>
+ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
+(* the result is structurally incorrect. Where does the if come from ? *)
 
 (*following : unfinished work.*)
 
@@ -449,7 +485,10 @@ ML\<open>val ast_ext_decl = @{C11_CExtDecl}
 
 (* language support incomplete *)
 ML \<open>
-val S =  (C11_Ast_Lib.fold_cExternalDeclaration (convertExpr_raw false boolT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_ext_decl []);
+val S =  (C11_Ast_Lib.fold_cExternalDeclaration regroup
+                  (convertExpr_raw false sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) 
+                  ast_ext_decl 
+                  []);
 \<close>
 
 (*4*****************************************************************************************************)

@@ -234,6 +234,7 @@ fun conv_Cexpr_term C_env sigma_i thy C_expr =
 \<close>
 ML\<open>\<close>
 ML\<open>
+local open Clean_Term_interface in
 
 val start_term = Const("_BEGIN",dummyT)
 val end_term = Const("_END",dummyT)
@@ -256,20 +257,20 @@ si on a k = 0 : renvoie la term skip
 *)
 
 fun block_to_term (Const("_END",_)::Const("_BEGIN",_)::R) 
-              = Clean_Term_interface.mk_skip_C dummyT ::R
+              = mk_skip_C dummyT ::R
    |block_to_term R = 
          let val _ = (writeln("block_to_term::"^ @{make_string } R))
              val (topS, restS) = chop_prefix (fn Const("_BEGIN",_) => false | _ => true) R
              val (Const("_END",_)::topS, Const("_BEGIN",_)::restS) = (topS, restS)
-             val _ = Clean_Term_interface.mk_seq_C
-         in (foldl1 (uncurry Clean_Term_interface.mk_seq_C) (rev topS)) :: restS end
+             val _ = mk_seq_C
+         in (foldl1 (uncurry mk_seq_C) (rev topS)) :: restS end
 
 (*
 fun block_to_term l =
   let
     val _ = (writeln("block_to_term::"^ @{make_string } l))
     fun aux1 l acc = case l of    (*créé la list [b1, ..., bk, End, ..., tn]*)
-          [] => ([Clean_Term_interface.mk_skip_C dummyT],[]) (* ??? *)
+          [] => ([mk_skip_C dummyT],[]) (* ??? *)
           |x::s => if x = Const("Begin", dummyT) then (acc, s) else aux1 s (x::acc)
 
     val (pre, rest) = aux1 l []
@@ -284,10 +285,10 @@ fun block_to_term l =
     val (core, suff) = aux2 rest 0 []
   
     fun aux3 l = case l of (*créé le term Block $ b1 $ ... $ bk si k \<ge> 1, Skip sinon*)
-            [] => Clean_Term_interface.mk_skip_C dummyT
+            [] => mk_skip_C dummyT
           | [x] => x
           | x::s => (let  val C' = aux3 s
-                     in  (Clean_Term_interface.mk_seq_C x C') $ x $ C' end)
+                     in  (mk_seq_C x C') $ x $ C' end)
   in (List.rev pre) @ (aux3 (List.rev core)) :: suff
   end
 *)
@@ -295,17 +296,17 @@ fun block_to_term l =
 fun convertStmt_raw verbose sigma_i env thy
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo ) 
-           (c : term list) =
-    ((if verbose then (writeln("tag:"^tag);print_node_info a b c) else ());
+           (stack : term list) =
+    ((if verbose then (writeln("tag:"^tag);print_node_info a b stack) else ());
     case tag of
 
 (*for the assignations, we only consider global variables for now, and we use the maker*)
-     "CAssign0" => (case c of
+     "CAssign0" => (case stack of
                       (a::b::R) => (
-                            let val Const(name, t) $ _ = b 
+                            let val Const(name, t) $ _ = b       
                                 val state_scheme_typ = firstype_of t
                             in
-                            (Clean_Term_interface.mk_assign_global_C 
+                            (mk_assign_global_C 
                                 (mk_glob_upd name (Const(name, t))) 
                                 (Abs("\<sigma>", state_scheme_typ, a))
                             )::R end)
@@ -313,47 +314,49 @@ fun convertStmt_raw verbose sigma_i env thy
      (*statements*)
 (*for return, skip and break, we have makers except that they need types and terms that i didn't 
 understand so it's unfinished here*)
-     |"CReturn0" => (let 
-                      val rhs = hd c
-                     in 
-                      (Clean_Term_interface.mk_return_C (Const("temp", dummyT)) (Abs("\<sigma>", dummyT, rhs)))::(tl c)
+     |"CReturn0" => (let  val rhs = hd stack
+                     in   (mk_return_C 
+                             (Const("temp", dummyT)) 
+                             (Abs("\<sigma>", dummyT, rhs)))
+                          ::(tl stack)
                      end)
-     |"CSkip0" => (Clean_Term_interface.mk_skip_C sigma_i)::c
-     |"CBreak0" => (Clean_Term_interface.mk_break sigma_i)::c
+     |"CSkip0" => (mk_skip_C sigma_i)::stack
+     |"CBreak0" => (mk_break sigma_i)::stack
 (*for statements with a body, we need to create a sequence. if statements or expressions
 are in sequence, they will be in the list c between Const("begin", _) and Const("end", _).
 so we use the block_to_term function which group all the terms already translate between begin and end,
 and use the mk_seq_C functions to get only 1 term at the end. It delete begin and end aswell.*)
-     |"CCompound0" => block_to_term c
+     |"CCompound0" => block_to_term stack
 (*In C11, we have to types of if : if(...){...} and if(...){...} else{...}. but in
 Clean, we must use if then else, so we isolate both cases, and if needed, we encode if(...){...} ans 
 if ... then ... else skip*)
-     | "CBlockStmt0" => c
+     | "CBlockStmt0" => stack
      | "CBlockDecl0" => error"Nested Blocks not allowed in Clean"
      | "CNestedFunDef0" =>  error"Nested Function Declarations not allowed in Clean"
-     |"CIf0" => (case c of  (a::b::cond::R) =>
-                                Clean_Term_interface.mk_if_C  (Abs("\<sigma>", dummyT --> boolT, cond)) b  a::R
+     |"CIf0" => (case stack of  (a::b::cond::R) =>
+                                mk_if_C  (Abs("\<sigma>", sigma_i --> boolT, cond)) b  a::R
                            |(a::cond::R) => (
-                                Clean_Term_interface.mk_if_C cond a (Clean_Term_interface.mk_skip_C dummyT)::R)
+                                mk_if_C (Abs("\<sigma>", sigma_i --> boolT, cond)) a (mk_skip_C sigma_i)::R)
                            |_ => raise WrongFormat("if")
                 )
-     |"CWhile0" => ( case c of
-                      (a::b::R) => (Clean_Term_interface.mk_while_C  b  a)::R
-                      |(a::R) => (Clean_Term_interface.mk_while_C  a  (Clean_Term_interface.mk_skip_C dummyT))::R
+     |"CWhile0" => (case stack of
+                       (a::b::R) => (mk_while_C  (Abs("\<sigma>", sigma_i, b))  a)::R
+                      |(a::R)    => (mk_while_C  (Abs("\<sigma>", sigma_i, a))  
+                                                 (mk_skip_C dummyT))
+                                    ::R
                       |_ => raise WrongFormat("while")
                    )
 (*There is no For operator in Clean, so we have to translate it as a while :
 for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
-     |"CFor0" => (case c of
-                  (a::b::c::d::R) => (let 
-                                      val C' = Clean_Term_interface.mk_while_C
-                                            c
-                                            ((Clean_Term_interface.mk_seq_C a b) $ a $ b)
-                                      in
-                                      ((Clean_Term_interface.mk_seq_C d C') $ d $ C')::R end)
+     |"CFor0" => (case stack of
+                      (body::pace::cond::init::R) => (let val C' = mk_while_C
+                                                                     (Abs("\<sigma>", sigma_i,cond))
+                                                                     (mk_seq_C body pace)
+                                                      in   ((mk_seq_C init C'))::R end)
                   |_ => raise WrongFormat("for"))
-     | _ => convertExpr_raw verbose sigma_i env thy a b c )
+     | _ => convertExpr_raw verbose sigma_i env thy a b stack )
 
+end
 \<close>
 
 ML\<open>
