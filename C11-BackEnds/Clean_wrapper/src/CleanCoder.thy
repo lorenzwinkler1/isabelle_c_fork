@@ -44,8 +44,8 @@ fun print_node_info (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content)
            (c : term list) = 
            (writeln ("tag : \""^tag^"\""^
               (*("\ncode ascii :\n"^toString_ascii_code ((String.size tag) - 1) tag)^*)
-              "\n subtag : "^sub_tag^
-              "\n args : "^(toString_args args)^
+              "\n subtag : "  ^sub_tag^
+              "\n args : "    ^(toString_args args)^
               "\n nodeInfo : "^(toString_nodeInfo b)^
               "\n termList : "^(String.concatWith ","(List.map (@{make_string}) c)) 
               ^"\n --------------------"))
@@ -88,12 +88,6 @@ fun term_to_bool term = case term of
 exception EmptyList
 exception WrongFormat of string
 exception UnknownTyp of string
-
-(*transforme la term list [t1, ..., tn] en le term tn $ ... $ t1, exception si la liste est vide*)
-
-fun  list_to_applications [] = raise EmptyList 
-   | list_to_applications [x] = x
-   | list_to_applications (x::s) = (list_to_applications s) $ x
 
 
 (*renvoie le type final d'une fonction, ou le type d'une constante*)

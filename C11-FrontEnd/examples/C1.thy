@@ -83,7 +83,7 @@ fun selectIdent0 (a:C11_Ast_Lib.node_content) b c=  if #tag a = "Ident0" then a:
 
 (* and here comes the hic >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> *)
 
-val S =  (C11_Ast_Lib.fold_cTranslationUnit selectIdent0 ast_unit []);
+val S =  (C11_Ast_Lib.fold_cTranslationUnit (K I) selectIdent0 ast_unit []);
 
 (* ... end of hic *)
 
@@ -136,7 +136,7 @@ sub-expressions were stored in reversed polish notation. The example shows that 
 structurally equivalent.    
 \<close>
 ML\<open>
-val S =  (C11_Ast_Lib.fold_cExpression selectIdent0Binary ast_expr []);
+val S =  (C11_Ast_Lib.fold_cExpression (K I) selectIdent0Binary ast_expr []);
 val S' = @{term "a + b * c - a / b"};
 \<close>
 

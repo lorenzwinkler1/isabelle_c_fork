@@ -633,6 +633,7 @@ fun fold_cInteger g' (CInteger0 (i: int, r: cIntRepr, rfl:cIntFlag flags)) st =
                               #>> [data_int i,
                                    data_string (@{make_string} r),
                                    data_string (@{make_string} rfl)])
+
 fun fold_cChar   g'  (CChar0(c : char, b:bool)) st          = 
                      st |> g' (TT"CChar0"
                                #>> [data_string (toString_Chara c),data_bool (b)])
@@ -640,20 +641,24 @@ fun fold_cChar   g'  (CChar0(c : char, b:bool)) st          =
                      let val cs' = cs |> map toString_Chara 
                                       |> String.concat 
                      in  st |> g' (TT"CChars0" #>> [data_string cs',data_bool b]) end
-fun fold_cFloat  g'  (CFloat0 (bstr: abr_string)) st          = 
+
+fun fold_cFloat  g'  (CFloat0 (bstr: abr_string)) st          =
                      st |> g' (TT"CFloat0"#>> [data_string (@{make_string} bstr)])
-fun fold_cString g' (CString0 (bstr: abr_string, b: bool)) st = 
+
+fun fold_cString g' (CString0 (bstr: abr_string, b: bool)) st =
                      st |> g' (TT"CString0"#>> [data_string (@{make_string} bstr), data_bool b])
 
 
-fun fold_cConstant g (CIntConst0 (i: cInteger, a))  st = st |> fold_cInteger (fn x=>g x a) i
-                                                            |> g (TT"CIntConst0") a  
-  | fold_cConstant g (CCharConst0  (c : cChar, a))  st = st |> fold_cChar (fn x=>g x a) c
-                                                            |> g (TT"CCharConst0") a   
-  | fold_cConstant g (CFloatConst0 (f : cFloat, a)) st = st |> fold_cFloat (fn x=>g x a) f
-                                                            |> g (TT"CFloatConst0") a   
-  | fold_cConstant g (CStrConst0   (s : cString, a))st = st |> fold_cString (fn x=>g x a) s
-                                                            |> g (TT"CStrConst0") a
+fun fold_cConstant g ast st = 
+        case ast of 
+         (CIntConst0 (i: cInteger, a))  => st |> fold_cInteger (fn x=>g x a) i
+                                              |> g (TT"CIntConst0") a  
+        |(CCharConst0  (c : cChar, a))  => st |> fold_cChar (fn x=>g x a) c
+                                              |> g (TT"CCharConst0") a   
+        |(CFloatConst0 (f : cFloat, a)) => st |> fold_cFloat (fn x=>g x a) f
+                                              |> g (TT"CFloatConst0") a   
+        |(CStrConst0   (s : cString, a))=> st |> fold_cString (fn x=>g x a) s
+                                              |> g (TT"CStrConst0") a
 
 fun fold_ident a g (Ident0(bstr : abr_string, i : int, ni: nodeInfo (* hack !!! *))) st = 
                    st |> g (TT "Ident0"  
@@ -937,54 +942,31 @@ and fold_cDerivedDeclarator grp g (CPtrDeclr0 (tqS: 'a cTypeQualifier list , a))
                                      |> fold(fold_cAttribute grp g) aS 
                                      |> g (TT"CFunDeclr0") a
 
-and fold_cDeclarationSpecifier grp g (CStorageSpec0(CAuto0 a)) st = 
-                                  st |> g (TTT"CStorageSpec0" "CAuto0") a
-   |fold_cDeclarationSpecifier grp g (CStorageSpec0(CRegister0 a)) st = 
-                                  st |> g (TTT"CStorageSpec0" "CRegister0") a
-   |fold_cDeclarationSpecifier grp g (CStorageSpec0(CStatic0 a)) st = 
-                                  st |> g (TTT"CStorageSpec0" "CStatic0") a
-   |fold_cDeclarationSpecifier grp g (CStorageSpec0(CExtern0 a)) st = 
-                                  st |> g (TTT"CStorageSpec0" "CExtern0") a
-   |fold_cDeclarationSpecifier grp g (CStorageSpec0(CTypedef0 a)) st = 
-                                  st |> g (TTT"CStorageSpec0" "CTypedef0") a
-   |fold_cDeclarationSpecifier grp g (CStorageSpec0(CThread0 a)) st = 
-                                  st |> g (TTT"CStorageSpec0" "CThread0") a
-
-   |fold_cDeclarationSpecifier grp g (CTypeSpec0(CVoidType0 a)) st = 
-                                  st |> g (TTT"CTypeSpec0""CVoidType0") a
-   |fold_cDeclarationSpecifier grp g (CTypeSpec0(CCharType0 a)) st = 
-                                  st |> g (TTT"CTypeSpec0""CCharType0") a
-   |fold_cDeclarationSpecifier grp g (CTypeSpec0(CShortType0 a)) st = 
-                                  st |> g (TTT"TCTypeSpec0""CShortType0") a
-   |fold_cDeclarationSpecifier grp g (CTypeSpec0(CIntType0 a)) st = 
-                                  st |> g (TTT"CTypeSpec0""CIntType0") a
-   |fold_cDeclarationSpecifier grp g (CTypeSpec0(CLongType0 a)) st = 
-                                  st |> g (TTT"CTypeSpec0""CLongType0") a
-   |fold_cDeclarationSpecifier grp g (CTypeSpec0(CFloatType0 a)) st = 
-                                  st |> g (TTT"CTypeSpec0""CFloatType0") a
-   |fold_cDeclarationSpecifier grp g (CTypeSpec0(CDoubleType0 a)) st = 
-                                  st |> g (TTT"CTypeSpec0""CDoubleType0") a
-   |fold_cDeclarationSpecifier grp g (CTypeSpec0(CSignedType0 a)) st = 
-                                  st |> g (TTT"CTypeSpec0""CSignedType0") a
-   |fold_cDeclarationSpecifier grp g (CTypeSpec0(CUnsigType0 a)) st = 
-                                  st |> g (TTT"CTypeSpec0""CUnsigType0") a
-   |fold_cDeclarationSpecifier grp g (CTypeSpec0(CBoolType0 a)) st = 
-                                  st |> g (TTT"CTypeSpec0""CBoolType0") a
-
-   |fold_cDeclarationSpecifier grp g (CTypeQual0(x: 'a cTypeQualifier)) st =
-                                  st |> fold_cTypeQualifier grp g x
-
-   |fold_cDeclarationSpecifier grp g (CFunSpec0(CInlineQual0 a)) st = 
-                                  st |> g (TTT"CFunSpec0""CInlineQual0") a 
-   |fold_cDeclarationSpecifier grp g (CFunSpec0(CNoreturnQual0 a)) st = 
-                                  st |> g (TTT"CFunSpec0""CNoreturnQual0") a 
- 
-   |fold_cDeclarationSpecifier grp g (CAlignSpec0(CAlignAsType0(decl,a))) st = 
-                                  st |> fold_cDeclaration grp g decl
-                                     |> g (TTT"CAlignSpec0""CAlignAsType0") a
-   |fold_cDeclarationSpecifier grp g (CAlignSpec0(CAlignAsExpr0(ex,a))) st = 
-                                  st |> fold_cExpression grp g ex
-                                     |> g (TTT"CAlignSpec0""CAlignAsType0") a
+and fold_cDeclarationSpecifier grp g ast st = 
+        case ast of 
+          (CStorageSpec0(CAuto0 a))     => st |> g (TTT"CStorageSpec0" "CAuto0") a
+        | (CStorageSpec0(CRegister0 a)) => st |> g (TTT"CStorageSpec0" "CRegister0") a
+        | (CStorageSpec0(CStatic0 a))   => st |> g (TTT"CStorageSpec0" "CStatic0") a
+        | (CStorageSpec0(CExtern0 a))   => st |> g (TTT"CStorageSpec0" "CExtern0") a
+        | (CStorageSpec0(CTypedef0 a))  => st |> g (TTT"CStorageSpec0" "CTypedef0") a
+        | (CStorageSpec0(CThread0 a))   => st |> g (TTT"CStorageSpec0" "CThread0") a
+        | (CTypeSpec0(CVoidType0 a))    => st |> g (TTT"CTypeSpec0""CVoidType0") a
+        | (CTypeSpec0(CCharType0 a))    => st |> g (TTT"CTypeSpec0""CCharType0") a
+        | (CTypeSpec0(CShortType0 a))   => st |> g (TTT"TCTypeSpec0""CShortType0") a
+        | (CTypeSpec0(CIntType0 a))     => st |> g (TTT"CTypeSpec0""CIntType0") a
+        | (CTypeSpec0(CLongType0 a))    => st |> g (TTT"CTypeSpec0""CLongType0") a
+        | (CTypeSpec0(CFloatType0 a))   => st |> g (TTT"CTypeSpec0""CFloatType0") a
+        | (CTypeSpec0(CDoubleType0 a))  => st |> g (TTT"CTypeSpec0""CDoubleType0") a
+        | (CTypeSpec0(CSignedType0 a))  => st |> g (TTT"CTypeSpec0""CSignedType0") a
+        | (CTypeSpec0(CUnsigType0 a))   => st |> g (TTT"CTypeSpec0""CUnsigType0") a
+        | (CTypeSpec0(CBoolType0 a))    =>     st |> g (TTT"CTypeSpec0""CBoolType0") a         
+        | (CTypeQual0(x: 'a cTypeQualifier)) => st |> fold_cTypeQualifier grp g x         
+        | (CFunSpec0(CInlineQual0 a))        => st |> g (TTT"CFunSpec0""CInlineQual0") a 
+        | (CFunSpec0(CNoreturnQual0 a))      => st |> g (TTT"CFunSpec0""CNoreturnQual0") a 
+        | (CAlignSpec0(CAlignAsType0(decl,a))) => st |> fold_cDeclaration grp g decl
+                                                     |> g (TTT"CAlignSpec0""CAlignAsType0") a
+        | (CAlignSpec0(CAlignAsExpr0(ex,a)))   =>  st |> fold_cExpression grp g ex
+                                                      |> g (TTT"CAlignSpec0""CAlignAsType0") a
 
 and fold_cDeclarator grp g (CDeclr0(id_opt: ident optiona,
                                 declS: 'a cDerivedDeclarator list,
@@ -1006,13 +988,15 @@ and fold_cFunctionDef grp g (CFunDef0(dspecS: 'a cDeclarationSpecifier list,
                                        |> fold_cStatement grp g stmt
                                        |> g (TT"CFunDef0") a
 
-and fold_cCompoundBlockItem a grp g (CBlockStmt0 (stmt: 'a cStatement)) st = 
+and fold_cCompoundBlockItem a grp g ast st =  
+        case ast of
+           (CBlockStmt0 (stmt: 'a cStatement)) => 
                                     st |> fold_cStatement grp g stmt
                                        |> g (TT"CBlockStmt0") a 
-  | fold_cCompoundBlockItem a grp g (CBlockDecl0 (decl : 'a cDeclaration)) st = 
+        |  (CBlockDecl0 (decl : 'a cDeclaration)) => 
                                     st |> fold_cDeclaration grp g decl 
                                        |> g (TT"CBlockDecl0") a 
-  | fold_cCompoundBlockItem a grp g (CNestedFunDef0(fdef : 'a cFunctionDef)) st = 
+        |  (CNestedFunDef0(fdef : 'a cFunctionDef))  => 
                                     st |> fold_cFunctionDef grp g fdef
                                        |> g (TT"CNestedFunDef0") a 
 
@@ -1024,11 +1008,12 @@ and fold_cStructureUnion grp g (CStruct0(  ct : cStructTag, id_a: ident optiona,
                                        |> fold_optiona (fold(fold_cDeclaration grp g)) declS_opt
                                        |> fold(fold_cAttribute grp g) aS
                                        |> g (TTT "CStruct0" (toString_cStructTag ct)) a  
-and fold_cExternalDeclaration grp g (CDeclExt0(cd : 'a cDeclaration)) st =
-                                    st |> fold_cDeclaration grp g cd
-  | fold_cExternalDeclaration grp g (CFDefExt0(fd : 'a cFunctionDef)) st = 
-                                    st |>  fold_cFunctionDef grp g fd
-  | fold_cExternalDeclaration grp _ (CAsmExt0( _ : 'a cStringLiteral, _ : 'a)) _ = error"Inline assembler not supprted"
+and fold_cExternalDeclaration grp g ast st =
+       case ast of
+          (CDeclExt0(cd : 'a cDeclaration)) => st |> fold_cDeclaration grp g cd
+      |   (CFDefExt0(fd : 'a cFunctionDef)) =>  st |>  fold_cFunctionDef grp g fd
+      |   (CAsmExt0( _ : 'a cStringLiteral, _ : 'a)) => error"Inline assembler not supprted"
+
 and fold_cTranslationUnit grp g (CTranslUnit0 (ceL : 'a cExternalDeclaration list, a : 'a)) st = 
                                     st |> fold(fold_cExternalDeclaration grp g) ceL
                                        |> g (TT"CTranslUnit0") a
