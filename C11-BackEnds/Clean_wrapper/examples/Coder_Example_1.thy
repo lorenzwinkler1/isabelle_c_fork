@@ -17,7 +17,13 @@ fun is_fun_Cid Cenv Cid        = map_option ((fn [C_Ast.CFunDeclr0 _] => true | 
                                             (lookup_Cid_info Cenv Cid);
 fun get_CDeclSpecS_Cid Cenv id = map_option (#ret o #3) (lookup_Cid_info Cenv id);
 
+(* Fundsachen *)
+C11_Ast_Lib.encode_positions;
+C11_Ast_Lib.decode_positions;
+C11_Ast_Lib.toString_abr_string;
+C11_Ast_Lib.toString_nodeinfo;
 
+C_Ast.SS_base
 \<close>
 section\<open>Preliminary Spy\<close>
 
@@ -211,7 +217,8 @@ local open C_Ast C_Env in
         CArrDeclr0 (_,CArrSize0  (_,CConst0 Y), _), 
         CArrDeclr0 (_,CNoArrSize0 Z,_)] = #params S
    val [CFunDeclr0 (Right([CDecl0 (A,A' as [((Some (CDeclr0 (_,TT,_,_,_)),_),_)],_),
-                           CDecl0 (B,B' as [((Some (CDeclr0 (_,TT',_,_,_)),_),_)],_)],s), _, _)] = #params S'
+                           CDecl0 (B,B' as [((Some (CDeclr0 (_,TT',_,_,_)),_),_)],_)],s), _, _)] 
+       = #params S'
 
 
 val [((Some (CDeclr0 (_,s,_,_,_)),_),_)] = A'
@@ -351,11 +358,10 @@ text \<open>Then, start the study of the statements (while, for, if then else, r
 (*1*****************************************************************************************************)
 
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "statement"]]
-C\<open>
-{ a = a+a;
-while(1 && 1){ a = a * a; a = a + 1; }
-}
-\<close>
+C\<open>{a = a+a;
+   while(1 && 1){a = a * a; a = a + 1; }
+  }
+ \<close>
 ML\<open>val ast_stmt = @{C11_CStat}   \<comment> \<open>C11 ast\<close>
    val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>        \<comment> \<open>C11 c-env\<close>
 

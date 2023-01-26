@@ -1410,7 +1410,7 @@ fun mk_seq_C C C' = let val t = fastype_of C
 fun mk_skip_C sty = Const(\<^const_name>\<open>skip\<^sub>S\<^sub>E\<close>, StateMgt_core.MON_SE_T HOLogic.unitT sty)
 
 fun mk_break sty = 
-    Const(\<^const_name>\<open>if_C\<close>, StateMgt_core.MON_SE_T HOLogic.unitT sty )
+    Const(\<^const_name>\<open>break\<close>, StateMgt_core.MON_SE_T HOLogic.unitT sty )
 
 fun mk_return_C upd rhs =
     let val ty = fastype_of rhs 

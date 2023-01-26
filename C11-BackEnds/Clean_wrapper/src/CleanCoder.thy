@@ -37,6 +37,7 @@ fun toString_args args = "["^(String.concatWith ", "(List.map (toString_data) ar
 fun toString_nodeInfo (C_Ast.OnlyPos0(_, (_, _))) = ""
    |toString_nodeInfo (C_Ast.NodeInfo0(_, (_, _), C_Ast.Name0 name)) = Int.toString name
 
+val toString_nodeInfo = C11_Ast_Lib.toString_nodeinfo
 
 (*affiche le contenue d'un nodeInfo*)
 fun print_node_info (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
@@ -327,12 +328,12 @@ if ... then ... else skip*)
      | "CBlockStmt0" => stack
      | "CBlockDecl0" => error"Nested Blocks not allowed in Clean"
      | "CNestedFunDef0" =>  error"Nested Function Declarations not allowed in Clean"
-     |"CIf0" => (case stack of  (a::b::cond::R) =>
+     | "CIf0" => (case stack of  (a::b::cond::R) =>
                                 mk_if_C  (Abs("\<sigma>", sigma_i --> boolT, cond)) b  a::R
                            |(a::cond::R) => (
                                 mk_if_C (Abs("\<sigma>", sigma_i --> boolT, cond)) a (mk_skip_C sigma_i)::R)
                            |_ => raise WrongFormat("if")
-                )
+                ) (* That's dangerous. And false in general. bu *)
      |"CWhile0" => (case stack of
                        (a::b::R) => (mk_while_C  (Abs("\<sigma>", sigma_i, b))  a)::R
                       |(a::R)    => (mk_while_C  (Abs("\<sigma>", sigma_i, a))  
@@ -375,8 +376,8 @@ fun convertCUnit verbose sigma_i env thy
                       val name = List.last c
                     in c end
 (*others*)
-     |"Begin" => (Const("Begin", dummyT))::c
-     |"End" => (Const("End", dummyT))::c
+     |"Begin" => (Const("Begin", dummyT))::c (* obsolete I believe. bu *)
+     |"End" => (Const("End", dummyT))::c (* obsolete I believe. bu *)
      | s =>  (c)
 )
 
