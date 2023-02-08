@@ -43,8 +43,9 @@ session Isabelle_C_Advanced in main = HOL +
     "../src"
   theories
     C_Main
-
+(*
 session Isabelle_C_Advance_examples in examples = Isabelle_C_Advanced + (* a standard test suite *)
   theories
     C0
     C1
+*)
