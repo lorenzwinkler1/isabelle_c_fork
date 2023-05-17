@@ -514,7 +514,7 @@ local open C_Ast in
 fun conv_C11Positiona_Position (Position0(k : int, 
                                 SS_base(ST (st: string)), 
                                 m: int, n: int))
-   = (warning"Not Correct Position:"; Position.none)             
+   = (warning"Not Correct Position:" ; Position.none)             
   | conv_C11Positiona_Position NoPosition0  = Position.none
   | conv_C11Positiona_Position BuiltinPosition0 =  Position.none
   | conv_C11Positiona_Position InternalPosition0 = Position.none

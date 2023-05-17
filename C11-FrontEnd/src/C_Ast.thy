@@ -671,202 +671,192 @@ fun fold_cStringLiteral g (CStrLit0(cs:cString, a)) st =  st |> fold_cString (fn
                                                              |> g (TT"CStrLit0") a 
 
 
-fun  fold_cTypeSpecifier grp g (CAtomicType0 (decl : 'a cDeclaration, a)) st = 
-                                  st |> fold_cDeclaration grp g decl |> g (TT"CAtomicType0") a
-   | fold_cTypeSpecifier grp g (CBoolType0 a)     st = st |> g (TT"CBoolType0") a
-   | fold_cTypeSpecifier grp g (CCharType0 a)     st = st |> g (TT"CCharType0") a 
-   | fold_cTypeSpecifier grp g (CComplexType0 a)  st = st |> g (TT"CComplexType0") a 
-   | fold_cTypeSpecifier grp g (CDoubleType0 a)   st = st |> g (TT"CDoubleType0") a 
-   | fold_cTypeSpecifier grp g (CEnumType0(e: 'a cEnumeration, a)) st = 
-                                              st |> fold_cEnumeration grp g e
-                                                 |> g (TT"CEnumType0") a
-   | fold_cTypeSpecifier grp g (CFloatType0 a)    st = st |> g (TT"CFloatType0") a
-   | fold_cTypeSpecifier grp g (CInt128Type0 a)   st = st |> g (TT"CInt128Type0") a 
-   | fold_cTypeSpecifier grp g (CIntType0 a)      st = st |> g (TT"CIntType0") a 
-   | fold_cTypeSpecifier grp g (CLongType0 a)     st = st |> g (TT"CLongType0") a 
-   | fold_cTypeSpecifier grp g (CSUType0 (su: 'a cStructureUnion, a))  st = 
-                                              st |> fold_cStructureUnion grp g su
-                                                 |> g (TT"CSUType0") a
-   | fold_cTypeSpecifier grp g (CShortType0 a)    st = st |> g (TT"CShortType0") a 
-   | fold_cTypeSpecifier grp g (CSignedType0 a)   st = st |> g (TT"CSignedType0") a 
-   | fold_cTypeSpecifier grp g (CTypeDef0 (id:ident, a)) st = 
-                                              st |>  fold_ident a g id
-                                                 |>  g (TT"CTypeDef0") a 
-   | fold_cTypeSpecifier grp g (CTypeOfExpr0 (ex: 'a cExpression, a)) st = 
-                                              st |> fold_cExpression grp g ex 
-                                                 |> g (TT"CTypeOfExpr0") a
-   | fold_cTypeSpecifier grp g (CTypeOfType0 (decl: 'a cDeclaration, a)) st = 
-                                              st |> fold_cDeclaration grp g decl 
-                                                 |> g (TT"CTypeOfType0") a
-   | fold_cTypeSpecifier grp g (CUnsigType0 a)    st = st |> g (TT"CUnsigType0") a
-   | fold_cTypeSpecifier grp g (CVoidType0 a)     st = st |> g (TT"CVoidType0")  a
+fun  fold_cTypeSpecifier grp g ast st = 
+        case ast of
+          (CAtomicType0 (decl : 'a cDeclaration, a)) =>
+                                st |> fold_cDeclaration grp g decl |> g (TT"CAtomicType0") a
+        | (CBoolType0 a)     => st |> g (TT"CBoolType0") a
+        | (CCharType0 a)     => st |> g (TT"CCharType0") a 
+        | (CComplexType0 a)  => st |> g (TT"CComplexType0") a 
+        | (CDoubleType0 a)   => st |> g (TT"CDoubleType0") a 
+        | (CEnumType0(e: 'a cEnumeration, a)) => 
+                                st |> fold_cEnumeration grp g e  |> g (TT"CEnumType0") a
+        | (CFloatType0 a)    => st |> g (TT"CFloatType0") a
+        | (CInt128Type0 a)   => st |> g (TT"CInt128Type0") a 
+        | (CIntType0 a)      => st |> g (TT"CIntType0") a 
+        | (CLongType0 a)     => st |> g (TT"CLongType0") a 
+        | (CSUType0 (su: 'a cStructureUnion, a))  => 
+                                st |> fold_cStructureUnion grp g su  |> g (TT"CSUType0") a
+        | (CShortType0 a)    => st |> g (TT"CShortType0") a 
+        | (CSignedType0 a)   => st |> g (TT"CSignedType0") a 
+        | (CTypeDef0 (id:ident, a)) => 
+                                st |>  fold_ident a g id  |>  g (TT"CTypeDef0") a 
+        | (CTypeOfExpr0 (ex: 'a cExpression, a)) => 
+                                st |> fold_cExpression grp g ex |> g (TT"CTypeOfExpr0") a
+        | (CTypeOfType0 (decl: 'a cDeclaration, a)) => 
+                                st |> fold_cDeclaration grp g decl |> g (TT"CTypeOfType0") a
+        | (CUnsigType0 a)    => st |> g (TT"CUnsigType0") a
+        | (CVoidType0 a)     => st |> g (TT"CVoidType0")  a
 
 
-and  fold_cTypeQualifier grp g (CAtomicQual0 a) st = g (TT"CAtomicQual0") a st
-   | fold_cTypeQualifier grp g (CAttrQual0 (CAttr0 (id,eL:'a cExpression list, a))) st = 
-                                              st |> fold_ident a g id
-                                                 |> fold(fold_cExpression grp g) eL
-                                                 |> g (TT"CAttrQual0") a
-   | fold_cTypeQualifier grp g (CConstQual0 a) st    = st |> g (TT"CConstQual0") a
-   | fold_cTypeQualifier grp g (CNonnullQual0 a) st  = st |> g (TT"CNonnullQual0") a 
-   | fold_cTypeQualifier grp g (CNullableQual0 a) st = st |> g (TT"CNullableQual0") a
-   | fold_cTypeQualifier grp g (CRestrQual0 a) st    = st |> g (TT"CRestrQual0") a
-   | fold_cTypeQualifier grp g (CVolatQual0 a) st    = st |> g (TT"CVolatQual0") a 
+and  fold_cTypeQualifier grp g ast st =
+        case ast of
+          (CAtomicQual0 a)    => g (TT"CAtomicQual0") a st
+        | (CAttrQual0 (CAttr0 (id,eL:'a cExpression list, a))) => 
+                                  st |> fold_ident a g id
+                                     |> fold(fold_cExpression grp g) eL
+                                     |> g (TT"CAttrQual0") a
+        | (CConstQual0 a)    => st |> g (TT"CConstQual0") a
+        | (CNonnullQual0 a)  => st |> g (TT"CNonnullQual0") a 
+        | (CNullableQual0 a) => st |> g (TT"CNullableQual0") a
+        | (CRestrQual0 a)    => st |> g (TT"CRestrQual0") a
+        | (CVolatQual0 a)    => st |> g (TT"CVolatQual0") a 
 
-and  fold_cStatement grp g (CLabel0(id:ident, s:'a cStatement, 
-                                aL: 'a cAttribute list, a)) st= 
+and  fold_cStatement grp g ast st = 
+        case ast of 
+           (CLabel0(id:ident, s:'a cStatement, aL: 'a cAttribute list, a)) => 
                                   st |> fold_ident a g id
                                      |> fold_cStatement grp g s
                                      |> fold(fold_cAttribute grp g) aL
                                      |> g (TT"CLabel0") a 
-   | fold_cStatement grp g (CCase0(ex: 'a cExpression, 
-                               stmt: 'a cStatement, a)) st    = 
+        | (CCase0(ex: 'a cExpression, stmt: 'a cStatement, a)) => 
                                   st |> fold_cExpression grp g ex
                                      |> fold_cStatement grp g stmt
                                      |> g (TT"CCase0") a
-   | fold_cStatement grp g (CCases0(ex1: 'a cExpression, 
-                                ex2: 'a cExpression,
-                                stmt:'a cStatement, a)) st   = 
-                                  st |> fold_cExpression grp g ex1
-                                     |> fold_cExpression grp g ex2
-                                     |> fold_cStatement grp g stmt
-                                     |> g (TT"CCases0") a
-   | fold_cStatement grp g (CDefault0(stmt:'a cStatement, a)) st  = 
-                                  st |> fold_cStatement grp g stmt
-                                     |> g (TT"CDefault0") a
-   | fold_cStatement grp g (CExpr0(ex_opt:'a cExpression optiona, a)) st = 
-                                  st |> fold_optiona (fold_cExpression grp g) ex_opt
-                                     |> g (TT"CExpr0") a
-   | fold_cStatement grp g (CCompound0(idS : ident list, 
-                                   cbiS: 'a cCompoundBlockItem list, a)) st = 
-                                  st |> fold(fold_ident a g) idS
-                                     |> (fn st' => ((grp st') o (fold(fold_cCompoundBlockItem a grp g) cbiS)) st')
-                                     |> g (TT"CCompound0") a
-   | fold_cStatement grp g (CIf0(ex1:'a cExpression,stmt: 'a cStatement, 
-                        stmt_opt: 'a cStatement optiona, a)) st = 
-                                  st |> fold_cExpression grp g ex1
-                                     |> fold_cStatement grp g stmt
-                                     |> fold_optiona (fold_cStatement grp g) stmt_opt
-                                     |> g (TT"CIf0") a
-   | fold_cStatement grp g (CSwitch0(ex1:'a cExpression, 
-                                 stmt: 'a cStatement, a)) st = 
-                                  st |> fold_cExpression grp g ex1
-                                     |> fold_cStatement grp g stmt
-                                     |> g (TT"CSwitch0") a
-   | fold_cStatement grp g (CWhile0(ex1:'a cExpression, 
-                                stmt: 'a cStatement, b: bool, a)) st = 
-                                  st |> fold_cExpression grp g ex1
-                                     |> fold_cStatement grp g stmt
-                                     |> g (TT"CWhile0" #>> [data_bool b]) a
-   | fold_cStatement grp g (CFor0(ex0:('a cExpression optiona, 'a cDeclaration) either, 
-                              ex1_opt: 'a cExpression optiona, 
-                              ex2_opt: 'a cExpression optiona,
-                              stmt: 'a cStatement, a)) st = 
-                                  st |> fold_either (fold_optiona (fold_cExpression grp g)) 
-                                                    (fold_cDeclaration grp g) ex0
-                                     |> fold_optiona (fold_cExpression grp g) ex1_opt
-                                     |> fold_optiona (fold_cExpression grp g) ex2_opt
-                                     |> fold_cStatement grp g stmt
-                                     |> g (TT"CFor0") a
-   | fold_cStatement grp g (CGoto0(id: ident, a)) st = 
-                                  st |>  fold_ident a g id
-                                     |> g (TT"CGoto0") a
-   | fold_cStatement grp g (CGotoPtr0(ex1:'a cExpression, a)) st = 
-                                  st |> fold_cExpression grp g ex1 |> g (TT"CGotoPtr0") a
-   | fold_cStatement grp g (CCont0 a)  st = st |> g (TT"CCont0") a
-   | fold_cStatement grp g (CBreak0 a) st = st |> g (TT"CBreak0") a
-   | fold_cStatement grp g (CReturn0 (ex:'a cExpression optiona,a)) st = 
-                                  st |> fold_optiona (fold_cExpression grp g) ex |> g (TT"CReturn0") a
-   | fold_cStatement grp g (CAsm0(_: 'a cAssemblyStatement, a)) st = 
-                                  (* assembly ignored so far *)
-                                  st |> g (TT"CAsm0") a
+        | (CCases0(ex1: 'a cExpression, ex2: 'a cExpression, stmt:'a cStatement, a)) => 
+                 st |> fold_cExpression grp g ex1
+                    |> fold_cExpression grp g ex2
+                    |> fold_cStatement grp g stmt
+                    |> g (TT"CCases0") a
+        | (CDefault0(stmt:'a cStatement, a)) => 
+                 st |> fold_cStatement grp g stmt
+                    |> g (TT"CDefault0") a
+        | (CExpr0(ex_opt:'a cExpression optiona, a)) => 
+                 st |> fold_optiona (fold_cExpression grp g) ex_opt
+                    |> g (TT"CExpr0") a
+        | (CCompound0(idS : ident list, 
+                  cbiS: 'a cCompoundBlockItem list, a)) => 
+                 st |> fold(fold_ident a g) idS
+                    |> (fn st' => ((grp st') o (fold(fold_cCompoundBlockItem a grp g) cbiS)) st')
+                    |> g (TT"CCompound0") a
+        | (CIf0(ex1:'a cExpression,stmt: 'a cStatement, 
+                             stmt_opt: 'a cStatement optiona, a)) => 
+                 st |> fold_cExpression grp g ex1
+                    |> fold_cStatement grp g stmt
+                    |> fold_optiona (fold_cStatement grp g) stmt_opt
+                    |> g (TT"CIf0") a
+        | (CSwitch0(ex1:'a cExpression, stmt: 'a cStatement, a)) => 
+                 st |> fold_cExpression grp g ex1
+                    |> fold_cStatement grp g stmt
+                    |> g (TT"CSwitch0") a
+        | (CWhile0(ex1:'a cExpression, stmt: 'a cStatement, b: bool, a)) => 
+                 st |> fold_cExpression grp g ex1
+                    |> fold_cStatement grp g stmt
+                    |> g (TT"CWhile0" #>> [data_bool b]) a
+        | (CFor0(ex0:('a cExpression optiona, 'a cDeclaration) either, 
+                     ex1_opt: 'a cExpression optiona, ex2_opt: 'a cExpression optiona,
+                     stmt: 'a cStatement, a)) => 
+                 st |> fold_either (fold_optiona (fold_cExpression grp g)) 
+                                   (fold_cDeclaration grp g) ex0
+                    |> fold_optiona (fold_cExpression grp g) ex1_opt
+                    |> fold_optiona (fold_cExpression grp g) ex2_opt
+                    |> fold_cStatement grp g stmt
+                    |> g (TT"CFor0") a
+        | (CGoto0(id: ident, a)) => 
+                 st |>  fold_ident a g id
+                    |> g (TT"CGoto0") a
+        | (CGotoPtr0(ex1:'a cExpression, a)) => 
+                 st |> fold_cExpression grp g ex1 |> g (TT"CGotoPtr0") a
+        | (CCont0 a)  => st |> g (TT"CCont0") a
+        | (CBreak0 a) => st |> g (TT"CBreak0") a
+        | (CReturn0 (ex:'a cExpression optiona,a)) => 
+                 st |> fold_optiona (fold_cExpression grp g) ex |> g (TT"CReturn0") a
+        | (CAsm0(_: 'a cAssemblyStatement, a)) => st |> g (TT"CAsm0") a
+                                       (* assembly ignored so far *)
+                                       
 
-and fold_cExpression grp g (CComma0 (eL:'a cExpression list, a)) st = 
+and fold_cExpression grp g ast st = 
+       case ast of 
+          (CComma0 (eL:'a cExpression list, a)) => 
                                  st |> fold(fold_cExpression grp g) eL |> g (TT"CComma0") a
-  | fold_cExpression grp g (CAssign0(aop:cAssignOp, 
-                                 ex1:'a cExpression,
-                                 ex2:'a cExpression,a)) st = 
-                                  st |> fold_cExpression grp g ex1
-                                     |> fold_cExpression grp g ex2 
-                                     |> g (TTT"CAssign0" (toString_cAssignOp aop)) a
-  | fold_cExpression grp g (CCond0(  ex1:'a cExpression, 
-                                 ex2opt: 'a cExpression optiona, (* bescheuert ! Wieso option ?*) 
-                                 ex3: 'a cExpression,a)) st = 
-                                  st |> fold_cExpression grp g ex1 
-                                     |> fold_optiona (fold_cExpression grp g) ex2opt
-                                     |> fold_cExpression grp g ex3 |> g (TT"CCond0") a
-  | fold_cExpression grp g (CBinary0(bop: cBinaryOp, ex1: 'a cExpression,ex2: 'a cExpression, a)) st =
-                                  st |> fold_cExpression grp g ex1 
-                                     |> fold_cExpression grp g ex2 
-                                     |> g (TTT"CBinary0"(toString_cBinaryOp bop)) a 
-  | fold_cExpression grp g (CCast0(decl:'a cDeclaration, ex: 'a cExpression, a)) st = 
-                                  st |> fold_cExpression grp g ex 
-                                     |> fold_cDeclaration grp g decl
-                                     |> g (TT"CCast0") a
-  | fold_cExpression grp g (CUnary0(unop:cUnaryOp, ex: 'a cExpression, a)) st = 
-                                  st |> fold_cExpression grp g ex 
-                                     |> g (TT("CUnary0 "^toString_cUnaryOp unop)) a
-  | fold_cExpression grp g (CSizeofExpr0(ex:'a cExpression, a)) st = 
-                                  st |> fold_cExpression grp g ex    |> g (TT"CSizeofExpr0") a
-  | fold_cExpression grp g (CSizeofType0(decl:'a cDeclaration,a)) st = 
-                                  st |> fold_cDeclaration grp g decl |> g (TT"CSizeofType0") a
-  | fold_cExpression grp g (CAlignofExpr0(ex:'a cExpression, a)) st = 
-                                  st |> fold_cExpression grp g ex    |> g (TT"CAlignofExpr0") a
-  | fold_cExpression grp g (CAlignofType0(decl:'a cDeclaration, a)) st = 
-                                  st |> fold_cDeclaration grp g decl |> g (TT"CAlignofType0") a
-  | fold_cExpression grp g (CComplexReal0(ex:'a cExpression, a)) st = 
-                                  st |> fold_cExpression grp g ex |> g (TT"CComplexReal0") a
-  | fold_cExpression grp g (CComplexImag0(ex:'a cExpression, a)) st = 
-                                  st |> fold_cExpression grp g ex |> g (TT"CComplexImag0") a
-  | fold_cExpression grp g (CIndex0(ex1:'a cExpression, ex2: 'a cExpression, a)) st =
-                                  st |> fold_cExpression grp g ex1 
-                                     |> fold_cExpression grp g ex2 
-                                     |> g (TT"CIndex0") a
-  | fold_cExpression grp g (CCall0(ex:'a cExpression, argS: 'a cExpression list, a)) st =
-                                  st |> fold_cExpression grp g ex 
-                                     |> fold (fold_cExpression grp g) argS 
-                                     |> g (TT"CCall0") a
-  | fold_cExpression grp g (CMember0(ex:'a cExpression, id:ident, b, a)) st =
-                                  st |> fold_cExpression grp g ex 
-                                     |> fold_ident a g id
-                                     |> g (TT"CMember0"#>> [data_bool b]) a 
-  | fold_cExpression grp g (CVar0(id:ident,a)) st = st |> fold_ident a g id |> g (TT"CVar0") a
-  | fold_cExpression grp g (CConst0(cc:'a cConstant)) st  = st |> fold_cConstant g cc
-  | fold_cExpression grp g (CCompoundLit0(decl:'a cDeclaration,
-                                      eqn: ('a cPartDesignator list * 'a cInitializer) list, a)) st =
-                                  st |> fold(fn(S,init) => 
-                                             fn st => st |> fold(fold_cPartDesignator grp g) S
-                                                         |> fold_cInitializer grp g init) eqn 
-                                     |> fold_cDeclaration grp g decl 
-                                     |> g (TT"CCompoundLit0") a 
-  | fold_cExpression grp g (CGenericSelection0(ex:'a cExpression, 
-                                           eqn: ('a cDeclaration optiona*'a cExpression)list,a)) st =
-                                  st |> fold_cExpression grp g ex 
-                                     |> fold (fn (d,ex) => 
-                                              fn st => st |> fold_optiona (fold_cDeclaration grp g) d  
-                                                          |> fold_cExpression grp g ex) eqn  
-                                     |> g (TT"CGenericSelection0") a  
-  | fold_cExpression grp g (CStatExpr0(stmt: 'a cStatement,a)) st =  
-                                  st |> fold_cStatement grp g stmt |> g (TT"CStatExpr0") a
-  | fold_cExpression grp g (CLabAddrExpr0(id:ident,a)) st = 
-                                  st |> fold_ident a g id |> g (TT"CLabAddrExpr0") a 
-  | fold_cExpression grp g (CBuiltinExpr0(X: 'a cBuiltinThing)) st = st |> fold_cBuiltinThing grp g X
+       | (CAssign0(aop:cAssignOp, ex1:'a cExpression, ex2:'a cExpression,a)) => 
+                st |> fold_cExpression grp g ex1
+                   |> fold_cExpression grp g ex2 
+                   |> g (TTT"CAssign0" (toString_cAssignOp aop)) a
+       | (CCond0(  ex1:'a cExpression, ex2opt: 'a cExpression optiona, (* bescheuert ! Wieso option ?*) 
+                   ex3: 'a cExpression,a)) => 
+                st |> fold_cExpression grp g ex1 
+                   |> fold_optiona (fold_cExpression grp g) ex2opt
+                   |> fold_cExpression grp g ex3 |> g (TT"CCond0") a
+       | (CBinary0(bop: cBinaryOp, ex1: 'a cExpression,ex2: 'a cExpression, a)) =>
+                st |> fold_cExpression grp g ex1 
+                   |> fold_cExpression grp g ex2 
+                   |> g (TTT"CBinary0"(toString_cBinaryOp bop)) a 
+       | (CCast0(decl:'a cDeclaration, ex: 'a cExpression, a)) => 
+                st |> fold_cExpression grp g ex 
+                   |> fold_cDeclaration grp g decl
+                   |> g (TT"CCast0") a
+       | (CUnary0(unop:cUnaryOp, ex: 'a cExpression, a)) => 
+                st |> fold_cExpression grp g ex 
+                   |> g (TT("CUnary0 "^toString_cUnaryOp unop)) a
+       | (CSizeofExpr0(ex:'a cExpression, a)) => 
+                st |> fold_cExpression grp g ex    |> g (TT"CSizeofExpr0") a
+       | (CSizeofType0(decl:'a cDeclaration,a)) => 
+                st |> fold_cDeclaration grp g decl |> g (TT"CSizeofType0") a
+       | (CAlignofExpr0(ex:'a cExpression, a)) => 
+                st |> fold_cExpression grp g ex    |> g (TT"CAlignofExpr0") a
+       | (CAlignofType0(decl:'a cDeclaration, a)) => 
+                st |> fold_cDeclaration grp g decl |> g (TT"CAlignofType0") a
+       | (CComplexReal0(ex:'a cExpression, a)) => 
+                st |> fold_cExpression grp g ex |> g (TT"CComplexReal0") a
+       | (CComplexImag0(ex:'a cExpression, a)) => 
+                st |> fold_cExpression grp g ex |> g (TT"CComplexImag0") a
+       | (CIndex0(ex1:'a cExpression, ex2: 'a cExpression, a)) =>
+                st |> fold_cExpression grp g ex1 
+                   |> fold_cExpression grp g ex2 
+                   |> g (TT"CIndex0") a
+       | (CCall0(ex:'a cExpression, argS: 'a cExpression list, a)) =>
+                st |> fold_cExpression grp g ex 
+                   |> fold (fold_cExpression grp g) argS 
+                   |> g (TT"CCall0") a
+       | (CMember0(ex:'a cExpression, id:ident, b, a)) =>
+                st |> fold_cExpression grp g ex 
+                   |> fold_ident a g id
+                   |> g (TT"CMember0"#>> [data_bool b]) a 
+       | (CVar0(id:ident,a)) => st |> fold_ident a g id |> g (TT"CVar0") a
+       | (CConst0(cc:'a cConstant)) => st |> fold_cConstant g cc
+       | (CCompoundLit0(decl:'a cDeclaration,eqn:('a cPartDesignator list*'a cInitializer)list,a))=>
+                st |> fold(fn(S,init) => 
+                           fn st => st |> fold(fold_cPartDesignator grp g) S
+                                       |> fold_cInitializer grp g init) eqn 
+                   |> fold_cDeclaration grp g decl 
+                   |> g (TT"CCompoundLit0") a 
+       | (CGenericSelection0(ex:'a cExpression,eqn:('a cDeclaration optiona*'a cExpression)list,a))=>
+                st |> fold_cExpression grp g ex 
+                   |> fold (fn (d,ex) => 
+                            fn st => st |> fold_optiona (fold_cDeclaration grp g) d  
+                                        |> fold_cExpression grp g ex) eqn  
+                   |> g (TT"CGenericSelection0") a  
+       | (CStatExpr0(stmt: 'a cStatement,a)) =>  
+                st |> fold_cStatement grp g stmt |> g (TT"CStatExpr0") a
+       | (CLabAddrExpr0(id:ident,a)) => 
+                st |> fold_ident a g id |> g (TT"CLabAddrExpr0") a 
+       | (CBuiltinExpr0(X: 'a cBuiltinThing)) => st |> fold_cBuiltinThing grp g X
   
-and fold_cDeclaration grp g (CDecl0(dsS : 'a cDeclarationSpecifier list, 
-                                mkS: (('a cDeclarator optiona       
-                                       *'a cInitializer optiona) 
-                                     * 'a cExpression optiona) list,
-                                a)) st = 
-                                  st |> fold(fold_cDeclarationSpecifier grp g) dsS 
-                                     |> fold(fn ((d_o, init_o),ex_opt) =>
-                                             fn st => st |> fold_optiona(fold_cDeclarator grp g) d_o
-                                                         |> fold_optiona(fold_cInitializer grp g) init_o
-                                                         |> fold_optiona(fold_cExpression grp g) ex_opt) mkS
-                                    |> g (TT"CDecl0") a
-  | fold_cDeclaration grp g (CStaticAssert0(ex:'a cExpression, slit: 'a cStringLiteral, a)) st = 
-                                  st |> fold_cExpression grp g ex 
-                                     |> fold_cStringLiteral g slit
-                                     |> g (TT"CStaticAssert0") a
+and fold_cDeclaration grp g ast st = 
+       case ast of
+          (CDecl0(dsS:'a cDeclarationSpecifier list, 
+                  mkS:(('a cDeclarator optiona*'a cInitializer optiona)*'a cExpression optiona)list,a)) => 
+                st |> fold(fold_cDeclarationSpecifier grp g) dsS 
+                   |> fold(fn ((d_o, init_o),ex_opt) =>
+                           fn st => st |> fold_optiona(fold_cDeclarator grp g) d_o
+                                       |> fold_optiona(fold_cInitializer grp g) init_o
+                                       |> fold_optiona(fold_cExpression grp g) ex_opt) mkS
+                  |> g (TT"CDecl0") a
+       | (CStaticAssert0(ex:'a cExpression, slit: 'a cStringLiteral, a)) => 
+                st |> fold_cExpression grp g ex 
+                   |> fold_cStringLiteral g slit
+                   |> g (TT"CStaticAssert0") a
 
 and fold_cBuiltinThing grp g (CBuiltinVaArg0(ex:'a cExpression,decl: 'a cDeclaration,a)) st = 
                                   st |> fold_cExpression grp g ex 
@@ -959,14 +949,14 @@ and fold_cDeclarationSpecifier grp g ast st =
         | (CTypeSpec0(CDoubleType0 a))  => st |> g (TTT"CTypeSpec0""CDoubleType0") a
         | (CTypeSpec0(CSignedType0 a))  => st |> g (TTT"CTypeSpec0""CSignedType0") a
         | (CTypeSpec0(CUnsigType0 a))   => st |> g (TTT"CTypeSpec0""CUnsigType0") a
-        | (CTypeSpec0(CBoolType0 a))    =>     st |> g (TTT"CTypeSpec0""CBoolType0") a         
-        | (CTypeQual0(x: 'a cTypeQualifier)) => st |> fold_cTypeQualifier grp g x         
-        | (CFunSpec0(CInlineQual0 a))        => st |> g (TTT"CFunSpec0""CInlineQual0") a 
-        | (CFunSpec0(CNoreturnQual0 a))      => st |> g (TTT"CFunSpec0""CNoreturnQual0") a 
+        | (CTypeSpec0(CBoolType0 a))    => st |> g (TTT"CTypeSpec0""CBoolType0") a         
+        | (CTypeQual0(x:'a cTypeQualifier)) => st |> fold_cTypeQualifier grp g x         
+        | (CFunSpec0(CInlineQual0 a))       => st |> g (TTT"CFunSpec0""CInlineQual0") a 
+        | (CFunSpec0(CNoreturnQual0 a))     => st |> g (TTT"CFunSpec0""CNoreturnQual0") a 
         | (CAlignSpec0(CAlignAsType0(decl,a))) => st |> fold_cDeclaration grp g decl
                                                      |> g (TTT"CAlignSpec0""CAlignAsType0") a
-        | (CAlignSpec0(CAlignAsExpr0(ex,a)))   =>  st |> fold_cExpression grp g ex
-                                                      |> g (TTT"CAlignSpec0""CAlignAsType0") a
+        | (CAlignSpec0(CAlignAsExpr0(ex,a)))=> st |> fold_cExpression grp g ex
+                                                  |> g (TTT"CAlignSpec0""CAlignAsType0") a
 
 and fold_cDeclarator grp g (CDeclr0(id_opt: ident optiona,
                                 declS: 'a cDerivedDeclarator list,

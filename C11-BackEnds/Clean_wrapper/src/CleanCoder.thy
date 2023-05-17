@@ -34,21 +34,29 @@ fun toString_data data = case data of
  
 fun toString_args args = "["^(String.concatWith ", "(List.map (toString_data) args))^ "]"
 
-fun toString_nodeInfo (C_Ast.OnlyPos0(_, (_, _))) = ""
-   |toString_nodeInfo (C_Ast.NodeInfo0(_, (_, _), C_Ast.Name0 name)) = Int.toString name
+
+fun to_String_positiona (C_Ast.Position0 (i,S, k,l)) = "POS "^ @{make_string} S
+  | to_String_positiona C_Ast.NoPosition0 = ""
+  | to_String_positiona C_Ast.BuiltinPosition0 = ""
+  | to_String_positiona C_Ast.InternalPosition0 = ""
+
+fun toString_nodeInfo (C_Ast.OnlyPos0(p, (_, _))) = to_String_positiona p
+   |toString_nodeInfo (C_Ast.NodeInfo0(p, (_, _), C_Ast.Name0 name))  
+                                                  = to_String_positiona p ^ Int.toString name
 
 
 (*affiche le contenue d'un nodeInfo*)
 fun print_node_info (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
-           (b:  C_Ast.nodeInfo ) 
-           (c : term list) = 
+                    (b :  C_Ast.nodeInfo ) 
+                    (c : term list) = 
            (writeln ("tag : \""^tag^"\""^
               (*("\ncode ascii :\n"^toString_ascii_code ((String.size tag) - 1) tag)^*)
-              "\n subtag : "  ^sub_tag^
-              "\n args : "    ^(toString_args args)^
-              "\n nodeInfo : "^(toString_nodeInfo b)^
-              "\n termList : "^(String.concatWith ","(List.map (@{make_string}) c)) 
-              ^"\n --------------------"))
+              "\n subtag   : "  ^sub_tag^
+              "\n args     : "  ^(toString_args args)^
+              "\n nodeInfo : "  ^(toString_nodeInfo b)^
+              "\n termList : "  ^(String.concatWith ","(List.map (@{make_string}) c)) 
+              ^"\n --------------------\n")
+          )
 
 (*------------compiler-----------*)
 
@@ -66,15 +74,13 @@ fun node_content_2_free (x : C11_Ast_Lib.node_content) =
 (*supprime toutes les occurences de c dans s*)
     
 fun remove_char_from_string c s =
-  let
-    fun aux c s acc n =
-      case n of
-        (~1) => acc
-        |0 => if String.sub (s, 0) = c then acc else (Char.toString (String.sub (s, 0)))^acc
-        |n => if String.sub (s, n) = c then aux c s acc (n - 1)
-              else aux c s ((Char.toString (String.sub (s, n)))^acc) (n - 1)
-  in
-  aux c s "" ((String.size s) - 1)
+  let  fun aux c s acc n =
+          case n of
+             (~1) => acc
+          |  0 => if String.sub (s, 0) = c then acc else (Char.toString (String.sub (s, 0)))^acc
+          |  n => if String.sub (s, n) = c then aux c s acc (n - 1)
+                  else aux c s ((Char.toString (String.sub (s, n)))^acc) (n - 1)
+  in   aux c s "" ((String.size s) - 1)
   end
 
 (*si le term est un nombre, alors le transforme en bool*)
@@ -296,22 +302,18 @@ fun convertStmt_raw verbose sigma_i env thy
 
 (*for the assignations, we only consider global variables for now, and we use the maker*)
      "CAssign0" => (case stack of
-                      (a::b::R) => (
-                            let val Const(name, t) $ _ = b       
-                                val state_scheme_typ = firstype_of t
-                            in
-                            (mk_assign_global_C 
-                                (mk_glob_upd name (Const(name, t))) 
-                                (Abs("\<sigma>", state_scheme_typ, a))
-                            )::R end)
+                      (a::b::R) => (let val Const(name, t) $ _ = b       
+                                        val state_scheme_typ = firstype_of t
+                                    in  (mk_assign_global_C 
+                                            (mk_glob_upd name (Const(name, t))) 
+                                            (Abs("\<sigma>", state_scheme_typ, a)) )::R 
+                                    end)
                       |_ => raise WrongFormat("assign"))
      (*statements*)
 (*for return, skip and break, we have makers except that they need types and terms that i didn't 
 understand so it's unfinished here*)
      |"CReturn0" => (let  val rhs = hd stack
-                     in   (mk_return_C 
-                             (Const("temp", dummyT)) 
-                             (Abs("\<sigma>", dummyT, rhs)))
+                     in   (mk_return_C (Const("temp", dummyT))  (Abs("\<sigma>", dummyT, rhs)))
                           ::(tl stack)
                      end)
      |"CSkip0" => (mk_skip_C sigma_i)::stack
@@ -327,12 +329,13 @@ if ... then ... else skip*)
      | "CBlockStmt0" => stack
      | "CBlockDecl0" => error"Nested Blocks not allowed in Clean"
      | "CNestedFunDef0" =>  error"Nested Function Declarations not allowed in Clean"
-     |"CIf0" => (case stack of  (a::b::cond::R) =>
-                                mk_if_C  (Abs("\<sigma>", sigma_i --> boolT, cond)) b  a::R
-                           |(a::cond::R) => (
-                                mk_if_C (Abs("\<sigma>", sigma_i --> boolT, cond)) a (mk_skip_C sigma_i)::R)
-                           |_ => raise WrongFormat("if")
-                )
+     | "CIf0" =>   (case stack of  
+                       (a::b::cond::R) => mk_if_C  (Abs("\<sigma>", sigma_i --> boolT, cond)) b  a::R
+                    |  (a::cond::R) => (mk_if_C (Abs("\<sigma>", sigma_i --> boolT, cond)) 
+                                                (a)
+                                                (mk_skip_C sigma_i)::R)
+                    |_ => raise WrongFormat("if")
+                   )
      |"CWhile0" => (case stack of
                        (a::b::R) => (mk_while_C  (Abs("\<sigma>", sigma_i, b))  a)::R
                       |(a::R)    => (mk_while_C  (Abs("\<sigma>", sigma_i, a))  
@@ -342,12 +345,12 @@ if ... then ... else skip*)
                    )
 (*There is no For operator in Clean, so we have to translate it as a while :
 for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
-     |"CFor0" => (case stack of
-                      (body::pace::cond::init::R) => (let val C' = mk_while_C
-                                                                     (Abs("\<sigma>", sigma_i,cond))
-                                                                     (mk_seq_C body pace)
-                                                      in   ((mk_seq_C init C'))::R end)
-                  |_ => raise WrongFormat("for"))
+     |"CFor0" =>   (case stack of
+                        (body::pace::cond::init::R) => (let val C' = mk_while_C
+                                                                       (Abs("\<sigma>", sigma_i,cond))
+                                                                       (mk_seq_C body pace)
+                                                        in   ((mk_seq_C init C'))::R end)
+                    |_ => raise WrongFormat("for"))
      | _ => convertExpr_raw verbose sigma_i env thy a b stack )
 
 end
@@ -364,16 +367,16 @@ fun convertCUnit verbose sigma_i env thy
 (*types et declarations*)
 (*here is where I have troubles to continue due to my understanding of ISabelle/C and Isabelle/Clean*)
       "CTypeSpec0" => (case sub_tag of
-                      "CIntType0" => (Const("int", intT))::c
-                     |"CVoidType0" => (Const("void", unitT))::c
-                     |"CFloatType0" => (Const("float", realT))::c
-                     |s => raise UnknownTyp(s)
+                          "CIntType0" => (Const("int", intT))::c
+                       |  "CVoidType0" => (Const("void", unitT))::c
+                       |  "CFloatType0" => (Const("float", realT))::c
+                       |  s => raise UnknownTyp(s)
                       )
-     |"CFunDef0" => let 
-                      val body = hd c
-                      val args = List.take (tl c, (length c - 2))
-                      val name = List.last c
-                    in c end
+     |"CFunDef0" =>   let 
+                        val body = hd c
+                        val args = List.take (tl c, (length c - 2))
+                        val name = List.last c
+                      in c end
 (*others*)
      |"Begin" => (Const("Begin", dummyT))::c
      |"End" => (Const("End", dummyT))::c
