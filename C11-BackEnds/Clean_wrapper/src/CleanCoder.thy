@@ -44,6 +44,7 @@ fun toString_nodeInfo (C_Ast.OnlyPos0(p, (_, _))) = to_String_positiona p
    |toString_nodeInfo (C_Ast.NodeInfo0(p, (_, _), C_Ast.Name0 name))  
                                                   = to_String_positiona p ^ Int.toString name
 
+val toString_nodeInfo = C11_Ast_Lib.toString_nodeinfo
 
 (*affiche le contenue d'un nodeInfo*)
 fun print_node_info (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
@@ -378,8 +379,8 @@ fun convertCUnit verbose sigma_i env thy
                         val name = List.last c
                       in c end
 (*others*)
-     |"Begin" => (Const("Begin", dummyT))::c
-     |"End" => (Const("End", dummyT))::c
+     |"Begin" => (Const("Begin", dummyT))::c (* obsolete I believe. bu *)
+     |"End" => (Const("End", dummyT))::c (* obsolete I believe. bu *)
      | s =>  (c)
 )
 
