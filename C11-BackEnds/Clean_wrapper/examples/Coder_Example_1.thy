@@ -2,97 +2,7 @@ theory "Coder_Example_1"
   imports "../src/CleanCoder"
 begin
 
-
-section \<open>Accessors to C-Env\<close>
-
-ML\<open>
-fun map_option f (SOME X) = SOME(f X)
-   |map_option f NONE     = NONE   
-
-fun lookup_Cid_info (C_env:C_Module.Data_In_Env.T) id = Symtab.lookup(#idents(#var_table C_env)) id
-
-fun is_global_Cid Cenv Cid     = map_option (#global o #3) (lookup_Cid_info Cenv Cid);
-fun is_fun_Cid Cenv Cid        = map_option ((fn [C_Ast.CFunDeclr0 _] => true | _ => false) 
-                                               o (#params o #3)) 
-                                            (lookup_Cid_info Cenv Cid);
-fun get_CDeclSpecS_Cid Cenv id = map_option (#ret o #3) (lookup_Cid_info Cenv id);
-
-(* Fundsachen *)
-C11_Ast_Lib.encode_positions;
-C11_Ast_Lib.decode_positions;
-C11_Ast_Lib.toString_abr_string;
-C11_Ast_Lib.toString_nodeinfo;
-
-C_Ast.SS_base
-\<close>
-section\<open>Preliminary Spy\<close>
-
-ML\<open>
-val ENV = Unsynchronized.ref (@{C\<^sub>e\<^sub>n\<^sub>v})
-fun print_env' s _ stack _ env thy =
-  let
-    val () = (ENV:=env; writeln ("ENV " ^ C_Env.string_of env))
-  in thy end
-\<close>
-setup \<open>ML_Antiquotation.inline @{binding print_env'}
-                               (Scan.peek (fn _ => Scan.option Args.text)
-                                >> (fn name => ("print_env' "
-                                                ^ (case name of NONE => "NONE"
-                                                              | SOME s => "(SOME \"" ^ s ^ "\")")
-                                                ^ " " ^ ML_Pretty.make_string_fn)))\<close>
-(*
-ML\<open>
-C_Inner_Syntax.command;
-C_Inner_Toplevel.generic_theory oo C_Inner_Isar_Cmd.setup;
-C_Inner_Syntax.command  (C_Inner_Toplevel.generic_theory oo C_Inner_Isar_Cmd.setup);
-\<close>
-ML\<open>fn ((_, (_, pos1, pos2)) :: _) =>
-              (fn _ => fn _ =>
-                tap (fn ctxt:Context.generic =>
-                      Position.reports_text [((Position.range (pos1, pos2)
-                                               |> Position.range_position, Markup.intensify), "")]))
-           | _ => fn _ => fn _ => I:Context.generic -> Context.generic\<close>
-ML\<open>
-C_Inner_Syntax.command_no_range
-       (C_Inner_Toplevel.generic_theory oo C_Inner_Isar_Cmd.setup
-         \<open>fn ((_, (_, pos1, pos2)) :: _) =>
-              (fn _ => fn _ =>
-                tap (fn ctxt:Context.generic =>
-                      Position.reports_text [((Position.range (pos1, pos2)
-                                               |> Position.range_position, Markup.intensify), "")]))
-           | _ => fn _ => fn _ => I:Context.generic -> Context.generic\<close>)
-       ("highlight", \<^here>, \<^here>)
-\<close>
-*)
-
-C \<comment> \<open>Nesting ML code in C comments\<close> \<open>
-int a (int b){int c; 
-              return c;
-              /*@@ \<approx>setup \<open>@{print_env'}\<close> */
-              /*@@ highlight */
-             }; 
-                 
-\<close>
-ML\<open>
-lookup_Cid_info (!ENV) "a";
-lookup_Cid_info (!ENV) "c"
-\<close>
-(* Problematic : *)
-C \<comment> \<open>Nesting ML code in C comments\<close> \<open>
-int a (int b){int b; 
-              return b;
-              /*@@ highlight */
-              /*@@ \<approx>setup \<open>@{print_env'}\<close> */}; 
-                 
-\<close>
-ML\<open>
-lookup_Cid_info (!ENV) "a";
-lookup_Cid_info (!ENV) "b"
-\<close>
-
-
-
-section \<open>Converters for C-types\<close>
+section \<open>C-to-HOL Converters for C-types\<close>
 
 ML\<open>
 local open C_Ast C_Env in
@@ -174,7 +84,85 @@ end;
 \<close>
 
 
-section \<open>Tests on Expressions\<close>
+section \<open>Accessors to C-Env\<close>
+
+ML\<open>
+fun map_option f (SOME X) = SOME(f X)
+   |map_option f NONE     = NONE   
+
+fun lookup_Cid_info (C_env:C_Module.Data_In_Env.T) id = Symtab.lookup(#idents(#var_table C_env)) id
+
+fun is_global_Cid Cenv Cid     = map_option (#global o #3) (lookup_Cid_info Cenv Cid);
+fun is_fun_Cid Cenv Cid        = map_option ((fn [C_Ast.CFunDeclr0 _] => true | _ => false) 
+                                               o (#params o #3)) 
+                                            (lookup_Cid_info Cenv Cid);
+fun get_CDeclSpecS_Cid Cenv id = map_option (#ret o #3) (lookup_Cid_info Cenv id);
+
+(* Fundsachen *)
+C11_Ast_Lib.encode_positions;
+C11_Ast_Lib.decode_positions;
+C11_Ast_Lib.toString_abr_string;
+C11_Ast_Lib.toString_nodeinfo;
+
+C_Ast.SS_base
+\<close>
+
+section \<open>Global Variables, Local Variables, and Local Parameters\<close>
+subsection\<open>An Environment Spy\<close>
+
+ML\<open>
+val ENV = Unsynchronized.ref (@{C\<^sub>e\<^sub>n\<^sub>v})
+fun print_env' s _ stack _ env thy =
+  let
+    val () = (ENV:=env; writeln ("ENV " ^ C_Env.string_of env))
+  in thy end
+\<close>
+
+ML\<open>open Position\<close>
+setup \<open>ML_Antiquotation.inline @{binding print_env'}
+                               (Scan.peek (fn _ => Scan.option Args.text)
+                                >> (fn name => ("print_env' "
+                                                ^ (case name of NONE => "NONE"
+                                                              | SOME s => "(SOME \"" ^ s ^ "\")")
+                                                ^ " " ^ ML_Pretty.make_string_fn)))\<close>
+
+subsection\<open>Accessing the C_Env in an Example\<close>
+
+C \<comment> \<open>Nesting ML code in C comments\<close> \<open>
+int a(int b){int c; 
+              return c;
+              /*@@ \<approx>setup \<open>@{print_env'}\<close> */
+              /*@@ highlight */
+             }; 
+                 
+\<close>
+
+
+ML\<open>
+val a_res = lookup_Cid_info (!ENV) "a";
+val b_res = lookup_Cid_info (!ENV) "b";
+val c_res = lookup_Cid_info (!ENV) "c"
+\<close>
+
+
+(* Problematic : *)
+C \<comment> \<open>Nesting ML code in C comments\<close> \<open>
+int a (int b){int b; 
+              return b;
+              /*@@ highlight */
+              /*@@ \<approx>setup \<open>@{print_env'}\<close> */}; 
+                 
+\<close>
+ML\<open>
+lookup_Cid_info (!ENV) "a";
+lookup_Cid_info (!ENV) "b"
+\<close>
+
+
+
+
+
+section \<open>Global Declarations via CEnv and via the Clean API\<close>
 
 text \<open>
 First, we translate the expressions;
@@ -196,17 +184,23 @@ declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 
 C\<open> int a[10+12][34][] = 1;
-   short int f(int x [][], long double y);
+   short int f(int x [][], long double y)
+     {int y; x=x;
+      /*@@ \<approx>setup \<open>@{print_env'}\<close> */
+      /*@@ highlight */}
+     ;
+      
 \<close>
 
 (* binding the resulting C_Env to env_expr *)
 
 ML\<open>val env_expr : C_Module.Data_In_Env.T =  @{C\<^sub>e\<^sub>n\<^sub>v};\<close>
 
-(* messing around with the C identifier "a" and "f" *)
+(* messing around with the C identifier "a" and "f" in the env AFTER the translation unit*)
 ML\<open>
    val SOME(pos_list,ser,S)    = lookup_Cid_info env_expr "a";
    val SOME(pos_list',ser',S') = lookup_Cid_info env_expr "f";
+   val NONE = lookup_Cid_info env_expr "x";
 \<close>
 (* handy decompositions *)
 ML\<open>
@@ -227,15 +221,24 @@ val [((Some (CDeclr0 (_,t,_,_,_)),_),_)] = B'
 end
 \<close>
 
+ML\<open>(#ret o #3 o the)(lookup_Cid_info env_expr "f" );\<close>
 
+ML\<open>
+conv_CDerivedDecl_typ;C_Ast.CFunDeclr0;
+val S = hd ((#params o  #3 o the)(lookup_Cid_info env_expr "f" ));
+val S' = conv_CDerivedDecl_typ [S] dummyT
+\<close>
 (* and the whole thing a bit more abstract with "a" and "f" *)
 ML\<open>
 map_option (conv_GlobalIdDescr_typ o #3) (lookup_Cid_info env_expr "a" );
-map_option (conv_GlobalIdDescr_typ o #3) (lookup_Cid_info env_expr "f" );
+(* map_option (conv_GlobalIdDescr_typ o #3) (lookup_Cid_info env_expr "f" ); *)
+map_option (conv_GlobalIdDescr_typ o #3) (lookup_Cid_info env_expr "x" );
+map_option (conv_GlobalIdDescr_typ o #3) (lookup_Cid_info env_expr "y" );
 \<close>
 
+section \<open>Tests on Expressions\<close>
 
-(*1*****************************************************************************************************)
+subsection\<open>Ground Expressions\<close>
 
 (*integer :*)
 
@@ -321,8 +324,6 @@ val S' = conv_Cexpr_term env_expr sigma_i @{theory} ast_expr
 (*6*****************************************************************************************************)
 
 (* construct environment with global variqble *)
-declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
-C\<open> int a = 1;\<close>
 
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "expression"]]
 C\<open>1 * a\<close>
@@ -336,6 +337,7 @@ val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false unitT @{C\<^s
 val S' = conv_Cexpr_term env_expr sigma_i @{theory} ast_expr
 
 \<close>
+
 
 (*7*****************************************************************************************************)
 
