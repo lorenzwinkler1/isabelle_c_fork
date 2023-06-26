@@ -59,10 +59,10 @@ section\<open>The LinearSearch Example\<close>
 
 definition bool2int where "bool2int x = (if x then 1::int else 0)"
 
-global_vars state
+global_vars (state)
     t :: "int list"
 
-global_vars "2"
+global_vars ("2")
     tt :: "int list"
 
 find_theorems (160) name:"2" name:"Linear"
