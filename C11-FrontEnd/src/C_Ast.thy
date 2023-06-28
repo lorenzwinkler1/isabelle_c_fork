@@ -457,12 +457,13 @@ signature C11_AST_LIB =
     val toString_cUnaryOp  : C_Ast.cUnaryOp -> string
     val toString_cAssignOp : C_Ast.cAssignOp -> string
     val toString_abr_string: C_Ast.abr_string -> string
+    val abr_string_2_string: C_Ast.abr_string -> string
     val toString_nodeinfo  : C_Ast.nodeInfo -> string
 
     val decode_positions   : string -> Position.T list
     val encode_positions   : Position.T list -> string
 
-
+    val node_content_2_string : node_content -> string
 
     (* a generic iterator collection over the entire C11 - AST. The lexical 
        "leaves" of the AST's are parametric ('a). THe collecyot function "g" (see below)
@@ -573,7 +574,6 @@ fun toString_cIntFlag  (X:C_Ast.cIntFlag)    = @{make_string} X
                                              
 fun toString_cIntRepr  (X:C_Ast.cIntRepr)    = @{make_string} X
 
-
 val encode_positions =
      map (Position.dest
        #> (fn pos => ((#line pos, #offset pos, #end_offset pos), #props pos)))
@@ -590,12 +590,19 @@ val decode_positions =
 fun dark_matter x = XML.content_of (YXML.parse_body x)
 
 
+fun node_content_2_string (x : node_content) =
+    let  val data_string a_markup = hd(#args(x));
+         val id = hd(tl(String.tokens (fn x => x = #"\"")(dark_matter a_markup)))
+    in id end  (* no type inference *);
+
 fun toString_abr_string S = case  to_String_b_a_s_e S of 
                                ST X => dark_matter X
                              | STa S => map (dark_matter o Int.toString) S 
                                         |> String.concatWith "," 
                                         |> enclose "[" "]"
- 
+
+val abr_string_2_string = C_Ast.meta_of_logic
+
 fun toString_nodeinfo (NodeInfo0 (positiona, (positiona', i), namea)) =
     let val Position0 (i1,abrS,i2,i3) = positiona;
         val Position0 (i1',abrS',i2',i3') = positiona';

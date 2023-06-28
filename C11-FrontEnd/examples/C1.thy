@@ -105,11 +105,13 @@ ML\<open>
 
 fun drop_dark_matter x = (XML.content_of o YXML.parse_body) x 
 
-
-fun node_content_2_free (x : C11_Ast_Lib.node_content) =
+fun node_content_2_string (x : C11_Ast_Lib.node_content) =
     let  val C11_Ast_Lib.data_string a_markup = hd(#args(x));
          val id = hd(tl(String.tokens (fn x => x = #"\"")(drop_dark_matter a_markup)))
-    in Free(id,dummyT) end  (* no type inference *);
+    in id end  (* no type inference *);
+
+fun node_content_2_free (x : C11_Ast_Lib.node_content) =
+    Free(node_content_2_string x,dummyT) (* no type inference *);
 
 
 

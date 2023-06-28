@@ -558,9 +558,9 @@ fun conv_transl_unit ( CTranslUnit0 (CDeclExt0 (CDecl0(tys,cid, nid1)) :: R,nid2
          let val cid_name = #1(conv_cid cid thy)
              val typ = conv_cDeclarationSpecifier_typ (SOME tys)
              val pos = @{here} (* should be derived from nid1 *)
-             val S = [(Binding.make(cid_name, pos), "int", Mixfix.NoSyn)]
+             val S = [(Binding.make(cid_name, pos), the typ, Mixfix.NoSyn)]
         
-         in thy |> StateMgt.new_state_record true (NONE,S)
+         in thy |> StateMgt.new_state_record' true (NONE,S)
                 |> conv_transl_unit (CTranslUnit0 (R, nid2)) 
          end
     | conv_transl_unit (CTranslUnit0 ([], _)) thy  = thy 

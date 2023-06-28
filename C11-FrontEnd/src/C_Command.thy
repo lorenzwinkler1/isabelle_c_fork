@@ -1045,7 +1045,7 @@ val _ = Theory.setup
   #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Isar_Cmd.ML)
                              C_Parse.ML_source
                              ("ML", \<^here>, \<^here>, \<^here>)
-  #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Isar_Cmd.ML)
+  #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Isar_Cmd.text)
                              C_Parse.document_source
                              ("text", \<^here>, \<^here>, \<^here>)
   #> C_Inner_Syntax.command0 (C_Inner_Toplevel.generic_theory o C_Module.C)

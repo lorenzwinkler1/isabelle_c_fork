@@ -101,7 +101,25 @@ ML\<open> val Type(s,t) = StateMgt_core.get_state_type_global @{theory};
 text\<open>The \<open>global_vars\<close> command, described and defined in \<^verbatim>\<open>Clean.thy\<close>,
 declares the global variable \<^verbatim>\<open>A\<close>. This has the following effect:\<close>
 
-global_vars state
+term\<open>a + (3::nat)\<close>
+
+record AA = aa :: int nn ::"int list"
+
+ML\<open> val (Const ("Quicksort_concept.AA.AA_ext", _ ) $ _ $ _ $ _)  = @{term "\<lparr> aa = 2, nn = [] \<rparr>"}\<close>
+
+
+ML\<open>open HOLogic\<close>
+
+ML\<open>
+val _ $ (_ $ t) = @{term "a + (-4::int)" };
+val Const(s,ty) $ _ = t;
+val Type("fun",[S1,Type("Int.int", SS) ]) = ty
+\<close>
+
+find_theorems name : "AA"
+
+
+global_vars (state)
     A :: "int list"
 
 find_theorems create\<^sub>L name:"Quick"
