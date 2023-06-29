@@ -95,8 +95,8 @@ C \<open>
 unsigned int sqrt(unsigned int n)
 {
     unsigned int i = 0;
-    unsigned int tm = 1;
-    unsigned int sum = 1;
+    unsigned long long tm = 1;
+    unsigned long long  sum = 1;
     while(sum < n) {
       i++;
       tm+=2;
@@ -112,6 +112,8 @@ theorem (in sqrt) sqrt_correct':
 proof (rule validNF_assume_pre)
   fix s
   assume 1 : "n \<le> UINT_MAX"
+  have 2 : "\<And>a. Suc (a + (a + a * a)) = (a+1)*(a+1)" by simp
+  have 3 : "\<And>a. Suc (Suc (Suc (Suc (4 * a + a * a)))) =  (a+2)*(a+2)" by simp
   show ?thesis
     apply(clarsimp simp: sqrt'_def, wp, auto)
     apply (subst whileLoop_add_inv 
@@ -122,6 +124,7 @@ proof (rule validNF_assume_pre)
                                      \<and> sum < UINT_MAX "
                    and M = "\<lambda>((i, sum, tm),s). n - i " ])
     apply(insert 1, wp, clarify)
-    apply(auto)
+      apply(auto, simp_all only:  2 3)
+          prefer 6 
     sorry
 qed

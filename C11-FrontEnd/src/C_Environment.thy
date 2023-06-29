@@ -470,11 +470,14 @@ fun make env_lang stream_lang env_tree =
                                       | C_Scan.Right tok => SOME (C_Scan.Right tok)
                                       | C_Scan.Left antiq => SOME (C_Scan.Left antiq))
                                     stream_lang) }
-fun string_of (env_lang : env_lang) = 
+
+fun string_of (env_lang : env_lang) =
   let fun dest0 x f = x |> Symtab.dest |> map f
       fun dest {tyidents, idents} =
-            (dest0 tyidents #1, dest0 idents (fn (i, (_,_,v)) =>
-                                               (i, if #global v then "global" else "local")))
+            (dest0 tyidents #1, 
+             dest0 idents (fn (i, (posS,_,v)) => (i, "offset:",map Position.offset_of posS, 
+                                                  if #global v  then "global"  else "local",
+                                                  #params v)))
   in \<^make_string> ( ("var_table", dest (#var_table env_lang))
                  , ("scopes", map (fn (id, i) =>
                                     ( Option.map (fn C_Ast.Ident0 (i, _, _) =>
@@ -483,7 +486,8 @@ fun string_of (env_lang : env_lang) =
                                     , dest i))
                                   (#scopes env_lang))
                  , ("namesupply", #namesupply env_lang)
-                 , ("stream_ignored", #stream_ignored env_lang)) end
+                 , ("stream_ignored", #stream_ignored env_lang)) 
+  end
 
 val namespace_typedef = "typedef"
 val namespace_tag = "tag"

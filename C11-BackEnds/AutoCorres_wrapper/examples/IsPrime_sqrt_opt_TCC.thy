@@ -195,6 +195,8 @@ text\<open> This C code contains a function that determines if the given number
  
       This is a faster version than a linear primality test; runs in O(sqrt(n)). \<close>
 
+
+
 C \<open>
 #define SQRT_UINT_MAX 65536
 
@@ -251,6 +253,7 @@ definition is_prime_inv
 
 lemma "\<not> 2 dvd i = (i mod 2 = (1::nat))"
   using odd_iff_mod_2_eq_one by blast
+
 
 
 lemma inv_preserved0: "is_prime_inv n i s \<Longrightarrow> \<not> i dvd n \<Longrightarrow> partial_prime n (Suc(Suc i))"
