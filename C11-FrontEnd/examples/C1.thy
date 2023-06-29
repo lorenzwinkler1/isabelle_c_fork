@@ -95,9 +95,27 @@ fun print ({args = (C11_Ast_Lib.data_string S)::_::C11_Ast_Lib.data_string S'::[
 
 app print S; (* these strings are representations for C_Ast.abr_string, 
                 where the main constructor is C_Ast.SS_base. *)
-map (YXML.parse_body o (fn {args = (C11_Ast_Lib.data_string S)::_::C11_Ast_Lib.data_string S'::[], 
+val XX = map (YXML.parse_body o (fn {args = (C11_Ast_Lib.data_string S)::_::C11_Ast_Lib.data_string S'::[], 
            sub_tag = _, tag = _} =>S)) S ;
 \<close>
+
+ML\<open>ML_Compiler.flags\<close>
+ML\<open> fun eval ctxt pos ml =
+  ML_Context.eval_in (SOME ctxt) ML_Compiler.flags pos ml
+    handle ERROR msg => error (msg ^ Position.here pos);
+ \<close>
+ML\<open>open C_Ast\<close>
+ML\<open>val SPY = Unsynchronized.ref (C_Ast.SS_base(C_Ast.ST ""))\<close>
+text\<open> val t = @{ML "(SPY := (C_Ast.SS_base (C_Ast.ST \"b\")))"}\<close>
+ML\<open>!SPY \<close>
+ML\<open> val txt0 ="(SPY := ("^XML.content_of (hd XX)^"))";
+    val ml0 = ML_Lex.read_source (Input.string txt0);
+    val t = eval @{context} @{here} ml0;
+!SPY
+
+\<close>
+
+
 
 subsection\<open>A small compiler to Isabelle term's.\<close>
 
