@@ -435,6 +435,8 @@ end
 
 section\<open>A General C11-AST iterator.\<close>
 
+ML\<open>val ABR_STRING_SPY = Unsynchronized.ref (C_Ast.SS_base(C_Ast.ST ""));\<close>
+
 ML\<open>
 
 signature C11_AST_LIB =
@@ -445,6 +447,7 @@ signature C11_AST_LIB =
 
     datatype data = data_bool of bool     | data_int of int 
                   | data_string of string | data_absstring of string 
+                  | data_nodeInfo of C_Ast.nodeInfo
 
     type node_content = { tag     : string,
                           sub_tag : string,
@@ -457,13 +460,17 @@ signature C11_AST_LIB =
     val toString_cUnaryOp  : C_Ast.cUnaryOp -> string
     val toString_cAssignOp : C_Ast.cAssignOp -> string
     val toString_abr_string: C_Ast.abr_string -> string
-    val abr_string_2_string: C_Ast.abr_string -> string
-    val toString_nodeinfo  : C_Ast.nodeInfo -> string
+    val toString_abr_string_2: C_Ast.abr_string -> string
 
+    val toPos_positiona    : C_Ast.positiona -> Position.T list
     val decode_positions   : string -> Position.T list
     val encode_positions   : Position.T list -> string
 
-    val node_content_2_string : node_content -> string
+    val toString_nodeinfo     : C_Ast.nodeInfo -> string
+    val toString_node_content : node_content -> string
+    val id_of_node_content : node_content -> string
+
+    val get_abr_string_from_Ident_string:string -> C_Ast.abr_string
 
     (* a generic iterator collection over the entire C11 - AST. The lexical 
        "leaves" of the AST's are parametric ('a). THe collecyot function "g" (see below)
@@ -545,6 +552,7 @@ local open  C_Ast in
 
 datatype data = data_bool of bool     | data_int of int 
               | data_string of string | data_absstring of string 
+              | data_nodeInfo of C_Ast.nodeInfo
 
 type node_content = { tag     : string,
                       sub_tag : string,
@@ -590,38 +598,69 @@ val decode_positions =
 fun dark_matter x = XML.content_of (YXML.parse_body x)
 
 
-fun node_content_2_string (x : node_content) =
-    let  val data_string a_markup = hd(#args(x));
-         val id = hd(tl(String.tokens (fn x => x = #"\"")(dark_matter a_markup)))
-    in id end  (* no type inference *);
+val toString_abr_string_2 = C_Ast.meta_of_logic
 
-fun toString_abr_string S = case  to_String_b_a_s_e S of 
-                               ST X => dark_matter X
-                             | STa S => map (dark_matter o Int.toString) S 
-                                        |> String.concatWith "," 
-                                        |> enclose "[" "]"
+local 
+   (* didn't find a good way to tell eval in which namespace to evaluate.*)
+   (* opted therefore for a token trnslation. bu *)
+   val ST_tok      = hd(ML_Lex.read_source \<open>C_Ast.ST\<close>)
+   val STa_tok     = hd(ML_Lex.read_source \<open>C_Ast.STa\<close>)
+   val SS_base_tok = hd(ML_Lex.read_source  \<open>C_Ast.SS_base\<close>)
+   val String_concatWith_tok = hd(ML_Lex.read_source \<open>C_Ast.String_concatWith\<close>)
+   fun eval ctxt pos ml =
+          ML_Context.eval_in (SOME ctxt) ML_Compiler.flags pos ml
+          handle ERROR msg => error (msg ^ Position.here pos);
+   fun convert_to_long_ML_ids (Antiquote.Text A) = (case  ML_Lex.content_of A of
+                                                     "ST" => ST_tok
+                                                    |"STa" => STa_tok
+                                                    |"SS_base"  => SS_base_tok
+                                                    |"String_concatWith" => String_concatWith_tok
+                                                    | _ =>  Antiquote.Text A)
+                                                   
+      |convert_to_long_ML_ids X = X
 
-val abr_string_2_string = C_Ast.meta_of_logic
+in
+fun get_abr_string_from_Ident_string XX = 
+    let    val txt00 ="(ABR_STRING_SPY := ("^XML.content_of (YXML.parse_body XX)^"))";
+           val ml00' = map convert_to_long_ML_ids (ML_Lex.read_source (Input.string txt00))
+           val t = eval @{context} @{here} ml00';
+    in !ABR_STRING_SPY end
+end;
 
-fun toString_nodeinfo (NodeInfo0 (positiona, (positiona', i), namea)) =
-    let val Position0 (i1,abrS,i2,i3) = positiona;
-        val Position0 (i1',abrS',i2',i3') = positiona';
-        val Name0 X = namea;
-    in  "<"^Int.toString i1^" : "^toString_abr_string abrS^" : "
-        ^ Int.toString i2 ^" : " ^ Int.toString i3 ^ " : " ^ 
-        Int.toString i1'^" : "^toString_abr_string abrS'^" : "
-        ^ Int.toString i2' ^" : " ^ Int.toString i3' ^ "|" ^ Int.toString i ^"::"
-        ^ Int.toString X ^ ">"
+
+fun  toString_abr_string (C_Ast.SS_base (C_Ast.ST txt))   = txt 
+      | toString_abr_string (C_Ast.SS_base (C_Ast.STa txt))  = @{make_string} txt
+      | toString_abr_string (C_Ast.String_concatWith (a,S) ) = 
+                  String.concatWith (toString_abr_string a) (map toString_abr_string S) 
+
+fun toPos_positiona (C_Ast.Position0(i, str,j,k)) =  decode_positions(toString_abr_string str)
+     | toPos_positiona C_Ast.NoPosition0  = []
+     | toPos_positiona C_Ast.BuiltinPosition0 = []
+     | toPos_positiona C_Ast.InternalPosition0 = []
+
+
+
+fun toString_nodeinfo (C_Ast.NodeInfo0 (positiona, (positiona', i), namea)) =
+    let val p1 = toPos_positiona positiona;
+        val p2 = toPos_positiona positiona';
+        val C_Ast.Name0 X = namea;
+    in  "<"^ @{make_string} p1 ^ " : " ^ @{make_string} p2 ^"::" ^ Int.toString X ^ ">"
     end
-   |toString_nodeinfo (OnlyPos0 (positiona, (positiona', i))) =
-    let val Position0 (i1,abrS,i2,i3) = positiona;
-        val Position0 (i1',abrS',i2',i3') = positiona';
-    in  "<"^Int.toString i1^" : "^toString_abr_string abrS^" : "
-        ^ Int.toString i2 ^" : " ^ Int.toString i3 ^ " : " ^ 
-        Int.toString i1'^" : "^toString_abr_string abrS'^" : "
-        ^ Int.toString i2' ^" : " ^ Int.toString i3' ^ "|" ^ Int.toString i ^ ">"
+   |toString_nodeinfo (C_Ast.OnlyPos0 (positiona, (positiona', i))) =
+    let val p1 = toPos_positiona positiona;
+        val p2 = toPos_positiona positiona';
+    in  "<"^ @{make_string} p1 ^ " : " ^ @{make_string} p2 ^">"
     end;
-                                                       
+                     
+fun id_of_node_content {args = (data_string S)::_::data_nodeInfo S'::[],  sub_tag = _,  tag = _} =
+    (toString_abr_string o get_abr_string_from_Ident_string)(S)
+                                 
+fun toString_node_content 
+           {args = (data_string S)::_::data_nodeInfo S'::[], 
+            sub_tag = STAG, 
+            tag = TAG} 
+         = ("TAG:"^TAG^":"^STAG^":"^ (toString_abr_string o get_abr_string_from_Ident_string)(S)^
+              "<:>"^toString_nodeinfo S'^"<:>");
 
 fun toString_Chara (Chara(b1,b2,b3,b4,b5,b6,b7,b8)) = 
              let val v1 = (b1 ? (K 0)) (128)
@@ -671,7 +710,7 @@ fun fold_ident a g (Ident0(bstr : abr_string, i : int, ni: nodeInfo (* hack !!! 
                    st |> g (TT "Ident0"  
                             #>> [data_string (@{make_string} bstr), 
                                  data_int i, 
-                                 data_string (@{make_string} ni)
+                                 data_nodeInfo ni
                                 ]) a
 (* |> fold_cString (fn x=>g x a)  *)
 fun fold_cStringLiteral g (CStrLit0(cs:cString, a)) st =  st |> fold_cString (fn x=>g x a) cs

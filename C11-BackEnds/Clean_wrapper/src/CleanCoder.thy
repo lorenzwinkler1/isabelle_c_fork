@@ -31,6 +31,8 @@ fun toString_data data = case data of
      |C11_Ast_Lib.data_int e => "Int : "^Int.toString e
      |C11_Ast_Lib.data_string e => "String : "^e
      |C11_Ast_Lib.data_absstring e => "AbsString : "^e
+     |C11_Ast_Lib.data_nodeInfo e => "nodeInfo : "^ @{make_string} e
+
  
 fun toString_args args = "["^(String.concatWith ", "(List.map (toString_data) args))^ "]"
 
