@@ -61,6 +61,7 @@ section\<open>The C code for \<open>O(sqrt(n))\<close> Primality Test Algorithm 
 
 text \<open>The invocation of AutoCorres and the Setup of AutoCorres 
       for representing the following C text-element semantically:\<close> 
+
 declare [[AutoCorres]]
 declare_autocorres is_prime [ts_rules = nondet,unsigned_word_abs = is_prime]
 
@@ -98,8 +99,10 @@ unsigned int is_prime(unsigned int n)
 
 C_export_file  (* This exports the C code into a C file ready to be compiled by gcc. *)
 
+find_theorems name:is_prime
 
-
+thm is_prime.is_prime'_def
+term is_prime.is_prime'
 
 section\<open>The Verification\<close>
 
@@ -341,6 +344,7 @@ lemma sqr_le_sqr_minus_1 [simp]:
 subsection\<open>The Correctness Proof \<close>
 
 text\<open>Note that the proof \<^emph>\<open>injects\<close> the loop invariant at the point where the proof treats the loop.\<close>
+
 
 theorem (in is_prime) is_prime_correct':
     "\<lbrace> \<lambda>\<sigma>. n \<le> UINT_MAX \<rbrace> is_prime' n \<lbrace> \<lambda>res \<sigma>. (res \<noteq> 0) \<longleftrightarrow> prime n \<rbrace>!"

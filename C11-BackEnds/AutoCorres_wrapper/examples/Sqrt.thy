@@ -121,13 +121,10 @@ proof (rule validNF_assume_pre)
                                      0\<le>i  
                                      \<and> tm = 2*i+1 
                                      \<and> sum=(i+1)*(i+1) 
-                                     \<and> sum < ULONG_MAX "
+                                     \<and> sum < UINT_MAX "
                    and M = "\<lambda>((i, sum, tm),s). n - i " ])
-    apply(insert 1, wp,clarify)
+    apply(insert 1, wp, clarify)
       apply(auto, simp_all only:  2 3)
-          prefer 6  apply(simp add: UWORD_MAX_def UWORD_MAX_simps(1) ULONG_MAX_def)
-    prefer 5 apply(insert 1) 
-
-    
+          prefer 6 
     sorry
 qed

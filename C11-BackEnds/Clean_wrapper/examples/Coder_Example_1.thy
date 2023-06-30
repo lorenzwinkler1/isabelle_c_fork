@@ -491,7 +491,7 @@ ML\<open>val ast_ext_decl = @{C11_CExtDecl}
 
 \<close>
 
-(* language support incomplete *)
+(* language support incomplete; so this gives a local error *)
 ML \<open>
 val S =  (C11_Ast_Lib.fold_cExternalDeclaration regroup
                   (convertExpr_raw false sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) 
@@ -522,7 +522,7 @@ local open C_Ast in
 fun conv_C11Positiona_Position (Position0(k : int, 
                                 SS_base(ST (st: string)), 
                                 m: int, n: int))
-   = (warning"Not Correct Position:"; Position.none)             
+   = (warning"Not Correct Position:" ; Position.none)             
   | conv_C11Positiona_Position NoPosition0  = Position.none
   | conv_C11Positiona_Position BuiltinPosition0 =  Position.none
   | conv_C11Positiona_Position InternalPosition0 = Position.none
@@ -559,9 +559,9 @@ fun conv_transl_unit ( CTranslUnit0 (CDeclExt0 (CDecl0(tys,cid, nid1)) :: R,nid2
          let val cid_name = #1(conv_cid cid thy)
              val typ = conv_cDeclarationSpecifier_typ (SOME tys)
              val pos = @{here} (* should be derived from nid1 *)
-             val S = [(Binding.make(cid_name, pos), "int", Mixfix.NoSyn)]
+             val S = [(Binding.make(cid_name, pos), the typ, Mixfix.NoSyn)]
         
-         in thy |> StateMgt.new_state_record true (NONE,S)
+         in thy |> StateMgt.new_state_record' true (NONE,S)
                 |> conv_transl_unit (CTranslUnit0 (R, nid2)) 
          end
     | conv_transl_unit (CTranslUnit0 ([], _)) thy  = thy 

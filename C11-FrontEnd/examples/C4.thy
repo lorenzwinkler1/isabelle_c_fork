@@ -204,9 +204,11 @@ int b = 0;
 int a = b;
 \<close>
 
+text\<open>\<close>
 C \<open>
 int c = 0;
 //@ setup \<open>Include.append "tmp" [\<open>c\<close>]\<close>
+//@ text\<open>\<close>
 //@ setup \<open>Include.append "tmp" [\<open>c\<close>]\<close>
 #include "tmp"
 int a = b + c;
@@ -506,9 +508,11 @@ ML\<open>
 local open C_Ast in
 val _ = CTranslUnit0
 val (A::R, _) = @{C11_AST_CTranslUnit};
-val (CTranslUnit0 (t,u), v) = A
+val (CTranslUnit0 (t,u), v) = A;
+
 fun rule_trans (CTranslUnit0 (t,u), v) = case C_Grammar_Rule_Lib.decode u of 
-                  Left (p1,p2) => writeln (Position.here p1 ^ " " ^ Position.here p2)
+                  Left (p1,p2) => writeln ("Nodeinfo:" ^ " "
+                                           ^ Position.here p1 ^ " " ^ Position.here p2)
                 | Right S => warning ("Not expecting that value:"^S)
 val bb = rule_trans A
 val CDeclExt0(x1)::_ = t;
@@ -520,7 +524,7 @@ ML\<open>
 get_CTranslUnit;
 val (R, env_final) = @{C11_AST_CTranslUnit};
 val rules = map rule_trans R;
-@{C\<^sub>e\<^sub>n\<^sub>v}
+val t = @{C\<^sub>e\<^sub>n\<^sub>v}
 \<close>
 
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "expression"]]
