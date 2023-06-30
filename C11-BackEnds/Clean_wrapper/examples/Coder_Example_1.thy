@@ -536,7 +536,6 @@ end
 \<close>
 
 
-ML\<open>ast_unit\<close>
 
 ML\<open> local open C_Ast 
 in
