@@ -491,7 +491,7 @@ ML\<open>val ast_ext_decl = @{C11_CExtDecl}
 
 \<close>
 
-(* language support incomplete *)
+(* language support incomplete; so this gives a local error *)
 ML \<open>
 val S =  (C11_Ast_Lib.fold_cExternalDeclaration regroup
                   (convertExpr_raw false sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) 
