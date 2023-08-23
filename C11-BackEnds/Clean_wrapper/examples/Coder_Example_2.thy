@@ -4,6 +4,8 @@ theory "Coder_Example_2"
           "../src/CleanCoder"
 begin
 
+
+section\<open>C11 Translation Units \<close>
 (* Note: see C_Term.env0 in C_Command.thy
    C environment is updated with each added C context *)
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
@@ -80,9 +82,12 @@ val ast_stmt = extractStatement identifiers "identity"
 end
 \<close>
 
-ML\<open>regroup\<close>
+
+
 
 ML\<open>
+open C11_Stmt_2_Clean;
+
 (* This may or may not be useful later:
 val state_field = StateMgt_core.get_state_field_tab_global @{theory};
 val lookup=Symtab.lookup state_field p *)

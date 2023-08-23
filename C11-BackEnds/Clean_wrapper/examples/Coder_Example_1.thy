@@ -44,7 +44,7 @@ fun conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _)])) = SOME(H
 
 fun conv_cDerivedDeclarator_cSizeExpr_term (CArrDeclr0 (_,CArrSize0 (_,C_expr),_)) C_env thy = 
             SOME(hd((C11_Ast_Lib.fold_cExpression (K I)
-                                 (convertExpr_raw false dummyT C_env thy) C_expr [])))
+                                 (C11_Expr_2_Clean.convertExpr_raw false dummyT C_env thy) C_expr [])))
    |conv_cDerivedDeclarator_cSizeExpr_term (CArrDeclr0 (_,CNoArrSize0 Z,_)) _ _ = NONE
    |conv_cDerivedDeclarator_cSizeExpr_term (_)  _ _ =  
             error("DeclarationSpec format not defined. [Clean restriction]")
@@ -249,6 +249,7 @@ ML\<open>val ast_expr = @{C11_CExpr}
 \<close>
 
 ML\<open>
+open C11_Expr_2_Clean HOLogic;
 
 val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
 val S = conv_Cexpr_term env_expr sigma_i @{theory} ast_expr
@@ -323,7 +324,7 @@ val S' = conv_Cexpr_term env_expr sigma_i @{theory} ast_expr
 
 (*6*****************************************************************************************************)
 
-(* construct environment with global variqble *)
+(* construct environment with global variable *)
 
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "expression"]]
 C\<open>1 * a\<close>
@@ -364,7 +365,10 @@ C\<open>{a = a+a;
    while(1 && 1){a = a * a; a = a + 1; }
   }
  \<close>
-ML\<open>val ast_stmt = @{C11_CStat}   \<comment> \<open>C11 ast\<close>
+ML\<open>open C11_Stmt_2_Clean;
+
+
+   val ast_stmt = @{C11_CStat}   \<comment> \<open>C11 ast\<close>
    val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>        \<comment> \<open>C11 c-env\<close>
 
 ML\<open>val C_Ast.CCompound0(a, b, c) = ast_stmt;\<close> \<comment> \<open>grabbing into an AST\<close>

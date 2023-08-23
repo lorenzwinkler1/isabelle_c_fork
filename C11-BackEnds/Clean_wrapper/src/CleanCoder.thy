@@ -115,7 +115,12 @@ fun extract_identifier_from_id thy identifiers id =
        val SOME(identifier) = List.find (fn C_AbsEnv.Identifier(id_name, _, _, _) => id_name = id) identifiers
   in identifier end
 
-(*fonction de traduction principale :*)
+\<close>
+
+subsection\<open>C11 Expressions to Clean Terms\<close>
+
+
+ML\<open>
 
 (*
 verbose : boolean (to do some printing and help to debug)
@@ -125,11 +130,15 @@ thy : theory (the actual theory)
 a, b, c : those values are from the parser
 *)
 
-open HOLogic;
+structure C11_Expr_2_Clean =
+
+struct
+
+local open HOLogic in
 
 fun convertCType2HOLType X = ()
 
-(*** Duplicate code ***)
+(*** Duplicate code: outdated ? replaced by convertExpr_raw_ident ?***)
 
 fun convertExpr_raw verbose sigma_i env thy
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
@@ -366,9 +375,20 @@ fun conv_Cexpr_term C_env sigma_i thy C_expr =
     Abs("\<sigma>", sigma_i, hd((C11_Ast_Lib.fold_cExpression (K I)
                                (convertExpr_raw false sigma_i C_env thy) C_expr [])))
     (* Better: abstract_over (Free(\<sigma>, sigma_i)) ??? *)
+
+end
+end
 \<close>
+
+subsection\<open>C11 Statements to Clean Terms\<close>
+
 ML\<open>
-local open Clean_Term_interface in
+
+structure C11_Stmt_2_Clean =
+
+struct
+
+local open Clean_Term_interface C11_Expr_2_Clean HOLogic in
 
 val start_term = Const("_BEGIN",dummyT)
 val end_term = Const("_END",dummyT)
@@ -579,9 +599,18 @@ for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
 end
 
 (*** -------------- ***)
+
+end
 \<close>
 
+subsection\<open>C11 Translation Units to Clean Terms\<close>
+
 ML\<open>
+
+structure C11_Unit_2_Clean =
+struct 
+
+local open HOLogic in
 fun convertCUnit verbose sigma_i env thy
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo ) 
@@ -608,7 +637,8 @@ fun convertCUnit verbose sigma_i env thy
      | s =>  (c)
 )
 
-
+end
+end
 
 \<close> 
 end
