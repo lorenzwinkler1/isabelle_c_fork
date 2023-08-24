@@ -37,9 +37,8 @@
 
 theory "CleanCoder"
   imports "Isabelle_C.C_Main" 
-          "HOL.Real"
           "Clean.Clean"
-          "CleanCoder2"
+          "CleanCoderTypAEnv"
 begin
 
 
@@ -136,7 +135,6 @@ struct
 
 local open HOLogic in
 
-fun convertCType2HOLType X = ()
 
 (*** Duplicate code: outdated ? replaced by convertExpr_raw_ident ?***)
 
@@ -376,6 +374,16 @@ fun conv_Cexpr_term C_env sigma_i thy C_expr =
                                (convertExpr_raw false sigma_i C_env thy) C_expr [])))
     (* Better: abstract_over (Free(\<sigma>, sigma_i)) ??? *)
 
+
+fun conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CArrSize0 (_,C_expr),_)) C_env thy = 
+            SOME(hd((C11_Ast_Lib.fold_cExpression (K I)
+                                 (convertExpr_raw false dummyT C_env thy) C_expr [])))
+   |conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CNoArrSize0 Z,_)) _ _ = NONE
+   |conv_cDerivedDeclarator_cSizeExpr_term (_)  _ _ =  
+            error("DeclarationSpec format not defined. [Clean restriction]")
+
+
+
 end
 end
 \<close>
@@ -611,6 +619,7 @@ structure C11_Unit_2_Clean =
 struct 
 
 local open HOLogic in
+
 fun convertCUnit verbose sigma_i env thy
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo ) 

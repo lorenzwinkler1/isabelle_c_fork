@@ -35,7 +35,7 @@
  ******************************************************************************)
 
 
-theory CleanCoder2
+theory CleanCoderTypAEnv
   imports "Isabelle_C.C_Main"
           "HOL.Real"
           "Clean.Clean"
@@ -124,7 +124,21 @@ fun remove_char_from_string c s =
 subsection\<open>Conversion of \<^verbatim>\<open>C_Ast.cDeclarationSpecifier\<close> to HOL types\<close>
 
 ML\<open>
-local open C_Ast in
+
+structure C11_TypeSpec_2_CleanTyp =
+struct 
+
+local open C_Ast C_Env in
+
+(*
+  and 'a cTypeSpecifier = CVoidType0 of 'a | CCharType0 of 'a | CShortType0 of 'a 
+                       | CIntType0 of 'a | CLongType0 of 'a | CFloatType0 of 'a 
+                       | CDoubleType0 of 'a | CSignedType0 of 'a | CUnsigType0 of 'a | CBoolType0 of 'a |
+*)
+fun conv_ParseStatus_CDeclSpecS (SOME(C_Env.Parsed S)) = SOME S
+   |conv_ParseStatus_CDeclSpecS _ = NONE
+
+
 fun conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _)])) = SOME(HOLogic.intT)
    |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CIntType0 _)]))   = SOME(HOLogic.intT)
    |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CLongType0 _),
@@ -149,6 +163,39 @@ fun conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _)])) = SOME(H
    |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CSignedType0 _),
                                           CTypeSpec0 (CCharType0 _)]))  = SOME(HOLogic.charT)
    |conv_cDeclarationSpecifier_typ _ = error("Type format not defined. [Clean restriction]")
+
+
+fun conv_cDerivedDeclarator_typS (CArrDeclr0 (_,CArrSize0 _ ,_)) C_env thy = HOLogic.listT 
+                    (*no enumerations ? nat ? *)
+   |conv_cDerivedDeclarator_typS (CFunDeclr0 (Right(S,_), _, _)) C_env thy = I
+
+(*
+val [((Some (CDeclr0 (_,s,_,_,_)),_),_)] = A'
+val [((Some (CDeclr0 (_,t,_,_,_)),_),_)] = B'
+*)
+
+fun conv_CDerivedDecl_typ [CFunDeclr0 (Right(SS,_), _, _)] = 
+        fold_rev (fn CDecl0 (A, [((Some (CDeclr0 (_,TT,_,_,_)),_),_)], _) => 
+                        (fn S => let val A_ty = the(conv_cDeclarationSpecifier_typ(SOME A))
+                                     val TT_ty= case TT of 
+                                                   [] => I
+                                                  | _ => conv_CDerivedDecl_typ TT
+                                 in  (TT_ty A_ty) --> S end)
+                    | _ => error "CDerivedDecl (0) format not defined. [Clean restriction]") SS 
+   |conv_CDerivedDecl_typ (S as (CArrDeclr0 _) :: _) = 
+        fold     (fn (CArrDeclr0 _  ) => (fn tyF => HOLogic.listT o tyF)
+                     | _ => error "CDerivedDecl (1) format not defined. [Clean restriction]") S I 
+   |conv_CDerivedDecl_typ _ = error "CDerivedDecl (2) format not defined. [Clean restriction]"
+
+
+fun conv_GlobalIdDescr_typ (S:C_Env.markup_ident) = 
+    conv_CDerivedDecl_typ 
+        (#params S) 
+        (SOME(#ret S)  |> conv_ParseStatus_CDeclSpecS 
+                       |> conv_cDeclarationSpecifier_typ
+                       |> the) ;
+
+end;
 end
 \<close>
 
@@ -221,7 +268,7 @@ datatype identType = Global
 
 datatype identifier = Identifier of string * Position.T * Basic_Term.typ * identType
 
-open C_Ast;
+open C_Ast C11_TypeSpec_2_CleanTyp;
 
 (*** --- HELPER FUNCTIONS --- ***)
 

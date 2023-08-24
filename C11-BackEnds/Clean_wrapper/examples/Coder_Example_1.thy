@@ -2,86 +2,6 @@ theory "Coder_Example_1"
   imports "../src/CleanCoder"
 begin
 
-section \<open>C-to-HOL Converters for C-types\<close>
-
-ML\<open>
-local open C_Ast C_Env in
-
-(*
-  and 'a cTypeSpecifier = CVoidType0 of 'a | CCharType0 of 'a | CShortType0 of 'a 
-                       | CIntType0 of 'a | CLongType0 of 'a | CFloatType0 of 'a 
-                       | CDoubleType0 of 'a | CSignedType0 of 'a | CUnsigType0 of 'a | CBoolType0 of 'a |
-*)
-fun conv_ParseStatus_CDeclSpecS (SOME(C_Env.Parsed S)) = SOME S
-   |conv_ParseStatus_CDeclSpecS _ = NONE
-
-
-fun conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _)])) = SOME(HOLogic.intT)
-   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CIntType0 _)]))   = SOME(HOLogic.intT)
-   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CLongType0 _),
-                                          CTypeSpec0 (CIntType0 _)]))   = SOME(HOLogic.intT)
-   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CShortType0 _),
-                                          CTypeSpec0 (CIntType0 _)]))   = SOME(HOLogic.intT)
-   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _), 
-                                          CTypeSpec0 (CIntType0 _)]))   = SOME(HOLogic.natT)   
-   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _),
-                                          CTypeSpec0 (CLongType0 _), 
-                                          CTypeSpec0 (CIntType0 _)]))   = SOME(HOLogic.natT)   
-   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CShortType0 _)])) = SOME(HOLogic.intT)
-   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CLongType0 _)]))  = SOME(HOLogic.intT)
-   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CFloatType0 _)])) = SOME(HOLogic.realT)
-   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CDoubleType0 _)]))= SOME(HOLogic.realT)
-   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CLongType0 _),
-                                          CTypeSpec0 (CDoubleType0 _)]))= SOME(HOLogic.realT)
-   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CVoidType0 _)]))  = SOME(HOLogic.unitT)
-   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CCharType0 _)]))  = SOME(HOLogic.charT)
-   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _),
-                                          CTypeSpec0 (CCharType0 _)]))  = SOME(HOLogic.charT)
-   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CSignedType0 _),
-                                          CTypeSpec0 (CCharType0 _)]))  = SOME(HOLogic.charT)
-   |conv_cDeclarationSpecifier_typ _ = error("Type format not defined. [Clean restriction]")
-
-
-fun conv_cDerivedDeclarator_cSizeExpr_term (CArrDeclr0 (_,CArrSize0 (_,C_expr),_)) C_env thy = 
-            SOME(hd((C11_Ast_Lib.fold_cExpression (K I)
-                                 (C11_Expr_2_Clean.convertExpr_raw false dummyT C_env thy) C_expr [])))
-   |conv_cDerivedDeclarator_cSizeExpr_term (CArrDeclr0 (_,CNoArrSize0 Z,_)) _ _ = NONE
-   |conv_cDerivedDeclarator_cSizeExpr_term (_)  _ _ =  
-            error("DeclarationSpec format not defined. [Clean restriction]")
-
-
-fun conv_cDerivedDeclarator_typS (CArrDeclr0 (_,CArrSize0 _ ,_)) C_env thy = HOLogic.listT 
-                    (*no enumerations ? nat ? *)
-   |conv_cDerivedDeclarator_typS (CFunDeclr0 (Right(S,_), _, _)) C_env thy = I
-
-(*
-val [((Some (CDeclr0 (_,s,_,_,_)),_),_)] = A'
-val [((Some (CDeclr0 (_,t,_,_,_)),_),_)] = B'
-*)
-
-fun conv_CDerivedDecl_typ [CFunDeclr0 (Right(SS,_), _, _)] = 
-        fold_rev (fn CDecl0 (A, [((Some (CDeclr0 (_,TT,_,_,_)),_),_)], _) => 
-                        (fn S => let val A_ty = the(conv_cDeclarationSpecifier_typ(SOME A))
-                                     val TT_ty= case TT of 
-                                                   [] => I
-                                                  | _ => conv_CDerivedDecl_typ TT
-                                 in  (TT_ty A_ty) --> S end)
-                    | _ => error "CDerivedDecl (0) format not defined. [Clean restriction]") SS 
-   |conv_CDerivedDecl_typ (S as (CArrDeclr0 _) :: _) = 
-        fold     (fn (CArrDeclr0 _  ) => (fn tyF => HOLogic.listT o tyF)
-                     | _ => error "CDerivedDecl (1) format not defined. [Clean restriction]") S I 
-   |conv_CDerivedDecl_typ _ = error "CDerivedDecl (2) format not defined. [Clean restriction]"
-
-
-fun conv_GlobalIdDescr_typ (S:C_Env.markup_ident) = 
-    conv_CDerivedDecl_typ 
-        (#params S) 
-        (SOME(#ret S)  |> conv_ParseStatus_CDeclSpecS 
-                       |> conv_cDeclarationSpecifier_typ
-                       |> the) ;
-
-end;
-\<close>
 
 
 section \<open>Accessors to C-Env\<close>
@@ -224,16 +144,16 @@ end
 ML\<open>(#ret o #3 o the)(lookup_Cid_info env_expr "f" );\<close>
 
 ML\<open>
-conv_CDerivedDecl_typ;C_Ast.CFunDeclr0;
+C11_TypeSpec_2_CleanTyp.conv_CDerivedDecl_typ;C_Ast.CFunDeclr0;
 val S = hd ((#params o  #3 o the)(lookup_Cid_info env_expr "f" ));
-val S' = conv_CDerivedDecl_typ [S] dummyT
+val S' = C11_TypeSpec_2_CleanTyp.conv_CDerivedDecl_typ [S] sigma_i
 \<close>
 (* and the whole thing a bit more abstract with "a" and "f" *)
 ML\<open>
-map_option (conv_GlobalIdDescr_typ o #3) (lookup_Cid_info env_expr "a" );
+map_option (C11_TypeSpec_2_CleanTyp.conv_GlobalIdDescr_typ o #3) (lookup_Cid_info env_expr "a" );
 (* map_option (conv_GlobalIdDescr_typ o #3) (lookup_Cid_info env_expr "f" ); *)
-map_option (conv_GlobalIdDescr_typ o #3) (lookup_Cid_info env_expr "x" );
-map_option (conv_GlobalIdDescr_typ o #3) (lookup_Cid_info env_expr "y" );
+map_option (C11_TypeSpec_2_CleanTyp.conv_GlobalIdDescr_typ o #3) (lookup_Cid_info env_expr "x" );
+map_option (C11_TypeSpec_2_CleanTyp.conv_GlobalIdDescr_typ o #3) (lookup_Cid_info env_expr "y" );
 \<close>
 
 section \<open>Tests on Expressions\<close>
@@ -489,7 +409,7 @@ text \<open>The next step is to study the declarations. There are globals or loc
 and functions or variables declarations.\<close>
 
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "external_declaration"]]
-C\<open> int b = 1;\<close>
+C\<open> int b = a + a;\<close>
 ML\<open>val ast_ext_decl = @{C11_CExtDecl}
    val env_ext_decl =  @{C\<^sub>e\<^sub>n\<^sub>v}
 
@@ -498,9 +418,10 @@ ML\<open>val ast_ext_decl = @{C11_CExtDecl}
 (* initializers not yet supported; so this gives a local error *)
 ML \<open>
 val S =  (C11_Ast_Lib.fold_cExternalDeclaration regroup
-                  (convertExpr_raw false sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) 
+                  (convertExpr_raw false sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) (* DOES THIS MAKE SENSE ??? *)
                   ast_ext_decl 
-                  []);
+                  [])
+         handle ERROR _ => (writeln "CATCH ERROR"; []);
 \<close>
 
 (*4*****************************************************************************************************)
@@ -561,7 +482,7 @@ fun conv_cid [((Some(CDeclr0(Some(Ident0(SS_base(ST x),lab,nid1)),[],None,[],Nod
 (* FIRST DRAFT - INCOMPLETE *)
 fun conv_transl_unit ( CTranslUnit0 (CDeclExt0 (CDecl0(tys,cid, nid1)) :: R,nid2)) thy = 
          let val cid_name = #1(conv_cid cid thy)
-             val typ = conv_cDeclarationSpecifier_typ (SOME tys)
+             val typ = C11_TypeSpec_2_CleanTyp.conv_cDeclarationSpecifier_typ (SOME tys)
              val pos = @{here} (* should be derived from nid1 *)
              val S = [(Binding.make(cid_name, pos), the typ, Mixfix.NoSyn)]
         
