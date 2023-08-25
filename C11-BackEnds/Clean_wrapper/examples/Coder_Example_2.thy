@@ -59,8 +59,8 @@ void test() {
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
-val () = List.app printIdentifier identifiers
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val () = List.app printIdentifier nEnv
 end\<close>
 
 (* Grab the /local/ state by declaring a dummy local variable in `identity`.
@@ -76,9 +76,9 @@ C\<open>int identity(int a) {
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
-val () = List.app printIdentifier identifiers
-val ast_stmt = extractStatement identifiers "identity"
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val () = List.app printIdentifier nEnv
+val ast_stmt = extractStatement nEnv "identity"
 end
 \<close>
 
@@ -94,7 +94,7 @@ val lookup=Symtab.lookup state_field p *)
 
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident false sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory} @{context} identifiers)
+              (convertStmt_raw_ident false sigma_i nEnv @{theory} )
               ast_stmt []);
 \<close>
 
@@ -106,7 +106,7 @@ fun mk_final_term identifiers id t =
       val rev_param_list = rev (map (fn C_AbsEnv.Identifier(name, _, ty,_) => (name, ty)) (lookupParams identifiers id)) 
   in mk_pat_tupleabs rev_param_list t end
 
-val final_term = mk_final_term identifiers "identity" S
+val final_term = mk_final_term nEnv "identity" S
 \<close>
 
 (* We type-certify the term in Isabelle/HOL *)
@@ -132,9 +132,9 @@ int add(int a, int b) {
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
-val () = List.app printIdentifier identifiers
-val ast_stmt = extractStatement identifiers "add"
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val () = List.app printIdentifier nEnv
+val ast_stmt = extractStatement nEnv "add"
 end
 \<close>
 
@@ -142,7 +142,7 @@ ML\<open>
 
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident false sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory} @{context} identifiers)
+              (convertStmt_raw_ident false sigma_i nEnv @{theory} )
               ast_stmt []);
 \<close>
 
@@ -167,14 +167,14 @@ ML\<open>val sigma_i = StateMgt.get_state_type_global @{theory}\<close>
 C\<open>
 int increment(int a) {
   a = a + 1;
-  return a  +1;
+  return a + 1;
 }\<close>
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
-val () = List.app printIdentifier identifiers
-val ast_stmt = extractStatement identifiers "increment";
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val () = List.app printIdentifier nEnv
+val ast_stmt = extractStatement nEnv "increment";
 end
 
 \<close>
@@ -182,7 +182,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory} @{context} identifiers)
+              (convertStmt_raw_ident true sigma_i nEnv @{theory})
               ast_stmt []);
 \<close>
 
@@ -213,9 +213,9 @@ void foo() {
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
-val () = List.app printIdentifier identifiers
-val ast_stmt = extractStatement identifiers "foo";
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val () = List.app printIdentifier nEnv
+val ast_stmt = extractStatement nEnv "foo";
 end
 
 \<close>
@@ -223,7 +223,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory} @{context} identifiers)
+              (convertStmt_raw_ident true sigma_i nEnv @{theory} )
               ast_stmt []);
 \<close>
 
@@ -264,16 +264,16 @@ void paws(unsigned int a, unsigned int b) {
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} init_ident Symtab.empty
-val () = List.app printIdentifier identifiers
-val ast_stmt = extractStatement identifiers "paws";
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} init_ident Symtab.empty
+val () = List.app printIdentifier nEnv
+val ast_stmt = extractStatement nEnv "paws";
 end
 \<close>
 
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory} @{context} identifiers)
+              (convertStmt_raw_ident true sigma_i nEnv @{theory})
               ast_stmt []);
 \<close>
 
@@ -301,13 +301,23 @@ fun parse_state_field_tab thy =
   let val ns = mk_namespace thy |> Path.implode
       val tab = StateMgt.get_state_field_tab_global thy
       val l = Symtab.dest tab
-      val filtered_l = filter (fn (s, _) => (String.isSubstring ns s) andalso not ((ns ^ "." ^ StateMgt.result_name) = s)) l
+      fun pred (s, _) = (String.isSubstring ns s) 
+                         andalso not ((ns ^ "." ^ StateMgt.result_name) = s)
+      val filtered_l = filter pred l
       val init_idents = map (fn (s, StateMgt.local_var(ty)) => 
-                            let val id = String.extract (s, (String.size ns) + 1, NONE)
-                                val pos = Position.none
-                                val t = (fn (Type ("List.list", [T])) => T) (lastype_of ty)
-                                val cat = C_AbsEnv.Local("bar")
-                            in C_AbsEnv.Identifier(id, pos, t, cat) end) filtered_l
+                                let val id = String.extract (s, (String.size ns) + 1, NONE)
+                                    val pos = Position.none
+                                    val t = (fn (Type (@{type_name "list"}, [T])) => T) 
+                                                (lastype_of ty)
+                                    val cat = C_AbsEnv.Local("_")
+                                in C_AbsEnv.Identifier(id, pos, t, cat) end
+                              | (s, StateMgt.global_var(ty)) => 
+                                let val id = String.extract (s, (String.size ns) + 1, NONE)
+                                    val pos = Position.none
+                                    val t = lastype_of ty
+                                    val cat = C_AbsEnv.Global
+                                in C_AbsEnv.Identifier(id, pos, t, cat) end) 
+                             filtered_l
   in init_idents end
 \<close>
 
@@ -323,16 +333,16 @@ int bar(int a, int b) {
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} init_idents Symtab.empty
-val () = List.app printIdentifier identifiers
-val ast_stmt = extractStatement identifiers "bar";
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} init_idents Symtab.empty
+val () = List.app printIdentifier nEnv
+val ast_stmt = extractStatement nEnv "bar";
 end
 \<close>
 
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory} @{context} identifiers)
+              (convertStmt_raw_ident true sigma_i nEnv @{theory})
               ast_stmt []);
 \<close>
 
@@ -363,9 +373,9 @@ int factorial(int n) {
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
-val () = List.app printIdentifier identifiers
-val ast_stmt = extractStatement identifiers "factorial";
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val () = List.app printIdentifier nEnv
+val ast_stmt = extractStatement nEnv "factorial";
 end
 \<close>
 
@@ -374,8 +384,10 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory} @{context} identifiers)
-              ast_stmt []);
+              (convertStmt_raw_ident true sigma_i nEnv @{theory} )
+              ast_stmt [])
+           handle ERROR _ => (writeln "correct crash: recursion not supported"; 
+                              [@{term "undefined"}])
 \<close>
 
 (* should be represented by : *)
@@ -404,8 +416,8 @@ writeln (Syntax.string_of_term_global @{theory} final_term);
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
-val () = List.app printIdentifier identifiers
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val () = List.app printIdentifier nEnv
 end\<close>
 
 (* Example of mutually recursive functions *)
@@ -432,9 +444,9 @@ int is_odd(unsigned int n) {
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
-val () = List.app printIdentifier identifiers
-val ast_stmt = extractStatement identifiers "is_even";
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val () = List.app printIdentifier nEnv
+val ast_stmt = extractStatement nEnv "is_even";
 end
 \<close>
 
@@ -442,8 +454,10 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory} @{context} identifiers)
-              ast_stmt []);
+              (convertStmt_raw_ident true sigma_i nEnv @{theory})
+              ast_stmt []) 
+            handle ERROR _ => (writeln "correct crash: recursion not supported"; 
+                              [@{term "undefined"}]);
 \<close>
 
 local_vars_test  (sqrt "int")
@@ -471,17 +485,17 @@ int sqrt(int a) {
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} 
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} 
                                   init_idents Symtab.empty
-val () = List.app printIdentifier identifiers
-val ast_stmt = extractStatement identifiers "sqrt";
+val () = List.app printIdentifier nEnv
+val ast_stmt = extractStatement nEnv "sqrt";
 end
 \<close>
 
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory} @{context} identifiers)
+              (convertStmt_raw_ident true sigma_i nEnv @{theory})
               ast_stmt []);
 \<close>
 
@@ -500,7 +514,7 @@ writeln (Syntax.string_of_term_global @{theory} final_term);
 local_vars_test  (allzeros "int")
     k  :: "int"
 ML\<open>val sigma_i = StateMgt.get_state_type_global @{theory}\<close>
-ML\<open>val init_idents = parse_state_field_tab @{theory}\<close>
+ML\<open>val nEnv_0 = parse_state_field_tab @{theory}\<close>
 
 
 C\<open>
@@ -518,18 +532,20 @@ int allzeros(int t[], int n) {
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} 
-                                      init_idents Symtab.empty
-val () = List.app printIdentifier identifiers
-val ast_stmt = extractStatement identifiers "allzeros";
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} 
+                                      nEnv_0 Symtab.empty
+val () = List.app printIdentifier nEnv
+val ast_stmt = extractStatement nEnv "allzeros";
 end
 \<close>
 
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory} @{context} identifiers)
-              ast_stmt []);
+              (convertStmt_raw_ident true sigma_i nEnv @{theory})
+              ast_stmt [])
+            handle ERROR _ => (writeln "correct crash: index access not yet supported"; 
+                    [Const("rightful bug dummy",dummyT)]);
 \<close>
 
 C\<open>
@@ -575,8 +591,8 @@ int linearsearch(int x, int t[], int n) {
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
-val () = List.app printIdentifier identifiers
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val () = List.app printIdentifier nEnv
 end\<close>
 
 C\<open>
@@ -621,8 +637,8 @@ printf("Sorted list in ascending order:\n");
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
-val () = List.app printIdentifier identifiers
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val () = List.app printIdentifier nEnv
 end\<close>
 
 global_vars (test)  (*intern label *)
@@ -634,10 +650,12 @@ C\<open>{ return a + b; }\<close>
 ML\<open>val ast_stmt = @{C11_CStat}   \<comment> \<open>C11 ast\<close>
    val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>        \<comment> \<open>C11 c-env\<close>
 
+ML\<open>val nEnv_0 = parse_state_field_tab @{theory};\<close>
+
 ML\<open> 
 val [body] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt_raw true (StateMgt_core.get_state_type @{context}) @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) 
+               (convertStmt_raw_ident true (StateMgt_core.get_state_type @{context}) nEnv_0 @{theory}) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 

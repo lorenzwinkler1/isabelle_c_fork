@@ -101,12 +101,12 @@ fun mk_namespace thy =
   in Path.explode str_local_state end
 
 (* Creates a result_update_term for the local state *)
-fun mk_result_update thy ctxt =
+fun mk_result_update thy =
   let val namespace = mk_namespace thy
       val path_local_state_result_value = Path.ext StateMgt.result_name namespace;
       val str_local_state_result_value = Path.implode path_local_state_result_value;
       val str_local_state_result_value_update = str_local_state_result_value ^ "_update";
-  in Syntax.read_term ctxt str_local_state_result_value_update end;
+  in Syntax.read_term_global thy str_local_state_result_value_update end;
 
 fun extract_identifier_from_id thy identifiers id =
   let  val ns = mk_namespace thy |> Path.implode
@@ -136,112 +136,6 @@ struct
 local open HOLogic in
 
 
-(*** Duplicate code: outdated ? replaced by convertExpr_raw_ident ?***)
-
-fun convertExpr_raw verbose sigma_i env thy
-           (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
-           (b:  C_Ast.nodeInfo ) 
-           (c : term list) =
-    ((if verbose then print_node_info a b c else ());
-    case tag of
-(*variables*)
-(*here, we get the full name of the variable, then we return the term well named and typed.
-Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
-      "Ident0" =>  (let val Free(id,_) = (node_content_2_free a)
-                        val (long_id, ty) =  case Syntax.read_term_global thy id of
-                                               Const(long_id, Type("fun", [_,ty])) => (long_id, ty)
-                                             | Const(txt,_) => error("constant out of context:"^txt)
-                                             | expr => error("illformed expression: " ^ @{make_string} expr)
-                    in  (Const(long_id,sigma_i --> ty) $ Bound 0)::c
-                    end)
-                    (* Consider 3 cases: local, param, global *)
-                    (* name = get_var_string0
-                       case ident_lookup() of
-                         local(typ) \<Rightarrow> Const(Func.comp, dummyT) $ Const(List.hd, typ) $ Const(selector_func name)
-                         global(typ) \<Rightarrow> Const(name, typ)
-                         param(typ) \<Rightarrow> Free(name, typ)
-      
-
-                       Term.abstract_over: term (c $ Free(y, ty)) \<Rightarrow> (c $ Bound 1)
-                    *)
-     |"Vars0" => c
-     |"CVar0" => c
-(*expressions*)
-(*At this point, what we do for binary or unary epressions is simple thanks to the makers. *)
-     (*binary operations*)
-     |"CBinary0" => (case (drop_dark_matter sub_tag, c) of
-                      (*arithmetic operations*) 
-                      ("CAddOp0",b::a::R) => (Const(@{const_name "plus"}, fastype_of a --> fastype_of b --> intT) $ a $ b :: R)
-                    | ("CMulOp0",b::a::R) => (Const(@{const_name "times"}, fastype_of a --> fastype_of b --> intT) $ a $ b :: R)
-                    | ("CDivOp0",b::a::R) => (Const(@{const_name "divide"}, fastype_of a --> fastype_of b --> intT) $ a $ b :: R)
-                    | ("CSubOp0",b::a::R) => (Const(@{const_name "minus"}, fastype_of a --> fastype_of b --> intT) $ a $ b :: R)
-                      (*boolean operations*) 
-(*for boolean operations, because in C boolean are in fact integers, we need to
-translate integers in booleans. That's what term_to_bool t do.
-  -if t integer and t = 0 then false else if t integer and t > 0 then true else t
-  -for example, 1 \<and> 0 will be true \<and> false, and 1000 \<or> a will be true \<or> a
-*)
-                    | ("CAndOp0", b::a::R) => (mk_conj (term_to_bool a, term_to_bool b) :: R)
-                    | ("CLndOp0", b::a::R) => (mk_conj (term_to_bool a, term_to_bool b) :: R)
-                    | ("COrOp0", b::a::R) => (mk_disj (term_to_bool a, term_to_bool b) :: R)
-                    | ("CLorOp0", b::a::R) => (mk_disj (term_to_bool a, term_to_bool b) :: R)
-                    | ("CXorOp0", b::a::R) => (mk_not (mk_eq (term_to_bool a, term_to_bool b))::R)
-                      (*equality*)
-                    | ("CEqOp0", b::a::R) => (mk_eq ( a, b) :: R)
-                    | ("CNeqOp0", b::a::R) => (mk_not (mk_eq ( a, b))::R)
-                      (*comp*)
-                    | ("CLeOp0", b::a::R) => (Const(@{const_name "less"}, 
-                                                    fastype_of a --> fastype_of b --> boolT) 
-                                             $ a $ b :: R) 
-                    | ("CGrOp0", b::a::R) => (Const(@{const_name "less"}, 
-                                                    fastype_of a --> fastype_of b --> boolT) 
-                                             $ b $ a :: R) 
-                    | ("CLeqOp0", b::a::R) => (Const(@{const_name "less_eq"}, 
-                                                     fastype_of a --> fastype_of b --> boolT) 
-                                              $ a $ b :: R) 
-                    | ("CGeqOp0", b::a::R) => (Const(@{const_name "less_eq"}, 
-                                                     fastype_of a --> fastype_of b --> boolT) 
-                                              $ b $ a :: R)
-                    | _ => (writeln ("sub_tag all " ^sub_tag^" :>> "^ @{make_string} c);c ))
-     (*unary operations*)
-     |"CUnary0" =>  (case (drop_dark_matter sub_tag, c) of
-                    ("CNegOp0", a::R) => (mk_not (term_to_bool a) :: R)
-                    |("CMinOp0", a::R) => (Const(@{const_name uminus}, fastype_of a --> intT) $ a :: R)
-                    |_ => (writeln ("unknown sub_tag for CUnary0"^sub_tag); c))
-     (*constants*)
-(*for the constants, we can use the makers*)
-     |"CConst0"   => c (* skip this wrapper *)
-     |"CInteger0" =>let val C11_Ast_Lib.data_int n = hd args
-                    in  (mk_number intT n)::c end
-     |"CIntConst0"=> c (* skip this wrapper *)
-     |"CString0"  => let val C11_Ast_Lib.data_string s = hd args
-                     in  (mk_string s)::c end
-     |"CStrConst0"=> c (* skip this wrapper *)
-(*for the char, we actually get a 1-sized string, we just need to do a little translation*)
-     |"CChar0"    => let val C11_Ast_Lib.data_string s = hd args;
-                         val code = String.sub (s, 0)
-                     in  (mk_char (Char.ord code))::c end
-     |"CCharConst0"=> c (* skip this wrapper *)
-      (*for real numbers, as we can't have inite-sized numbers, we can always translate them 
-        as rationals numbers. For example, 3.1415926535 will be encoded as 314156535/100000000*)     
-     |"CFloat0"    => let val C11_Ast_Lib.data_string s = (hd args)
-                         val s' = implode (tl (String.tokens (fn x => x = #"\"" orelse x = #")")(drop_dark_matter s)))
-                         val s'' = remove_char_from_string #"." s'
-                         val SOME integer = Int.fromString s''
-                      in Const (@{const_name "divide"}, realT --> realT --> realT) 
-                         $ mk_number realT (integer) 
-                         $  ((if (String.size s'') = 2 then  mk_number realT 10
-                              else (Const (@{const_name "power"}, realT --> natT --> realT) 
-                                   $ mk_number realT 10 
-                                   $ mk_number realT ((String.size s'') - 1)))) 
-                         ::c
-                   end
-     |"CFloatConst0"=> (c) (* skip this wrapper *)
-     |"CChars0" => (warning "bizarre rule in context float: CChars0"; c)
-     |"CExpr0"  => c (* skip this wrapper *)
-
-     | str => error("unsupported expression with parse tag: "^str)) (* global catch all *)
-
 (* Copied from CleanCoder2... *)
 fun node_content_parser (x : C11_Ast_Lib.node_content) =
   let fun drop_dark_matter x =(XML.content_of o YXML.parse_body) x 
@@ -249,7 +143,7 @@ fun node_content_parser (x : C11_Ast_Lib.node_content) =
       val id = hd(tl(String.tokens (fn x => x = #"\"")(drop_dark_matter a_markup)))
     in id end  (* no type inference *);
 
-fun convertExpr_raw_ident verbose (sigma_i: typ) env thy ctxt identifiers
+fun convertExpr_raw_ident verbose (sigma_i: typ) env thy 
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo )   
            (c : term list) =
@@ -259,7 +153,8 @@ fun convertExpr_raw_ident verbose (sigma_i: typ) env thy ctxt identifiers
 (*here, we get the full name of the variable, then we return the term well named and typed.
 Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
       "Ident0" =>  (let val id = node_content_parser a
-                        val identifier = case List.find (fn C_AbsEnv.Identifier(id_name, _, _, _) => id_name = id) identifiers of
+                        fun get_id_name (C_AbsEnv.Identifier(id_name, _, _, _)) = (id_name = id)
+                        val identifier = case List.find get_id_name env of
                                                 SOME(identifier) => identifier
                                               | NONE => error("(convertExpr_raw_ident) identifier " ^ id ^ " not recognised")
                                                         (* This is another way to parse the list of identifiers...
@@ -272,8 +167,16 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
                         val C_AbsEnv.Identifier(_, _, ty, cat) = identifier
                         val long_id = Path.ext id (mk_namespace thy) |> Path.implode
                     in case cat of
-                        C_AbsEnv.Global => Const(long_id, sigma_i --> ty) $ Bound 0 :: c
-                      | C_AbsEnv.Local(_) => Const(@{const_name "comp"}, (HOLogic.listT ty --> ty) --> (sigma_i --> HOLogic.listT ty) --> sigma_i --> ty) $ Const(@{const_name "hd"}, HOLogic.listT ty --> ty) $ Const(long_id, sigma_i --> HOLogic.listT ty) $ Bound 0 :: c
+                        C_AbsEnv.Global => Const(long_id, sigma_i --> ty) $ Free("\<sigma>",sigma_i) :: c
+                      | C_AbsEnv.Local(_) => Const(@{const_name "comp"}, 
+                                                   (HOLogic.listT ty --> ty) 
+                                                   --> (sigma_i 
+                                                   --> HOLogic.listT ty) 
+                                                   --> sigma_i --> ty) 
+                                              $ Const(@{const_name "hd"}, 
+                                                      HOLogic.listT ty --> ty) 
+                                              $ Const(long_id, sigma_i --> HOLogic.listT ty) 
+                                              $ Free("\<sigma>",sigma_i) :: c
                       | C_AbsEnv.Parameter(_) => Free (id, ty) :: c
                       | C_AbsEnv.FunctionCategory(C_AbsEnv.MutuallyRecursive(_), _) =>
                         error("Mutual recursion is not supported in Clean")
@@ -367,22 +270,28 @@ translate integers in booleans. That's what term_to_bool t do.
      |"CCall0" => c (* skip this wrapper *)
      | str => error("unsupported expression with parse tag: "^str)) (* global catch all *)
 
+
+fun lifted_term sigma_i term = Abs("\<sigma>", sigma_i, abstract_over (Free("\<sigma>", sigma_i), term))
+
+fun conv_Cexpr_lifted_term  sigma_i A_env thy C_expr = 
+    let val e::R = (C11_Ast_Lib.fold_cExpression (K I)
+                               (convertExpr_raw_ident false sigma_i A_env thy) C_expr [])
+    in  lifted_term sigma_i e end
+
 (*** -------------- ***)
 
-fun conv_Cexpr_term C_env sigma_i thy C_expr = 
-    Abs("\<sigma>", sigma_i, hd((C11_Ast_Lib.fold_cExpression (K I)
-                               (convertExpr_raw false sigma_i C_env thy) C_expr [])))
-    (* Better: abstract_over (Free(\<sigma>, sigma_i)) ??? *)
+
+(*
 
 
 fun conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CArrSize0 (_,C_expr),_)) C_env thy = 
             SOME(hd((C11_Ast_Lib.fold_cExpression (K I)
-                                 (convertExpr_raw false dummyT C_env thy) C_expr [])))
+                                 (convertExpr_raw_ident false dummyT C_env thy) C_expr [])))
    |conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CNoArrSize0 Z,_)) _ _ = NONE
    |conv_cDerivedDeclarator_cSizeExpr_term (_)  _ _ =  
             error("DeclarationSpec format not defined. [Clean restriction]")
 
-
+*)
 
 end
 end
@@ -514,9 +423,10 @@ for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
                                                                        (mk_seq_C body pace)
                                                         in   ((mk_seq_C init C'))::R end)
                     |_ => raise WrongFormat("for"))
-     | _ => convertExpr_raw verbose sigma_i env thy a b stack )
+     | _ => convertExpr_raw_ident verbose sigma_i env thy a b stack )
 
-fun convertStmt_raw_ident verbose sigma_i env thy ctxt identifiers
+
+fun convertStmt_raw_ident verbose sigma_i nEenv thy 
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo ) 
            (stack : term list) =
@@ -529,27 +439,30 @@ fun convertStmt_raw_ident verbose sigma_i env thy ctxt identifiers
                                             Const(name, _) $ _ => name
                                           | _ $ _ $ Const(name, _) $ _ => name
                                           | Free (name, _) => name
-                                          | _ => error("(convertStmt_raw_ident) CAssign0 does not recognise term: "^(@{make_string} second)))
-                               val C_AbsEnv.Identifier(id, _, ty, cat) = extract_identifier_from_id thy identifiers id
+                                          | _ => error("(convertStmt_raw_ident) CAssign0 does not recognise term: "
+                                                        ^(@{make_string} second)))
+                               val C_AbsEnv.Identifier(id, _, ty, cat) = 
+                                             extract_identifier_from_id thy nEenv id
                                val long_id = Path.ext id (mk_namespace thy) |> Path.implode
                            in case cat of
                                 C_AbsEnv.Global => (mk_assign_global_C 
-                                            (mk_glob_upd_raw long_id ty sigma_i)
-                                            (Abs("\<sigma>", sigma_i, first)) )::R
+                                                       (mk_glob_upd_raw long_id ty sigma_i)
+                                                       (lifted_term sigma_i first ) )::R
                               | C_AbsEnv.Parameter(_) => (mk_assign_local_C
-                                            (mk_loc_upd_ident long_id ty sigma_i)
-                                            (Abs("\<sigma>", sigma_i, first)) )::R
+                                                       (mk_loc_upd_ident long_id ty sigma_i)
+                                                       (lifted_term sigma_i first) )::R
                               | C_AbsEnv.Local(_) => (mk_assign_local_C 
-                                            (mk_loc_upd_ident long_id ty sigma_i)
-                                            (Abs("\<sigma>", sigma_i, first)) )::R
-                              | s => error("(convertStmt_raw_ident) CAssign0 with cat " ^ @{make_string} s ^ " is unrecognised")
+                                                     (mk_loc_upd_ident long_id ty sigma_i)
+                                                     (lifted_term sigma_i first) )::R
+                              | s => error("(convertStmt_raw_ident) CAssign0 with cat " 
+                                            ^ @{make_string} s ^ " is unrecognised")
                            end)
                       |_ => raise WrongFormat("assign"))
      (*statements*)
 (*for return, skip and break, we have makers except that they need types and terms that i didn't 
 understand so it's unfinished here*)
      |"CReturn0" => let val rhs = hd stack
-                        val res_upd = mk_result_update thy ctxt
+                        val res_upd = mk_result_update thy 
                     in (mk_return_C res_upd (Abs("\<sigma>", sigma_i, rhs))) :: (tl stack) end
      |"CSkip0" => (mk_skip_C sigma_i)::stack
      |"CBreak0" => (mk_break sigma_i)::stack
@@ -602,7 +515,7 @@ for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
                         val cross_prod_args = mk_cross_prod_args (extract_type_list args)
                         val fun_args_term = list_comb (cross_prod_args, args)
                        in mk_call_C f (Abs("\<sigma>", sigma_i, fun_args_term)) :: R end)
-     | _ => convertExpr_raw_ident verbose sigma_i env thy ctxt identifiers a b stack )
+     | _ => convertExpr_raw_ident verbose sigma_i nEenv thy  a b stack )
 
 end
 

@@ -166,13 +166,18 @@ declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "expression"]]
 C\<open>12\<close>
 ML\<open>val ast_expr = @{C11_CExpr}
    val env_expr = @{C\<^sub>e\<^sub>n\<^sub>v};
+   val mt_A_env = []
 \<close>
+
+ML\<open>abstract_over\<close>
 
 ML\<open>
 open C11_Expr_2_Clean HOLogic;
 
-val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
-val S = conv_Cexpr_term env_expr sigma_i @{theory} ast_expr
+val S = (C11_Ast_Lib.fold_cExpression (K I) 
+                                      (convertExpr_raw_ident false sigma_i  mt_A_env  @{theory})
+                                      ast_expr []);
+val S = conv_Cexpr_lifted_term  sigma_i mt_A_env @{theory} ast_expr
 
 \<close>
 
@@ -188,8 +193,10 @@ ML\<open>val ast_expr = @{C11_CExpr}
 
 ML\<open>
 
-val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
-val S = conv_Cexpr_term env_expr sigma_i @{theory} ast_expr
+val S = (C11_Ast_Lib.fold_cExpression (K I) 
+                                      (convertExpr_raw_ident false sigma_i  mt_A_env @{theory}) 
+                                      ast_expr []);
+val S = conv_Cexpr_lifted_term  sigma_i mt_A_env @{theory} ast_expr
 
 \<close>
 
@@ -205,8 +212,10 @@ ML\<open>val ast_expr = @{C11_CExpr}
 
 ML\<open>
 
-val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
-val S = conv_Cexpr_term env_expr sigma_i @{theory} ast_expr
+val S = (C11_Ast_Lib.fold_cExpression (K I) 
+                                      (convertExpr_raw_ident false sigma_i  mt_A_env @{theory}) 
+                                      ast_expr []);
+val S = conv_Cexpr_lifted_term  sigma_i mt_A_env @{theory} ast_expr
 
 \<close>
 
@@ -222,8 +231,10 @@ ML\<open>val ast_expr = @{C11_CExpr}
 
 ML\<open>
 
-val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
-val S' = conv_Cexpr_term env_expr sigma_i @{theory} ast_expr
+val S = (C11_Ast_Lib.fold_cExpression (K I) 
+                                      (convertExpr_raw_ident false sigma_i  mt_A_env @{theory}) 
+                                      ast_expr []);
+val S = conv_Cexpr_lifted_term  sigma_i mt_A_env @{theory} ast_expr
 
 \<close>
 
@@ -237,8 +248,10 @@ ML\<open>val ast_expr = @{C11_CExpr}
 
 ML\<open>
 
-val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
-val S' = conv_Cexpr_term env_expr sigma_i @{theory} ast_expr
+val S = (C11_Ast_Lib.fold_cExpression (K I) 
+                                      (convertExpr_raw_ident false sigma_i  mt_A_env @{theory}) 
+                                      ast_expr []);
+val S = conv_Cexpr_lifted_term  sigma_i mt_A_env @{theory} ast_expr
 
 \<close>
 
@@ -250,12 +263,34 @@ declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "expression"]]
 C\<open>1 * a\<close>
 ML\<open>val ast_expr = @{C11_CExpr}
    val env_expr = @{C\<^sub>e\<^sub>n\<^sub>v}
+
+(* we construct suitable environments by hand for testing: *)
+   val A_env0 = [ C_AbsEnv.Identifier("a", @{here}, HOLogic.intT, C_AbsEnv.Global)];
+   val A_env1 = [ C_AbsEnv.Identifier("a", @{here}, HOLogic.intT, 
+                  C_AbsEnv.Local "to some function")];
+   val A_env2 = [ C_AbsEnv.Identifier("a", @{here}, HOLogic.intT, 
+                  C_AbsEnv.Parameter "of some function")];
+
 \<close>
+
+ML\<open>C_AbsEnv.Identifier\<close>
 
 ML\<open>
 
-val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false unitT @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr [])
-val S' = conv_Cexpr_term env_expr sigma_i @{theory} ast_expr
+val S = (C11_Ast_Lib.fold_cExpression (K I) 
+                                      (convertExpr_raw_ident false sigma_i  A_env0 @{theory}) 
+                                      ast_expr []);
+val S = conv_Cexpr_lifted_term  sigma_i A_env0 @{theory} ast_expr
+
+val S' = (C11_Ast_Lib.fold_cExpression (K I) 
+                                      (convertExpr_raw_ident false sigma_i  A_env1 @{theory}) 
+                                      ast_expr []);
+val S' = conv_Cexpr_lifted_term  sigma_i A_env1 @{theory} ast_expr
+
+val S'' = (C11_Ast_Lib.fold_cExpression (K I) 
+                                      (convertExpr_raw_ident false sigma_i  A_env2 @{theory}) 
+                                      ast_expr []);
+val S'' = conv_Cexpr_lifted_term  sigma_i A_env2 @{theory} ast_expr
 
 \<close>
 
@@ -270,7 +305,10 @@ ML\<open>val ast_expr = @{C11_CExpr}
 
 ML\<open>
 
-val S = (C11_Ast_Lib.fold_cExpression (K I) (convertExpr_raw false sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) ast_expr []);
+val S = (C11_Ast_Lib.fold_cExpression (K I) 
+                                      (convertExpr_raw_ident false sigma_i  A_env0 @{theory}) 
+                                      ast_expr []);
+val S = conv_Cexpr_lifted_term  sigma_i A_env0 @{theory} ast_expr
 
 \<close>
 
@@ -298,7 +336,7 @@ ML\<open>val C_Ast.CCompound0(a, b, c) = ast_stmt;\<close> \<comment> \<open>gra
 ML\<open> 
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt_raw true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) 
+               (convertStmt_raw_ident true sigma_i A_env0 @{theory}) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -323,9 +361,11 @@ ML\<open>val ast_stmt = @{C11_CStat}
 
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
-              regroup 
-              (convertStmt_raw true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) 
-              ast_stmt []); 
+               regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
+               (convertStmt_raw_ident true sigma_i A_env0 @{theory}) 
+                          \<comment> \<open>combinator handlicng an individual statement\<close>
+                ast_stmt  \<comment> \<open>C11 ast\<close>
+                []        \<comment> \<open>mt stack\<close>); 
 \<close>
 \<comment> \<open>Clean pretty print of the latter\<close>
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
@@ -343,10 +383,11 @@ for(a = 0; a < 2; a = a + 1){
 (* crash due to typing problem *)
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
-           regroup 
-           (convertStmt_raw true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) 
-           ast_stmt 
-           []); 
+               regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
+               (convertStmt_raw_ident true sigma_i A_env0 @{theory}) 
+                          \<comment> \<open>combinator handlicng an individual statement\<close>
+                ast_stmt  \<comment> \<open>C11 ast\<close>
+                []        \<comment> \<open>mt stack\<close>); 
 \<close>
 \<comment> \<open>Clean pretty print of the latter\<close>
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
@@ -366,10 +407,11 @@ ML\<open>val ast_stmt = @{C11_CStat}
 
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
-              regroup 
-              (convertStmt_raw true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) 
-              ast_stmt 
-              []); 
+               regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
+               (convertStmt_raw_ident true sigma_i A_env0 @{theory}) 
+                          \<comment> \<open>combinator handlicng an individual statement\<close>
+                ast_stmt  \<comment> \<open>C11 ast\<close>
+                []        \<comment> \<open>mt stack\<close>); 
 \<close>
 \<comment> \<open>Clean pretty print of the latter\<close>
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
@@ -390,12 +432,17 @@ for(a = 0; a < 10; a = a + 1){
 ML\<open>val ast_stmt = @{C11_CStat}
    val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>
 
-(* problems with typing *)
+(* problem:
+Undefined constant: "Coder_Example_1.global_test_state.result_value_update"
+Who throws this exception ?
+ *)
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
-            regroup 
-            (convertStmt_raw true sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) 
-            ast_stmt []); 
+               regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
+               (convertStmt_raw_ident true sigma_i A_env0 @{theory}) 
+                          \<comment> \<open>combinator handlicng an individual statement\<close>
+                ast_stmt  \<comment> \<open>C11 ast\<close>
+                []        \<comment> \<open>mt stack\<close>); 
 \<close>
 \<comment> \<open>Clean pretty print of the latter\<close>
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
@@ -418,7 +465,7 @@ ML\<open>val ast_ext_decl = @{C11_CExtDecl}
 (* initializers not yet supported; so this gives a local error *)
 ML \<open>
 val S =  (C11_Ast_Lib.fold_cExternalDeclaration regroup
-                  (convertExpr_raw false sigma_i @{C\<^sub>e\<^sub>n\<^sub>v} @{theory}) (* DOES THIS MAKE SENSE ??? *)
+                  (convertExpr_raw_ident false sigma_i A_env1 @{theory}) (* DOES THIS MAKE SENSE ??? *)
                   ast_ext_decl 
                   [])
          handle ERROR _ => (writeln "CATCH ERROR"; []);
