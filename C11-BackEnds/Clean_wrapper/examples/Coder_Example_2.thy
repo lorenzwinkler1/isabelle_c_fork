@@ -94,7 +94,7 @@ val lookup=Symtab.lookup state_field p *)
 
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident false sigma_i nEnv @{theory} )
+              (convertStmt false sigma_i nEnv @{theory} )
               ast_stmt []);
 \<close>
 
@@ -142,7 +142,7 @@ ML\<open>
 
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident false sigma_i nEnv @{theory} )
+              (convertStmt false sigma_i nEnv @{theory} )
               ast_stmt []);
 \<close>
 
@@ -182,7 +182,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident true sigma_i nEnv @{theory})
+              (convertStmt true sigma_i nEnv @{theory})
               ast_stmt []);
 \<close>
 
@@ -223,7 +223,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident true sigma_i nEnv @{theory} )
+              (convertStmt true sigma_i nEnv @{theory} )
               ast_stmt []);
 \<close>
 
@@ -273,7 +273,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident true sigma_i nEnv @{theory})
+              (convertStmt true sigma_i nEnv @{theory})
               ast_stmt []);
 \<close>
 
@@ -342,7 +342,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident true sigma_i nEnv @{theory})
+              (convertStmt true sigma_i nEnv @{theory})
               ast_stmt []);
 \<close>
 
@@ -384,7 +384,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident true sigma_i nEnv @{theory} )
+              (convertStmt true sigma_i nEnv @{theory} )
               ast_stmt [])
            handle ERROR _ => (writeln "correct crash: recursion not supported"; 
                               [@{term "undefined"}])
@@ -454,7 +454,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident true sigma_i nEnv @{theory})
+              (convertStmt true sigma_i nEnv @{theory})
               ast_stmt []) 
             handle ERROR _ => (writeln "correct crash: recursion not supported"; 
                               [@{term "undefined"}]);
@@ -495,7 +495,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident true sigma_i nEnv @{theory})
+              (convertStmt true sigma_i nEnv @{theory})
               ast_stmt []);
 \<close>
 
@@ -542,7 +542,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt_raw_ident true sigma_i nEnv @{theory})
+              (convertStmt true sigma_i nEnv @{theory})
               ast_stmt [])
             handle ERROR _ => (writeln "correct crash: index access not yet supported"; 
                     [Const("rightful bug dummy",dummyT)]);
@@ -655,7 +655,7 @@ ML\<open>val nEnv_0 = parse_state_field_tab @{theory};\<close>
 ML\<open> 
 val [body] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt_raw_ident true (StateMgt_core.get_state_type @{context}) nEnv_0 @{theory}) 
+               (convertStmt true (StateMgt_core.get_state_type @{context}) nEnv_0 @{theory}) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 

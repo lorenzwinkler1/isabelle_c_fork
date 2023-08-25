@@ -336,7 +336,7 @@ ML\<open>val C_Ast.CCompound0(a, b, c) = ast_stmt;\<close> \<comment> \<open>gra
 ML\<open> 
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt_raw_ident true sigma_i A_env0 @{theory}) 
+               (convertStmt true sigma_i A_env0 @{theory}) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -362,7 +362,7 @@ ML\<open>val ast_stmt = @{C11_CStat}
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt_raw_ident true sigma_i A_env0 @{theory}) 
+               (convertStmt true sigma_i A_env0 @{theory}) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -384,7 +384,7 @@ for(a = 0; a < 2; a = a + 1){
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt_raw_ident true sigma_i A_env0 @{theory}) 
+               (convertStmt true sigma_i A_env0 @{theory}) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -408,7 +408,7 @@ ML\<open>val ast_stmt = @{C11_CStat}
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt_raw_ident true sigma_i A_env0 @{theory}) 
+               (convertStmt true sigma_i A_env0 @{theory}) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -439,7 +439,7 @@ Who throws this exception ?
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt_raw_ident true sigma_i A_env0 @{theory}) 
+               (convertStmt true sigma_i A_env0 @{theory}) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 

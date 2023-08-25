@@ -363,70 +363,8 @@ fun block_to_term l =
   end
 *)
 
-(*** Duplicate code ***)
 
-fun convertStmt_raw verbose sigma_i env thy
-           (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
-           (b:  C_Ast.nodeInfo ) 
-           (stack : term list) =
-    ((if verbose then (writeln("tag:"^tag);print_node_info a b stack) else ());
-    case tag of
-
-(*for the assignations, we only consider global variables for now, and we use the maker*)
-     "CAssign0" => (case stack of
-                      (a::b::R) => (let val Const(name, t) $ _ = b
-                                        val state_scheme_typ = firstype_of t
-                                    in  (mk_assign_global_C 
-                                            (mk_glob_upd name (Const(name, t))) 
-                                            (Abs("\<sigma>", state_scheme_typ, a)) )::R 
-                                    end)
-                      |_ => raise WrongFormat("assign"))
-     (*statements*)
-(*for return, skip and break, we have makers except that they need types and terms that i didn't 
-understand so it's unfinished here*)
-     |"CReturn0" => (let  val rhs = hd stack
-                     in   (mk_return_C (Const("temp", dummyT))  (Abs("\<sigma>", dummyT, rhs)))
-                          ::(tl stack)
-                     end)
-     |"CSkip0" => (mk_skip_C sigma_i)::stack
-     |"CBreak0" => (mk_break sigma_i)::stack
-(*for statements with a body, we need to create a sequence. if statements or expressions
-are in sequence, they will be in the list c between Const("begin", _) and Const("end", _).
-so we use the block_to_term function which group all the terms already translate between begin and end,
-and use the mk_seq_C functions to get only 1 term at the end. It delete begin and end aswell.*)
-     |"CCompound0" => block_to_term stack
-(*In C11, we have to types of if : if(...){...} and if(...){...} else{...}. but in
-Clean, we must use if then else, so we isolate both cases, and if needed, we encode if(...){...} ans 
-if ... then ... else skip*)
-     | "CBlockStmt0" => stack
-     | "CBlockDecl0" => error"Nested Blocks not allowed in Clean"
-     | "CNestedFunDef0" =>  error"Nested Function Declarations not allowed in Clean"
-     | "CIf0" =>   (case stack of  
-                       (a::b::cond::R) => mk_if_C  (Abs("\<sigma>", sigma_i --> boolT, cond)) b  a::R
-                    |  (a::cond::R) => (mk_if_C (Abs("\<sigma>", sigma_i --> boolT, cond)) 
-                                                (a)
-                                                (mk_skip_C sigma_i)::R)
-                    |_ => raise WrongFormat("if")
-                   )
-     |"CWhile0" => (case stack of
-                       (a::b::R) => (mk_while_C  (Abs("\<sigma>", sigma_i, b))  a)::R
-                      |(a::R)    => (mk_while_C  (Abs("\<sigma>", sigma_i, a))  
-                                                 (mk_skip_C dummyT))
-                                    ::R
-                      |_ => raise WrongFormat("while")
-                   )
-(*There is no For operator in Clean, so we have to translate it as a while :
-for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
-     |"CFor0" =>   (case stack of
-                        (body::pace::cond::init::R) => (let val C' = mk_while_C
-                                                                       (Abs("\<sigma>", sigma_i,cond))
-                                                                       (mk_seq_C body pace)
-                                                        in   ((mk_seq_C init C'))::R end)
-                    |_ => raise WrongFormat("for"))
-     | _ => convertExpr verbose sigma_i env thy a b stack )
-
-
-fun convertStmt_raw_ident verbose sigma_i nEenv thy 
+fun convertStmt verbose sigma_i nEenv thy 
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo ) 
            (stack : term list) =
@@ -439,7 +377,7 @@ fun convertStmt_raw_ident verbose sigma_i nEenv thy
                                             Const(name, _) $ _ => name
                                           | _ $ _ $ Const(name, _) $ _ => name
                                           | Free (name, _) => name
-                                          | _ => error("(convertStmt_raw_ident) CAssign0 does not recognise term: "
+                                          | _ => error("(convertStmt) CAssign0 does not recognise term: "
                                                         ^(@{make_string} second)))
                                val C_AbsEnv.Identifier(id, _, ty, cat) = 
                                              extract_identifier_from_id thy nEenv id
@@ -454,7 +392,7 @@ fun convertStmt_raw_ident verbose sigma_i nEenv thy
                               | C_AbsEnv.Local(_) => (mk_assign_local_C 
                                                      (mk_loc_upd_ident long_id ty sigma_i)
                                                      (lifted_term sigma_i first) )::R
-                              | s => error("(convertStmt_raw_ident) CAssign0 with cat " 
+                              | s => error("(convertStmt) CAssign0 with cat " 
                                             ^ @{make_string} s ^ " is unrecognised")
                            end)
                       |_ => raise WrongFormat("assign"))
