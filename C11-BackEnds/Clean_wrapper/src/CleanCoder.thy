@@ -257,7 +257,7 @@ translate integers in booleans. That's what term_to_bool t do.
                          $  ((if (String.size s'') = 2 then  mk_number realT 10
                               else (Const (@{const_name "power"}, realT --> natT --> realT) 
                                    $ mk_number realT 10 
-                                   $ mk_number realT ((String.size s'') - 1)))) 
+                                   $ mk_number natT ((String.size s'') - 1)))) 
                          ::c
                    end
      |"CFloatConst0"=> (c) (* skip this wrapper *)
