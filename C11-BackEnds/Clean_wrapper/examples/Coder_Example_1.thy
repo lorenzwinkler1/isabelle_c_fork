@@ -175,7 +175,7 @@ ML\<open>
 open C11_Expr_2_Clean HOLogic;
 
 val S = (C11_Ast_Lib.fold_cExpression (K I) 
-                                      (convertExpr_raw_ident false sigma_i  mt_A_env  @{theory})
+                                      (convertExpr false sigma_i  mt_A_env  @{theory})
                                       ast_expr []);
 val S = conv_Cexpr_lifted_term  sigma_i mt_A_env @{theory} ast_expr
 
@@ -194,7 +194,7 @@ ML\<open>val ast_expr = @{C11_CExpr}
 ML\<open>
 
 val S = (C11_Ast_Lib.fold_cExpression (K I) 
-                                      (convertExpr_raw_ident false sigma_i  mt_A_env @{theory}) 
+                                      (convertExpr false sigma_i  mt_A_env @{theory}) 
                                       ast_expr []);
 val S = conv_Cexpr_lifted_term  sigma_i mt_A_env @{theory} ast_expr
 
@@ -213,7 +213,7 @@ ML\<open>val ast_expr = @{C11_CExpr}
 ML\<open>
 
 val S = (C11_Ast_Lib.fold_cExpression (K I) 
-                                      (convertExpr_raw_ident false sigma_i  mt_A_env @{theory}) 
+                                      (convertExpr false sigma_i  mt_A_env @{theory}) 
                                       ast_expr []);
 val S = conv_Cexpr_lifted_term  sigma_i mt_A_env @{theory} ast_expr
 
@@ -232,7 +232,7 @@ ML\<open>val ast_expr = @{C11_CExpr}
 ML\<open>
 
 val S = (C11_Ast_Lib.fold_cExpression (K I) 
-                                      (convertExpr_raw_ident false sigma_i  mt_A_env @{theory}) 
+                                      (convertExpr false sigma_i  mt_A_env @{theory}) 
                                       ast_expr []);
 val S = conv_Cexpr_lifted_term  sigma_i mt_A_env @{theory} ast_expr
 
@@ -249,7 +249,7 @@ ML\<open>val ast_expr = @{C11_CExpr}
 ML\<open>
 
 val S = (C11_Ast_Lib.fold_cExpression (K I) 
-                                      (convertExpr_raw_ident false sigma_i  mt_A_env @{theory}) 
+                                      (convertExpr false sigma_i  mt_A_env @{theory}) 
                                       ast_expr []);
 val S = conv_Cexpr_lifted_term  sigma_i mt_A_env @{theory} ast_expr
 
@@ -278,17 +278,17 @@ ML\<open>C_AbsEnv.Identifier\<close>
 ML\<open>
 
 val S = (C11_Ast_Lib.fold_cExpression (K I) 
-                                      (convertExpr_raw_ident false sigma_i  A_env0 @{theory}) 
+                                      (convertExpr false sigma_i  A_env0 @{theory}) 
                                       ast_expr []);
 val S = conv_Cexpr_lifted_term  sigma_i A_env0 @{theory} ast_expr
 
 val S' = (C11_Ast_Lib.fold_cExpression (K I) 
-                                      (convertExpr_raw_ident false sigma_i  A_env1 @{theory}) 
+                                      (convertExpr false sigma_i  A_env1 @{theory}) 
                                       ast_expr []);
 val S' = conv_Cexpr_lifted_term  sigma_i A_env1 @{theory} ast_expr
 
 val S'' = (C11_Ast_Lib.fold_cExpression (K I) 
-                                      (convertExpr_raw_ident false sigma_i  A_env2 @{theory}) 
+                                      (convertExpr false sigma_i  A_env2 @{theory}) 
                                       ast_expr []);
 val S'' = conv_Cexpr_lifted_term  sigma_i A_env2 @{theory} ast_expr
 
@@ -306,7 +306,7 @@ ML\<open>val ast_expr = @{C11_CExpr}
 ML\<open>
 
 val S = (C11_Ast_Lib.fold_cExpression (K I) 
-                                      (convertExpr_raw_ident false sigma_i  A_env0 @{theory}) 
+                                      (convertExpr false sigma_i  A_env0 @{theory}) 
                                       ast_expr []);
 val S = conv_Cexpr_lifted_term  sigma_i A_env0 @{theory} ast_expr
 
@@ -465,7 +465,7 @@ ML\<open>val ast_ext_decl = @{C11_CExtDecl}
 (* initializers not yet supported; so this gives a local error *)
 ML \<open>
 val S =  (C11_Ast_Lib.fold_cExternalDeclaration regroup
-                  (convertExpr_raw_ident false sigma_i A_env1 @{theory}) (* DOES THIS MAKE SENSE ??? *)
+                  (convertExpr false sigma_i A_env1 @{theory}) (* DOES THIS MAKE SENSE ??? *)
                   ast_ext_decl 
                   [])
          handle ERROR _ => (writeln "CATCH ERROR"; []);

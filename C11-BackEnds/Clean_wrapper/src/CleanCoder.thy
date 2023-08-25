@@ -143,7 +143,7 @@ fun node_content_parser (x : C11_Ast_Lib.node_content) =
       val id = hd(tl(String.tokens (fn x => x = #"\"")(drop_dark_matter a_markup)))
     in id end  (* no type inference *);
 
-fun convertExpr_raw_ident verbose (sigma_i: typ) env thy 
+fun convertExpr verbose (sigma_i: typ) env thy 
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo )   
            (c : term list) =
@@ -156,13 +156,13 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
                         fun get_id_name (C_AbsEnv.Identifier(id_name, _, _, _)) = (id_name = id)
                         val identifier = case List.find get_id_name env of
                                                 SOME(identifier) => identifier
-                                              | NONE => error("(convertExpr_raw_ident) identifier " ^ id ^ " not recognised")
+                                              | NONE => error("(convertExpr) identifier " ^ id ^ " not recognised")
                                                         (* This is another way to parse the list of identifiers...
                                                           case Syntax.read_term_global thy id of
                                                           Const(_, long_ty) => (case firstype_of long_ty of
                                                                                  sigma_i => C_Scanner.Identifier(id, Position.none, firstype_of long_ty, C_Scanner.Global)
                                                                                | _ =>  C_Scanner.Identifier(id, Position.none, @{typ "unit"}, C_Scanner.FunctionCategory(C_Scanner.Final, NONE)))
-                                                        | Free(long_id, _) => error("(convertExpr_raw_ident) identifier " ^ long_id ^ " not recognised")
+                                                        | Free(long_id, _) => error("(convertExpr) identifier " ^ long_id ^ " not recognised")
                                                         *)
                         val C_AbsEnv.Identifier(_, _, ty, cat) = identifier
                         val long_id = Path.ext id (mk_namespace thy) |> Path.implode
@@ -186,7 +186,7 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
                                 val mty = StateMgt_core.MON_SE_T @{typ "unit"} sigma_i
                             in Const(id, args --> mty) :: c end
                               
-                      | c => error("(convertExpr_raw_ident) unrecognised category : " ^ @{make_string} c)
+                      | c => error("(convertExpr) unrecognised category : " ^ @{make_string} c)
                     end)
      |"Vars0" => c
      |"CVar0" => c
@@ -275,7 +275,7 @@ fun lifted_term sigma_i term = Abs("\<sigma>", sigma_i, abstract_over (Free("\<s
 
 fun conv_Cexpr_lifted_term  sigma_i A_env thy C_expr = 
     let val e::R = (C11_Ast_Lib.fold_cExpression (K I)
-                               (convertExpr_raw_ident false sigma_i A_env thy) C_expr [])
+                               (convertExpr false sigma_i A_env thy) C_expr [])
     in  lifted_term sigma_i e end
 
 (*** -------------- ***)
@@ -286,7 +286,7 @@ fun conv_Cexpr_lifted_term  sigma_i A_env thy C_expr =
 
 fun conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CArrSize0 (_,C_expr),_)) C_env thy = 
             SOME(hd((C11_Ast_Lib.fold_cExpression (K I)
-                                 (convertExpr_raw_ident false dummyT C_env thy) C_expr [])))
+                                 (convertExpr false dummyT C_env thy) C_expr [])))
    |conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CNoArrSize0 Z,_)) _ _ = NONE
    |conv_cDerivedDeclarator_cSizeExpr_term (_)  _ _ =  
             error("DeclarationSpec format not defined. [Clean restriction]")
@@ -423,7 +423,7 @@ for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
                                                                        (mk_seq_C body pace)
                                                         in   ((mk_seq_C init C'))::R end)
                     |_ => raise WrongFormat("for"))
-     | _ => convertExpr_raw_ident verbose sigma_i env thy a b stack )
+     | _ => convertExpr verbose sigma_i env thy a b stack )
 
 
 fun convertStmt_raw_ident verbose sigma_i nEenv thy 
@@ -515,7 +515,7 @@ for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
                         val cross_prod_args = mk_cross_prod_args (extract_type_list args)
                         val fun_args_term = list_comb (cross_prod_args, args)
                        in mk_call_C f (Abs("\<sigma>", sigma_i, fun_args_term)) :: R end)
-     | _ => convertExpr_raw_ident verbose sigma_i nEenv thy  a b stack )
+     | _ => convertExpr verbose sigma_i nEenv thy  a b stack )
 
 end
 
