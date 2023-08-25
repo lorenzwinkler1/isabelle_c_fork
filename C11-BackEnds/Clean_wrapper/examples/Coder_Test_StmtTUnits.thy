@@ -1,4 +1,4 @@
-theory "Coder_Example_2"
+theory "Coder_Test_StmtTUnits"
   imports "Isabelle_C.C_Main"
           "HOL.Real"
           "../src/CleanCoder"

@@ -1,4 +1,4 @@
-theory "Coder_Example_1"
+theory "Coder_Test_ExprStmt"
   imports "../src/CleanCoder"
 begin
 
