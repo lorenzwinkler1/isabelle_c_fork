@@ -1,5 +1,5 @@
 theory "Coder_Test_ExprStmt"
-  imports "../src/CleanCoder" Coder_Test_Env_AEnv
+  imports "../src/CleanCoder"  (* Coder_Test_Env_AEnv *)
 begin
 
 
@@ -14,6 +14,8 @@ C\<open>12\<close>
 ML\<open>val ast_expr = @{C11_CExpr}
    val env_expr = @{C\<^sub>e\<^sub>n\<^sub>v};
    val mt_A_env = []
+   val sigma_i = StateMgt.get_state_type_global @{theory}
+
 \<close>
 
 
@@ -133,7 +135,16 @@ ML\<open> Sign.certify_term @{theory} S \<close>
 
 (*6*****************************************************************************************************)
 
-(* construct environment with global variable *)
+(* construct environment with global variable on the Isabelle_C side:*)
+
+declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
+declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
+C\<open>int a;\<close>
+
+(* to mimick the effect on the Clean side: *)
+global_vars (test)  (*intern label *)
+            a     :: "int"
+
 
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "expression"]]
 C\<open>1 * a\<close>
@@ -146,6 +157,8 @@ ML\<open>val ast_expr = @{C11_CExpr}
                   C_AbsEnv.Local "to some function")];
    val A_env2 = [ C_AbsEnv.Identifier("a", @{here}, HOLogic.intT, 
                   C_AbsEnv.Parameter "of some function")];
+
+   val sigma_i = StateMgt.get_state_type_global @{theory}
 
 \<close>
 
@@ -319,7 +332,7 @@ ML\<open> Sign.certify_term @{theory} S \<close>
 
 (* This local variable space also creates the update function for the return_result. *)
 local_vars_test  (test_return "int")
-    b  :: "int"
+    x  :: "int"
 
 C\<open>
 for(a = 0; a < 10; a = a + 1){
@@ -330,9 +343,7 @@ for(a = 0; a < 10; a = a + 1){
 }
 \<close>
 ML\<open>val ast_stmt = @{C11_CStat} \<close>
-ML\<open>StateMgt.get_state_field_tab_global @{theory}\<close>
 ML\<open>val sigma_i = StateMgt.get_state_type_global @{theory}\<close>
-
 
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
@@ -347,6 +358,8 @@ ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 \<comment> \<open>type-check of the latter\<close>
 ML\<open> Sign.certify_term @{theory} S \<close>
+(* a very serious problem : the inheritance on state spaces is not appropriately mirrored. *)
+
 
 (*following : unfinished work.*)
 
