@@ -102,11 +102,11 @@ fun mk_namespace thy =
 
 (* Creates a result_update_term for the local state *)
 fun mk_result_update thy =
-  let val namespace = mk_namespace thy
-      val path_local_state_result_value = Path.ext StateMgt.result_name namespace;
-      val str_local_state_result_value = Path.implode path_local_state_result_value;
-      val str_local_state_result_value_update = str_local_state_result_value ^ "_update";
-  in Syntax.read_term_global thy str_local_state_result_value_update end;
+  let val sigma_i = StateMgt.get_state_type_global thy;
+   val Type(ty_name,_) = sigma_i
+   val s = ty_name |> String.tokens (fn x => x =  #".") |> tl |> hd
+   val s' = String.substring(s, 0, size s - size "_scheme")^".result_value_update"
+  in Syntax.read_term_global thy s' end;
 
 fun extract_identifier_from_id thy identifiers id =
   let  val ns = mk_namespace thy |> Path.implode
@@ -401,8 +401,8 @@ fun convertStmt verbose sigma_i nEenv thy
 understand so it's unfinished here*)
      |"CReturn0" => let val rhs = hd stack
                         val res_upd = mk_result_update thy 
-                    in (mk_return_C res_upd (Abs("\<sigma>", sigma_i, rhs))) :: (tl stack) end
-     |"CSkip0" => (mk_skip_C sigma_i)::stack
+                    in (mk_return_C res_upd (lifted_term sigma_i rhs)) :: (tl stack) end
+     |"CSkip0"  => (mk_skip_C sigma_i)::stack
      |"CBreak0" => (mk_break sigma_i)::stack
 (*for statements with a body, we need to create a sequence. if statements or expressions
 are in sequence, they will be in the list c between Const("begin", _) and Const("end", _).
@@ -416,31 +416,32 @@ if ... then ... else skip*)
      | "CBlockDecl0" => stack
      | "CNestedFunDef0" =>  error"Nested Function Declarations not allowed in Clean"
      | "CIf0" =>   (case stack of  
-                       (a::b::cond::R) => mk_if_C  (Abs("\<sigma>", sigma_i --> boolT, cond)) b  a::R
-                    |  (a::cond::R) => (mk_if_C (Abs("\<sigma>", sigma_i --> boolT, cond)) 
+                       (a::b::cond::R) => mk_if_C (lifted_term sigma_i cond) b a :: R
+                    |  (a::cond::R) => (mk_if_C (lifted_term sigma_i cond) 
                                                 (a)
                                                 (mk_skip_C sigma_i)::R)
-                    |_ => raise WrongFormat("if")
+                    |  _    => raise WrongFormat("if")
                    )
      |"CWhile0" => (case stack of
-                       (a::b::R) => (mk_while_C  (Abs("\<sigma>", sigma_i, b))  a)::R
-                      |(a::R)    => (mk_while_C  (Abs("\<sigma>", sigma_i, a))  
-                                                 (mk_skip_C dummyT))
-                                    ::R
+                       (a::b::R) => (mk_while_C  (lifted_term sigma_i b)  a) :: R
+                      |(a::R)    => (mk_while_C  (lifted_term sigma_i a)  
+                                                 (mk_skip_C dummyT)) :: R  (* really dummyT *)
                       |_ => raise WrongFormat("while")
                    )
 (*There is no For operator in Clean, so we have to translate it as a while :
 for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
      |"CFor0" =>   (case stack of
                         (body::pace::cond::init::R) => (let val C' = mk_while_C
-                                                                       (Abs("\<sigma>", sigma_i,cond))
+                                                                       (lifted_term sigma_i cond)
                                                                        (mk_seq_C body pace)
                                                         in   ((mk_seq_C init C'))::R end)
                     |_ => raise WrongFormat("for"))
      | "CCall0" => (let fun extract_fun_args (t :: R) args =
                             case t of
                             (* very bad way of checking if term represents a function *)
-                               Const(id, ty) => if not (firstype_of ty = sigma_i) then (args, Const(id, ty), R) else extract_fun_args R (Const(id, ty) :: args)
+                               Const(id, ty) => if not (firstype_of ty = sigma_i) 
+                                                then (args, Const(id, ty), R) 
+                                                else extract_fun_args R (Const(id, ty) :: args)
                             | arg => extract_fun_args R (arg :: args)
                         fun extract_type_list (arg :: args) =
                             (case arg of
@@ -448,11 +449,12 @@ for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
                               Free(_, ty) => ty :: extract_type_list args)
                           | extract_type_list [] = []
                         (* should be expanded for variable number of args... *)
-                        fun mk_cross_prod_args [a, b] = Const (@{const_name "Pair"}, a --> b --> mk_prodT (a, b))
+                        fun mk_cross_prod_args [a, b] = Const (@{const_name "Pair"}, 
+                                                               a --> b --> mk_prodT (a, b))
                         val (args, f, R) = extract_fun_args stack []
                         val cross_prod_args = mk_cross_prod_args (extract_type_list args)
                         val fun_args_term = list_comb (cross_prod_args, args)
-                       in mk_call_C f (Abs("\<sigma>", sigma_i, fun_args_term)) :: R end)
+                       in mk_call_C f (lifted_term sigma_i fun_args_term) :: R end)
      | _ => convertExpr verbose sigma_i nEenv thy  a b stack )
 
 end

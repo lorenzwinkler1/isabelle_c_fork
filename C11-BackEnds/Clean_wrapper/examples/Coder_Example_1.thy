@@ -351,9 +351,7 @@ ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 (*if the body is empty, then we put a skip :*)
 
 C\<open>
-while(1){
-         a = a+1;
-}
+while(1){a = a+1;}
 \<close>
 ML\<open>val ast_stmt = @{C11_CStat}
    val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>
@@ -362,7 +360,7 @@ ML\<open>val ast_stmt = @{C11_CStat}
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt true sigma_i A_env0 @{theory}) 
+               (convertStmt false sigma_i A_env0 @{theory}) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -377,8 +375,7 @@ for(a = 0; a < 2; a = a + 1){
    a = a + 5;
 }
 \<close>
- ML\<open>val ast_stmt = @{C11_CStat}
-   val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>
+ ML\<open>val ast_stmt = @{C11_CStat}\<close>
 
 (* crash due to typing problem *)
 ML\<open>
@@ -408,7 +405,7 @@ ML\<open>val ast_stmt = @{C11_CStat}
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt true sigma_i A_env0 @{theory}) 
+               (convertStmt false sigma_i A_env0 @{theory}) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -421,6 +418,10 @@ ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 (*work in progress for skip, break and return : *)
 
+(* This local variable space also creates the update function for the return_result. *)
+local_vars_test  (test_return "int")
+    a  :: "int"
+
 C\<open>
 for(a = 0; a < 10; a = a + 1){
   while(a < 10){
@@ -429,17 +430,13 @@ for(a = 0; a < 10; a = a + 1){
   return a;
 }
 \<close>
-ML\<open>val ast_stmt = @{C11_CStat}
-   val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>
+ML\<open>val ast_stmt = @{C11_CStat}\<close>
 
-(* problem:
-Undefined constant: "Coder_Example_1.global_test_state.result_value_update"
-Who throws this exception ?
- *)
+
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt true sigma_i A_env0 @{theory}) 
+               (convertStmt false sigma_i A_env0 @{theory}) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
