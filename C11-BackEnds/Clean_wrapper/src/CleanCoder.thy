@@ -80,6 +80,16 @@ fun mk_result_update thy =
    val s' = String.substring(s, 0, size s - size "_scheme")^".result_value_update"
   in Syntax.read_term_global thy s' end;
 
+fun extract_ids long_id sigma_i =
+  let  val id = List.last(String.tokens (fn x => x = #".") long_id)
+       val Type(ty_name, _) = sigma_i;
+       val ty_name = ty_name |> String.tokens (fn x => x =  #".") |> tl |> hd
+       val local_state = String.substring (ty_name, 0, 
+                                           String.size ty_name 
+                                           - (String.size "_scheme"))
+                                                     (*dangerous. will work only for the local case *)
+  in  (id, local_state^"."^id) end
+
 fun read_N_coerce thy name ty = 
        (* a very dirty hack ... but reconstructs the true \<open>const_name\<close> 
           along the subtype hierarchy, but coerces it to the current sigma*)
@@ -229,6 +239,17 @@ translate integers in booleans. That's what term_to_bool t do.
                                    $ mk_number natT ((String.size s'') - 1)))) 
                          ::c
                    end
+     |"CIndex0" => (case c of 
+                     (idx::root::R) => let fun destListT (Type(@{type_name list},[t])) = t
+                                       in   Const(@{const_name List.nth},
+                                              fastype_of root 
+                                              --> natT 
+                                              --> destListT(fastype_of root))
+                                            $ root
+                                            $  (Const (@{const_name "Int.nat"}, intT --> natT) 
+                                                $ idx) :: R 
+                                       end
+                   | _ => error("unsupported indexing formal."))
      |"CFloatConst0"=> (c) (* skip this wrapper *)
      |"CChars0" => (warning "bizarre rule in context float: CChars0"; c)
      |"CExpr0"  => c (* skip this wrapper *)
@@ -304,34 +325,6 @@ fun block_to_term (Const("_END",_)::Const("_BEGIN",_)::R)
              val (Const("_END",_)::topS, Const("_BEGIN",_)::restS) = (topS, restS)
          in (foldl1 (uncurry mk_seq_C) (rev topS)) :: restS end
 
-(*
-fun block_to_term l =
-  let
-    val _ = (writeln("block_to_term::"^ @{make_string } l))
-    fun aux1 l acc = case l of    (*créé la list [b1, ..., bk, End, ..., tn]*)
-          [] => ([mk_skip_C dummyT],[]) (* ??? *)
-          |x::s => if x = Const("Begin", dummyT) then (acc, s) else aux1 s (x::acc)
-
-    val (pre, rest) = aux1 l []
-
-    fun aux2 l n acc = case (l, n) of (*créé la liste [bk, ..., b1]*)
-          ([], _) => raise EmptyList
-          |(Const("End", _)::s, 0) => (acc, s)
-          |(Const("End", _)::s, n) => aux2 s (n - 1) (Const("End", dummyT)::acc)
-          |(Const("Begin", _)::s, n) => aux2 s (n + 1) (Const("Begin", dummyT)::acc) 
-          |(x::s, n) => aux2 s n (x::acc)
-
-    val (core, suff) = aux2 rest 0 []
-  
-    fun aux3 l = case l of (*créé le term Block $ b1 $ ... $ bk si k \<ge> 1, Skip sinon*)
-            [] => mk_skip_C dummyT
-          | [x] => x
-          | x::s => (let  val C' = aux3 s
-                     in  (mk_seq_C x C') $ x $ C' end)
-  in (List.rev pre) @ (aux3 (List.rev core)) :: suff
-  end
-*)
-
 
 fun convertStmt verbose sigma_i nEenv thy 
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
@@ -348,19 +341,12 @@ fun convertStmt verbose sigma_i nEenv thy
                                           | Free (name, _) => name
                                           | _ => error("(convertStmt) CAssign0 does not recognise term: "
                                                         ^(@{make_string} lhs)))
-                               val id = List.last(String.tokens (fn x => x = #".") long_id)
-                               val Type(local_state_scheme, _) = sigma_i;
-                               val local_state = String.substring (local_state_scheme, 0, 
-                                                                       String.size local_state_scheme 
-                                                                        - (String.size "_scheme"))
-                                                     (*dangerous. will work only for the local case *)
-
+                               val (id, lid) = extract_ids long_id sigma_i
                                fun is_id (C_AbsEnv.Identifier(id_name, _, _, _)) = id_name = id
                                val C_AbsEnv.Identifier(id, _, ty, cat) = 
                                          case List.find is_id nEenv of SOME x  => x
                                              | _ => error("id not found: "^ long_id)
-                               val id = id ^ "_update"
-                               val lid = local_state^"."^id
+                               val (id, lid) = (id ^ "_update", lid ^ "_update")
 
                            in case cat of
                                 C_AbsEnv.Global => (mk_assign_global_C 

@@ -139,25 +139,28 @@ ML\<open> Sign.certify_term @{theory} S \<close>
 
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
-C\<open>int a;\<close>
+C\<open>int a; int b[5];\<close>
 
 (* to mimick the effect on the Clean side: *)
 global_vars (test)  (*intern label *)
             a     :: "int"
+            b     :: "int list"
 
 
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "expression"]]
 C\<open>1 * a\<close>
+
 ML\<open>val ast_expr = @{C11_CExpr}
    val env_expr = @{C\<^sub>e\<^sub>n\<^sub>v}
 
+local open C_AbsEnv HOLogic in
 (* we construct suitable environments by hand for testing: *)
-   val A_env0 = [ C_AbsEnv.Identifier("a", @{here}, HOLogic.intT, C_AbsEnv.Global)];
-   val A_env2 = [ C_AbsEnv.Identifier("a", @{here}, HOLogic.intT, 
-                  C_AbsEnv.Parameter "of some function")];
+   val A_env0 = [ Identifier("a", @{here}, intT, Global),
+                  Identifier("b", @{here}, listT intT, Global)];
+   val A_env2 = [ Identifier("a", @{here}, intT, Parameter "of some function")];
 
    val sigma_i = StateMgt.get_state_type_global @{theory}
-
+end
 \<close>
 
 ML\<open>
@@ -205,8 +208,27 @@ val S' = conv_Cexpr_lifted_term  sigma_i A_env1 @{theory} ast_expr
 \<close>
 
 
-(*7*****************************************************************************************************)
 
+C\<open>1 * b[5]\<close>
+ML\<open>val ast_expr = @{C11_CExpr}
+   val env_expr = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>
+
+
+ML\<open>
+
+val S = (C11_Ast_Lib.fold_cExpression (K I) 
+                                      (convertExpr false sigma_i  A_env0 @{theory}) 
+                                      ast_expr []);
+val S = conv_Cexpr_lifted_term  sigma_i A_env0 @{theory} ast_expr
+\<close>
+\<comment> \<open>pretty print of the latter\<close>
+ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
+
+\<comment> \<open>type-check of the latter\<close>
+ML\<open> Sign.certify_term @{theory} S \<close>
+
+
+(*7*****************************************************************************************************)
 
 C\<open>a == 1\<close>
 ML\<open>val ast_expr = @{C11_CExpr}
@@ -256,7 +278,7 @@ val [S] =  (C11_Ast_Lib.fold_cStatement
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
-\<close>
+\<close> 
 
 \<comment> \<open>pretty print of the latter\<close>
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>

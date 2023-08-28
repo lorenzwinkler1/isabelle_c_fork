@@ -288,6 +288,12 @@ ML\<open>val sigma_i = StateMgt.get_state_type_global @{theory}\<close>
 
 (* Function that automagically parses the state_field_tab and returns a list of declared local variables *)
 ML\<open>
+fun mk_namespace thy =
+  let val Type(str_local_state_scheme, _) = StateMgt_core.get_state_type_global thy;
+      val str_local_state = String.substring (str_local_state_scheme, 0, 
+                             String.size str_local_state_scheme - (String.size "_scheme"))
+  in Path.explode str_local_state end
+(* rubbish *)
 fun parse_state_field_tab thy =
   let val ns = mk_namespace thy |> Path.implode
       val tab = StateMgt.get_state_field_tab_global thy
@@ -513,7 +519,7 @@ int allzeros(int t[], int n) {
   k = 0;
 
   while(k < n) {
-    if (t[k]) return 0;
+    if (t[k] == 0) return 0;
     k = k + 1;
   }
   return 1;
@@ -533,10 +539,8 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt true sigma_i nEnv @{theory})
-              ast_stmt [])
-            handle ERROR _ => (writeln "correct crash: index access not yet supported"; 
-                    [Const("rightful bug dummy",dummyT)]);
+              (convertStmt false sigma_i nEnv @{theory})
+              ast_stmt []);
 \<close>
 
 C\<open>
