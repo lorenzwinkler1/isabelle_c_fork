@@ -153,8 +153,6 @@ ML\<open>val ast_expr = @{C11_CExpr}
 
 (* we construct suitable environments by hand for testing: *)
    val A_env0 = [ C_AbsEnv.Identifier("a", @{here}, HOLogic.intT, C_AbsEnv.Global)];
-   val A_env1 = [ C_AbsEnv.Identifier("a", @{here}, HOLogic.intT, 
-                  C_AbsEnv.Local "to some function")];
    val A_env2 = [ C_AbsEnv.Identifier("a", @{here}, HOLogic.intT, 
                   C_AbsEnv.Parameter "of some function")];
 
@@ -162,19 +160,12 @@ ML\<open>val ast_expr = @{C11_CExpr}
 
 \<close>
 
-ML\<open>C_AbsEnv.Identifier\<close>
-
 ML\<open>
 
 val S = (C11_Ast_Lib.fold_cExpression (K I) 
                                       (convertExpr false sigma_i  A_env0 @{theory}) 
                                       ast_expr []);
 val S = conv_Cexpr_lifted_term  sigma_i A_env0 @{theory} ast_expr
-
-val S' = (C11_Ast_Lib.fold_cExpression (K I) 
-                                      (convertExpr false sigma_i  A_env1 @{theory}) 
-                                      ast_expr []);
-val S' = conv_Cexpr_lifted_term  sigma_i A_env1 @{theory} ast_expr
 
 val S'' = (C11_Ast_Lib.fold_cExpression (K I) 
                                       (convertExpr false sigma_i  A_env2 @{theory}) 
@@ -188,6 +179,30 @@ ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 \<comment> \<open>type-check of the latter\<close>
 ML\<open> Sign.certify_term @{theory} S \<close>
+
+(* This local variable space also creates the update function for the return_result. *)
+local_vars_test  (test_return "int")
+    x  :: "int"
+declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
+declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
+C\<open>int x;\<close>
+
+declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "expression"]]
+
+C\<open>1 * x\<close>
+ML\<open>val ast_expr = @{C11_CExpr}
+   val env_expr = @{C\<^sub>e\<^sub>n\<^sub>v}
+   val A_env1 = [ C_AbsEnv.Identifier("x", @{here}, HOLogic.intT, 
+                  C_AbsEnv.Local "to some function")];
+   val sigma_i = StateMgt.get_state_type_global @{theory}
+\<close>
+
+ML\<open>
+val S' = (C11_Ast_Lib.fold_cExpression (K I) 
+                                      (convertExpr false sigma_i  A_env1 @{theory}) 
+                                      ast_expr []);
+val S' = conv_Cexpr_lifted_term  sigma_i A_env1 @{theory} ast_expr
+\<close>
 
 
 (*7*****************************************************************************************************)
@@ -330,9 +345,6 @@ ML\<open> Sign.certify_term @{theory} S \<close>
 
 (*work in progress for skip, break and return : *)
 
-(* This local variable space also creates the update function for the return_result. *)
-local_vars_test  (test_return "int")
-    x  :: "int"
 
 C\<open>
 for(a = 0; a < 10; a = a + 1){
@@ -353,6 +365,13 @@ val [S] =  (C11_Ast_Lib.fold_cStatement
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
 \<close>
+ML\<open>fun read_N_coerce thy name ty = 
+       (* a very dirty hack ... but reconstructs the true \<open>const_name\<close> 
+          along the subtype hierarchy, but coerces it to the current sigma*)
+       let val s = drop_dark_matter(Syntax.string_of_typ_global thy ty)
+           val str = name ^ " :: " ^ s 
+       in  Syntax.read_term_global thy str end \<close>
+ML\<open> read_N_coerce @{theory} "a" (sigma_i --> intT)\<close>
 \<comment> \<open>pretty print of the latter\<close>
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 

@@ -110,10 +110,18 @@ fun mk_result_update thy =
 
 fun extract_identifier_from_id thy identifiers id =
   let  val ns = mk_namespace thy |> Path.implode
-       val id = if String.isPrefix ns id then String.extract (id, (String.size ns) + 1, NONE) else id
-       val SOME(identifier) = List.find (fn C_AbsEnv.Identifier(id_name, _, _, _) => id_name = id) identifiers
-  in identifier end
+     (*  val id = if String.isPrefix ns id then String.extract (id, (String.size ns) + 1, NONE) else id*)
+  in case List.find (fn C_AbsEnv.Identifier(id_name, _, _, _) => id_name = id) identifiers of
+        SOME(id) => id
+      | _ => error("unknown C identifier in abstract envrionment:"^id) 
+  end
 
+fun read_N_coerce thy name ty = 
+       (* a very dirty hack ... but reconstructs the true \<open>const_name\<close> 
+          along the subtype hierarchy, but coerces it to the current sigma*)
+       let val s = drop_dark_matter(Syntax.string_of_typ_global thy ty)
+           val str = name ^ " :: " ^ s 
+       in  Syntax.read_term_global thy str end
 \<close>
 
 subsection\<open>C11 Expressions to Clean Terms\<close>
@@ -153,33 +161,31 @@ fun convertExpr verbose (sigma_i: typ) env thy
 (*here, we get the full name of the variable, then we return the term well named and typed.
 Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
       "Ident0" =>  (let val id = node_content_parser a
-                        fun get_id_name (C_AbsEnv.Identifier(id_name, _, _, _)) = (id_name = id)
-                        val identifier = case List.find get_id_name env of
+                        fun is_id_name (C_AbsEnv.Identifier(id_name, _, _, _)) = (id_name = id)
+                           |is_id_name _ = false
+                        val C_AbsEnv.Identifier(_, _, ty, cat) = case List.find is_id_name env of
                                                 SOME(identifier) => identifier
-                                              | NONE => error("(convertExpr) identifier " ^ id ^ " not recognised")
-                                                        (* This is another way to parse the list of identifiers...
-                                                          case Syntax.read_term_global thy id of
-                                                          Const(_, long_ty) => (case firstype_of long_ty of
-                                                                                 sigma_i => C_Scanner.Identifier(id, Position.none, firstype_of long_ty, C_Scanner.Global)
-                                                                               | _ =>  C_Scanner.Identifier(id, Position.none, @{typ "unit"}, C_Scanner.FunctionCategory(C_Scanner.Final, NONE)))
-                                                        | Free(long_id, _) => error("(convertExpr) identifier " ^ long_id ^ " not recognised")
-                                                        *)
-                        val C_AbsEnv.Identifier(_, _, ty, cat) = identifier
+                                              | NONE => error("(convertExpr) identifier " 
+                                                              ^ id ^ " not recognised")
+                        val Type(local_state_scheme, _) = sigma_i;
+                        val local_state = String.substring (local_state_scheme, 0, 
+                                                                String.size local_state_scheme 
+                                                                 - (String.size "_scheme"))
+                                              (*dangerous. will work only for the local case *)
+                        val lid = local_state^"."^id
                         val long_id = Path.ext id (mk_namespace thy) |> Path.implode
                     in case cat of
-                        C_AbsEnv.Global => Const(long_id, sigma_i --> ty) $ Free("\<sigma>",sigma_i) :: c
+                        C_AbsEnv.Global => read_N_coerce thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i) :: c
                       | C_AbsEnv.Local(_) => Const(@{const_name "comp"}, 
                                                    (HOLogic.listT ty --> ty) 
-                                                   --> (sigma_i 
-                                                   --> HOLogic.listT ty) 
+                                                   --> (sigma_i --> HOLogic.listT ty) 
                                                    --> sigma_i --> ty) 
-                                              $ Const(@{const_name "hd"}, 
-                                                      HOLogic.listT ty --> ty) 
-                                              $ Const(long_id, sigma_i --> HOLogic.listT ty) 
+                                              $ Const(@{const_name "hd"}, HOLogic.listT ty --> ty) 
+                                              $ read_N_coerce thy lid (sigma_i --> HOLogic.listT ty) 
                                               $ Free("\<sigma>",sigma_i) :: c
                       | C_AbsEnv.Parameter(_) => Free (id, ty) :: c
                       | C_AbsEnv.FunctionCategory(C_AbsEnv.MutuallyRecursive(_), _) =>
-                        error("Mutual recursion is not supported in Clean")
+                                error("Mutual recursion is not supported in Clean")
                       | C_AbsEnv.FunctionCategory(C_AbsEnv.Final, _) => 
                             let val Const(id, ty) = Syntax.read_term_global thy id
                                 val args = firstype_of ty
@@ -372,26 +378,34 @@ fun convertStmt verbose sigma_i nEenv thy
     case tag of
 
      "CAssign0" => (case stack of
-                      (first :: second ::  R) => 
-                          (let val id = (case second of
+                      (rhs :: lhs ::  R) => 
+                          (let val id = (case lhs of
                                             Const(name, _) $ _ => name
                                           | _ $ _ $ Const(name, _) $ _ => name
                                           | Free (name, _) => name
                                           | _ => error("(convertStmt) CAssign0 does not recognise term: "
-                                                        ^(@{make_string} second)))
+                                                        ^(@{make_string} lhs)))
                                val C_AbsEnv.Identifier(id, _, ty, cat) = 
-                                             extract_identifier_from_id thy nEenv id
+                                             extract_identifier_from_id thy nEenv id (* probably rubbish *)
+                               val id = id ^ "_update"
+                               val Type(local_state_scheme, _) = sigma_i;
+                               val local_state = String.substring (local_state_scheme, 0, 
+                                                                       String.size local_state_scheme 
+                                                                        - (String.size "_scheme"))
+                                                     (*dangerous. will work only for the local case *)
+                               val lid = local_state^"."^id
+
                                val long_id = Path.ext id (mk_namespace thy) |> Path.implode
                            in case cat of
                                 C_AbsEnv.Global => (mk_assign_global_C 
-                                                       (mk_glob_upd_raw long_id ty sigma_i)
-                                                       (lifted_term sigma_i first ) )::R
-                              | C_AbsEnv.Parameter(_) => (mk_assign_local_C
-                                                       (mk_loc_upd_ident long_id ty sigma_i)
-                                                       (lifted_term sigma_i first) )::R
+                                                       (read_N_coerce thy id 
+                                                           ((ty --> ty) --> sigma_i --> sigma_i))
+                                                       (lifted_term sigma_i rhs))::R
+                              | C_AbsEnv.Parameter(_) => error "assignment to parameter not allowed in Clean"
                               | C_AbsEnv.Local(_) => (mk_assign_local_C 
-                                                     (mk_loc_upd_ident long_id ty sigma_i)
-                                                     (lifted_term sigma_i first) )::R
+                                                       (read_N_coerce thy lid 
+                                                           ((listT ty --> listT ty) --> sigma_i --> sigma_i))
+                                                       (lifted_term sigma_i rhs) )::R
                               | s => error("(convertStmt) CAssign0 with cat " 
                                             ^ @{make_string} s ^ " is unrecognised")
                            end)
