@@ -379,23 +379,26 @@ fun convertStmt verbose sigma_i nEenv thy
 
      "CAssign0" => (case stack of
                       (rhs :: lhs ::  R) => 
-                          (let val id = (case lhs of
+                          (let val long_id = (case lhs of
                                             Const(name, _) $ _ => name
                                           | _ $ _ $ Const(name, _) $ _ => name
                                           | Free (name, _) => name
                                           | _ => error("(convertStmt) CAssign0 does not recognise term: "
                                                         ^(@{make_string} lhs)))
-                               val C_AbsEnv.Identifier(id, _, ty, cat) = 
-                                             extract_identifier_from_id thy nEenv id (* probably rubbish *)
-                               val id = id ^ "_update"
+                               val id = List.last(String.tokens (fn x => x = #".") long_id)
                                val Type(local_state_scheme, _) = sigma_i;
                                val local_state = String.substring (local_state_scheme, 0, 
                                                                        String.size local_state_scheme 
                                                                         - (String.size "_scheme"))
                                                      (*dangerous. will work only for the local case *)
+
+                               fun is_id (C_AbsEnv.Identifier(id_name, _, _, _)) = id_name = id
+                               val C_AbsEnv.Identifier(id, _, ty, cat) = 
+                                         case List.find is_id nEenv of SOME x  => x
+                                             | _ => error("id not found: "^ long_id)
+                               val id = id ^ "_update"
                                val lid = local_state^"."^id
 
-                               val long_id = Path.ext id (mk_namespace thy) |> Path.implode
                            in case cat of
                                 C_AbsEnv.Global => (mk_assign_global_C 
                                                        (read_N_coerce thy id 

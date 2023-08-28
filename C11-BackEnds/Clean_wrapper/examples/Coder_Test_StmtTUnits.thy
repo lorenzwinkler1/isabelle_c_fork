@@ -182,21 +182,12 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt true sigma_i nEnv @{theory})
-              ast_stmt []);
+              (convertStmt false sigma_i nEnv @{theory})
+              ast_stmt [])
+           handle ERROR _ => [S];
 \<close>
 
-ML\<open>
-val final_term = mk_final_term identifiers "increment" S
-\<close>
 
-ML\<open>
-Sign.certify_term @{theory} final_term
-\<close>
-
-ML\<open>
-writeln (Syntax.string_of_term_global @{theory} final_term);
-\<close>
 
 (* Example of function with global variable assignment *)
 
