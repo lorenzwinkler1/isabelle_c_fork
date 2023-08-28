@@ -72,34 +72,6 @@ fun lastype_of (Type(_, [x])) = x | lastype_of (Type(_, [_, y])) = y
 (*renvoie le type du premier attribut d'une fonction, ou le type d'une constante*)
 fun firstype_of (Type(_, [x])) = x | firstype_of (Type(_, x::_)) = x 
 
-fun mk_glob_upd_raw name ty sigma_i = 
-  Const(name^"_update", (ty --> ty) --> sigma_i --> sigma_i)
-
-(*créé un term upd global*)
-fun mk_glob_upd name rhs = 
-  let val ty   = fastype_of rhs
-      val ty'  = lastype_of ty (* ty' should be for example HOLogic.intT *)
-      val sigma_i = firstype_of ty (* sigma_i should be 'a global_state_scheme *)
-  in mk_glob_upd_raw name ty' sigma_i
-  end
-
-fun mk_loc_upd_ident name ty sigma_i = 
-  mk_glob_upd_raw name (HOLogic.listT ty) sigma_i
-
-(*créé un term upd local*)
-fun mk_loc_upd name rhs = 
-  let val ty   = fastype_of rhs
-      val ty'  = lastype_of ty (* ty' should be for example HOLogic.intT *)
-      val sigma_i = firstype_of ty (* sigma_i should be 'a local_state_scheme *)
-  in mk_loc_upd_ident name ty' sigma_i
-  end
-
-fun mk_namespace thy =
-  let val Type(str_local_state_scheme, _) = StateMgt_core.get_state_type_global thy;
-      val str_local_state = String.substring (str_local_state_scheme, 0, 
-                             String.size str_local_state_scheme - (String.size "_scheme"))
-  in Path.explode str_local_state end
-
 (* Creates a result_update_term for the local state *)
 fun mk_result_update thy =
   let val sigma_i = StateMgt.get_state_type_global thy;
@@ -107,14 +79,6 @@ fun mk_result_update thy =
    val s = ty_name |> String.tokens (fn x => x =  #".") |> tl |> hd
    val s' = String.substring(s, 0, size s - size "_scheme")^".result_value_update"
   in Syntax.read_term_global thy s' end;
-
-fun extract_identifier_from_id thy identifiers id =
-  let  val ns = mk_namespace thy |> Path.implode
-     (*  val id = if String.isPrefix ns id then String.extract (id, (String.size ns) + 1, NONE) else id*)
-  in case List.find (fn C_AbsEnv.Identifier(id_name, _, _, _) => id_name = id) identifiers of
-        SOME(id) => id
-      | _ => error("unknown C identifier in abstract envrionment:"^id) 
-  end
 
 fun read_N_coerce thy name ty = 
        (* a very dirty hack ... but reconstructs the true \<open>const_name\<close> 
@@ -173,7 +137,6 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
                                                                  - (String.size "_scheme"))
                                               (*dangerous. will work only for the local case *)
                         val lid = local_state^"."^id
-                        val long_id = Path.ext id (mk_namespace thy) |> Path.implode
                     in case cat of
                         C_AbsEnv.Global => read_N_coerce thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i) :: c
                       | C_AbsEnv.Local(_) => Const(@{const_name "comp"}, 
