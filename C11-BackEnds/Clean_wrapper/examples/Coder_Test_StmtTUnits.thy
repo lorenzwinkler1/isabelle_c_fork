@@ -516,7 +516,7 @@ ML\<open>val nEnv_0 = parse_state_field_tab @{theory}\<close>
 
 C\<open>
 int allzeros(int t[], int n) {
-  k = 0;
+  int k = 0;
 
   while(k < n) {
     if (t[k] == 0) return 0;

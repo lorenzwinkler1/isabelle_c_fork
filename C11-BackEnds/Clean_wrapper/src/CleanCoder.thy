@@ -241,13 +241,18 @@ translate integers in booleans. That's what term_to_bool t do.
                    end
      |"CIndex0" => (case c of 
                      (idx::root::R) => let fun destListT (Type(@{type_name list},[t])) = t
+                                           val idx_term = case fastype_of idx of
+                                                            Type(@{type_name "nat"},[]) => idx
+                                                          | Type(@{type_name "int"},[]) =>
+                                                                 (Const (@{const_name "Int.nat"}, 
+                                                                         intT --> natT) $ idx)
+                                                          | _ => error "illegal index type"
                                        in   Const(@{const_name List.nth},
-                                              fastype_of root 
-                                              --> natT 
-                                              --> destListT(fastype_of root))
+                                                  fastype_of root 
+                                                  --> natT 
+                                                  --> destListT(fastype_of root))
                                             $ root
-                                            $  (Const (@{const_name "Int.nat"}, intT --> natT) 
-                                                $ idx) :: R 
+                                            $ idx_term :: R 
                                        end
                    | _ => error("unsupported indexing formal."))
      |"CFloatConst0"=> (c) (* skip this wrapper *)
@@ -270,10 +275,6 @@ fun conv_Cexpr_lifted_term  sigma_i A_env thy C_expr =
 
 (*** -------------- ***)
 
-
-(*
-
-
 fun conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CArrSize0 (_,C_expr),_)) C_env thy = 
             SOME(hd((C11_Ast_Lib.fold_cExpression (K I)
                                  (convertExpr false dummyT C_env thy) C_expr [])))
@@ -281,7 +282,6 @@ fun conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CArrSize0 
    |conv_cDerivedDeclarator_cSizeExpr_term (_)  _ _ =  
             error("DeclarationSpec format not defined. [Clean restriction]")
 
-*)
 
 end
 end

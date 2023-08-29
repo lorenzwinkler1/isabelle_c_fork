@@ -186,18 +186,24 @@ ML\<open> Sign.certify_term @{theory} S \<close>
 (* This local variable space also creates the update function for the return_result. *)
 local_vars_test  (test_return "int")
     x  :: "int"
+    y  :: "int list"
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
-C\<open>int x;\<close>
+C\<open>int x; int y[3];\<close>
 
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "expression"]]
 
 C\<open>1 * x\<close>
 ML\<open>val ast_expr = @{C11_CExpr}
    val env_expr = @{C\<^sub>e\<^sub>n\<^sub>v}
-   val A_env1 = [ C_AbsEnv.Identifier("x", @{here}, HOLogic.intT, 
-                  C_AbsEnv.Local "to some function")];
+
+local open C_AbsEnv HOLogic in
+   val A_env1 = [ Identifier("a", @{here}, intT, Global ),
+                  Identifier("b", @{here}, listT intT, Global ),
+                  Identifier("x", @{here}, intT, Local "to some function"),
+                  Identifier("y", @{here}, listT intT, Local "to some function")];
    val sigma_i = StateMgt.get_state_type_global @{theory}
+end
 \<close>
 
 ML\<open>
@@ -209,7 +215,7 @@ val S' = conv_Cexpr_lifted_term  sigma_i A_env1 @{theory} ast_expr
 
 
 
-C\<open>1 * b[5]\<close>
+C\<open>1 * b[5-a] + y[a]\<close>
 ML\<open>val ast_expr = @{C11_CExpr}
    val env_expr = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>
 
@@ -217,9 +223,9 @@ ML\<open>val ast_expr = @{C11_CExpr}
 ML\<open>
 
 val S = (C11_Ast_Lib.fold_cExpression (K I) 
-                                      (convertExpr false sigma_i  A_env0 @{theory}) 
+                                      (convertExpr false sigma_i  A_env1 @{theory}) 
                                       ast_expr []);
-val S = conv_Cexpr_lifted_term  sigma_i A_env0 @{theory} ast_expr
+val S = conv_Cexpr_lifted_term  sigma_i A_env1 @{theory} ast_expr
 \<close>
 \<comment> \<open>pretty print of the latter\<close>
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
