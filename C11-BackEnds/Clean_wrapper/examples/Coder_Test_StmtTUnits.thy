@@ -19,7 +19,8 @@ val () = List.app printIdentifier identifiers
 end
 \<close>
 
-C\<open>int global2[];\<close>
+C\<open>int global2[];
+  int m(int h[]);\<close>
 
 ML\<open>
 local open C_AbsEnv in
@@ -28,7 +29,7 @@ val () = List.app printIdentifier identifiers
 end
 \<close>
 
-C\<open>int global3[], global4 = fibo(global1), global5;
+C\<open>int global3[][], global4 = fibo(global1), global5;
 unsigned int global6, global7;\<close>
 
 ML\<open>
@@ -647,6 +648,30 @@ ML\<open>val ast_stmt = @{C11_CStat}   \<comment> \<open>C11 ast\<close>
 
 ML\<open>val nEnv_0 = parse_state_field_tab @{theory};\<close>
 
+ML\<open>val menv = Symtab.dest (#idents (#var_table env_stmt));
+   \<close>
+
+ML\<open>
+local open C_Env C_AbsEnv C11_TypeSpec_2_CleanTyp HOLogic in 
+fun convertEnv (name,(pos_list,serial,{ global = true , params = [] , ret = Parsed Z }))
+               = SOME(Identifier(name, hd pos_list, 
+                      the(conv_cDeclarationSpecifier_typ(SOME Z)), Global))
+   |convertEnv (name,(pos_list,serial,{ global = true , params = P as (C_Ast.CArrDeclr0 G::R) , ret = Parsed Z }))
+               = SOME(Identifier(name, hd pos_list, 
+                      C11_TypeSpec_2_CleanTyp.conv_cDerivedDeclarator_typS P
+                       (the(conv_cDeclarationSpecifier_typ(SOME Z))), Global))
+   |convertEnv (name,(pos_list,serial,{ global = true , params = [] , ret = _ }))
+               = (writeln("Can't type global variable :"^name ); NONE)
+   |convertEnv (name,_)
+               = (writeln("Can't type item :"^name ); NONE)
+
+end
+\<close>
+
+ML\<open>nth menv 15\<close>
+
+ML\<open>map_filter convertEnv menv\<close>
+
 ML\<open> 
 val [body] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
@@ -656,6 +681,8 @@ val [body] =  (C11_Ast_Lib.fold_cStatement
                 []        \<comment> \<open>mt stack\<close>); 
 \<close>
 
+
+ML\<open>XXX\<close>
 ML\<open>
 open C_AbsEnv;
 val Identifier(name, pos, ret_typ, _) = hd identifiers;

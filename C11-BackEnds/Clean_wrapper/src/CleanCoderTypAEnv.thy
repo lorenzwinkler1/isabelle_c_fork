@@ -165,9 +165,11 @@ fun conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _)])) = SOME(H
    |conv_cDeclarationSpecifier_typ _ = error("Type format not defined. [Clean restriction]")
 
 
-fun conv_cDerivedDeclarator_typS (CArrDeclr0 (_,CArrSize0 _ ,_)) C_env thy = HOLogic.listT 
+fun conv_cDerivedDeclarator_typS (CArrDeclr0 (_, _ ,_) :: R) = 
+                    HOLogic.listT o (conv_cDerivedDeclarator_typS R)
                     (*no enumerations ? nat ? *)
-   |conv_cDerivedDeclarator_typS (CFunDeclr0 (Right(S,_), _, _)) C_env thy = I
+   |conv_cDerivedDeclarator_typS (CFunDeclr0 (Right(S,_), _, _) :: R) = I
+   |conv_cDerivedDeclarator_typS _ = I
 
 (*
 val [((Some (CDeclr0 (_,s,_,_,_)),_),_)] = A'
@@ -255,16 +257,17 @@ signature C_ABS_ENVIRONMENT =
 structure C_AbsEnv : C_ABS_ENVIRONMENT = 
 struct
 
-datatype functionCategory = Final (* no function calls *)
-                          | NonFinal (* at least 1 foreign function call *)
-                          | Recursive      (* at least 1 self call *)
-                          | MutuallyRecursive of string list (* at least 1 foreign function call, 
-                                                in which the foreign function calls the former *)
+datatype functionCategory = Final          (* no function calls *)
+                          | NonFinal       (* at least 1 foreign function call *)
+                          | Recursive      (* at least 1 self call, poss. other calls *)
+                          | MutuallyRecursive of string list 
+                                           (* at least 1 mutual rec. function call, 
+                                              possible other calls *)
 
 datatype identType = Global
                    | FunctionCategory of functionCategory * C_Ast.nodeInfo C_Ast.cStatement option
-                   | Local of string (* name of function *)
-                   | Parameter of string (* name of function *)
+                   | Local of string       (* name of function *)
+                   | Parameter of string   (* name of function *)
 
 datatype identifier = Identifier of string * Position.T * Basic_Term.typ * identType
 
