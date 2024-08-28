@@ -1,0 +1,11 @@
+WARNING : ROUGH DEVELOPPER VERSION
+
+TO BE USED WITH Isabelle_DOF 2021-1 version:
+
+ - configuration ARM  ( export L4V_ARCH=ARM )
+ - Isabelle2021-1
+
+START FOR EXAMPLE: 
+cd Isabelle_C
+isabelle jedit -d . C11-BackEnds/Clean_wrapper/examples/Coder_Test_ExprStmt.thy
+
