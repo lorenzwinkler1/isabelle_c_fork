@@ -135,6 +135,8 @@ ML\<open> Sign.certify_term @{theory} S \<close>
 
 (*6*****************************************************************************************************)
 
+subsection\<open>Expressions using Global and Local Variables\<close>
+
 (* construct environment with global variable on the Isabelle_C side:*)
 
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
@@ -410,7 +412,7 @@ ML\<open> Sign.certify_term @{theory} S \<close>
 
 (*following : unfinished work.*)
 
-section \<open>declarations\<close>
+section \<open>Expressions in Declarations\<close>
 
 text \<open>The next step is to study the declarations. There are globals or locals declarations, 
 and functions or variables declarations.\<close>
@@ -467,7 +469,51 @@ fun conv_C11NodeInfo (OnlyPos0 (p1: positiona, (p2 : positiona, lab: int))) =
 end
 \<close>
 
+section \<open>Calls\<close>
 
+ML\<open>val sigma_i = StateMgt.get_state_type_global @{theory}\<close>
+
+declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
+declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
+
+C\<open>
+void foo(int xy) { }
+\<close>
+
+ML\<open>
+local open C_AbsEnv in
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val () = List.app printIdentifier nEnv
+val ast_stmt = extractStatement nEnv "foo";
+end\<close>
+
+term\<open>skip\<^sub>S\<^sub>E\<close>
+ML\<open>StateMgt.MON_SE_T HOLogic.unitT sigma_i\<close>
+consts foo :: "int \<Rightarrow> (unit,'a local_test_return_state_scheme)MON\<^sub>S\<^sub>E "
+
+declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "statement"]]
+
+C\<open>
+ foo(5);
+\<close>
+
+ML\<open>
+local open C_AbsEnv in
+val foo_stmt = @{C11_CStat};
+end
+
+\<close>
+
+ML\<open>
+val [S] =  (C11_Ast_Lib.fold_cStatement 
+               regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
+               (convertStmt true sigma_i nEnv @{theory}) 
+                          \<comment> \<open>combinator handlicng an individual statement\<close>
+                foo_stmt  \<comment> \<open>C11 ast\<close>
+                []        \<comment> \<open>mt stack\<close>); 
+\<close>
+
+section \<open>Experiments with Local Scopes\<close>
 
 ML\<open> local open C_Ast 
 in

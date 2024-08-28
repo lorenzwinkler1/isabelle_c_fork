@@ -20,7 +20,7 @@ end
 \<close>
 
 C\<open>int global2[];
-  int m(int h[]);\<close>
+  int m();\<close>
 
 ML\<open>
 local open C_AbsEnv in
@@ -126,7 +126,7 @@ ML\<open>val sigma_i = StateMgt.get_state_type_global @{theory}\<close>
 
 (* Example of non recursive function *)
 C\<open>
-int add(int a, int b) {
+float add(int a, int b) {
   return a + b;
 }
 \<close>
@@ -135,9 +135,11 @@ ML\<open>
 local open C_AbsEnv in
 val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
 val () = List.app printIdentifier nEnv
+val add_ast = @{C11_CTranslUnit}
 val ast_stmt = extractStatement nEnv "add"
 end
 \<close>
+
 
 ML\<open>
 
@@ -382,7 +384,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt true sigma_i nEnv @{theory} )
+              (convertStmt false sigma_i nEnv @{theory} )
               ast_stmt [])
            handle ERROR _ => (writeln "correct crash: recursion not supported"; 
                               [@{term "undefined"}])
@@ -452,7 +454,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt true sigma_i nEnv @{theory})
+              (convertStmt false sigma_i nEnv @{theory})
               ast_stmt []) 
             handle ERROR _ => (writeln "correct crash: recursion not supported"; 
                               [@{term "undefined"}]);
@@ -493,7 +495,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt true sigma_i nEnv @{theory})
+              (convertStmt false sigma_i nEnv @{theory})
               ast_stmt []);
 \<close>
 
@@ -651,6 +653,20 @@ ML\<open>val nEnv_0 = parse_state_field_tab @{theory};\<close>
 ML\<open>val menv = Symtab.dest (#idents (#var_table env_stmt));
    \<close>
 
+ML\<open>add_ast\<close>
+
+ML\<open>
+local open HOLogic C_Ast in
+
+fun get_return_type (CTranslUnit0 ([CFDefExt0 (CFunDef0 (ret_ty,params,a,body,c))],_)) = 
+    (case ret_ty of
+      [] => SOME unitT
+    | sign => C11_TypeSpec_2_CleanTyp.conv_cDeclarationSpecifier_typ (SOME sign))
+    
+val ty = get_return_type add_ast
+
+end
+\<close>
 ML\<open>
 local open C_Env C_AbsEnv C11_TypeSpec_2_CleanTyp HOLogic in 
 fun convertEnv (name,(pos_list,serial,{ global = true , params = [] , ret = Parsed Z }))
@@ -660,6 +676,12 @@ fun convertEnv (name,(pos_list,serial,{ global = true , params = [] , ret = Pars
                = SOME(Identifier(name, hd pos_list, 
                       C11_TypeSpec_2_CleanTyp.conv_cDerivedDeclarator_typS P
                        (the(conv_cDeclarationSpecifier_typ(SOME Z))), Global))
+   |convertEnv (name,(pos_list,serial,{ global = true , params = P as (C_Ast.CFunDeclr0 G::R) , ret =  Z }))
+               = let val curried_w_dummyreturn = C11_TypeSpec_2_CleanTyp.conv_CDerivedDecl_typ P dummyT
+                     val (tyS,ty) = strip_type curried_w_dummyreturn
+                     val uncurried_w_dummyreturn = HOLogic.mk_tupleT tyS --> ty
+                 in   SOME(Identifier(name, hd pos_list, uncurried_w_dummyreturn, 
+                                      FunctionCategory(Final, NONE))) end
    |convertEnv (name,(pos_list,serial,{ global = true , params = [] , ret = _ }))
                = (writeln("Can't type global variable :"^name ); NONE)
    |convertEnv (name,_)
@@ -668,14 +690,26 @@ fun convertEnv (name,(pos_list,serial,{ global = true , params = [] , ret = Pars
 end
 \<close>
 
-ML\<open>nth menv 15\<close>
+ML\<open>val (name,(pos_list,serial,{ global = true , params = P as (C_Ast.CFunDeclr0 G::R) , ret =  Z })) = nth menv 5;
+   val curried_w_dummyreturn = C11_TypeSpec_2_CleanTyp.conv_CDerivedDecl_typ P dummyT
+   val (tyS,ty) = strip_type curried_w_dummyreturn
+   val uncurried_w_dummyreturn = HOLogic.mk_tupleT tyS --> ty
+\<close>
+ML\<open>nth menv 5;
+   \<close>
+
+(* So ne scheisse. Der return-type ist zwar im AST sichtbar, aber nicht im globalen (Isabelle_C) 
+   Environment. Da findet sich lediglich : previous in stack. Das verkompliziert die Sache.
+
+   Immerhin:
+*)
 
 ML\<open>map_filter convertEnv menv\<close>
 
 ML\<open> 
 val [body] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt true (StateMgt_core.get_state_type @{context}) nEnv_0 @{theory}) 
+               (convertStmt false (StateMgt_core.get_state_type @{context}) nEnv_0 @{theory}) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
