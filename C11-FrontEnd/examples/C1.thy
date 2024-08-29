@@ -71,7 +71,7 @@ declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "expression"]]
 ML\<open>
 val src = \<open>a + d\<close>;
 val ctxt = (Context.Theory @{theory});
-val ctxt' = C_Module.C' @{C\<^sub>e\<^sub>n\<^sub>v} src ctxt;
+val ctxt' = C_Module.C' (SOME @{C\<^sub>e\<^sub>n\<^sub>v}) src ctxt;
 val tt  = Context.the_theory ctxt';
 \<close>
 
@@ -88,7 +88,19 @@ val S =  (C11_Ast_Lib.fold_cTranslationUnit (K I) selectIdent0 ast_unit []);
 
 (* ... end of hic *)
 
-app (writeln o C11_Ast_Lib.toString_node_content)  S; 
+val ttt = map C11_Ast_Lib.toString_node_content S;
+
+
+fun print ({args = (C11_Ast_Lib.data_string S)::_::C11_Ast_Lib.data_string S'::_, 
+           sub_tag = STAG, tag = TAG}
+          :C11_Ast_Lib.node_content)
+         = let fun dark_matter (x:bstring) = XML.content_of (YXML.parse_body x) 
+           in writeln (":>"^dark_matter(S)^"<:>"^(S')^"<:>"^STAG^"<:>"^TAG^"<:") end;
+
+(*app print S;*) (* these strings are representations for C_Ast.abr_string, 
+                where the main constructor is C_Ast.SS_base. *)
+map (YXML.parse_body o (fn {args = (C11_Ast_Lib.data_string S)::_::C11_Ast_Lib.data_string S'::[], 
+           sub_tag = _, tag = _} =>S)) S ;
 
 \<close>
 
@@ -137,7 +149,6 @@ ML\<open>
 structure Data_Out = Generic_Data
   (type T = (C_Grammar_Rule.ast_generic * C_Antiquote.antiq C_Env.stream) list
    val empty = []
-   val extend = I
    val merge = K empty)
 
 fun get_CTranslUnit thy =
@@ -224,7 +235,6 @@ ML \<open>
 structure Directive_include = Generic_Data
   (type T = (Input.source * C_Env.markup_ident) list Symtab.table
    val empty = Symtab.empty
-   val extend = I
    val merge = K empty)
 \<close>
 
@@ -260,7 +270,7 @@ val _ =
                            end)
                          (these (Symtab.lookup (Directive_include.get (#context env_tree))
                                                (String.concat
-                                                 (maps (fn C_Scan.Left s => [s] | _ => []) file))))
+                                                 (maps (fn C_Scan.Left (s, _) => [s] | _ => []) file))))
                          (env_lang, env_tree)
                in
                  case tok of

@@ -277,7 +277,7 @@ fun check_command ctxt (name, pos) =
 end
 \<close>
 
-ML \<comment> \<open>\<^file>\<open>~~/src/Pure/PIDE/resources.ML\<close>\<close>
+ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Build/resources.ML\<close>\<close>
 (*  Author:     Frédéric Tuong, Université Paris-Saclay *)
 (*  Title:      Pure/PIDE/resources.ML
     Author:     Makarius
@@ -303,9 +303,9 @@ fun parse_files make_paths =
           val master_dir = Resources.master_directory thy;
           val name = Input.string_of source;
           val pos = Input.pos_of source;
-          val delimited = Input.is_delimited source;
+          (* val delimited = Input.is_delimited source; *)
           val src_paths = make_paths (Path.explode name);
-        in map (Command.read_file master_dir pos delimited) src_paths end
+        in map (fn sd => Resources.read_file master_dir (sd,pos)) src_paths end
     | files => map Exn.release files));
 
 val parse_file = parse_files single >> (fn f => f #> the_single);

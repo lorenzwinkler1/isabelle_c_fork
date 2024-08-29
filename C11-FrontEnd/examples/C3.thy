@@ -84,13 +84,13 @@ setup \<open>ML_Antiquotation.inline @{binding print_top'}
                                (Args.context
                                 >> K ("print_top' " ^ ML_Pretty.make_string_fn ^ " I"))\<close>
 setup \<open>ML_Antiquotation.inline @{binding print_stack}
-                               (Scan.peek (fn _ => Scan.option Args.text)
+                               (Scan.peek (fn _ => Scan.option Parse.embedded)
                                 >> (fn name => ("print_stack "
                                                 ^ (case name of NONE => "NONE"
                                                               | SOME s => "(SOME \"" ^ s ^ "\")")
                                                 ^ " " ^ ML_Pretty.make_string_fn)))\<close>
 setup \<open>ML_Antiquotation.inline @{binding print_stack'}
-                               (Scan.peek (fn _ => Scan.option Args.text)
+                               (Scan.peek (fn _ => Scan.option Parse.embedded)
                                 >> (fn name => ("print_stack' "
                                                 ^ (case name of NONE => "NONE"
                                                               | SOME s => "(SOME \"" ^ s ^ "\")")
@@ -346,7 +346,7 @@ declare [[C_parser_trace = false]]
 
 ML\<open>
 val C = tap o C_Module.C
-val C' = C_Module.C'
+val C' = C_Module.C' o SOME
 \<close>
 
 C \<comment> \<open>Nesting C code without propagating the C environment\<close> \<open>

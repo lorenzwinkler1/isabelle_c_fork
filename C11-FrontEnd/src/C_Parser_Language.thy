@@ -159,12 +159,12 @@ sig
                      bool ->
                      ('b, 'b option * string * reports_text0) C_Ast.either ->
                      reports_text0) ->
-                    ('a, C_Position.reports_text) reports_base
-  val markup_tvar : (C_Env.markup_global, C_Position.reports_text) reports_base
-  val markup_var_enum : (C_Env.markup_global, C_Position.reports_text) reports_base
-  val markup_var : (C_Env.markup_ident, C_Position.reports_text) reports_base
-  val markup_var_bound : (C_Env.markup_ident, C_Position.reports_text) reports_base
-  val markup_var_improper : (C_Env.markup_ident, C_Position.reports_text) reports_base
+                    ('a, Position.report_text list) reports_base
+  val markup_tvar : (C_Env.markup_global, Position.report_text list) reports_base
+  val markup_var_enum : (C_Env.markup_global, Position.report_text list) reports_base
+  val markup_var : (C_Env.markup_ident, Position.report_text list) reports_base
+  val markup_var_bound : (C_Env.markup_ident, Position.report_text list) reports_base
+  val markup_var_improper : (C_Env.markup_ident, Position.report_text list) reports_base
 
   (* Language.C.Data.RList *)
   val empty : 'a list Reversed
@@ -315,30 +315,12 @@ struct
       val (varN, var) = markup_elem (desc (case global of Left b => SOME b
                                                         | Right (SOME b, _, _) => SOME b
                                                         | _ => NONE));
-      val entity = Markup.entity varN name
       val cons' = cons o markup_init
-      val _ = Position.make_entity_markup
-      (* PATCH: copied as such from Isabelle2020 *)
-      fun entity_properties_of def serial pos =
-          if def then (Markup.defN, Value.print_int serial) :: Position.properties_of pos
-          else (Markup.refN, Value.print_int serial) :: Position.def_properties_of pos;
-
     in
      (cons' var
       #> report' cons' def global
       #> (case typing of NONE => I | SOME x => cons x))
-       (map (fn pos =>
-(* WAS:  markup_init (Markup.properties (Position.entity_properties_of def id pos) entity))  *)
-(* NEW in Isabelle 2021-1RC:
-  fun make_entity_markup {def} serial kind (name, pos) =
-  let
-    val props =
-      if def then (Markup.defN, Value.print_int serial) :: properties_of pos
-      else (Markup.refN, Value.print_int serial) :: def_properties_of pos;
-  in Markup.entity kind name |> Markup.properties props end;
-*)
-              markup_init (Markup.properties (entity_properties_of def id pos) entity))
-            ps)
+       (map (markup_init o Position.make_entity_markup {def = def} id varN o pair name) ps)
     end)
 
   fun markup_make' typing get_global desc report =
@@ -511,7 +493,6 @@ struct
     val bits14 = Integer.pow 14 2
     val bits21 = Integer.pow 21 2
     val bits28 = Integer.pow 28 2
-    val ord = SML90.ord; (* copied from ML_init in Isabelle2020. *)
   in
   fun quad s = case s of
     [] => 0
@@ -600,7 +581,7 @@ struct
                    env
   fun shadowTypedef (i, params, ret) env =
     shadowTypedef0 (C_Env.Parsed ret) (List.null (C_Env_Ext.get_scopes env)) (K I) (i, params) env
-  fun isTypeIdent s0 arg = (Symtab.exists (fn (s1, _) => s0 = s1) o C_Env_Ext.get_tyidents_typedef) arg
+  fun isTypeIdent s0 = Symtab.exists (fn (s1, _) => s0 = s1) o C_Env_Ext.get_tyidents_typedef
   fun enterScope env =
     ((), C_Env_Ext.map_scopes (cons (NONE, C_Env_Ext.get_var_table env)) env)
   fun leaveScope env = 
@@ -809,12 +790,13 @@ end
 subsection \<open>Miscellaneous\<close>
 
 ML \<comment> \<open>\<^file>\<open>~~/src/Pure/Thy/document_antiquotations.ML\<close>\<close>
-(*  Author:     Frédéric Tuong, Université Paris-Saclay *)
+(*  Author:     Frédéric Tuong, Université Paris-Saclay
+    Analogous to:
 (*  Title:      Pure/Thy/document_antiquotations.ML
     Author:     Makarius
 
 Miscellaneous document antiquotations.
-*)
+*)*)
 \<open>
 structure ML_Document_Antiquotations =
 struct
@@ -824,13 +806,14 @@ struct
 local
 
 fun ml_text name ml =
-  Document_Output.antiquotation_raw_embedded name (Scan.lift Args.text_input \<comment> \<open>TODO: enable reporting with \<^ML_type>\<open>Token.file\<close> as in \<^ML>\<open>Resources.parse_files\<close>\<close>)
+  Document_Output.antiquotation_raw_embedded name (Scan.lift Parse.embedded_input 
+    \<comment> \<open>TODO: enable reporting with \<^ML_type>\<open>Token.file\<close> as in \<^ML>\<open>Resources.parse_files\<close>\<close>)
     (fn ctxt => fn text =>
       let val file_content =
             Token.file_source
-              (Command.read_file (Resources.master_directory (Proof_Context.theory_of ctxt))
-                                 Position.none false
-                                 (Path.explode (#1 (Input.source_content text))))
+              (Resources.read_file
+                (Resources.master_directory (Proof_Context.theory_of ctxt))
+                (Path.explode (#1 (Input.source_content text)), Position.none))
           val _ = (*TODO: avoid multiple file scanning*)
             ML_Context.eval_in (SOME ctxt) ML_Compiler.flags Position.none (* \<leftarrow> (optionally)
                                                                               disabling a potential

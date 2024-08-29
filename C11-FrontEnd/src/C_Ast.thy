@@ -338,7 +338,9 @@ subsection \<open>Basic Aliases and Initialization of the Haskell Library\<close
 
 ML \<comment> \<open>\<^file>\<open>../generated/c_ast.ML\<close>\<close> \<open>
 structure C_Ast =
+
 struct
+
 type class_Pos = Position.T * Position.T
 (**)
 type NodeInfo = C_Ast.nodeInfo
@@ -582,18 +584,45 @@ fun toString_cIntFlag  (X:C_Ast.cIntFlag)    = @{make_string} X
                                              
 fun toString_cIntRepr  (X:C_Ast.cIntRepr)    = @{make_string} X
 
+
+val encode_positions =
+    let fun conv ({line = line,
+                   offset = offset, 
+                   end_offset = end_offset,
+                   props = {file = file, id = id, label = label}} : Thread_Position.T) 
+                 = ((line, offset, end_offset), (file,id,label)) 
+    in  map (Position.dest #> conv)
+        #> let open XML.Encode in list (pair (triple int int int) (triple string string string)) end
+        #> YXML.string_of_body
+    end
+
+(* was in Isabelle21-1 : Not sure if I captured the idea behind "properties" correctly.
 val encode_positions =
      map (Position.dest
        #> (fn pos => ((#line pos, #offset pos, #end_offset pos), #props pos)))
   #> let open XML.Encode in list (pair (triple int int int) properties) end
   #> YXML.string_of_body
-  
+*)
+
+val decode_positions =
+    let fun conv ((line, offset, end_offset), (file,id,label)) = 
+            {line = line, offset = offset, end_offset = end_offset, 
+             props = {file = file, id = id, label = label}}
+    in  YXML.parse_body
+        #> let open XML.Decode in list (pair (triple int int int) (triple string string string)) end
+        #> map (conv #> Position.make)
+    end
+
+(* was in Isabelle21-1:
 val decode_positions =
      YXML.parse_body
   #> let open XML.Decode in list (pair (triple int int int) properties) end
   #> map ((fn ((line, offset, end_offset), props) =>
            {line = line, offset = offset, end_offset = end_offset, props = props})
           #> Position.make)
+
+
+ *)
 
 fun dark_matter x = XML.content_of (YXML.parse_body x)
 

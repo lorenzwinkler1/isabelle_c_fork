@@ -138,7 +138,7 @@ val _ =
                            end)
                          (these (Symtab.lookup (Directive_include.get (#context env_tree))
                                                (String.concat
-                                                 (maps (fn C_Scan.Left s => [s] | _ => []) file))))
+                                                 (maps (fn C_Scan.Left (s,_) => [s] | _ => []) file))))
                          (env_lang, env_tree)
                in
                  case tok of
@@ -532,7 +532,7 @@ declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "expression"]]
 ML\<open>
 val src = \<open>a + d\<close>;
 val ctxt = (Context.Theory @{theory});
-val ctxt' = C_Module.C' @{C\<^sub>e\<^sub>n\<^sub>v} src ctxt;
+val ctxt' = C_Module.C' (SOME @{C\<^sub>e\<^sub>n\<^sub>v}) src ctxt;
 val tt  = Context.the_theory ctxt';
 (*get_CExpr (Context.the_theory ctxt');
 C_Module.Data_In_Env.get ctxt' *)

@@ -83,13 +83,13 @@ setup \<open>ML_Antiquotation.inline @{binding print_top'}
                                (Args.context
                                 >> K ("print_top' " ^ ML_Pretty.make_string_fn ^ " I"))\<close>
 setup \<open>ML_Antiquotation.inline @{binding print_stack}
-                               (Scan.peek (fn _ => Scan.option Args.text)
+                               (Scan.peek (fn _ => Scan.option Parse.embedded)
                                 >> (fn name => ("print_stack "
                                                 ^ (case name of NONE => "NONE"
                                                               | SOME s => "(SOME \"" ^ s ^ "\")")
                                                 ^ " " ^ ML_Pretty.make_string_fn)))\<close>
 setup \<open>ML_Antiquotation.inline @{binding print_stack'}
-                               (Scan.peek (fn _ => Scan.option Args.text)
+                               (Scan.peek (fn _ => Scan.option Parse.embedded)
                                 >> (fn name => ("print_stack' "
                                                 ^ (case name of NONE => "NONE"
                                                               | SOME s => "(SOME \"" ^ s ^ "\")")
@@ -268,6 +268,32 @@ int b,c,d/*@@ \<approx>setup\<Down> \<open>fn s => fn x => fn env => @{print_top
                                                 #> add_ex "evaluation of " "5_print_top"\<close> */
 \<close>
 
+
+subsection \<open>Out of Bound Evaluation for Annotations\<close>
+
+C \<comment> \<open>Bottom-up and top-down + internal initial value\<close> \<open>
+int a = 0 ;
+int     /*@ @    ML \<open>writeln "2"\<close>
+            @@@  ML \<open>writeln "4"\<close>
+            +@   ML \<open>writeln "3"\<close>
+(*            +++@ ML \<open>writeln "6"\<close>*)
+                 ML\<Down>\<open>writeln "1"\<close>  */
+//    a d /*@ @    ML \<open>writeln "5"\<close>  */;
+int a;
+\<close>
+
+C \<comment> \<open>Ordering of consecutive commands\<close> \<open>
+int a = 0  /*@ ML\<open>writeln "1"\<close> */;
+int        /*@ @@@@@ML\<open>writeln "5" \<close> @@@ML\<open>writeln "4" \<close> @@ML\<open>writeln "2" \<close> */
+           /*@ @@@@@ML\<open>writeln "5'"\<close> @@@ML\<open>writeln "4'"\<close> @@ML\<open>writeln "2'"\<close> */
+    a = 0;
+int d = 0; /*@ ML\<open>writeln "3"\<close> */
+\<close>
+
+C \<comment> \<open>Maximum depth reached\<close> \<open>
+int a = 0 /*@ ++@@@@ML\<open>writeln "2"\<close>
+              ++@@@ ML\<open>writeln "1"\<close> */;
+\<close>
 section \<open>Reporting of Positions and Contextual Update of Environment\<close>
 
 text \<open>
@@ -344,8 +370,8 @@ subsection \<open>Continuation Calculus with the C Environment: Presentation in 
 declare [[C_parser_trace = false]]
 
 ML\<open>
-val C  = C_Module.C
-val C' = C_Module.C'
+val C  = C_Module.C 
+val C' = C_Module.C' o SOME
 \<close>
 
 C \<comment> \<open>Nesting C code without propagating the C environment\<close> \<open>
@@ -859,8 +885,10 @@ a a /*#include <>*/ // must not be considered as a directive
 C \<comment> \<open>Universal character names in identifiers and Isabelle symbols\<close> \<open>
 #include <stdio.h>
 int main () {
-  char * ó\<^url>ò = "ó\<^url>ò";
-  printf ("%s", ó\<^url>ò);
+  char * _ = "\x00001";
+  char * \<not>\<dagger>_\<not>\<dagger> = "\<not>\<dagger>";
+  char * \<surd>\<ge>\<^url>\<surd>\<le> = "\<surd>\<ge>\<^url>\<surd>\<le>";
+  printf ("%s %s", \<surd>\<ge>\<^url>\<surd>\<le>, _\<not>\<dagger>);
 }
 \<close>
 
@@ -894,5 +922,7 @@ ML\<open>val _ = @{term \<open>3::nat\<close>}\<close>
 ML\<open> ML_Antiquotation.inline_embedded;
 \<close>
 (* and from where do I get the result ? *)
+
+declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 
 end
