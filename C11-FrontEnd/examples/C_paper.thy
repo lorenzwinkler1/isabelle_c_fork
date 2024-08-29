@@ -49,7 +49,7 @@ ML\<open>
 val _ = Theory.setup
           (C_Inner_Syntax.command C_Inner_Isar_Cmd.setup' C_Parse.ML_source ("\<simeq>setup", \<^here>, \<^here>))
 
-val C' = C_Module.C'
+val C' = C_Module.C' o SOME
 
 fun C opt = case opt of NONE => C' (C_Module.env (Context.the_generic_context ()))
                       | SOME env => C' env

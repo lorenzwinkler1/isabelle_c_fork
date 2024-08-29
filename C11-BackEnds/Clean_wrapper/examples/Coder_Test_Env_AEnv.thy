@@ -40,7 +40,7 @@ fun print_env' s _ stack _ env thy =
 
 ML\<open>open Position\<close>
 setup \<open>ML_Antiquotation.inline @{binding print_env'}
-                               (Scan.peek (fn _ => Scan.option Args.text)
+                               (Scan.peek (fn _ => Scan.option Parse.embedded)
                                 >> (fn name => ("print_env' "
                                                 ^ (case name of NONE => "NONE"
                                                               | SOME s => "(SOME \"" ^ s ^ "\")")

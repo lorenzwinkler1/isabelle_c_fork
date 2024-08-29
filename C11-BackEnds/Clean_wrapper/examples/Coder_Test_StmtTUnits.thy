@@ -716,7 +716,6 @@ val [body] =  (C11_Ast_Lib.fold_cStatement
 \<close>
 
 
-ML\<open>XXX\<close>
 ML\<open>
 open C_AbsEnv;
 val Identifier(name, pos, ret_typ, _) = hd identifiers;
