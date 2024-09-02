@@ -604,13 +604,15 @@ val encode_positions =
   #> YXML.string_of_body
 *)
 
-val decode_positions =
-    let fun conv ((line, offset, end_offset), (file,id,label)) = 
+val decode_positions=
+    let 
+        fun snd ((a,b)) = b
+        fun conv ((line, offset, end_offset), properties) = 
             {line = line, offset = offset, end_offset = end_offset, 
-             props = {file = file, id = id, label = label}}
-    in  YXML.parse_body
-        #> let open XML.Decode in list (pair (triple int int int) (triple string string string)) end
-        #> map (conv #> Position.make)
+             props = {id=snd(hd properties), label="", file=""}}
+    in  (YXML.parse_body
+        #> let open XML.Decode in list (pair (triple int int int) (properties)) end
+        #> map (conv #> Position.make))
     end
 
 (* was in Isabelle21-1:
@@ -662,7 +664,7 @@ fun  toString_abr_string (C_Ast.SS_base (C_Ast.ST txt))   = txt
       | toString_abr_string (C_Ast.String_concatWith (a,S) ) = 
                   String.concatWith (toString_abr_string a) (map toString_abr_string S) 
 
-fun toPos_positiona (C_Ast.Position0(i, str,j,k)) =  decode_positions(toString_abr_string str)
+fun toPos_positiona (C_Ast.Position0(i, str,j,k)) = decode_positions(toString_abr_string str)
      | toPos_positiona C_Ast.NoPosition0  = []
      | toPos_positiona C_Ast.BuiltinPosition0 = []
      | toPos_positiona C_Ast.InternalPosition0 = []
