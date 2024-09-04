@@ -63,7 +63,8 @@ signature C_ENV =
 
     type markup_ident = {global         : markup_global,
                          params         : C_Ast.CDerivedDeclr list, 
-                         ret            : C_Ast.CDeclSpec list parse_status}
+                         ret            : C_Ast.CDeclSpec list parse_status,
+                         functionArgs   : ((string*(C_Ast.NodeInfo C_Ast.cDeclaration)) list) C_Ast.optiona}
     type 'a markup_store = Position.T list * serial * 'a
 
     type var_table =    {idents         : markup_ident markup_store Symtab.table,
@@ -204,7 +205,8 @@ type markup_global = bool (*true: global*)
 
 type markup_ident = { global : markup_global
                     , params : C_Ast.CDerivedDeclr list
-                    , ret : C_Ast.CDeclSpec list parse_status }
+                    , ret : C_Ast.CDeclSpec list parse_status 
+                    , functionArgs   : ((string*(C_Ast.NodeInfo C_Ast.cDeclaration)) list) C_Ast.optiona}
 
 type var_table = { tyidents : markup_global markup_store Symtab.table (*ident name*)
                                                                       Symtab.table (*internal

@@ -251,6 +251,7 @@ sig
   val ident_of_decl : (Ident list, CDecl list * bool) C_Ast.either ->
                       (Ident * CDerivedDeclr list * CDeclSpec list) list
   val doFuncParamDeclIdent : CDeclr -> unit monad
+  val extractFunctionArgs: 'a C_Ast.cDerivedDeclarator list -> ((string * 'a C_Ast.cDeclaration) list) C_Ast.optiona
 end
 
 structure C_Grammar_Rule_Lib : C_GRAMMAR_RULE_LIB =
@@ -322,7 +323,20 @@ struct
       #> (case typing of NONE => I | SOME x => cons x))
        (map (markup_init o Position.make_entity_markup {def = def} id varN o pair name) ps)
     end)
-
+  fun extractFunctionArgs ident =
+    let fun getVarName nameDecl = case nameDecl of Some (Ident0 (SS_base (ST name),_,_)) => name
+                                              | _ => "unknown"
+        fun getTypeSuffix potentialArrDeclaration = case potentialArrDeclaration of ((CArrDeclr0 (_,(CNoArrSize0 false),_)):: Rest) => "[]"^(getTypeSuffix ( Rest))
+                                                                                | ((CArrDeclr0 (_,(CArrSize0 _),_)):: Rest) => "[somesize]"^(getTypeSuffix ( Rest))
+                                                                                | ((CPtrDeclr0 _):: Rest) => "*"^(getTypeSuffix Rest)
+                                                                                | [] => ""
+                                                                                | _ => (writeln(@{make_string} potentialArrDeclaration);"unknown")
+        fun transformDeclaration decl =
+                  case decl of (CDecl0 ([CTypeSpec0 (typespec)],[((Some (CDeclr0 (nameIdent,potentialArrDeclarations,_,_,_)),_),_)],_)) => (getVarName nameIdent,decl)  
+    in
+    case ident of [CFunDeclr0 (Right (declarations,_),_,_)] => Some (map transformDeclaration declarations)
+                                               | _ => None
+    end
   fun markup_make' typing get_global desc report =
     markup_make
       typing
@@ -541,7 +555,7 @@ struct
     let val data = (pos, serial (), data0)
         val update_id = Symtab.update (name, data)
     in ( env_lang |> C_Env_Ext.map_tyidents'_typedef (Symtab.delete_safe name)
-                  |> C_Env_Ext.map_idents' update_id
+                  |> C_Env_Ext.map_idents' update_id (*In this line entries get added to the var table*)
        , update_id
        , env_tree
           |> C_Env.map_reports_text
@@ -556,7 +570,8 @@ struct
   fun shadowTypedef0'' ret global (Ident0 (_, i, node), params) =
     shadowTypedef0''' (ident_decode i)
                       [decode_error' node |> #1]
-                      {global = global, params = params, ret = ret}
+                      {global = global, params = params, ret = ret, functionArgs = extractFunctionArgs params
+}
   fun shadowTypedef0' ret global ident env_lang env_tree =
     let val (env_lang, _, env_tree) = shadowTypedef0'' ret global ident env_lang env_tree 
     in (env_lang, env_tree) end
@@ -580,7 +595,7 @@ struct
                    ident
                    env
   fun shadowTypedef (i, params, ret) env =
-    shadowTypedef0 (C_Env.Parsed ret) (List.null (C_Env_Ext.get_scopes env)) (K I) (i, params) env
+    shadowTypedef0 (C_Env.Parsed ret) (List.null (C_Env_Ext.get_scopes env)) (K I) (i, params) env (*This line is relevant. From here the parameters call origins*)
   fun isTypeIdent s0 = Symtab.exists (fn (s1, _) => s0 = s1) o C_Env_Ext.get_tyidents_typedef
   fun enterScope env =
     ((), C_Env_Ext.map_scopes (cons (NONE, C_Env_Ext.get_var_table env)) env)
@@ -588,7 +603,7 @@ struct
     case C_Env_Ext.get_scopes env of
       [] => error "leaveScope: already in global scope"
     | (_, var_table) :: scopes => ((), env |> C_Env_Ext.map_scopes (K scopes)
-                                           |> C_Env_Ext.map_var_table (K var_table))
+                                           |> C_Env_Ext.map_var_table (K var_table)) (*This line is responsible for scoped vars from the var_table (replacing it with I keeps the vars)*)
   val getCurrentPosition = return NoPosition
 
   (* Language.C.Parser.Tokens *)
@@ -764,7 +779,7 @@ struct
                       val pos = [decode_error' node |> #1]
                       val data = ( pos
                                  , serial ()
-                                 , {global = false, params = params, ret = C_Env.Parsed ret})
+                                 , {global = false, params = params, ret = C_Env.Parsed ret, functionArgs = extractFunctionArgs params})
                     in
                       ( env_lang |> Symtab.update (name, data)
                       , env_tree
@@ -947,7 +962,7 @@ val declarator1 : (CDeclrR) -> unit monad =
                       val pos = [decode_error' node |> #1]
                       val data = ( pos
                                  , serial ()
-                                 , {global = false, params = params, ret = C_Env.Parsed ret})
+                                 , {global = false, params = params, ret = C_Env.Parsed ret, functionArgs = extractFunctionArgs params})
                     in
                       ( env_lang |> Symtab.update (name, data)
                       , env_tree
