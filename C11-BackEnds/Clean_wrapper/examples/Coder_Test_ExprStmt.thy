@@ -357,6 +357,68 @@ ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 ML\<open> Sign.certify_term @{theory} S \<close>
 
+
+text\<open>Read global array\<close>
+C\<open>a = c[1][a];\<close>
+ML\<open>
+val ast_stmt = @{C11_CStat}
+val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
+\<close>
+
+ML\<open>
+val [S] =  (C11_Ast_Lib.fold_cStatement 
+               regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
+               (convertStmt false sigma_i A_env0 @{theory}) 
+                          \<comment> \<open>combinator handlicng an individual statement\<close>
+                ast_stmt  \<comment> \<open>C11 ast\<close>
+                []        \<comment> \<open>mt stack\<close>); 
+\<close>
+
+ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
+
+ML\<open> Sign.certify_term @{theory} S \<close>
+
+text\<open>Read local array\<close>
+C\<open>a = localArrArr[1][a];\<close>
+ML\<open>
+val ast_stmt = @{C11_CStat}
+val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
+\<close>
+
+ML\<open>
+val [S] =  (C11_Ast_Lib.fold_cStatement 
+               regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
+               (convertStmt false sigma_i A_env0 @{theory}) 
+                          \<comment> \<open>combinator handlicng an individual statement\<close>
+                ast_stmt  \<comment> \<open>C11 ast\<close>
+                []        \<comment> \<open>mt stack\<close>); 
+\<close>
+
+ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
+
+ML\<open> Sign.certify_term @{theory} S \<close>
+
+
+text\<open>mode complex array stuff\<close>
+C\<open>localArr[a] = localArrArr[1][b[c[1][2]]];\<close>
+ML\<open>
+val ast_stmt = @{C11_CStat}
+val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
+\<close>
+
+ML\<open>
+val [S] =  (C11_Ast_Lib.fold_cStatement 
+               regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
+               (convertStmt false sigma_i A_env0 @{theory}) 
+                          \<comment> \<open>combinator handlicng an individual statement\<close>
+                ast_stmt  \<comment> \<open>C11 ast\<close>
+                []        \<comment> \<open>mt stack\<close>); 
+\<close>
+
+ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
+
+ML\<open> Sign.certify_term @{theory} S \<close>
+
 (*2*****************************************************************************************************)
 
 (*if the body is empty, then we put a skip :*)
