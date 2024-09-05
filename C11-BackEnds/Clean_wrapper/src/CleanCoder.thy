@@ -240,7 +240,8 @@ translate integers in booleans. That's what term_to_bool t do.
                          ::c
                    end
      |"CIndex0" => (case c of 
-                     (idx::root::R) => let fun destListT (Type(@{type_name list},[t])) = t
+                     (idx::root::R) => let fun destListT arg =
+                                            case arg of (Type(@{type_name list},[t])) => t
                                            val idx_term = case fastype_of idx of
                                                             Type(@{type_name "nat"},[]) => idx
                                                           | Type(@{type_name "int"},[]) =>
@@ -335,29 +336,73 @@ fun convertStmt verbose sigma_i nEenv thy
 
      "CAssign0" => (case stack of
                       (rhs :: lhs ::  R) => 
-                          (let val long_id = (case lhs of
+                          (let 
+                               fun getLongId lhs  = (case lhs of
                                             Const(name, _) $ _ => name
                                           | _ $ _ $ Const(name, _) $ _ => name
                                           | Free (name, _) => name
+                                          | Const ("List.nth", _) $ lhs_candidat $ _ => (getLongId lhs_candidat)
                                           | _ => error("(convertStmt) CAssign0 does not recognise term: "
-                                                        ^(@{make_string} lhs)))
+                                                        ^(@{make_string} lhs)^"With stacK"^(@{make_string} stack)))
+                               val long_id = getLongId lhs
                                val (id, lid) = extract_ids long_id sigma_i
                                fun is_id (C_AbsEnv.Identifier(id_name, _, _, _)) = id_name = id
                                val C_AbsEnv.Identifier(id, _, ty, cat) = 
                                          case List.find is_id nEenv of SOME x  => x
                                              | _ => error("id not found: "^ long_id)
-                               val (id, lid) = (id ^ "_update", lid ^ "_update")
 
+                               
+                               fun mk_list_type ty = Type(@{type_name "list"}, [ty]) (* This is from "isa_termstypes.ML" *)
+                               fun mk_list_update_t ty = Const(@{const_name "List.list_update"}, (* This is from "isa_termstypes.ML" *)
+                                                    mk_list_type ty --> natT -->
+                                                                 ty --> mk_list_type ty)
+                               fun transform_rhs_list_assignment lhs_part value ty= 
+                                  case lhs_part of  Const ("List.nth", typedef) $ lhs_part1 $ idx_term => (
+                                      let 
+                                        
+                                        val lst_update_t =  mk_list_update_t ty
+                                        val updated = lst_update_t $ lhs_part1 $ idx_term $ value
+                                      in
+                                        transform_rhs_list_assignment lhs_part1 updated (listT ty)
+                                      end
+                                    )
+                                  | _ => value
+
+                               fun transform_lhs_for_rhs_transformation lhs_part final_term =
+                                     case lhs_part of Const ("List.nth", typedef) $ lhs_part1 $ idx_term => 
+                                                                       Const ("List.nth", typedef) $ (transform_lhs_for_rhs_transformation lhs_part1 final_term) $ idx_term
+                                                     | _ => final_term
+
+                               val access_term = case cat of  C_AbsEnv.Global  =>  (read_N_coerce thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i))
+                                                              |_ =>  Const(@{const_name "comp"}, 
+                                                                           (HOLogic.listT ty --> ty) 
+                                                                           --> (sigma_i --> HOLogic.listT ty) 
+                                                                           --> sigma_i --> ty) 
+                                                                      $ Const(@{const_name "hd"}, HOLogic.listT ty --> ty) 
+                                                                      $ read_N_coerce thy lid (sigma_i --> HOLogic.listT ty) 
+                                                                      $ Free("\<sigma>",sigma_i)
+                                              
+
+                               val lhs_tmp = transform_lhs_for_rhs_transformation lhs access_term
+
+                               fun get_base_type lhs ty = 
+                                  case lhs of Const ("List.nth", typedef) $ lhs_part1 $ idx_term => 
+                                                                       get_base_type lhs_part1 (dest_listTy ty)
+                                                     | _ => ((if (is_listTy ty) then warning "Assigning list of elements to variable. This is not possible in C, however supported by Clean" else ());ty)
+
+                               val new_rhs = transform_rhs_list_assignment lhs_tmp rhs (get_base_type lhs ty)
+
+                               val (id, lid) = (id ^ "_update", lid ^ "_update")
                            in case cat of
                                 C_AbsEnv.Global => (mk_assign_global_C 
-                                                       (read_N_coerce thy id 
-                                                           ((ty --> ty) --> sigma_i --> sigma_i))
-                                                       (lifted_term sigma_i rhs))::R
+                                                            (read_N_coerce thy id 
+                                                           ((ty --> ty) --> sigma_i --> sigma_i)))
+                                                       (lifted_term sigma_i new_rhs)::R
                               | C_AbsEnv.Parameter(_) => error "assignment to parameter not allowed in Clean"
                               | C_AbsEnv.Local(_) => (mk_assign_local_C 
                                                        (read_N_coerce thy lid 
                                                            ((listT ty --> listT ty) --> sigma_i --> sigma_i))
-                                                       (lifted_term sigma_i rhs) )::R
+                                                       (lifted_term sigma_i new_rhs) )::R
                               | s => error("(convertStmt) CAssign0 with cat " 
                                             ^ @{make_string} s ^ " is unrecognised")
                            end)

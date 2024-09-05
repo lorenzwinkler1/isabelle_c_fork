@@ -76,7 +76,6 @@ val S = (C11_Ast_Lib.fold_cExpression (K I)
                                       ast_expr []);
 val S = conv_Cexpr_lifted_term  sigma_i mt_A_env @{theory} ast_expr
 \<close>
-
 \<comment> \<open>pretty print of the latter\<close>
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
@@ -143,12 +142,26 @@ declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 C\<open>int a; int b[5];\<close>
 
+ML\<open>
+val X = Unsynchronized.ref (0)
+;
+X := !X + 1;
+!X;
+X := !X + 1;
+!X;
+
+@{make_string} (!X)
+\<close>
 (* to mimick the effect on the Clean side: *)
 global_vars (test)  (*intern label *)
             a     :: "int"
             b     :: "int list"
+            c     :: "int list list"
+            n1    :: "nat"
+            n2    :: "nat"
 
-
+    find_theorems a
+                                                                 
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "expression"]]
 C\<open>1 * a\<close>
 
@@ -158,7 +171,12 @@ ML\<open>val ast_expr = @{C11_CExpr}
 local open C_AbsEnv HOLogic in
 (* we construct suitable environments by hand for testing: *)
    val A_env0 = [ Identifier("a", @{here}, intT, Global),
-                  Identifier("b", @{here}, listT intT, Global)];
+                  Identifier("b", @{here}, listT intT, Global),
+                  Identifier("c", @{here}, listT (listT intT), Global),
+                  Identifier("n1", @{here}, natT, Global),
+                  Identifier("n2", @{here}, natT, Global),
+                  Identifier("localArr", @{here}, listT intT, Local "to some function"),
+                  Identifier("localArrArr", @{here}, listT (listT intT), Local "to some function")];
    val A_env2 = [ Identifier("a", @{here}, intT, Parameter "of some function")];
 
    val sigma_i = StateMgt.get_state_type_global @{theory}
@@ -189,6 +207,8 @@ ML\<open> Sign.certify_term @{theory} S \<close>
 local_vars_test  (test_return "int")
     x  :: "int"
     y  :: "int list"
+    localArr :: "int list"
+    localArrArr :: "int list list"
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 C\<open>int x; int y[3];\<close>
@@ -246,7 +266,7 @@ ML\<open>val ast_expr = @{C11_CExpr}
 ML\<open>
 
 val S = (C11_Ast_Lib.fold_cExpression (K I) 
-                                      (convertExpr false sigma_i  A_env0 @{theory}) 
+                                      (convertExpr true sigma_i  A_env0 @{theory}) 
                                       ast_expr []);
 val S = conv_Cexpr_lifted_term  sigma_i A_env0 @{theory} ast_expr
 
@@ -292,6 +312,49 @@ val [S] =  (C11_Ast_Lib.fold_cStatement
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 \<comment> \<open>type-check of the latter\<close>
+ML\<open> Sign.certify_term @{theory} S \<close>
+
+
+text\<open>Write to array\<close>
+
+text\<open>Global\<close>
+C\<open>c[1][a] = a;\<close>
+ML\<open>
+val ast_stmt = @{C11_CStat}
+val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
+\<close>
+
+ML\<open>
+val [S] =  (C11_Ast_Lib.fold_cStatement 
+               regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
+               (convertStmt false sigma_i A_env0 @{theory}) 
+                          \<comment> \<open>combinator handlicng an individual statement\<close>
+                ast_stmt  \<comment> \<open>C11 ast\<close>
+                []        \<comment> \<open>mt stack\<close>); 
+\<close>
+
+ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
+
+ML\<open> Sign.certify_term @{theory} S \<close>
+
+text\<open>local\<close>
+C\<open>localArrArr[1][a] = a;\<close>
+ML\<open>
+val ast_stmt = @{C11_CStat}
+val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
+\<close>
+
+ML\<open>
+val [S] =  (C11_Ast_Lib.fold_cStatement 
+               regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
+               (convertStmt false sigma_i A_env0 @{theory}) 
+                          \<comment> \<open>combinator handlicng an individual statement\<close>
+                ast_stmt  \<comment> \<open>C11 ast\<close>
+                []        \<comment> \<open>mt stack\<close>); 
+\<close>
+
+ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
+
 ML\<open> Sign.certify_term @{theory} S \<close>
 
 (*2*****************************************************************************************************)
@@ -477,15 +540,51 @@ declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 
 C\<open>
-void foo(int xy) { }
+int a;
+void foo(int xy) {
+  int z = xy+2;
+  return z+1;
+}
+
+void foo1(int x){
+  x = foo(x);
+  return x;
+}
+\<close>
+
+ML\<open>
+val cenv = @{C\<^sub>e\<^sub>n\<^sub>v}
 \<close>
 
 ML\<open>
 local open C_AbsEnv in
+(* val translUnit = @{C11_CTranslUnit} *)
 val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
 val () = List.app printIdentifier nEnv
-val ast_stmt = extractStatement nEnv "foo";
+val ast_stmt = extractStatement nEnv "foo"
 end\<close>
+
+C\<open>
+void test1(int abc, int def) {
+  return abc;
+}
+
+void test2(){
+  return 12;
+}
+\<close>
+
+C\<open>
+void test3(char ab[][], int* *c, int *d){
+
+  return 12;
+}
+\<close>
+
+
+ML\<open>
+val cenv = @{C\<^sub>e\<^sub>n\<^sub>v}
+\<close>
 
 term\<open>skip\<^sub>S\<^sub>E\<close>
 ML\<open>StateMgt.MON_SE_T HOLogic.unitT sigma_i\<close>

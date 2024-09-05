@@ -69,7 +69,10 @@ end\<close>
    function definition of `identity` *)
 local_vars_test  (identity "int")
     z  :: "int"
-ML\<open>val sigma_i = StateMgt.get_state_type_global @{theory}\<close>
+ML\<open>val sigma_i = StateMgt.get_state_type_global @{theory}
+
+val Type(ty_name, _) = sigma_i
+\<close>
 
 C\<open>int identity(int a) {
   return a;
@@ -98,6 +101,8 @@ val [S] =  (C11_Ast_Lib.fold_cStatement
               (convertStmt false sigma_i nEnv @{theory} )
               ast_stmt []);
 \<close>
+
+ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 ML\<open>
 (* We create an abstraction over the term: iterate backwards using the param list *)
@@ -150,7 +155,7 @@ val [S] =  (C11_Ast_Lib.fold_cStatement
 \<close>
 
 ML\<open>
-val final_term = mk_final_term identifiers "add" S
+val final_term = mk_final_term nEnv "add" S
 \<close>
 
 ML\<open>
@@ -326,8 +331,10 @@ ML\<open>val init_idents = parse_state_field_tab @{theory}\<close>
 
 C\<open>
 int bar(int a, int b) {
+  int d;
   c = 0;
   return 0;
+  
 }
 \<close>
 
@@ -336,6 +343,8 @@ local open C_AbsEnv in
 val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} init_idents Symtab.empty
 val () = List.app printIdentifier nEnv
 val ast_stmt = extractStatement nEnv "bar";
+
+val env = @{C\<^sub>e\<^sub>n\<^sub>v}
 end
 \<close>
 

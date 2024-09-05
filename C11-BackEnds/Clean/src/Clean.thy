@@ -591,6 +591,9 @@ fun mk_Some t = let val some = \<^const_name>\<open>Option.option.Some\<close>
 
 fun dest_listTy (Type(\<^type_name>\<open>List.list\<close>, [T])) = T;
 
+fun is_listTy t = case t of (Type(\<^type_name>\<open>List.list\<close>, [T])) => true
+                        | _ => false
+
 fun mk_hdT t = let val ty = fastype_of t 
                in  Const(\<^const_name>\<open>List.hd\<close>, ty --> (dest_listTy ty)) $ t end
 
