@@ -159,12 +159,10 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
                       | C_AbsEnv.Parameter(_) => Free (id, ty) :: c
                       | C_AbsEnv.FunctionCategory(C_AbsEnv.MutuallyRecursive(_), _) =>
                                 error("Mutual recursion is not supported in Clean")
-                      | C_AbsEnv.FunctionCategory(C_AbsEnv.Final, _) => 
+                      | C_AbsEnv.FunctionCategory(_, _) => 
                             let val Const(id, ty) = Syntax.read_term_global thy id
                                 val args = firstype_of ty
-                                val mty = StateMgt_core.MON_SE_T @{typ "unit"} sigma_i
-                            in Const(id, args --> mty) :: c end
-                              
+                            in Const(id, ty) :: c end
                       | c => error("(convertExpr) unrecognised category : " ^ @{make_string} c)
                     end)
      |"Vars0" => c
@@ -336,7 +334,13 @@ fun convertStmt verbose sigma_i nEenv thy
 
      "CAssign0" => (case stack of
                       (rhs :: lhs ::  R) => 
-                          (let 
+                          (writeln("RHS:"^(@{make_string} rhs));(let 
+                               val tempvarn = "tmpvar"
+                               val tempvart = @{typ "int"}
+                               val is_fun_assignment = (case rhs of  Const (@{const_name "Clean.call\<^sub>C"},_) $_ $_ => true
+                                                                         | _ => false)
+                               val rhs_old = rhs
+                               val rhs = (if is_fun_assignment then Free (tempvarn, tempvart) else rhs)
                                fun getLongId lhs  = (case lhs of
                                             Const(name, _) $ _ => name
                                           | _ $ _ $ Const(name, _) $ _ => name
@@ -369,8 +373,8 @@ fun convertStmt verbose sigma_i nEenv thy
                                   | _ => value
 
                                fun transform_lhs_for_rhs_transformation lhs_part final_term =
-                                     case lhs_part of Const ("List.nth", typedef) $ lhs_part1 $ idx_term => 
-                                                                       Const ("List.nth", typedef) $ (transform_lhs_for_rhs_transformation lhs_part1 final_term) $ idx_term
+                                     case lhs_part of Const (@{const_name "nth"}, typedef) $ lhs_part1 $ idx_term => 
+                                                                       Const (@{const_name "nth"}, typedef) $ (transform_lhs_for_rhs_transformation lhs_part1 final_term) $ idx_term
                                                      | _ => final_term
 
                                val access_term = case cat of  C_AbsEnv.Global  =>  (read_N_coerce thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i))
@@ -393,19 +397,30 @@ fun convertStmt verbose sigma_i nEenv thy
                                val new_rhs = transform_rhs_list_assignment lhs_tmp rhs (get_base_type lhs ty)
 
                                val (id, lid) = (id ^ "_update", lid ^ "_update")
+
+
                            in case cat of
-                                C_AbsEnv.Global => (mk_assign_global_C 
+                                C_AbsEnv.Global => (if is_fun_assignment then ( mk_seq_assign_C rhs_old (((mk_assign_global_C 
                                                             (read_N_coerce thy id 
                                                            ((ty --> ty) --> sigma_i --> sigma_i)))
-                                                       (lifted_term sigma_i new_rhs)::R
+                                                       (lifted_term sigma_i new_rhs))) tempvarn tempvart) 
+                                                     else (
+                                                        ((mk_assign_global_C 
+                                                            (read_N_coerce thy id 
+                                                           ((ty --> ty) --> sigma_i --> sigma_i)))
+                                                       (lifted_term sigma_i new_rhs))))::R
                               | C_AbsEnv.Parameter(_) => error "assignment to parameter not allowed in Clean"
-                              | C_AbsEnv.Local(_) => (mk_assign_local_C 
+                              | C_AbsEnv.Local(_) => (if is_fun_assignment then (mk_seq_assign_C rhs_old (mk_assign_local_C 
                                                        (read_N_coerce thy lid 
                                                            ((listT ty --> listT ty) --> sigma_i --> sigma_i))
-                                                       (lifted_term sigma_i new_rhs) )::R
+                                                       (lifted_term sigma_i new_rhs) ) tempvarn tempvart)
+                                                      else ((mk_assign_local_C 
+                                                       (read_N_coerce thy lid 
+                                                           ((listT ty --> listT ty) --> sigma_i --> sigma_i))
+                                                       (lifted_term sigma_i new_rhs) )))::R
                               | s => error("(convertStmt) CAssign0 with cat " 
                                             ^ @{make_string} s ^ " is unrecognised")
-                           end)
+                           end))
                       |_ => raise WrongFormat("assign"))
      (*statements*)
 (*for return, skip and break, we have makers except that they need types and terms that i didn't 
@@ -454,17 +469,8 @@ for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
                                                 then (args, Const(id, ty), R) 
                                                 else extract_fun_args R (Const(id, ty) :: args)
                             | arg => extract_fun_args R (arg :: args)
-                        fun extract_type_list (arg :: args) =
-                            (case arg of
-                              (* should be expanded for the 3 term representations of variables... *)
-                              Free(_, ty) => ty :: extract_type_list args)
-                          | extract_type_list [] = []
-                        (* should be expanded for variable number of args... *)
-                        fun mk_cross_prod_args [a, b] = Const (@{const_name "Pair"}, 
-                                                               a --> b --> mk_prodT (a, b))
                         val (args, f, R) = extract_fun_args stack []
-                        val cross_prod_args = mk_cross_prod_args (extract_type_list args)
-                        val fun_args_term = list_comb (cross_prod_args, args)
+                        val fun_args_term = mk_tuple args
                        in mk_call_C f (lifted_term sigma_i fun_args_term) :: R end)
      | _ => convertExpr verbose sigma_i nEenv thy  a b stack )
 

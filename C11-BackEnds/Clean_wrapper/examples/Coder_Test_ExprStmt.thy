@@ -159,6 +159,8 @@ global_vars (test)  (*intern label *)
             c     :: "int list list"
             n1    :: "nat"
             n2    :: "nat"
+            var1  :: "int"
+            var2  :: "int"
 
     find_theorems a
                                                                  
@@ -214,6 +216,8 @@ declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 C\<open>int x; int y[3];\<close>
 
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "expression"]]
+term\<open>result_value\<close>
+find_theorems result_value
 
 C\<open>1 * x\<close>
 ML\<open>val ast_expr = @{C11_CExpr}
@@ -419,6 +423,8 @@ ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 ML\<open> Sign.certify_term @{theory} S \<close>
 
+
+
 (*2*****************************************************************************************************)
 
 (*if the body is empty, then we put a skip :*)
@@ -602,14 +608,20 @@ declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 
 C\<open>
+int var1;
+int var2;
 int a;
+int b[];
 void foo(int xy) {
   int z = xy+2;
   return z+1;
 }
 
-void foo1(int x){
+void three_args_function(int x, int y, int z){
   x = foo(x);
+}
+
+int fun_with_ret_value(int x){
   return x;
 }
 \<close>
@@ -640,6 +652,7 @@ C\<open>
 void test3(char ab[][], int* *c, int *d){
 
   return 12;
+
 }
 \<close>
 
@@ -668,11 +681,75 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt true sigma_i nEnv @{theory}) 
+               (convertStmt false sigma_i nEnv @{theory}) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 foo_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
 \<close>
+
+ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
+
+ML\<open>Sign.certify_term @{theory} S\<close>
+
+subsection\<open>Call with no return type\<close>
+(*Methods call only with sideeffects*)
+consts three_args_function :: "(int * int * int) \<Rightarrow> (unit,'a local_test_return_state_scheme)MON\<^sub>S\<^sub>E "
+C\<open>three_args_function(3+3,4,8);\<close>
+ML\<open>
+val ast_stmt = @{C11_CStat}
+val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
+\<close>
+
+ML\<open>
+val [S] =  (C11_Ast_Lib.fold_cStatement 
+               regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
+               (convertStmt false sigma_i nEnv @{theory}) 
+                          \<comment> \<open>combinator handlicng an individual statement\<close>
+                ast_stmt  \<comment> \<open>C11 ast\<close>
+                []        \<comment> \<open>mt stack\<close>); 
+
+
+\<close>
+term assign_to_a
+
+ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
+
+ML\<open>Sign.certify_term @{theory} S\<close>
+
+subsection\<open>Call with return type\<close>
+consts fun_with_ret_value :: "(int) \<Rightarrow> (int,'a local_test_return_state_scheme)MON\<^sub>S\<^sub>E "
+
+C\<open>var1=fun_with_ret_value(3+3);\<close>
+ML\<open>
+val ast_stmt = @{C11_CStat}
+val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
+\<close>
+
+ML\<open>
+(* build the new env with local vars for test purposes *)
+local open C_AbsEnv HOLogic in
+val localVarEnv = [
+                  Identifier("x", @{here}, intT, Local "to some function"),
+                  Identifier("localArr", @{here}, listT intT, Local "to some function"),
+                  Identifier("localArrArr", @{here}, listT (listT intT), Local "to some function")
+]
+end
+val nEnv1 = nEnv@localVarEnv
+
+val [S] =  (C11_Ast_Lib.fold_cStatement 
+               regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
+               (convertStmt false sigma_i nEnv @{theory}) 
+                          \<comment> \<open>combinator handlicng an individual statement\<close>
+                ast_stmt  \<comment> \<open>C11 ast\<close>
+                []        \<comment> \<open>mt stack\<close>); 
+
+
+\<close>
+term assign_to_a
+
+ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
+
+ML\<open>Sign.certify_term @{theory} S\<close>
 
 section \<open>Experiments with Local Scopes\<close>
 
