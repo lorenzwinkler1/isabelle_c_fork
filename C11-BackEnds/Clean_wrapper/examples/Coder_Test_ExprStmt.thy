@@ -719,7 +719,7 @@ ML\<open>Sign.certify_term @{theory} S\<close>
 subsection\<open>Call with return type\<close>
 consts fun_with_ret_value :: "(int) \<Rightarrow> (int,'a local_test_return_state_scheme)MON\<^sub>S\<^sub>E "
 
-C\<open>var1=fun_with_ret_value(3+3);\<close>
+C\<open>localArr[0]=fun_with_ret_value(3+3);\<close>
 ML\<open>
 val ast_stmt = @{C11_CStat}
 val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
@@ -735,10 +735,12 @@ val localVarEnv = [
 ]
 end
 val nEnv1 = nEnv@localVarEnv
+\<close>
 
+ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt false sigma_i nEnv @{theory}) 
+               (convertStmt false sigma_i nEnv1 @{theory}) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
