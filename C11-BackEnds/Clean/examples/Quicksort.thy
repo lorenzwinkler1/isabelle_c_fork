@@ -88,6 +88,7 @@ section\<open>Clean Encoding of the Global State of Quicksort\<close>
 
 global_vars (state)
     A :: "int list"
+    B :: "int list list"
 
 function_spec swap (i::nat,j::nat) \<comment> \<open>TODO: the hovering on parameters produces a number of report equal to the number of \<^ML>\<open>Proof_Context.add_fixes\<close> called in \<^ML>\<open>Function_Specification_Parser.checkNsem_function_spec\<close>\<close>
 pre          "\<open>i < length A \<and> j < length A\<close>"    
@@ -97,6 +98,15 @@ defines      " \<open> tmp := A ! i\<close>  ;-
                \<open> A := list_update A i (A ! j)\<close> ;- 
                \<open> A := list_update A j tmp\<close> " 
 
+function_spec update_2d_array (i::nat,j::nat, val:: int) \<comment> \<open>TODO: the hovering on parameters produces a number of report equal to the number of \<^ML>\<open>Proof_Context.add_fixes\<close> called in \<^ML>\<open>Function_Specification_Parser.checkNsem_function_spec\<close>\<close>
+pre          "\<open>i < length A \<and> j < length A\<close>"    
+post         "\<open>\<lambda>res. length A = length(old A) \<and> res = ()\<close>" 
+local_vars   tmp :: int 
+defines      "
+               \<open> B :=  list_update B (i+1) (list_update (B!i) j val)\<close>" 
+
+find_theorems update_2d_array
+find_theorems update_2d_array_core
 
 function_spec partition (lo::nat, hi::nat) returns nat
 pre          "\<open>lo < length A \<and> hi < length A\<close>"    
@@ -115,6 +125,9 @@ defines      " \<open>pivot := A ! hi \<close>  ;- \<open>i := lo \<close> ;- \<
                 od;-
                 call\<^sub>C swap \<open>(i, j)\<close>  ;-
                 return\<^bsub>local_partition_state.result_value_update\<^esub> \<open>i\<close>" 
+
+find_theorems partition
+term partition
 
 thm partition_core_def
 
@@ -136,6 +149,10 @@ thm quicksort_core_def
 thm quicksort_def
 thm quicksort_pre_def
 thm quicksort_post_def
+
+find_theorems quicksort_core
+
+
 
 section\<open>Possible Application Sketch\<close>
 

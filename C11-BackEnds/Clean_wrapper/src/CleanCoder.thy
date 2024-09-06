@@ -334,13 +334,7 @@ fun convertStmt verbose sigma_i nEenv thy
 
      "CAssign0" => (case stack of
                       (rhs :: lhs ::  R) => 
-                          (writeln("RHS:"^(@{make_string} rhs));(let 
-                               val tempvarn = "tmpvar"
-                               val tempvart = @{typ "int"}
-                               val is_fun_assignment = (case rhs of  Const (@{const_name "Clean.call\<^sub>C"},_) $_ $_ => true
-                                                                         | _ => false)
-                               val rhs_old = rhs
-                               val rhs = (if is_fun_assignment then Free (tempvarn, tempvart) else rhs)
+                          ((let 
                                fun getLongId lhs  = (case lhs of
                                             Const(name, _) $ _ => name
                                           | _ $ _ $ Const(name, _) $ _ => name
@@ -355,7 +349,16 @@ fun convertStmt verbose sigma_i nEenv thy
                                          case List.find is_id nEenv of SOME x  => x
                                              | _ => error("id not found: "^ long_id)
 
-                               
+                               fun get_base_type lhs ty = 
+                                  case lhs of Const ("List.nth", typedef) $ lhs_part1 $ idx_term => 
+                                                                       get_base_type lhs_part1 (dest_listTy ty)
+                                                     | _ => ((if (is_listTy ty) then warning "Assigning list of elements to variable. This is not possible in C, however supported by Clean" else ());ty)
+                               val tempvarn = "tmpvar"
+                               val is_fun_assignment = (case rhs of  Const (@{const_name "Clean.call\<^sub>C"},_) $_ $_ => true
+                                                                         | _ => false)
+                               val rhs_old = rhs
+                               val tempvart = (get_base_type lhs ty)
+                               val rhs = (if is_fun_assignment then Free (tempvarn, tempvart) else rhs)
                                fun mk_list_type ty = Type(@{type_name "list"}, [ty]) (* This is from "isa_termstypes.ML" *)
                                fun mk_list_update_t ty = Const(@{const_name "List.list_update"}, (* This is from "isa_termstypes.ML" *)
                                                     mk_list_type ty --> natT -->
@@ -389,15 +392,10 @@ fun convertStmt verbose sigma_i nEenv thy
 
                                val lhs_tmp = transform_lhs_for_rhs_transformation lhs access_term
 
-                               fun get_base_type lhs ty = 
-                                  case lhs of Const ("List.nth", typedef) $ lhs_part1 $ idx_term => 
-                                                                       get_base_type lhs_part1 (dest_listTy ty)
-                                                     | _ => ((if (is_listTy ty) then warning "Assigning list of elements to variable. This is not possible in C, however supported by Clean" else ());ty)
-
                                val new_rhs = transform_rhs_list_assignment lhs_tmp rhs (get_base_type lhs ty)
 
                                val (id, lid) = (id ^ "_update", lid ^ "_update")
-
+                               
 
                            in case cat of
                                 C_AbsEnv.Global => (if is_fun_assignment then ( mk_seq_assign_C rhs_old (((mk_assign_global_C 

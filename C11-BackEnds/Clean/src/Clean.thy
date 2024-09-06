@@ -1413,7 +1413,9 @@ fun mk_seq_C C C' = let val t = fastype_of C
 fun mk_seq_assign_C rhs lhs varname vartyp= let
                     val t1 = fastype_of rhs
                     val t2 = fastype_of lhs
-                in Const(\<^const_name>\<open>bind_SE\<close>, t1 --> (vartyp --> t2) --> t2 ) $ rhs $ (Abs (varname,vartyp, lhs)) end;
+                    val abstractedTerm = Term.abstract_over ((Free (varname, vartyp)),lhs)
+                    val lambdaExpr = (Abs (varname,vartyp, abstractedTerm))
+                in Const(\<^const_name>\<open>bind_SE\<close>, t1 --> (vartyp --> t2) --> t2 ) $ rhs $ lambdaExpr end;
 
 fun mk_skip_C sty = Const(\<^const_name>\<open>skip\<^sub>S\<^sub>E\<close>, StateMgt_core.MON_SE_T HOLogic.unitT sty)
 

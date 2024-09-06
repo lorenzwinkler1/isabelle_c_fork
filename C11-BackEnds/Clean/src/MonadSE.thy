@@ -69,7 +69,7 @@ syntax    (xsymbols)
           ("(2 _ \<leftarrow> _; _)" [5,8,8]8)
 translations 
           "x \<leftarrow> f; g" == "CONST bind_SE f (% x . g)"
-
+                                             
 definition unit_SE :: "'o \<Rightarrow> ('o, '\<sigma>)MON\<^sub>S\<^sub>E"   ("(result _)" 8) 
 where     "unit_SE e = (\<lambda>\<sigma>. Some(e,\<sigma>))"
 notation   unit_SE ("unit\<^sub>S\<^sub>E")
