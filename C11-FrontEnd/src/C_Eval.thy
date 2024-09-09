@@ -219,7 +219,8 @@ fun makeLexer ((stack, stack_ml, stack_pos, stack_tree), arg) =
         |> C_Hook.advance stack
         |> f
         |> (fn (arg, stack_ml) => rpair ((stack, stack_ml, stack_pos, stack_tree), arg))
-      fun return0 x = \<comment> \<open>Warning: \<open>C_Hook.advance\<close> must not be early evaluated here, as it might
+      fun return0 x = \<comment> \<open>Warning: \<open>C_Hook.advance\<close> must not be early evae
+luated here, as it might
                                    generate undesirable markup reporting (in annotation commands).\<close>
                       \<comment> \<open>Todo: Arrange \<open>C_Hook.advance\<close> as a pure function, so that the overall could
                                 be eta-simplified.\<close>

@@ -648,14 +648,64 @@ void test2(){
 }
 \<close>
 
-C\<open>
-void test3(char ab[][], int* *c, int *d){
+ML\<open>
+Theory.setup
+  (C_Inner_Syntax.command_no_range
+       (C_Inner_Toplevel.generic_theory oo C_Inner_Isar_Cmd.setup
+         \<open>fn ((v1, (v2, pos1, pos2)) :: _) =>
+              (fn v3 => fn v4 =>
+                tap (fn v5 =>
+                      Position.reports_text [((Position.range (pos1, pos2)
+                                               |> Position.range_position, Markup.intensify), "")]))
+           | _ => fn _ => fn _ => I\<close>)
+       ("store_env", \<^here>, \<^here>))
+\<close>
 
-  return 12;
+ML \<open>
+
+
+Theory.setup
+  (C_Inner_Syntax.command_no_range
+       (C_Inner_Toplevel.generic_theory oo C_Inner_Isar_Cmd.setup
+         \<open>fn ((v1, (v2, pos1, pos2)) :: _) =>
+              (fn v3 => fn v4 =>
+                tap (fn v5 =>
+                      (SPY_ENV := SOME (C_Module.env v5);Position.reports_text [((Position.range (pos1, pos2)
+                                               |> Position.range_position, Markup.intensify), "")])))
+           | _ => fn _ => fn _ => I\<close>)
+       ("store_env1", \<^here>, \<^here>))
+\<close>
+
+ML\<open>
+ 
+
+\<close>
+
+
+C\<open>
+void test5(){
+}\<close>
+
+ML\<open>
+val SPY_ENV =  Unsynchronized.ref(NONE:C_Env.env_lang option);\<close>
+C\<open>
+
+
+void test3(char ab[][], int* *c, int *d){
+  int aasdfwqer;
+  
+  return 12;   /*@ \<approx>setup \<open>fn _ => fn _ => fn env =>
+               ((SPY_ENV := SOME env);I) \<close> */;
 
 }
 \<close>
 
+ML\<open>
+
+val tmp1 = (map (fn (a,(_,_,b)) => (a,#scope b,#functionArgs b)) (Symtab.dest (
+ #idents(#var_table(the (!SPY_ENV))))
+))
+\<close>
 
 ML\<open>
 val cenv = @{C\<^sub>e\<^sub>n\<^sub>v}
@@ -675,7 +725,6 @@ ML\<open>
 local open C_AbsEnv in
 val foo_stmt = @{C11_CStat};
 end
-
 \<close>
 
 ML\<open>
