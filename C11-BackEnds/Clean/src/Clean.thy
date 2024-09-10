@@ -920,8 +920,8 @@ fun new_state_record0 add_record_cmd is_global_kind (aS, raw_fields) thy =
 val add_record_cmd    = add_record_cmd0 read_fields;
 val add_record_cmd'   = add_record_cmd0 pair;
 
-val new_state_record  = new_state_record0 add_record_cmd
-val new_state_record' = new_state_record0 add_record_cmd';
+val new_state_record =  new_state_record0 add_record_cmd;
+val new_state_record'=new_state_record0 add_record_cmd';
 
 
 fun clean_ctxt_parser b = Parse.$$$ "(" 

@@ -39,6 +39,7 @@ section \<open>Interface: Inner and Outer Commands\<close>
 
 theory C_Command
   imports C_Eval
+          "../../C11-BackEnds/Clean/src/Clean"
   keywords "C" :: thy_decl % "ML"
        and "C_file" :: thy_load % "ML"
        and "C_export_boot" :: thy_decl % "ML"
@@ -1307,6 +1308,7 @@ fun update_Root_Ast filter ast _ ctxt =
          NONE => (warning "No appropriate c11 ast found - store unchanged."; ctxt)
         |SOME _ => (Root_Ast_Store.map insert_K_ast) ctxt
     end;
+
 
 
 fun get_Root_Ast filter thy =
