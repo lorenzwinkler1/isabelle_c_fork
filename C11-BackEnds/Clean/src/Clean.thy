@@ -894,7 +894,7 @@ fun typ_2_string_raw (Type(s,[TFree _])) = if String.isSuffix "_scheme" s
 fun new_state_record0 add_record_cmd is_global_kind (aS, raw_fields) thy =
     let val state_index = (Int.toString o length o Symtab.dest)
                                 (StateMgt_core.get_state_field_tab_global thy)
-        val state_pos = (Binding.pos_of o #1 o hd) raw_fields
+        val state_pos = (Binding.pos_of o #1 o hd) raw_fields (*This hd is probably the reason why we cant have empty local vars*)
         val ((raw_params, binding), res_ty) = case aS of 
                                                 SOME d => d
                                               | NONE => (([], Binding.make(state_index,state_pos)), NONE)

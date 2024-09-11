@@ -5,6 +5,27 @@ ML\<open>
 (*This is an override for the update_Root_Ast function that is registered in C_Command.*)
 
 
+fun declare_function idents name ast ctxt =
+   let  
+        val _ = writeln(@{make_string}ast)
+        fun get_translated_fun_bdy ctx _ = let 
+              val _ = writeln("TRACE 1.1: ")
+              val v = ((C11_Ast_Lib.fold_cStatement 
+              C11_Stmt_2_Clean.regroup 
+              (C11_Stmt_2_Clean.convertStmt true (StateMgt.get_state_type ctx) idents (Proof_Context.theory_of ctx))
+              ast []))
+              in (writeln("AA"^(@{make_string} v)));hd v end
+
+        val test_function_sem = {binding = Binding.name name,
+                                 locals = [(Binding.name "localvar1","int", NoSyn)], (*There needs to be at least one local variable*)
+                                 params = [(Binding.name "param1","int"),(Binding.name "param2","int")],
+                                 ret_type = "int",
+                                 read_pre = fn ctx => Abs ("\<sigma>",(StateMgt.get_state_type ctx), @{term True}),
+                                 read_post = fn ctx => Abs ("\<sigma>",(StateMgt.get_state_type ctx), Abs ("ret",@{typ int}, @{term True})),
+                                 read_variant_opt = NONE,
+                                 read_body = get_translated_fun_bdy}
+        val decl = Function_Specification_Parser.checkNsem_function_spec_gen {recursive = false} test_function_sem
+    in decl end
 
 fun handle_declarations translUnit ctxt =
      (let
@@ -22,30 +43,15 @@ fun handle_declarations translUnit ctxt =
         val global_declaration =get_declaration true
              (map_idents (List.filter (fn C_AbsEnv.Identifier(_,_,_,vis) => vis = C_AbsEnv.Global) identifiers))
         
+        val fun_asts = 
+              List.map (fn C_AbsEnv.Identifier(name,_,_,C_AbsEnv.FunctionCategory ast) => case snd ast of SOME value => (name,value)) (
+              List.filter (fn a => case a of C_AbsEnv.Identifier(_,_,_,C_AbsEnv.FunctionCategory _) => true | _ => false) identifiers)
 
-        val fun_identifier = C_AbsEnv.extractStatement identifiers "testfunction"
+        val function_declarations = List.map (fn (name,ast) => declare_function identifiers name ast ctxt) fun_asts
 
-        val sigma_ty = StateMgt.get_state_type
-
-        fun get_translated_fun_bdy ctx _ = let 
-              val _ = writeln("TRACE 1.1: "^(@{make_string} (sigma_ty ctx)))
-              val v = ((C11_Ast_Lib.fold_cStatement 
-              C11_Stmt_2_Clean.regroup 
-              (C11_Stmt_2_Clean.convertStmt true (sigma_ty ctx) identifiers (Proof_Context.theory_of ctx))
-              fun_identifier []))
-              in (writeln("AA"^(@{make_string} v)));hd v end
-
-        val test_function_sem = {binding = Binding.name "testfunction",
-                                 locals = [(Binding.name "localvar1","int", NoSyn)],
-                                 params = [(Binding.name "param1","int"),(Binding.name "param2","int")],
-                                 ret_type = "int",
-                                 read_pre = fn ctx => Abs ("\<sigma>",(sigma_ty ctx), @{term True}),
-                                 read_post = fn ctx => Abs ("\<sigma>",(sigma_ty ctx), Abs ("ret",@{typ int}, @{term True})),
-                                 read_variant_opt = NONE,
-                                 read_body = get_translated_fun_bdy}
-        val test_function_decl = Function_Specification_Parser.checkNsem_function_spec_gen {recursive = false} test_function_sem
+        val function_decl = fold (fn f => fn acc => f acc) function_declarations
     in
-     Context.map_theory (test_function_decl o global_declaration) ctxt
+     Context.map_theory (function_decl o global_declaration) ctxt
     end);
 \<close>
 ML\<open>
@@ -68,8 +74,8 @@ declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 
 C\<open>
 int a;
-int testfunction(){
-  return 1;
+int testfunction(int param1, int param2){
+  return a;
 }
 \<close>
 
@@ -83,12 +89,13 @@ val ast = @{C11_CTranslUnit}
 ML\<open>
 val env = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>
 
-find_theorems testfunction_core
 
-
-function_spec isPrime(n :: int) returns int
+function_spec testfunction1(param1 :: int, param2::int) returns int
 pre          "\<open>True\<close>" 
 post         "\<open>\<lambda>res::int. True \<close>"
 local_vars   i :: int
 defines " 
-         return\<^bsub>local_isPrime_state.result_value_update\<^esub> \<open>3::int\<close>"
+         return\<^bsub>local_testfunction1_state.result_value_update\<^esub> \<open>a\<close>"
+
+find_theorems testfunction_core
+find_theorems testfunction1_core
