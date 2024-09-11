@@ -73,11 +73,14 @@ fun lastype_of (Type(_, [x])) = x | lastype_of (Type(_, [_, y])) = y
 fun firstype_of (Type(_, [x])) = x | firstype_of (Type(_, x::_)) = x 
 
 (* Creates a result_update_term for the local state *)
-fun mk_result_update thy =
-  let val sigma_i = StateMgt.get_state_type_global thy;
+fun mk_result_update thy sigma_i=
+  let
+   val _ = writeln("TRACE 1.8: "^(@{make_string} sigma_i))
    val Type(ty_name,_) = sigma_i
+   val _ = writeln("TRACE 1.9: "^(@{make_string} ty_name))
    val s = ty_name |> String.tokens (fn x => x =  #".") |> tl |> hd
    val s' = String.substring(s, 0, size s - size "_scheme")^".result_value_update"
+   val _ = writeln("TRACE 2.0: "^s)
   in Syntax.read_term_global thy s' end;
 
 fun extract_ids long_id sigma_i =
@@ -423,8 +426,9 @@ fun convertStmt verbose sigma_i nEenv thy
      (*statements*)
 (*for return, skip and break, we have makers except that they need types and terms that i didn't 
 understand so it's unfinished here*)
-     |"CReturn0" => let val rhs = hd stack
-                        val res_upd = mk_result_update thy 
+     |"CReturn0" => let val _ = writeln("TRACE 1.2")
+                        val rhs = hd stack
+                        val res_upd = mk_result_update thy sigma_i
                     in (mk_return_C res_upd (lifted_term sigma_i rhs)) :: (tl stack) end
      |"CSkip0"  => (mk_skip_C sigma_i)::stack
      |"CBreak0" => (mk_break sigma_i)::stack

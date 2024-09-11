@@ -9,8 +9,8 @@ ML\<open>
 fun handle_declarations translUnit ctxt =
      (let
         val env = (C_Module.env ctxt)
-        val _ = writeln(@{make_string} translUnit)
-        val _ = writeln(@{make_string} env)
+        (* val _ = writeln(@{make_string} translUnit) *)
+        (* val _ = writeln(@{make_string} env) *)
 
        
         val (identifiers, _) = C_AbsEnv.parseTranslUnitIdentifiers translUnit [] Symtab.empty
@@ -22,10 +22,30 @@ fun handle_declarations translUnit ctxt =
         val global_declaration =get_declaration true
              (map_idents (List.filter (fn C_AbsEnv.Identifier(_,_,_,vis) => vis = C_AbsEnv.Global) identifiers))
         
-        val local_declaration =get_declaration false 
-             (map_idents (List.filter (fn C_AbsEnv.Identifier(_,_,_,vis) => case vis of C_AbsEnv.Local _ => true | _ =>false) identifiers))
+
+        val fun_identifier = C_AbsEnv.extractStatement identifiers "testfunction"
+
+        val sigma_ty = StateMgt.get_state_type
+
+        fun get_translated_fun_bdy ctx _ = let 
+              val _ = writeln("TRACE 1.1: "^(@{make_string} (sigma_ty ctx)))
+              val v = ((C11_Ast_Lib.fold_cStatement 
+              C11_Stmt_2_Clean.regroup 
+              (C11_Stmt_2_Clean.convertStmt true (sigma_ty ctx) identifiers (Proof_Context.theory_of ctx))
+              fun_identifier []))
+              in (writeln("AA"^(@{make_string} v)));hd v end
+
+        val test_function_sem = {binding = Binding.name "testfunction",
+                                 locals = [(Binding.name "localvar1","int", NoSyn)],
+                                 params = [(Binding.name "param1","int"),(Binding.name "param2","int")],
+                                 ret_type = "int",
+                                 read_pre = fn ctx => Abs ("\<sigma>",(sigma_ty ctx), @{term True}),
+                                 read_post = fn ctx => Abs ("\<sigma>",(sigma_ty ctx), Abs ("ret",@{typ int}, @{term True})),
+                                 read_variant_opt = NONE,
+                                 read_body = get_translated_fun_bdy}
+        val test_function_decl = Function_Specification_Parser.checkNsem_function_spec_gen {recursive = false} test_function_sem
     in
-     Context.map_theory (local_declaration o global_declaration) ctxt
+     Context.map_theory (test_function_decl o global_declaration) ctxt
     end);
 \<close>
 ML\<open>
@@ -44,10 +64,12 @@ declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 
 
+
+
 C\<open>
 int a;
-int test(){
-  int xyz;
+int testfunction(){
+  return 1;
 }
 \<close>
 
@@ -61,4 +83,12 @@ val ast = @{C11_CTranslUnit}
 ML\<open>
 val env = @{C\<^sub>e\<^sub>n\<^sub>v}\<close>
 
-find_theorems b
+find_theorems testfunction_core
+
+
+function_spec isPrime(n :: int) returns int
+pre          "\<open>True\<close>" 
+post         "\<open>\<lambda>res::int. True \<close>"
+local_vars   i :: int
+defines " 
+         return\<^bsub>local_isPrime_state.result_value_update\<^esub> \<open>3::int\<close>"
