@@ -346,7 +346,7 @@ fun readCall0
 
 (* parses a (node_content * nodeInfo) list
    a list of identifiers and list of (unique!) function calls *)
-fun parseNodeContent
+fun parseNodeContentreadCall0
     (HOLType: Basic_Term.typ option)
     ((nc, ni) :: R)
     identList

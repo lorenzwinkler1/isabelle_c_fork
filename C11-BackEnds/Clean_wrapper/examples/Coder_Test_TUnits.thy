@@ -4,9 +4,14 @@ begin
 ML\<open>
 (*This is an override for the update_Root_Ast function that is registered in C_Command.*)
 
+fun transform_type typ = if typ = HOLogic.intT then "int" else if typ = HOLogic.natT then "uint" else error "Unknown variable type"
 
-fun declare_function idents name ast ctxt =
+fun declare_function idents name ast ret_ty ctxt =
    let  
+        val param_idents = filter (fn i => case i of C_AbsEnv.Identifier(ident_name,_,_, C_AbsEnv.Parameter f_name) => f_name = name |_=>false) idents
+        val local_idents = filter (fn i => case i of C_AbsEnv.Identifier(ident_name,_,_, C_AbsEnv.Local f_name) => f_name = name |_=>false) idents
+        val params = map (fn C_AbsEnv.Identifier(name,pos,typ, _) => (Binding.make (name, pos), transform_type typ)) param_idents
+        val locals = map (fn C_AbsEnv.Identifier(name,pos,typ, _) => (Binding.make (name, pos), transform_type typ, NoSyn)) local_idents
         fun get_translated_fun_bdy ctx _ = let 
               val v = ((C11_Ast_Lib.fold_cStatement 
               C11_Stmt_2_Clean.regroup 
@@ -14,10 +19,12 @@ fun declare_function idents name ast ctxt =
               ast []))
               in hd v end
 
+        val function_symbols = ast
+
         val test_function_sem = {binding = Binding.name name,
-                                 locals = [(Binding.name "localvar1","int", NoSyn)], (*There needs to be at least one local variable*)
-                                 params = [(Binding.name "param1","int"),(Binding.name "param2","int")],
-                                 ret_type = "int",
+                                 locals = locals@[(Binding.name "dummylocalvariable","int", NoSyn)], (*There needs to be at least one local variable*)
+                                 params = params,
+                                 ret_type = transform_type ret_ty,
                                  read_pre = fn ctx => Abs ("\<sigma>",(StateMgt.get_state_type ctx), @{term True}),
                                  read_post = fn ctx => Abs ("\<sigma>",(StateMgt.get_state_type ctx), Abs ("ret",@{typ int}, @{term True})),
                                  read_variant_opt = NONE,
@@ -37,7 +44,6 @@ fun handle_declarations translUnit ctxt =
         val prev_idents =map map_prev_idents m
         val (new_idents, _) = C_AbsEnv.parseTranslUnitIdentifiers translUnit [] prev_idents Symtab.empty
         val identifiers = new_idents@prev_idents
-        fun transform_type typ = if typ = HOLogic.intT then "int" else if typ = HOLogic.natT then "uint" else error "Unknown variable type"
         val map_idents = List.map (fn C_AbsEnv.Identifier(name,_,typ,_) => (Binding.name name, transform_type typ, NoSyn))
 
         fun get_declaration is_global idents = if null idents then I else StateMgt.new_state_record is_global (NONE,idents)
@@ -45,9 +51,9 @@ fun handle_declarations translUnit ctxt =
         val global_declaration =get_declaration true
              (map_idents (List.filter (fn C_AbsEnv.Identifier(_,_,_,vis) => vis = C_AbsEnv.Global) new_idents))
         val fun_asts = 
-              List.map (fn C_AbsEnv.Identifier(name,_,_,C_AbsEnv.FunctionCategory ast) => case snd ast of SOME value => (name,value)) (
+              List.map (fn C_AbsEnv.Identifier(name,_,ret_ty,C_AbsEnv.FunctionCategory ast) => case snd ast of SOME value => (name,value,ret_ty)) (
               List.filter (fn a => case a of C_AbsEnv.Identifier(_,_,_,C_AbsEnv.FunctionCategory _) => true | _ => false) new_idents)
-        val function_declarations = List.map (fn (name,ast) => declare_function identifiers name ast ctxt) fun_asts
+        val function_declarations = List.map (fn (name,ast,ret_ty) => declare_function identifiers name ast ret_ty ctxt) fun_asts
 
         val function_decl = fold (fn f => fn acc => f acc) function_declarations
     in
@@ -71,11 +77,15 @@ declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 
 
-
 C\<open>
 int globalvar_different_scope;
+\<close>
+text\<open>Todo: this fails because of parseTranslUnitIdentifiers - it needs to be rewritten to better
+account for previously defined identifiers\<close>
+C\<open>
+int x;
 int sum1(int param1,int param2){
-  globalvar_different_scope = param1 + param2;
+  globalvar_different_scope = param1 + param2; 
   return globalvar_different_scope;
 }
 \<close>
@@ -85,8 +95,8 @@ term\<open>sum1\<close>
 
 C\<open>
 int a;
-int testfunction(int param1, int param2){
-  globalvar_different_scope = sum1(param1,param2);
+int testfunction(int v1, int v2){
+  globalvar_different_scope = sum1(v1,v2);
   return globalvar_different_scope;
 }
 \<close>
