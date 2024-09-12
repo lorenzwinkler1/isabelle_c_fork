@@ -75,12 +75,9 @@ fun firstype_of (Type(_, [x])) = x | firstype_of (Type(_, x::_)) = x
 (* Creates a result_update_term for the local state *)
 fun mk_result_update thy sigma_i=
   let
-   val _ = writeln("TRACE 1.8: "^(@{make_string} sigma_i))
    val Type(ty_name,_) = sigma_i
-   val _ = writeln("TRACE 1.9: "^(@{make_string} ty_name))
    val s = ty_name |> String.tokens (fn x => x =  #".") |> tl |> hd
    val s' = String.substring(s, 0, size s - size "_scheme")^".result_value_update"
-   val _ = writeln("TRACE 2.0: "^s)
   in Syntax.read_term_global thy s' end;
 
 fun extract_ids long_id sigma_i =
@@ -263,7 +260,7 @@ translate integers in booleans. That's what term_to_bool t do.
      |"CTypeSpec0" => c (* skip this wrapper *)
      |"CDeclr0" => c (* skip this wrapper *)
      |"CInitExpr0" => c (* skip this wrapper *)
-     |"CDecl0" =>  error("Local declarations inside a C context are not supported in Clean")
+     |"CDecl0" =>  c
      |"CCall0" => c (* skip this wrapper *)
      | str => error("unsupported expression with parse tag: "^str)) (* global catch all *)
 
@@ -322,8 +319,7 @@ si on a k = 0 : renvoie la term skip
 fun block_to_term (Const("_END",_)::Const("_BEGIN",_)::R) 
               = mk_skip_C dummyT ::R
    |block_to_term R = 
-         let val _ = (writeln("block_to_term::"^ @{make_string } R))
-             val (topS, restS) = chop_prefix (fn Const("_BEGIN",_) => false | _ => true) R
+         let val (topS, restS) = chop_prefix (fn Const("_BEGIN",_) => false | _ => true) R
              val (Const("_END",_)::topS, Const("_BEGIN",_)::restS) = (topS, restS)
          in (foldl1 (uncurry mk_seq_C) (rev topS)) :: restS end
 
@@ -351,7 +347,6 @@ fun convertStmt verbose sigma_i nEenv thy
                                val C_AbsEnv.Identifier(id, _, ty, cat) = 
                                          case List.find is_id nEenv of SOME x  => x
                                              | _ => error("id not found: "^ long_id)
-
                                fun get_base_type lhs ty = 
                                   case lhs of Const ("List.nth", typedef) $ lhs_part1 $ idx_term => 
                                                                        get_base_type lhs_part1 (dest_listTy ty)
@@ -426,7 +421,7 @@ fun convertStmt verbose sigma_i nEenv thy
      (*statements*)
 (*for return, skip and break, we have makers except that they need types and terms that i didn't 
 understand so it's unfinished here*)
-     |"CReturn0" => let val _ = writeln("TRACE 1.2")
+     |"CReturn0" => let
                         val rhs = hd stack
                         val res_upd = mk_result_update thy sigma_i
                     in (mk_return_C res_upd (lifted_term sigma_i rhs)) :: (tl stack) end
@@ -472,8 +467,14 @@ for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
                                                 else extract_fun_args R (Const(id, ty) :: args)
                             | arg => extract_fun_args R (arg :: args)
                         val (args, f, R) = extract_fun_args stack []
+                        val Type (_, [arg_ty,r_ty]) = fastype_of f
+                        val Type (_,[old_sigma_ty, r_ty]) = r_ty
+                        val Type (_,[Type(_, [ret_ty, old_sigma1_ty])]) = r_ty
+                        val new_ty = arg_ty --> sigma_i --> (Type (@{type_name "option"},[Type (@{type_name "prod"}, [ret_ty,sigma_i])]))
+                        val Const (f_name, old_ty) = f
+                        val f_new = Const (f_name, new_ty)
                         val fun_args_term = mk_tuple args
-                       in mk_call_C f (lifted_term sigma_i fun_args_term) :: R end)
+                       in mk_call_C f_new (lifted_term sigma_i fun_args_term) :: R end)
      | _ => convertExpr verbose sigma_i nEenv thy  a b stack )
 
 end

@@ -902,8 +902,6 @@ fun new_state_record0 add_record_cmd is_global_kind (aS, raw_fields) thy =
                       then mk_global_state_name binding
                       else mk_local_state_name binding
         val raw_parent = SOME(typ_2_string_raw (StateMgt_core.get_state_type_global thy))
-        val _ = writeln("XXXXX " ^ @{make_string} raw_params ^ "CCC " ^  @{make_string} binding 
-                                 ^ @{make_string} raw_fields)
         val pos = Binding.pos_of binding
         fun upd_state_typ thy =  StateMgt_core.upd_state_type_global 
                                   (K (parse_typ_'a (Proof_Context.init_global thy) binding)) thy
@@ -1274,29 +1272,20 @@ val _ = Named_Target.theory_map;
                                     (thy)
        in  thy' |> theory_map
                      let val sty_old = StateMgt_core.get_state_type_global thy'
-                         val _ = writeln("TRACE1")
                          fun parse_contract params ret_ty = 
                                       (    define_precond binding sty_old params read_pre
                                         #> define_postcond binding ret_ty sty_old params read_post)
                      in parse_contract
                      end
                 |>(let val v = StateMgt.new_state_record false (SOME (([],binding), SOME ret_type),locals)
-                    in (writeln("TRACE2"));
-                        writeln("binding: "^(@{make_string} binding));
-                        writeln("ret_type: "^(@{make_string} ret_type));
-                        writeln("locals: "^(@{make_string}locals));v end)
+                    in v end)
                 |> theory_map
                          (fn params => fn ret_ty => fn ctxt => 
                           let 
-                              val _ = writeln("TRACE3")
                               val sty = StateMgt_core.get_state_type ctxt
-                              val _ = writeln("TRACE4: "^(@{make_string} sty))
                               val args_ty = HOLogic.mk_tupleT (map snd params)
-                              val _ = writeln("TRACE5")
                               val mon_se_ty = StateMgt_core.MON_SE_T ret_ty sty
-                              val _ = writeln("TRACE6")
                               val body = read_body ctxt mon_se_ty
-                              val _ = writeln(@{make_string} body)
                               val ctxt' =
                                 if #recursive isrec then
                                   Proof_Context.add_fixes 
@@ -1435,15 +1424,13 @@ fun mk_break sty =
     Const(\<^const_name>\<open>break\<close>, StateMgt_core.MON_SE_T HOLogic.unitT sty )
 
 fun mk_return_C upd rhs =
-    let val ty = fastype_of rhs 
-        val _ = writeln("TRACE 1.4")
+    let val ty = fastype_of rhs
         val (sty,rty) = case ty of 
                          Type("fun", [sty,rty]) => (sty,rty)
                         | _  => error "mk_return_C: illegal type for body"
         val upd_ty = (HOLogic.listT rty --> HOLogic.listT rty) --> sty --> sty
         val rhs_ty = sty --> rty
         val mty = StateMgt_core.MON_SE_T HOLogic.unitT sty
-        val _ = writeln("TRACE 1.5")
     in Const(\<^const_name>\<open>return\<^sub>C\<close>, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
 
 fun mk_assign_global_C upd rhs =

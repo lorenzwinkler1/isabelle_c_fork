@@ -245,6 +245,7 @@ signature C_ABS_ENVIRONMENT =
 
   val parseTranslUnitIdentifiers: C_Ast.nodeInfo C_Ast.cTranslationUnit 
                                   -> identifier list 
+                                  -> identifier list 
                                   -> string list Symtab.table 
                                   -> identifier list * string list Symtab.table
 
@@ -349,6 +350,7 @@ fun parseNodeContent
     (HOLType: Basic_Term.typ option)
     ((nc, ni) :: R)
     identList
+    oldIdents
     functionCallList
     (idType: identType) =
     let val Left(posL, posR) = C_Grammar_Rule_Lib.decode ni
@@ -356,47 +358,47 @@ fun parseNodeContent
        case #tag nc of
          "CTypeSpec0" (* this is the start variable declaration list (one or multiple) *)
          => let val HOLType = #sub_tag nc |> str2HOLogic
-            in parseNodeContent (SOME HOLType) (cutDownTypeSpec (R)) identList functionCallList idType
+            in parseNodeContent (SOME HOLType) (cutDownTypeSpec (R)) identList oldIdents functionCallList idType
             end
        | "Ident0"
          => let val name = node_content_parser nc
             in (debug("(parseNodeContent) parsing: " ^ name);
                if (* if the identifier already exists, this is either a reference to a variable 
                      (which we ignore) or a declared function call *)
-                  identifierExists identList name 
-               then if functionIdentifierExists identList name 
-                    then parseNodeContent NONE R identList (name :: functionCallList) idType
-                    else parseNodeContent NONE R identList functionCallList idType
-               else (* otherwise, it is a variable declaration or an undeclared function call *) 
+                  (identifierExists (identList) name) orelse null R
+               then if functionIdentifierExists (identList@oldIdents) name (*potential error when function is redefined as variable*) 
+                    then parseNodeContent NONE R identList oldIdents (name :: functionCallList) idType
+                    else parseNodeContent NONE R identList oldIdents functionCallList idType
+               else (* otherwise, it is a variable declaration or an undeclared function call or a reference to a variable defined elsewhere*) 
                     let val (nc2, ni2) :: R = R
                     in case #tag nc2 of
                      "CDeclr0" (* this is the end of one variable declaration *)
                       => (debug("(parseNodeContent) this is a DECLARATION: "^name);
                           parseNodeContent HOLType R (Identifier(node_content_parser nc, posL, 
-                             (fn (SOME(a)) => a) HOLType, idType) :: identList) functionCallList idType)
+                             (fn (SOME(a)) => a) HOLType, idType) :: identList) oldIdents functionCallList idType)
                    | "CArrDeclr0" (* this is an array variable declaration, thus we INFER that
                                       #tag (hd R) is "CDeclr0" so we skip it *)
                      => parseNodeContent HOLType (tl R) (Identifier(node_content_parser nc, posL, 
-                             HOLogic.listT ((fn (SOME(a)) => a) HOLType), idType) :: identList) 
+                             HOLogic.listT ((fn (SOME(a)) => a) HOLType), idType) :: identList) oldIdents 
                              functionCallList idType
                    | "CTypeSpec0"
                      => parseNodeContent HOLType (R) (Identifier(node_content_parser nc, posL,
-                             (fn (SOME(a)) => a) HOLType, idType) :: identList) functionCallList idType
+                             (fn (SOME(a)) => a) HOLType, idType) :: identList) oldIdents functionCallList idType
                    | s (* this is a function call, #tag nc2 is either another Ident0 which is a 
                           parameter which we ignore or CCall0 in which the function calls ends *)
                      => (debug("function call detected (tag = " ^ s ^ ") : " ^ @{make_string} (R));
-                         parseNodeContent HOLType (readCall0 ((nc2, ni2) :: R)) identList 
+                         parseNodeContent HOLType (readCall0 ((nc2, ni2) :: R)) identList oldIdents
                              (node_content_parser nc :: functionCallList) idType)
                    end)
              end
         | "CDeclr0" (* artifact: list of params have a CDeclr0 at the end, so we ignore this *)
-          => parseNodeContent HOLType R identList functionCallList idType
+          => parseNodeContent HOLType R identList oldIdents functionCallList idType
         | "CCall0" (* artifact: list of params have a CDeclr0 at the end, so we ignore this *)
-          => parseNodeContent HOLType R identList functionCallList idType
+          => parseNodeContent HOLType R identList oldIdents functionCallList idType
         | _
           => error("node content parsing failure: " ^ @{make_string} ((nc, ni) :: R)))
     end
-  | parseNodeContent _ [] identList functionCallList _ = 
+  | parseNodeContent _ [] identList oldIdents functionCallList _ = 
     (debug("(parseNodeContent) finished: identList--" ^ @{make_string} identList 
                              ^ " functionCallList--" ^ @{make_string} functionCallList);
     (identList, functionCallList))
@@ -473,7 +475,7 @@ fun parseFunctionCalls
               (functionCategory, identList, functionCallTable) 
 
 fun parseParams L (functionName: string) =
-    let val (identList, _) = parseNodeContent NONE L [] [] (Parameter(functionName))
+    let val (identList, _) = parseNodeContent NONE L [] [] [] (Parameter(functionName))
     in identList end
  
 (* Parses identifiers in a function body.
@@ -488,9 +490,11 @@ fun parseLocals
     (* Table of previous function names with list of function calls *)
     (functionCallTable: string list Symtab.table)
     (* Previous identifiers *)
-    (identList: identifier list) =
+    (identList: identifier list)
+    (* Identifiers from a previous translation unit (synthesized from env)*)
+    (oldIdents: identifier list) =
     (debug("parsing locals: " ^ @{make_string} L);
-    let val (identList, functionCalls) = parseNodeContent NONE L identList [] (Local(functionName))
+    let val (identList, functionCalls) = parseNodeContent NONE L identList oldIdents [] (Local(functionName))
         val (functionCategory, identList, functionCallTable) = 
                      parseFunctionCalls functionName identList functionCallTable functionCalls Final
     in (identList, functionCategory, functionCallTable) end)
@@ -501,6 +505,7 @@ fun parseLocals
 fun parseExternalDeclaration 
     (CDeclExt0(declaration : nodeInfo cDeclaration))
     identList 
+    oldIdents
     functionCallTable =
   (* Select Ident0 constructors in a cDeclaration. Here we suppose that there is only 1 *)
   let val CDecl0(declarationSpecifierList, _, _) = declaration
@@ -511,7 +516,7 @@ fun parseExternalDeclaration
       val nodeContentList = rev (C11_Ast_Lib.fold_cDeclaration (K I) 
                  (selectFromNodeContent ["Ident0", "CTypeSpec0", "CArrDeclr0", "CDeclr0", "CCall0"]) 
                  declaration [])
-      val (newIdentList, _) = parseNodeContent NONE nodeContentList identList [] Global
+      val (newIdentList, _) = parseNodeContent NONE nodeContentList identList oldIdents [] Global
   in (debug("parsing global variable: " ^ @{make_string} nodeContentList); 
       (newIdentList, functionCallTable)) 
   end
@@ -525,6 +530,7 @@ fun parseExternalDeclaration
                                                  statement: nodeInfo cStatement,
                                                  ndInfo: nodeInfo)))
                               identList 
+                              oldIdents
                               (functionCallTable: string list Symtab.table) =
     let val functionReturnHOLType = conv_cDeclarationSpecifier_typ (SOME(declarationSpecifierList)) 
                                     |>  (fn (SOME(a)) => a)
@@ -540,25 +546,26 @@ fun parseExternalDeclaration
                                         statement [])
         val (newIdentList, functionCategory, newFunctionCallTable) = 
                                     parseLocals statementContentList functionName functionCallTable 
-                                        (paramIdentifiers @ identList)
+                                        (paramIdentifiers @ identList) oldIdents
     in (Identifier(functionName, posL, functionReturnHOLType, 
                        FunctionCategory(functionCategory, SOME(statement))) :: newIdentList, 
                        newFunctionCallTable) 
     end
 
-  | parseExternalDeclaration s _ _ = error("Unsupported:  " ^ @{make_string} s)
+  | parseExternalDeclaration s _ _ _= error("Unsupported:  " ^ @{make_string} s)
 
 fun parseTranslUnitIdentifiers 
         (CTranslUnit0(externalDeclaration :: R, translUnitNodeInfo)) 
         identList
+        oldIdents
         (functionCallTable: string list Symtab.table) =
         let val (newIdentList, newFunctionCallTable) = 
-                    parseExternalDeclaration externalDeclaration identList functionCallTable
+                    parseExternalDeclaration externalDeclaration identList oldIdents functionCallTable
         in (debug("newIdentList (parseTranslUnitIdentifiers): " ^ @{make_string} newIdentList); 
             parseTranslUnitIdentifiers (CTranslUnit0(R, translUnitNodeInfo)) 
-                                       newIdentList newFunctionCallTable) 
+                                       newIdentList oldIdents newFunctionCallTable) 
         end
-  | parseTranslUnitIdentifiers _ identList functionCallTable = (identList, functionCallTable)
+  | parseTranslUnitIdentifiers _ identList oldIdents functionCallTable = (identList, functionCallTable)
 
 fun printIdentifier (Identifier(name, pos, typ, idType)) =
     writeln("Identifier: " ^ name ^ " " ^ Position.here pos ^

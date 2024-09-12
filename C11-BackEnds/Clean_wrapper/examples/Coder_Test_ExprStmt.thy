@@ -633,7 +633,7 @@ val cenv = @{C\<^sub>e\<^sub>n\<^sub>v}
 ML\<open>
 local open C_AbsEnv in
 (* val translUnit = @{C11_CTranslUnit} *)
-val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] [] Symtab.empty
 val () = List.app printIdentifier nEnv
 val ast_stmt = extractStatement nEnv "foo"
 end\<close>
