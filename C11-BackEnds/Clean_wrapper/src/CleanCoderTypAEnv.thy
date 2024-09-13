@@ -367,6 +367,10 @@ fun parseNodeContent
             end
        | "Ident0"
          => let val name = node_content_parser nc
+                fun transform_list_type ((r,_)::R) ty = if #tag r = "CArrDeclr0" then HOLogic.listT (transform_list_type R ty) else ty
+                   | transform_list_type [] ty = ty 
+                fun skip_arr_decls ((r,b)::R) = if #tag r = "CArrDeclr0" then skip_arr_decls R else ((r,b)::R)
+                   | skip_arr_decls [] = []
             in (debug("(parseNodeContent) parsing: " ^ name);
                if (* if the identifier already exists, this is either a reference to a variable 
                      (which we ignore) or a declared function call *)
@@ -381,10 +385,11 @@ fun parseNodeContent
                       => (debug("(parseNodeContent) this is a DECLARATION: "^name);
                           parseNodeContent HOLType R (Identifier(node_content_parser nc, posL, 
                              (fn (SOME(a)) => a) HOLType, idType) :: identList) oldIdents functionCallList idType)
-                   | "CArrDeclr0" (* this is an array variable declaration, thus we INFER that
+                   | "CArrDeclr0" (* this is an array variable declaration, thus we count how many ArrDecls are here
                                       #tag (hd R) is "CDeclr0" so we skip it *)
-                     => parseNodeContent HOLType (tl R) (Identifier(node_content_parser nc, posL, 
-                             HOLogic.listT ((fn (SOME(a)) => a) HOLType), idType) :: identList) oldIdents 
+                     => 
+                          parseNodeContent HOLType (skip_arr_decls R) (Identifier(node_content_parser nc, posL, 
+                             transform_list_type R (HOLogic.listT (the HOLType)), idType) :: identList) oldIdents 
                              functionCallList idType
                    | "CTypeSpec0"
                      => parseNodeContent HOLType (R) (Identifier(node_content_parser nc, posL,

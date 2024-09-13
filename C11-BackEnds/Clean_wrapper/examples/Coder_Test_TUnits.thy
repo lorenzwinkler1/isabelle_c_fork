@@ -50,7 +50,9 @@ fun handle_declarations translUnit ctxt =
         (*First we need to get all previously defined global vars and functions*)
         val m = (Symtab.dest (#idents(#var_table(env))))
         val prev_idents =map map_prev_idents m
+        val _ = writeln("Prev Idents: "^(@{make_string} prev_idents))
         val (new_idents, _) = C_AbsEnv.parseTranslUnitIdentifiers translUnit [] prev_idents Symtab.empty
+        val _ = writeln("New Idents: "^(@{make_string} new_idents))
         val identifiers = new_idents@prev_idents
         val map_idents = List.map (fn C_AbsEnv.Identifier(name,_,typ,_) => (Binding.name name, transform_type typ, NoSyn))
 
@@ -99,12 +101,12 @@ C\<open>int threefunc(){
 
 
 C\<open>
-int intarr[];
+int intarr[][];
 \<close>
 C\<open>
 int x;
 int sum1(int param1,int param2){
-  intarr[2] = threefunc();
+  intarr[2][3] = 2;
   return 1;
 }
 
@@ -114,8 +116,8 @@ int sum3(int param1,int param2){
 }
 \<close>
 
-find_theorems sum1_core
-term\<open>sum1\<close>
+find_theorems intarr
+term\<open>intarr\<close>
 
 
 C\<open>
