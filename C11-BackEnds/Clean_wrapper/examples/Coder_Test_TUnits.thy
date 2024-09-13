@@ -83,11 +83,11 @@ int globalvar_different_scope;
 text\<open>Todo: this fails because of parseTranslUnitIdentifiers - it needs to be rewritten to better
 account for previously defined identifiers\<close>
 
-C\<open>int noparamsfunc(int p1, int p2){
+C\<open>int noparamsfunc(){
   return 2;
 }\<close>
 
-function_spec noparamsfunc1(param1 :: int, param2::int) returns int
+function_spec noparamsfunc1() returns int
 pre          "\<open>True\<close>" 
 post         "\<open>\<lambda>res::int. True \<close>"
 local_vars   localvar1 :: int

@@ -608,9 +608,12 @@ fun meta_eq_const T = Const (\<^const_name>\<open>Pure.eq\<close>, T --> T --> p
 
 fun mk_meta_eq (t, u) = meta_eq_const (fastype_of t) $ t $ u;
 
+
 fun   mk_pat_tupleabs [] t = t
     | mk_pat_tupleabs [(s,ty)] t = absfree(s,ty)(t)
     | mk_pat_tupleabs ((s,ty)::R) t = HOLogic.mk_case_prod(absfree(s,ty)(mk_pat_tupleabs R t));
+fun   mk_pat_tupleabs_wrapper [] t = absfree("unitparam",@{typ unit}) t
+    | mk_pat_tupleabs_wrapper R t = mk_pat_tupleabs R t
 
 fun read_constname ctxt n = fst(dest_Const(Syntax.read_term ctxt n))
 
@@ -1156,15 +1159,20 @@ structure Function_Specification_Parser  =
    
    fun define_cond binding f_sty transform_old check_absence_old cond_suffix params read_cond (ctxt:local_theory) = 
        let val params' = map (fn(b, ty) => (Binding.name_of b,ty)) params
+           val _ = writeln("Params': "^(@{make_string}(params')))
            val _ = writeln("Abstraction: "^(@{make_string}(transform_old (read_cond ctxt))))
            val src' = case transform_old (read_cond ctxt) of 
-                        Abs(nn, sty_pre, term) => mk_pat_tupleabs params' (Abs(nn,sty_pre,term))
+                        Abs(nn, sty_pre, term) => mk_pat_tupleabs_wrapper params' (Abs(nn,sty_pre,term))
                       | a => error ("define abstraction for result" ^ (Position.here \<^here>)^(@{make_string}a))
+           val _ = writeln("Src': "^(@{make_string}(src')))
            val bdg = Binding.suffix_name cond_suffix binding
+           val _ = writeln("Bdg: "^(@{make_string}(bdg)))
            val _ = check_absence_old src'
            val bdg_ty = HOLogic.mk_tupleT(map (#2) params) --> f_sty HOLogic.boolT
            val eq =  mk_meta_eq(Free(Binding.name_of bdg, bdg_ty),src')
+           val _ = writeln("Eq: "^(@{make_string}(eq)))
            val args = (SOME(bdg,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
+           val _ = writeln("Args: "^(@{make_string}(args)))          
        in  StateMgt.cmd args ctxt end
 
    fun define_precond binding sty =
@@ -1180,7 +1188,7 @@ structure Function_Specification_Parser  =
 
            val umty = args_ty --> StateMgt.MON_SE_T @{typ "unit"} sty
 
-           val eq = mk_meta_eq(Free (bdg_core_name, umty),mk_pat_tupleabs params' body)
+           val eq = mk_meta_eq(Free (bdg_core_name, umty),mk_pat_tupleabs_wrapper params' body)
            val args_core =(SOME (bdg_core, SOME umty, NoSyn), (Binding.empty_atts, eq), [], [])
 
        in StateMgt.cmd args_core
@@ -1201,7 +1209,7 @@ structure Function_Specification_Parser  =
            val params' = map (fn(b, ty) => (Binding.name_of b,ty)) params
            val measure_term = case read_variant_opt  of
                                  NONE => Free(bdg_ord_name,args_ty --> HOLogic.natT)
-                               | SOME f => ((f ctxt) |> mk_pat_tupleabs params')
+                               | SOME f => ((f ctxt) |> mk_pat_tupleabs_wrapper params')
            val measure =  Const(@{const_name "Wellfounded.measure"}, (args_ty --> HOLogic.natT)
                                                                      --> argsRelSet )
                           $ measure_term
@@ -1210,7 +1218,7 @@ structure Function_Specification_Parser  =
                                                                        --> args_ty --> rmty) $
                                          Free(bdg_ord_name, args_ty --> HOLogic.natT)
                           else Free(Binding.name_of binding, args_ty --> rmty)
-           val rhs_main = mk_pat_tupleabs params'
+           val rhs_main = mk_pat_tupleabs_wrapper params'
                           (Const(@{const_name "Clean.block\<^sub>C"}, umty --> umty  --> rmty --> rmty)
                           $ Const(read_constname ctxt (Binding.name_of push_name),umty)
                           $ (Const(read_constname ctxt bdg_core_name, args_ty --> umty)  
@@ -1219,7 +1227,7 @@ structure Function_Specification_Parser  =
            val rhs_main_rec = wfrecT 
                               measure 
                               (Abs(bdg_rec_name, (args_ty --> umty) , 
-                                   mk_pat_tupleabs params'
+                                   mk_pat_tupleabs_wrapper params'
                                    (Const(@{const_name "Clean.block\<^sub>C"}, umty-->umty-->rmty-->rmty)
                                    $ Const(read_constname ctxt (Binding.name_of push_name),umty)
                                    $ (Const(read_constname ctxt bdg_core_name,
