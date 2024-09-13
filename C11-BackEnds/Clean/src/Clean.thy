@@ -1159,20 +1159,14 @@ structure Function_Specification_Parser  =
    
    fun define_cond binding f_sty transform_old check_absence_old cond_suffix params read_cond (ctxt:local_theory) = 
        let val params' = map (fn(b, ty) => (Binding.name_of b,ty)) params
-           val _ = writeln("Params': "^(@{make_string}(params')))
-           val _ = writeln("Abstraction: "^(@{make_string}(transform_old (read_cond ctxt))))
            val src' = case transform_old (read_cond ctxt) of 
                         Abs(nn, sty_pre, term) => mk_pat_tupleabs_wrapper params' (Abs(nn,sty_pre,term))
                       | a => error ("define abstraction for result" ^ (Position.here \<^here>)^(@{make_string}a))
-           val _ = writeln("Src': "^(@{make_string}(src')))
            val bdg = Binding.suffix_name cond_suffix binding
-           val _ = writeln("Bdg: "^(@{make_string}(bdg)))
            val _ = check_absence_old src'
            val bdg_ty = HOLogic.mk_tupleT(map (#2) params) --> f_sty HOLogic.boolT
            val eq =  mk_meta_eq(Free(Binding.name_of bdg, bdg_ty),src')
-           val _ = writeln("Eq: "^(@{make_string}(eq)))
            val args = (SOME(bdg,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
-           val _ = writeln("Args: "^(@{make_string}(args)))          
        in  StateMgt.cmd args ctxt end
 
    fun define_precond binding sty =

@@ -160,7 +160,8 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
                       | C_AbsEnv.FunctionCategory(C_AbsEnv.MutuallyRecursive(_), _) =>
                                 error("Mutual recursion is not supported in Clean")
                       | C_AbsEnv.FunctionCategory(_, _) => 
-                            let val Const(id, ty) = Syntax.read_term_global thy id
+                            let val t1 = Syntax.read_term_global thy id
+                                val Const(id, ty) = t1
                                 val args = firstype_of ty
                             in Const(id, ty) :: c end
                       | c => error("(convertExpr) unrecognised category : " ^ @{make_string} c)

@@ -41,7 +41,7 @@ theory CleanCoderTypAEnv
           "Clean.Clean"
 begin
 
-ML\<open>val VERBOSE = Unsynchronized.ref true
+ML\<open>val VERBOSE = Unsynchronized.ref false
 
 fun debug str = if !VERBOSE then writeln str else ();\<close>
 
