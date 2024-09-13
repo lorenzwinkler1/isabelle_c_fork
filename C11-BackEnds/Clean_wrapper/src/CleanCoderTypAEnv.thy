@@ -41,7 +41,7 @@ theory CleanCoderTypAEnv
           "Clean.Clean"
 begin
 
-ML\<open>val VERBOSE = Unsynchronized.ref false
+ML\<open>val VERBOSE = Unsynchronized.ref true
 
 fun debug str = if !VERBOSE then writeln str else ();\<close>
 
@@ -336,6 +336,11 @@ fun getMutuallyRecursiveCalls (Identifier(name, pos, ty, idType) :: s) functionN
   else getMutuallyRecursiveCalls s functionName
   | getMutuallyRecursiveCalls [] _ = []
 
+fun isCall0
+    ((nc, _) :: R) =
+    if #tag nc = "CCall0" then true
+    else isCall0 R
+  | isCall0 [] = false
 fun readCall0
     ((nc, _) :: R) =
     if #tag nc = "CCall0" then R
@@ -346,7 +351,7 @@ fun readCall0
 
 (* parses a (node_content * nodeInfo) list
    a list of identifiers and list of (unique!) function calls *)
-fun parseNodeContentreadCall0
+fun parseNodeContent
     (HOLType: Basic_Term.typ option)
     ((nc, ni) :: R)
     identList
@@ -384,11 +389,12 @@ fun parseNodeContentreadCall0
                    | "CTypeSpec0"
                      => parseNodeContent HOLType (R) (Identifier(node_content_parser nc, posL,
                              (fn (SOME(a)) => a) HOLType, idType) :: identList) oldIdents functionCallList idType
-                   | s (* this is a function call, #tag nc2 is either another Ident0 which is a 
+                   | s  =>(* this is a function call, #tag nc2 is either another Ident0 which is a 
                           parameter which we ignore or CCall0 in which the function calls ends *)
-                     => (debug("function call detected (tag = " ^ s ^ ") : " ^ @{make_string} (R));
+                     if (isCall0 ((nc2, ni2) :: R)) then (debug("function call detected (tag = " ^ s ^ ") : " ^ @{make_string} (R));
                          parseNodeContent HOLType (readCall0 ((nc2, ni2) :: R)) identList oldIdents
-                             (node_content_parser nc :: functionCallList) idType)
+                             (node_content_parser nc :: functionCallList) idType) else
+                          parseNodeContent HOLType R identList oldIdents functionCallList idType
                    end)
              end
         | "CDeclr0" (* artifact: list of params have a CDeclr0 at the end, so we ignore this *)

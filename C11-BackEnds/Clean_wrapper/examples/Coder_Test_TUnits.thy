@@ -26,7 +26,7 @@ fun declare_function idents name ast ret_ty ctxt =
                                  params = params,
                                  ret_type = transform_type ret_ty,
                                  read_pre = fn ctx => Abs ("\<sigma>",(StateMgt.get_state_type ctx), @{term True}),
-                                 read_post = fn ctx => Abs ("\<sigma>",(StateMgt.get_state_type ctx), Abs ("ret",@{typ int}, @{term True})),
+                                 read_post = fn ctx => Abs ("\<sigma>",(StateMgt.get_state_type ctx), Abs ("ret",ret_ty, @{term True})),
                                  read_variant_opt = NONE,
                                  read_body = get_translated_fun_bdy}
         val decl = Function_Specification_Parser.checkNsem_function_spec_gen {recursive = false} test_function_sem
@@ -82,6 +82,19 @@ int globalvar_different_scope;
 \<close>
 text\<open>Todo: this fails because of parseTranslUnitIdentifiers - it needs to be rewritten to better
 account for previously defined identifiers\<close>
+
+C\<open>int noparamsfunc(int p1, int p2){
+  return 2;
+}\<close>
+
+function_spec noparamsfunc1(param1 :: int, param2::int) returns int
+pre          "\<open>True\<close>" 
+post         "\<open>\<lambda>res::int. True \<close>"
+local_vars   localvar1 :: int
+defines "
+         return\<^bsub>local_noparamsfunc1_state.result_value_update\<^esub> \<open>2::int\<close>"
+
+
 C\<open>
 int x;
 int sum1(int param1,int param2){
@@ -92,6 +105,7 @@ int sum1(int param1,int param2){
 
 find_theorems sum1
 term\<open>sum1\<close>
+
 
 C\<open>
 int a;
