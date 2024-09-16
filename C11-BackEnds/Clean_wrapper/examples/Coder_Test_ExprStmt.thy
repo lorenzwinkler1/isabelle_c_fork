@@ -549,7 +549,7 @@ text \<open>The next step is to study the declarations. There are globals or loc
 and functions or variables declarations.\<close>
 
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "external_declaration"]]
-C\<open> int b = a + a;\<close>
+C\<open> int b,a;\<close>
 ML\<open>val ast_ext_decl = @{C11_CExtDecl}
    val env_ext_decl =  @{C\<^sub>e\<^sub>n\<^sub>v}
 
@@ -561,7 +561,6 @@ val S =  (C11_Ast_Lib.fold_cExternalDeclaration regroup
                   (convertExpr false sigma_i A_env1 @{theory}) (* DOES THIS MAKE SENSE ??? *)
                   ast_ext_decl 
                   [])
-         handle ERROR _ => (writeln "CATCH ERROR"; []);
 \<close>
 
 (*4*****************************************************************************************************)
@@ -575,7 +574,7 @@ ML\<open>val ast_unit = @{C11_CTranslUnit}
    val env_unit = @{C\<^sub>e\<^sub>n\<^sub>v}
   \<close>
 
-C\<open>int  zzz ;\<close>
+C\<open>int  zzz = 13 ;\<close>
 
 ML\<open>val ast_unit' = @{C11_CTranslUnit}
    val env_unit' = @{C\<^sub>e\<^sub>n\<^sub>v}
@@ -694,10 +693,17 @@ C\<open>
 void test3(char ab[][], int* *c, int *d){
   int aasdfwqer;
   
-  return 12;   /*@ \<approx>setup \<open>fn _ => fn _ => fn env =>
-               ((SPY_ENV := SOME env);I) \<close> */;
+  return 12;   /*@ \<approx>setup \<open>fn a => fn b => fn env =>
+               (writeln(@{make_string} env);(SPY_ENV := SOME env);I) \<close> */;
 
 }
+\<close>
+
+ML\<open>
+val a = let fun last (a::b::R) = last (b::R)
+               | last [a] = a
+
+in last (#scopes (the (!SPY_ENV))) end
 \<close>
 
 ML\<open>

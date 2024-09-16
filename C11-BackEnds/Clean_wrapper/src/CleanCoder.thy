@@ -95,7 +95,6 @@ fun read_N_coerce thy name ty =
           along the subtype hierarchy, but coerces it to the current sigma*)
        let val s = drop_dark_matter(Syntax.string_of_typ_global thy ty)
            val str = name ^ " :: " ^ s 
-           val _ = writeln("TRACE2: "^(@{make_string} str))
        in  Syntax.read_term_global thy str end
 \<close>
 
@@ -148,7 +147,6 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
                                                                  - (String.size "_scheme"))
                                               (*dangerous. will work only for the local case *)
                         val lid = local_state^"."^id
-                        val _ = writeln("TRACE1")
                     in case cat of
                         C_AbsEnv.Global => read_N_coerce thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i) :: c
                       | C_AbsEnv.Local(_) => Const(@{const_name "comp"}, 
@@ -262,8 +260,12 @@ translate integers in booleans. That's what term_to_bool t do.
      |"CExpr0"  => c (* skip this wrapper *)
      |"CTypeSpec0" => c (* skip this wrapper *)
      |"CDeclr0" => c (* skip this wrapper *)
-     |"CInitExpr0" => c (* skip this wrapper *)
-     |"CDecl0" =>  c
+     |"CInitExpr0" => error "init expression currently unsupported" (* skip this wrapper *)
+     |"CDecl0" =>  let fun handleDeclaration stack = tl stack 
+                       val _ = writeln("Stack: "^(@{make_string} c))
+                   in
+                      handleDeclaration c
+                   end
      |"CCall0" => c (* skip this wrapper *)
      | str => error("unsupported expression with parse tag: "^str)) (* global catch all *)
 

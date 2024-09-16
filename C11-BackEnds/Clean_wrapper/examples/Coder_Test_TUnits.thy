@@ -1,5 +1,6 @@
 theory "Coder_Test_TUnits"
   imports "../src/CleanCoder"  (* Coder_Test_Env_AEnv *)
+          "../src/compiler/Clean_Annotation"
 begin
 ML\<open>
 (*This is an override for the update_Root_Ast function that is registered in C_Command.*)
@@ -12,6 +13,7 @@ fun transform_type typ = if typ = HOLogic.intT then "int"
 
 fun declare_function idents name ast ret_ty ctxt =
    let  
+        (*val _ = writeln("AST: "^(@{make_string} ast))*)
         val param_idents = filter (fn i => case i of C_AbsEnv.Identifier(ident_name,_,_, C_AbsEnv.Parameter f_name) => f_name = name |_=>false) idents
         val local_idents = filter (fn i => case i of C_AbsEnv.Identifier(ident_name,_,_, C_AbsEnv.Local f_name) => f_name = name |_=>false) idents
         val params = map (fn C_AbsEnv.Identifier(name,pos,typ, _) => (Binding.make (name, pos), transform_type typ)) param_idents
@@ -19,7 +21,7 @@ fun declare_function idents name ast ret_ty ctxt =
         fun get_translated_fun_bdy ctx _ = let 
               val v = ((C11_Ast_Lib.fold_cStatement 
               C11_Stmt_2_Clean.regroup 
-              (C11_Stmt_2_Clean.convertStmt true (StateMgt.get_state_type ctx) idents (Proof_Context.theory_of ctx))
+              (C11_Stmt_2_Clean.convertStmt false (StateMgt.get_state_type ctx) idents (Proof_Context.theory_of ctx))
               ast []))
               in hd v end
 
@@ -50,9 +52,9 @@ fun handle_declarations translUnit ctxt =
         (*First we need to get all previously defined global vars and functions*)
         val m = (Symtab.dest (#idents(#var_table(env))))
         val prev_idents =map map_prev_idents m
-        val _ = writeln("Prev Idents: "^(@{make_string} prev_idents))
+       (* val _ = writeln("Prev Idents: "^(@{make_string} prev_idents))*)
         val (new_idents, _) = C_AbsEnv.parseTranslUnitIdentifiers translUnit [] prev_idents Symtab.empty
-        val _ = writeln("New Idents: "^(@{make_string} new_idents))
+        (*val _ = writeln("New Idents: "^(@{make_string} new_idents))*)
         val identifiers = new_idents@prev_idents
         val map_idents = List.map (fn C_AbsEnv.Identifier(name,_,typ,_) => (Binding.name name, transform_type typ, NoSyn))
 
@@ -132,6 +134,17 @@ C\<open>
 int b;
 \<close>
 
+text\<open>Now the declaration of local variables\<close>
+C\<open>
+int funwithlocalvars(){
+  int localvar1;
+  localvar1 = threefunc();
+  return localvar1;
+}
+\<close>
+term localvar1
+find_theorems funwithlocalvars_core
+term funwithlocalvars_core
 
 ML\<open>
 val ast = @{C11_CTranslUnit}
@@ -148,3 +161,29 @@ defines "p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C sum1 \<open>(2::int
 
 find_theorems testfunction1_core
 term\<open>testfunction1_core\<close>
+
+text\<open>Now the pre and post conditions\<close>
+
+
+C\<open>
+int fun_with_pre(int u){
+  int local1;
+  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>2 > 0\<close> */
+  /*@ post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>3 > 0\<close> */
+  /*@ inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>4 > 0\<close> */
+  return local1;
+}
+int fun_with_pre2(int u){
+  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>2 > 0\<close> */
+
+  return 1;
+}
+\<close>
+
+ML\<open>
+
+val annotation_data = Clean_Annotation.Data_Clean_Annotations.get (Context.Theory @{theory})
+\<close>                                          
+
+
+
