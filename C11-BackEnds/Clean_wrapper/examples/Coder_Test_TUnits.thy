@@ -8,11 +8,13 @@ ML\<open>
 fun transform_type typ = if typ = HOLogic.intT then "int" 
                          else if typ = HOLogic.natT then "uint"
                          else if is_listTy typ then (transform_type (dest_listTy typ))^" list" 
+                         else if typ = HOLogic.unitT then "unit"
                          else error "Unknown variable type"
 
 
 fun declare_function idents name ast ret_ty recursive ctxt =
-   let  val param_idents = filter (fn i => case i of C_AbsEnv.Identifier(_,_,_, C_AbsEnv.Parameter f_name) => f_name = name |_=>false) idents
+   let  val _ = writeln("Declaring: "^name^", rec:"^(@{make_string} recursive))
+        val param_idents = filter (fn i => case i of C_AbsEnv.Identifier(_,_,_, C_AbsEnv.Parameter f_name) => f_name = name |_=>false) idents
         val local_idents = filter (fn i => case i of C_AbsEnv.Identifier(_,_,_, C_AbsEnv.Local f_name) => f_name = name |_=>false) idents
         val global_idents = filter (fn i => case i of C_AbsEnv.Identifier(_,_,_, C_AbsEnv.Global) => true
                                                       | C_AbsEnv.Identifier(_,_,_,C_AbsEnv.FunctionCategory _)=>true
@@ -23,7 +25,7 @@ fun declare_function idents name ast ret_ty recursive ctxt =
         fun get_translated_fun_bdy ctx _ = let
               val v = ((C11_Ast_Lib.fold_cStatement 
               C11_Stmt_2_Clean.regroup 
-              (C11_Stmt_2_Clean.convertStmt false (StateMgt.get_state_type ctx) (local_idents@param_idents@global_idents) (Proof_Context.theory_of ctx))
+              (C11_Stmt_2_Clean.convertStmt false (StateMgt.get_state_type ctx) (local_idents@param_idents@global_idents) (Proof_Context.theory_of ctx) name)
               ast []))
               in hd v end
 
@@ -70,7 +72,9 @@ fun handle_declarations translUnit ctxt =
              
         val fun_asts = 
               List.map (fn C_AbsEnv.Identifier(name,_,ret_ty,C_AbsEnv.FunctionCategory ast) =>
-                     let fun is_recursive NONE = false
+                     let  val _ = writeln("Name: "^name)
+                          val _ = writeln("Calls: "^(@{make_string} (Symtab.lookup call_table name)))
+                          fun is_recursive NONE = false
                             |is_recursive (SOME calls) = List.exists (fn x => x=name) calls
                      in 
                   (name,the (snd ast),ret_ty,  is_recursive (Symtab.lookup call_table name)) end) 
@@ -195,13 +199,15 @@ defines "if\<^sub>C \<open>n > 0\<close>
          fi"
 
 
+
 C\<open>
-int recursive_function(int n){
+void recursive_function(int n){
   if(n > 0){
     globalvar_different_scope = globalvar_different_scope + 1;
     recursive_function(n-1);
   }
 }\<close>
+
 
 (*
 Recursions with return values are currently unsupported in CLEAN, but are about to be fixed by someone else

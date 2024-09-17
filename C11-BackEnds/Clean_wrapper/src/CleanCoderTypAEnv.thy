@@ -376,7 +376,7 @@ fun parseNodeContent
                      (which we ignore) or a declared function call *)
                   (identifierExists (identList) name) orelse null R
                then if functionIdentifierExists (identList@oldIdents) name (*potential error when function is redefined as variable*) 
-                    then parseNodeContent NONE R identList oldIdents (name :: functionCallList) idType
+                    then parseNodeContent NONE R identList oldIdents (name^"aa" :: functionCallList) idType
                     else parseNodeContent NONE R identList oldIdents functionCallList idType
                else (* otherwise, it is a variable declaration or an undeclared function call or a reference to a variable defined elsewhere*) 
                     let val (nc2, ni2) :: R = R
@@ -398,7 +398,7 @@ fun parseNodeContent
                           parameter which we ignore or CCall0 in which the function calls ends *)
                      if (isCall0 ((nc2, ni2) :: R)) then (debug("function call detected (tag = " ^ s ^ ") : " ^ @{make_string} (R));
                          parseNodeContent HOLType (readCall0 ((nc2, ni2) :: R)) identList oldIdents
-                             (node_content_parser nc :: functionCallList) idType) else
+                             (node_content_parser nc^"bb" :: functionCallList) idType) else
                           parseNodeContent HOLType R identList oldIdents functionCallList idType
                    end)
              end

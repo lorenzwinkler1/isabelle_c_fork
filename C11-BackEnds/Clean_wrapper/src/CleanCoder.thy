@@ -183,15 +183,13 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
                       | C_AbsEnv.Parameter(_) => Free (id, ty) :: c
                       | C_AbsEnv.FunctionCategory(C_AbsEnv.MutuallyRecursive(_), _) =>
                                 error("Mutual recursion is not supported in Clean")
-                      | C_AbsEnv.FunctionCategory(_, _) => 
-                            let 
-                                val _ = writeln("TRACE3")
-                                val t1 = Syntax.read_term_global thy id
-                                val _ = writeln("TRACE4: "^(@{make_string} t1))
-                                val Const(id, ty) = t1
-                                val _ = writeln("TRACE5")
-                                val args = firstype_of ty
-                            in Const(id, ty) :: c end
+                      | C_AbsEnv.FunctionCategory(a, b) =>
+                            let fun get_call_const id = Syntax.read_term_global thy id
+                                val _ = writeln("ID: "^id)
+                                val _ = writeln("TY: "^(@{make_string} ty))
+                                fun get_rec_call_ident id= Free(id, 
+                                            (TVar (("'a", 0), [])) --> sigma_i --> (Type (@{type_name "option"}, [mk_tupleT [ty, sigma_i]])))
+                            in (if function_name = id then get_rec_call_ident id else get_call_const id) :: c end
                       | c => error("(convertExpr) unrecognised category : " ^ @{make_string} c)
                     end)
      |"Vars0" => c
@@ -497,15 +495,30 @@ for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
                                Const(id, ty) => if not (firstype_of ty = sigma_i) 
                                                 then (args, Const(id, ty), R) 
                                                 else extract_fun_args R (Const(id, ty) :: args)
-                            | arg => extract_fun_args R (arg :: args)
+                             |  Free(id, ty) => if id = function_name 
+                                                then (args, Free(id, ty), R) 
+                                                else extract_fun_args R (Free(id, ty) :: args)
+                             | arg => extract_fun_args R (arg :: args)
+                        val _ = writeln("TRACE10")
                         val (args, f, R) = extract_fun_args stack []
+                        val _ = writeln("TRACE12")
                         val Type (_, [arg_ty,r_ty]) = fastype_of f
+                        val _ = writeln("TRACE13")
                         val Type (_,[old_sigma_ty, r_ty]) = r_ty
+                        val _ = writeln("TRACE14: "^(@{make_string} r_ty))
                         val Type (_,[Type(_, [ret_ty, old_sigma1_ty])]) = r_ty
-                        val new_ty = arg_ty --> sigma_i --> (Type (@{type_name "option"},[Type (@{type_name "prod"}, [ret_ty,sigma_i])]))
-                        val Const (f_name, old_ty) = f
-                        val f_new = Const (f_name, new_ty)
+                        val _ = writeln("TRACE15")
+                        val new_args_ty = mk_tupleT (List.map fastype_of args)
+                        val _ = writeln("Old Args: "^(@{make_string} arg_ty))
+                        val _ = writeln("New Args: "^(@{make_string} new_args_ty))
+                        val new_ty = new_args_ty --> sigma_i --> (Type (@{type_name "option"},[Type (@{type_name "prod"}, [ret_ty,sigma_i])]))
+
+                        fun swap_ty (Const (name, _)) n_ty = Const (name, n_ty)
+                           |swap_ty (Free (name, _)) n_ty = Free (name, n_ty)
+
+                        val f_new = swap_ty f new_ty
                         val fun_args_term = mk_tuple args
+                        val _ = writeln("TRACE11")
                        in mk_call_C f_new (lifted_term sigma_i fun_args_term) :: R end)
      | _ => convertExpr verbose sigma_i nEenv thy function_name a b stack )
 

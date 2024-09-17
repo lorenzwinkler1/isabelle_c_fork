@@ -1181,10 +1181,9 @@ structure Function_Specification_Parser  =
            val bdg_core_name = Binding.name_of bdg_core
 
            val umty = args_ty --> StateMgt.MON_SE_T @{typ "unit"} sty
-
+           val _ = writeln("BODY1: "^(@{make_string} body))
            val eq = mk_meta_eq(Free (bdg_core_name, umty),mk_pat_tupleabs_wrapper params' body)
            val args_core =(SOME (bdg_core, SOME umty, NoSyn), (Binding.empty_atts, eq), [], [])
-
        in StateMgt.cmd args_core
        end 
  
@@ -1288,6 +1287,7 @@ val _ = Named_Target.theory_map;
                               val args_ty = HOLogic.mk_tupleT (map snd params)
                               val mon_se_ty = StateMgt_core.MON_SE_T ret_ty sty
                               val body = read_body ctxt mon_se_ty
+                              val _ = writeln("Is Recursive: "^(@{make_string} (#recursive isrec)))
                               val ctxt' =
                                 if #recursive isrec then
                                   (writeln("Binding: "^(@{make_string} binding));
