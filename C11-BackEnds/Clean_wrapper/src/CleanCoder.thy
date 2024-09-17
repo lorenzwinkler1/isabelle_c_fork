@@ -90,10 +90,32 @@ fun extract_ids long_id sigma_i =
                                                      (*dangerous. will work only for the local case *)
   in  (id, local_state^"."^id) end
 
+fun read_N_coerce_global thy name ty =
+       (* a very dirty hack ... but reconstructs the true \<open>const_name\<close>  Sign.consts_of thy
+          along the subtype hierarchy, but coerces it to the current sigma*)
+       let 
+           val consts = Sign.consts_of thy
+           fun filter_by_shortname (n, _) =
+             (case Long_Name.explode n of
+                [_, middle, base] => base = name andalso (String.substring (middle,0,6) = "global")
+              | _ => false) 
+
+           val longnames =  List.filter filter_by_shortname (#constants (Consts.dest consts))
+           val longname = (fst o hd) longnames
+           val _ = writeln("Longname: "^(@{make_string} longname))
+           val s = drop_dark_matter(Syntax.string_of_typ_global thy ty)
+           val _ = writeln("Type: "^(@{make_string} s))
+           val str = longname ^ " :: " ^ s 
+       in  Syntax.read_term_global thy str end
+
+
 fun read_N_coerce thy name ty = 
        (* a very dirty hack ... but reconstructs the true \<open>const_name\<close> 
           along the subtype hierarchy, but coerces it to the current sigma*)
-       let val s = drop_dark_matter(Syntax.string_of_typ_global thy ty)
+       let val _ = writeln("Name: "^name)
+           val _ = writeln("Type: "^(@{make_string} name))
+           val s = drop_dark_matter(Syntax.string_of_typ_global thy ty)
+           val _ = writeln("s: "^(@{make_string} s))
            val str = name ^ " :: " ^ s 
        in  Syntax.read_term_global thy str end
 \<close>
@@ -125,7 +147,7 @@ fun node_content_parser (x : C11_Ast_Lib.node_content) =
       val id = hd(tl(String.tokens (fn x => x = #"\"")(drop_dark_matter a_markup)))
     in id end  (* no type inference *);
 
-fun convertExpr verbose (sigma_i: typ) env thy 
+fun convertExpr verbose (sigma_i: typ) env thy function_name
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo )   
            (c : term list) =
@@ -135,6 +157,7 @@ fun convertExpr verbose (sigma_i: typ) env thy
 (*here, we get the full name of the variable, then we return the term well named and typed.
 Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
       "Ident0" =>  (let val id = node_content_parser a
+                        val _ = writeln("id: "^(id))
                         fun is_id_name (C_AbsEnv.Identifier(id_name, _, _, _)) = (id_name = id)
                            |is_id_name _ = false
                         val C_AbsEnv.Identifier(_, _, ty, cat) = case List.find is_id_name env of
@@ -147,8 +170,9 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
                                                                  - (String.size "_scheme"))
                                               (*dangerous. will work only for the local case *)
                         val lid = local_state^"."^id
+                        val _ = writeln("TRACE2")
                     in case cat of
-                        C_AbsEnv.Global => read_N_coerce thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i) :: c
+                        C_AbsEnv.Global => read_N_coerce_global thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i) :: c
                       | C_AbsEnv.Local(_) => Const(@{const_name "comp"}, 
                                                    (HOLogic.listT ty --> ty) 
                                                    --> (sigma_i --> HOLogic.listT ty) 
@@ -160,8 +184,12 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
                       | C_AbsEnv.FunctionCategory(C_AbsEnv.MutuallyRecursive(_), _) =>
                                 error("Mutual recursion is not supported in Clean")
                       | C_AbsEnv.FunctionCategory(_, _) => 
-                            let val t1 = Syntax.read_term_global thy id
+                            let 
+                                val _ = writeln("TRACE3")
+                                val t1 = Syntax.read_term_global thy id
+                                val _ = writeln("TRACE4: "^(@{make_string} t1))
                                 val Const(id, ty) = t1
+                                val _ = writeln("TRACE5")
                                 val args = firstype_of ty
                             in Const(id, ty) :: c end
                       | c => error("(convertExpr) unrecognised category : " ^ @{make_string} c)
@@ -262,7 +290,6 @@ translate integers in booleans. That's what term_to_bool t do.
      |"CDeclr0" => c (* skip this wrapper *)
      |"CInitExpr0" => error "init expression currently unsupported" (* skip this wrapper *)
      |"CDecl0" =>  let fun handleDeclaration stack = tl stack 
-                       val _ = writeln("Stack: "^(@{make_string} c))
                    in
                       handleDeclaration c
                    end
@@ -272,18 +299,18 @@ translate integers in booleans. That's what term_to_bool t do.
 
 fun lifted_term sigma_i term = Abs("\<sigma>", sigma_i, abstract_over (Free("\<sigma>", sigma_i), term))
 
-fun conv_Cexpr_lifted_term  sigma_i A_env thy C_expr = 
+fun conv_Cexpr_lifted_term  sigma_i A_env thy function_name C_expr = 
     let val e::R = (C11_Ast_Lib.fold_cExpression (K I)
-                               (convertExpr false sigma_i A_env thy) C_expr [])
+                               (convertExpr false sigma_i A_env thy function_name) C_expr [])
     in  lifted_term sigma_i e end
 
 (*** -------------- ***)
 
-fun conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CArrSize0 (_,C_expr),_)) C_env thy = 
+fun conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CArrSize0 (_,C_expr),_)) C_env thy function_name= 
             SOME(hd((C11_Ast_Lib.fold_cExpression (K I)
-                                 (convertExpr false dummyT C_env thy) C_expr [])))
-   |conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CNoArrSize0 Z,_)) _ _ = NONE
-   |conv_cDerivedDeclarator_cSizeExpr_term (_)  _ _ =  
+                                 (convertExpr false dummyT C_env thy function_name) C_expr [])))
+   |conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CNoArrSize0 Z,_)) _ _ _= NONE
+   |conv_cDerivedDeclarator_cSizeExpr_term (_)  _ _ _=  
             error("DeclarationSpec format not defined. [Clean restriction]")
 
 
@@ -329,7 +356,7 @@ fun block_to_term (Const("_END",_)::Const("_BEGIN",_)::R)
          in (foldl1 (uncurry mk_seq_C) (rev topS)) :: restS end
 
 
-fun convertStmt verbose sigma_i nEenv thy 
+fun convertStmt verbose sigma_i nEenv thy function_name
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo ) 
            (stack : term list) =
@@ -383,7 +410,7 @@ fun convertStmt verbose sigma_i nEenv thy
                                                                        Const (@{const_name "nth"}, typedef) $ (transform_lhs_for_rhs_transformation lhs_part1 final_term) $ idx_term
                                                      | _ => final_term
 
-                               val access_term = case cat of  C_AbsEnv.Global  =>  (read_N_coerce thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i))
+                               val access_term = case cat of  C_AbsEnv.Global  =>  (read_N_coerce_global thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i))
                                                               |_ =>  Const(@{const_name "comp"}, 
                                                                            (HOLogic.listT ty --> ty) 
                                                                            --> (sigma_i --> HOLogic.listT ty) 
@@ -402,12 +429,12 @@ fun convertStmt verbose sigma_i nEenv thy
 
                            in case cat of
                                 C_AbsEnv.Global => (if is_fun_assignment then ( mk_seq_assign_C rhs_old (((mk_assign_global_C 
-                                                            (read_N_coerce thy id 
+                                                            (read_N_coerce_global thy id 
                                                            ((ty --> ty) --> sigma_i --> sigma_i)))
                                                        (lifted_term sigma_i new_rhs))) tempvarn tempvart) 
                                                      else (
                                                         ((mk_assign_global_C 
-                                                            (read_N_coerce thy id 
+                                                            (read_N_coerce_global thy id 
                                                            ((ty --> ty) --> sigma_i --> sigma_i)))
                                                        (lifted_term sigma_i new_rhs))))::R
                               | C_AbsEnv.Parameter(_) => error "assignment to parameter not allowed in Clean"
@@ -480,7 +507,7 @@ for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
                         val f_new = Const (f_name, new_ty)
                         val fun_args_term = mk_tuple args
                        in mk_call_C f_new (lifted_term sigma_i fun_args_term) :: R end)
-     | _ => convertExpr verbose sigma_i nEenv thy  a b stack )
+     | _ => convertExpr verbose sigma_i nEenv thy function_name a b stack )
 
 end
 
