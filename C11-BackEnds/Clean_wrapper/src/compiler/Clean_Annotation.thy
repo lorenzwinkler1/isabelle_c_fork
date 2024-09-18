@@ -66,28 +66,28 @@ datatype antiq_hol = Invariant of string (* term *)
 
 (*In the following data structure the annotations are saved*)
 type annotation_data = {
-  preconditions: (string*term) list,
-  postconditions: (string*term) list,
-  invariants: (string*term) list
+  preconditions: (string*term*Position.range) list,
+  postconditions: (string*term*Position.range) list,
+  invariants: (string*term*Position.range) list
 }
 structure Data_Clean_Annotations = Generic_Data
   (type T = annotation_data
    val empty = {preconditions=[], postconditions=[], invariants=[]}
    val merge = K empty)
 
-fun map_context_annotation_declaration annotation_type src context =
+fun map_context_annotation_declaration annotation_type src range context =
 let 
   fun get_fun_name [(SOME (C_Ast.Ident0 (C_Ast.SS_base (C_Ast.ST name), _, _)),_)] = name
       | get_fun_name (_::R) = get_fun_name R
       | get_fun_name _ = (warning "unable to find name of surrounding function for CLEAN annotation";"")
   val term = Syntax.read_term (Context.proof_of context) (Token.inner_syntax_of src)
   val function_name = (get_fun_name o #scopes o snd o C_Stack.Data_Lang.get') context
-  val new_data = [(function_name, term)]
+  val new_data = [(function_name, term, range)]
 
   val new_context_map = Data_Clean_Annotations.map (fn {preconditions, postconditions, invariants} => {
-      preconditions = case annotation_type of Spec _ => new_data@preconditions | _ => preconditions,
-      postconditions = case annotation_type of End_spec _ => new_data@postconditions | _ => postconditions,
-      invariants =case annotation_type of Invariant _ => new_data@invariants | _ => invariants
+      preconditions = case annotation_type of Spec _ => preconditions@new_data | _ => preconditions,
+      postconditions = case annotation_type of End_spec _ => postconditions@new_data | _ => postconditions,
+      invariants =case annotation_type of Invariant _ => invariants@new_data | _ => invariants
   })
 in new_context_map context end
 
@@ -98,8 +98,10 @@ fun bind scan context_map ((stack1, (to_delay, stack2)), _) =
         ( (stack1, stack2)
         , ( range
           , C_Inner_Syntax.bottom_up
-              (fn _ => fn context =>
-                  context_map src context
+              (fn v1 => fn context =>(
+                  writeln("SRC: "^(@{make_string} src));
+                  writeln("Range: "^(@{make_string} range));
+                  context_map src range context)
                   )
           , Symtab.empty
           , to_delay)))

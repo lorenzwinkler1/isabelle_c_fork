@@ -13,8 +13,7 @@ fun transform_type typ = if typ = HOLogic.intT then "int"
 
 
 fun declare_function idents name ast ret_ty recursive ctxt =
-   let  val _ = writeln("Declaring: "^name^", rec:"^(@{make_string} recursive))
-        val param_idents = filter (fn i => case i of C_AbsEnv.Identifier(_,_,_, C_AbsEnv.Parameter f_name) => f_name = name |_=>false) idents
+   let  val param_idents = filter (fn i => case i of C_AbsEnv.Identifier(_,_,_, C_AbsEnv.Parameter f_name) => f_name = name |_=>false) idents
         val local_idents = filter (fn i => case i of C_AbsEnv.Identifier(_,_,_, C_AbsEnv.Local f_name) => f_name = name |_=>false) idents
         val global_idents = filter (fn i => case i of C_AbsEnv.Identifier(_,_,_, C_AbsEnv.Global) => true
                                                       | C_AbsEnv.Identifier(_,_,_,C_AbsEnv.FunctionCategory _)=>true
@@ -22,10 +21,39 @@ fun declare_function idents name ast ret_ty recursive ctxt =
 
         val params = map (fn C_AbsEnv.Identifier(name,pos,typ, _) => (Binding.make (name, pos), transform_type typ)) (param_idents)
         val locals = map (fn C_AbsEnv.Identifier(name,pos,typ, _) => (Binding.make (name, pos), transform_type typ, NoSyn)) (local_idents)
+
+        val invariants:((string*term*Position.range) list) = List.filter (fn (f_name,_,_) => f_name = name) 
+                                                                (#invariants (Clean_Annotation.Data_Clean_Annotations.get ctxt))
+                                                                                                                 
+        val loop_pos =Library.distinct (op =) (C11_Ast_Lib.fold_cStatement (fn a => fn b => a@b) C11_Unit_2_Clean.get_loop_positions ast [])
+        fun compare_pos ((C_Ast.Position0 (pos1,_,_,_)),(C_Ast.Position0 (pos2,_,_,_))) = Int.compare (pos1,pos2)
+        val loop_pos_sorted = Library.sort compare_pos loop_pos 
+
+        fun range_less_than_pos (range:Position.range) (C_Ast.Position0 (pos,_,_,_)) = the (Position.offset_of (fst range)) < pos
+        fun get_invariant_for_position (((inv,inv_pos)::R_inv): (term*Position.range)list)
+                                       (loop_positions: C_Ast.positiona list)
+                                       (pos3: C_Ast.positiona)
+                      (* search the first invariant, which is not declared before pos3 *)
+                      = (if range_less_than_pos inv_pos pos3 then get_invariant_for_position R_inv loop_positions pos3 
+                        else case loop_positions of (* we found the first invariant after pos3 *)
+                              (* Now check, if the next loop definition is after the invariant definition. 
+                                  Otherwise there is no invariant for the given loop *)
+                              (pos1::pos2::R) => if pos3 = pos1 andalso range_less_than_pos inv_pos pos2 then SOME inv
+                                                   else get_invariant_for_position ((inv,inv_pos)::R_inv) (pos2::R) pos3
+                              | (pos1::R) => if pos3 = pos1 then SOME inv else NONE
+                              | [] => NONE)
+           |get_invariant_for_position [] _ _ = NONE
+        
+        val get_invariant = get_invariant_for_position (List.map (fn inv => (#2 inv, #3 inv)) invariants) loop_pos_sorted
+
         fun get_translated_fun_bdy ctx _ = let
               val v = ((C11_Ast_Lib.fold_cStatement 
               C11_Stmt_2_Clean.regroup 
-              (C11_Stmt_2_Clean.convertStmt false (StateMgt.get_state_type ctx) (local_idents@param_idents@global_idents) (Proof_Context.theory_of ctx) name)
+              (C11_Stmt_2_Clean.convertStmt false 
+                                            (StateMgt.get_state_type ctx) 
+                                            (local_idents@param_idents@global_idents) 
+                                            (Proof_Context.theory_of ctx) 
+                                             name get_invariant)
               ast []))
               in hd v end
 
@@ -37,7 +65,6 @@ fun declare_function idents name ast ret_ty recursive ctxt =
                                  read_post = fn ctx => Abs ("\<sigma>",(StateMgt.get_state_type ctx), Abs ("ret",ret_ty, @{term True})),
                                  read_variant_opt = NONE,
                                  read_body = get_translated_fun_bdy}
-        val _ = writeln("passed translation")
         val decl = Function_Specification_Parser.checkNsem_function_spec_gen {recursive = recursive} test_function_sem
     in decl end
 
@@ -53,15 +80,13 @@ fun handle_declarations translUnit ctxt =
         fun map_prev_idents (name,(positions,_,data)) =
              case #functionArgs data of C_Ast.None => C_AbsEnv.Identifier(name, if null positions then @{here} else hd positions,get_hol_type (#ret data) (#params data),Global)
              |_=> Identifier(name, @{here},intT,FunctionCategory (Final, NONE))  (*this line is wrong because of different function types*)
-        val env = (C_Module.env ctxt)
+        val env = (C_Module.Data_Last_Env.get ctxt)
         (*First we need to get all previously defined global vars and functions*)
         val m = (Symtab.dest (#idents(#var_table(env))))
         val prev_idents =map map_prev_idents m
-
         (*the new identifiers are returned in reverse \<rightarrow> thus reverse *)
         val (new_idents, call_table) = C_AbsEnv.parseTranslUnitIdentifiers translUnit [] prev_idents Symtab.empty
 
-        val _ = writeln("Call table: "^(@{make_string} call_table))
         val identifiers = (rev new_idents)@prev_idents
         val map_idents = List.map (fn C_AbsEnv.Identifier(name,_,typ,_) => (Binding.name name, transform_type typ, NoSyn))
 
@@ -72,9 +97,7 @@ fun handle_declarations translUnit ctxt =
              
         val fun_asts = 
               List.map (fn C_AbsEnv.Identifier(name,_,ret_ty,C_AbsEnv.FunctionCategory ast) =>
-                     let  val _ = writeln("Name: "^name)
-                          val _ = writeln("Calls: "^(@{make_string} (Symtab.lookup call_table name)))
-                          fun is_recursive NONE = false
+                     let  fun is_recursive NONE = false
                             |is_recursive (SOME calls) = List.exists (fn x => x=name) calls
                      in 
                   (name,the (snd ast),ret_ty,  is_recursive (Symtab.lookup call_table name)) end) 
@@ -208,6 +231,10 @@ void recursive_function(int n){
   }
 }\<close>
 
+find_theorems recursive_function_core
+find_theorems recursive_function1_core
+term recursive_function
+term recursive_function1
 
 (*
 Recursions with return values are currently unsupported in CLEAN, but are about to be fixed by someone else
@@ -229,7 +256,6 @@ int fun_with_pre(int u){
   int local1;
   /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>2 > 0\<close> */
   /*@ post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>3 > 0\<close> */
-  /*@ inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>4 > 0\<close> */
   return local1;
 }
 int fun_with_pre2(int u){
@@ -245,4 +271,51 @@ val annotation_data = Clean_Annotation.Data_Clean_Annotations.get (Context.Theor
 \<close>                                          
 
 
+text\<open>Invariants are more tricky, as there can be several within one function\<close>
+
+text\<open>Lets start with a simple example with two loops, 
+    which computes a*b, given a and b are positive!
+
+    The following program is fully annotated with pre-, and postcondition, aswell as 2 invariants\<close>
+C\<open>
+int multiply(int a, int b){
+  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>C\<open>a\<close> > 0\<close> */
+  /*@ post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<lambda>ret::int. ret = C\<open>a*b\<close>\<close> */
+  int sum;
+  int counter;
+  int counter_b;
+
+  while(counter < a){
+    /* here we have a loop without an invariant */
+    counter = counter + 1;
+  }
+  counter = 0;
+  sum = 0;
+
+  while(counter < a){
+    /*@ inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>C\<open>counter\<close> \<le> a\<close> */
+    counter = counter + 1;
+  }
+
+  while(counter > 0){
+    /*@ inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>C\<open>(a-counter)*b\<close> = sum \<and> counter \<ge> 0\<close> */
+    counter_b = 0;
+    while(counter_b < b){
+      /*@ inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>C\<open>counter_b\<close> \<le> b\<close>*/      
+      counter_b = counter_b +1;
+    }
+    
+    sum = sum + counter_b;
+    counter = counter -1;
+
+  }
+  return sum;
+}
+\<close>
+
+find_theorems multiply_core
+
+ML\<open>
+val annotation_data = Clean_Annotation.Data_Clean_Annotations.get (Context.Theory @{theory})
+\<close>   
 

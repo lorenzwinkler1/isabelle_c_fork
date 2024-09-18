@@ -1181,7 +1181,6 @@ structure Function_Specification_Parser  =
            val bdg_core_name = Binding.name_of bdg_core
 
            val umty = args_ty --> StateMgt.MON_SE_T @{typ "unit"} sty
-           val _ = writeln("BODY1: "^(@{make_string} body))
            val eq = mk_meta_eq(Free (bdg_core_name, umty),mk_pat_tupleabs_wrapper params' body)
            val args_core =(SOME (bdg_core, SOME umty, NoSyn), (Binding.empty_atts, eq), [], [])
        in StateMgt.cmd args_core
@@ -1287,16 +1286,13 @@ val _ = Named_Target.theory_map;
                               val args_ty = HOLogic.mk_tupleT (map snd params)
                               val mon_se_ty = StateMgt_core.MON_SE_T ret_ty sty
                               val body = read_body ctxt mon_se_ty
-                              val _ = writeln("Is Recursive: "^(@{make_string} (#recursive isrec)))
                               val ctxt' =
                                 if #recursive isrec then
-                                  (writeln("Binding: "^(@{make_string} binding));
-                                   writeln("Type: "^(@{make_string} (args_ty --> mon_se_ty)));Proof_Context.add_fixes 
+                                  (Proof_Context.add_fixes 
                                     [(binding, SOME (args_ty --> mon_se_ty), NoSyn)] ctxt |> #2)
                                 else
                                   ctxt
                               val body = read_body  ctxt' mon_se_ty
-                              val _ = writeln("Body: "^(@{make_string} body))
                           in  ctxt' |> define_body_core binding args_ty sty params body
                           end) (* separation nasty, but nec. in order to make the body definition 
                                   take effect. No other reason. *)
@@ -1405,7 +1401,7 @@ definition while_C_A :: " (('\<sigma>_ext) control_state_scheme \<Rightarrow> bo
                         \<Rightarrow> (unit, ('\<sigma>_ext) control_state_ext)MON\<^sub>S\<^sub>E"
   where   "while_C_A Inv f c B \<equiv> while_C c B"
 
-
+                                 
 ML\<open>
 
 structure Clean_Term_interface = 

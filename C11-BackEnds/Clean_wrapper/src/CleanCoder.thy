@@ -102,9 +102,7 @@ fun read_N_coerce_global thy name ty =
 
            val longnames =  List.filter filter_by_shortname (#constants (Consts.dest consts))
            val longname = (fst o hd) longnames
-           val _ = writeln("Longname: "^(@{make_string} longname))
            val s = drop_dark_matter(Syntax.string_of_typ_global thy ty)
-           val _ = writeln("Type: "^(@{make_string} s))
            val str = longname ^ " :: " ^ s 
        in  Syntax.read_term_global thy str end
 
@@ -112,10 +110,7 @@ fun read_N_coerce_global thy name ty =
 fun read_N_coerce thy name ty = 
        (* a very dirty hack ... but reconstructs the true \<open>const_name\<close> 
           along the subtype hierarchy, but coerces it to the current sigma*)
-       let val _ = writeln("Name: "^name)
-           val _ = writeln("Type: "^(@{make_string} name))
-           val s = drop_dark_matter(Syntax.string_of_typ_global thy ty)
-           val _ = writeln("s: "^(@{make_string} s))
+       let val s = drop_dark_matter(Syntax.string_of_typ_global thy ty)
            val str = name ^ " :: " ^ s 
        in  Syntax.read_term_global thy str end
 \<close>
@@ -147,7 +142,7 @@ fun node_content_parser (x : C11_Ast_Lib.node_content) =
       val id = hd(tl(String.tokens (fn x => x = #"\"")(drop_dark_matter a_markup)))
     in id end  (* no type inference *);
 
-fun convertExpr verbose (sigma_i: typ) env thy function_name
+fun convertExpr verbose (sigma_i: typ) env thy function_name get_invariant
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo )   
            (c : term list) =
@@ -157,7 +152,6 @@ fun convertExpr verbose (sigma_i: typ) env thy function_name
 (*here, we get the full name of the variable, then we return the term well named and typed.
 Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
       "Ident0" =>  (let val id = node_content_parser a
-                        val _ = writeln("id: "^(id))
                         fun is_id_name (C_AbsEnv.Identifier(id_name, _, _, _)) = (id_name = id)
                            |is_id_name _ = false
                         val C_AbsEnv.Identifier(_, _, ty, cat) = case List.find is_id_name env of
@@ -170,7 +164,6 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
                                                                  - (String.size "_scheme"))
                                               (*dangerous. will work only for the local case *)
                         val lid = local_state^"."^id
-                        val _ = writeln("TRACE2")
                     in case cat of
                         C_AbsEnv.Global => read_N_coerce_global thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i) :: c
                       | C_AbsEnv.Local(_) => Const(@{const_name "comp"}, 
@@ -185,8 +178,6 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
                                 error("Mutual recursion is not supported in Clean")
                       | C_AbsEnv.FunctionCategory(a, b) =>
                             let fun get_call_const id = Syntax.read_term_global thy id
-                                val _ = writeln("ID: "^id)
-                                val _ = writeln("TY: "^(@{make_string} ty))
                                 fun get_rec_call_ident id= Free(id, 
                                             (TVar (("'a", 0), [])) --> sigma_i --> (Type (@{type_name "option"}, [mk_tupleT [ty, sigma_i]])))
                             in (if function_name = id then get_rec_call_ident id else get_call_const id) :: c end
@@ -294,21 +285,20 @@ translate integers in booleans. That's what term_to_bool t do.
      |"CCall0" => c (* skip this wrapper *)
      | str => error("unsupported expression with parse tag: "^str)) (* global catch all *)
 
-
 fun lifted_term sigma_i term = Abs("\<sigma>", sigma_i, abstract_over (Free("\<sigma>", sigma_i), term))
 
-fun conv_Cexpr_lifted_term  sigma_i A_env thy function_name C_expr = 
+fun conv_Cexpr_lifted_term  sigma_i A_env thy function_name get_invariant C_expr = 
     let val e::R = (C11_Ast_Lib.fold_cExpression (K I)
-                               (convertExpr false sigma_i A_env thy function_name) C_expr [])
+                               (convertExpr false sigma_i A_env thy function_name get_invariant) C_expr [])
     in  lifted_term sigma_i e end
 
 (*** -------------- ***)
 
-fun conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CArrSize0 (_,C_expr),_)) C_env thy function_name= 
+fun conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CArrSize0 (_,C_expr),_)) C_env thy function_name get_invariant= 
             SOME(hd((C11_Ast_Lib.fold_cExpression (K I)
-                                 (convertExpr false dummyT C_env thy function_name) C_expr [])))
-   |conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CNoArrSize0 Z,_)) _ _ _= NONE
-   |conv_cDerivedDeclarator_cSizeExpr_term (_)  _ _ _=  
+                                 (convertExpr false dummyT C_env thy function_name get_invariant) C_expr [])))
+   |conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CNoArrSize0 Z,_)) _ _ _ _= NONE
+   |conv_cDerivedDeclarator_cSizeExpr_term (_)  _ _ _ _=  
             error("DeclarationSpec format not defined. [Clean restriction]")
 
 
@@ -354,7 +344,7 @@ fun block_to_term (Const("_END",_)::Const("_BEGIN",_)::R)
          in (foldl1 (uncurry mk_seq_C) (rev topS)) :: restS end
 
 
-fun convertStmt verbose sigma_i nEenv thy function_name
+fun convertStmt verbose sigma_i nEenv thy function_name get_invariant
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo ) 
            (stack : term list) =
@@ -475,20 +465,28 @@ if ... then ... else skip*)
                                                 (mk_skip_C sigma_i)::R)
                     |  _    => raise WrongFormat("if")
                    )
-     |"CWhile0" => (case stack of
-                       (a::b::R) => (mk_while_C  (lifted_term sigma_i b)  a) :: R
-                      |(a::R)    => (mk_while_C  (lifted_term sigma_i a)  
+     |"CWhile0" => let val pos = (case b of C_Ast.OnlyPos0 (pos,_) => pos
+                              |C_Ast.NodeInfo0 (pos,_,_) => pos)
+                       val mk_while_func = case get_invariant pos of NONE => mk_while_C
+                                                                 | SOME inv => mk_while_anno_C inv (@{term "unit"})
+                      in (case stack of
+                       (a::b::R) => (mk_while_func  (lifted_term sigma_i b)  a) :: R
+                      |(a::R)    => (mk_while_func  (lifted_term sigma_i a)  
                                                  (mk_skip_C dummyT)) :: R  (* really dummyT *)
                       |_ => raise WrongFormat("while")
-                   )
+                   ) end
 (*There is no For operator in Clean, so we have to translate it as a while :
 for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
-     |"CFor0" =>   (case stack of
-                        (body::pace::cond::init::R) => (let val C' = mk_while_C
+     |"CFor0" =>   let val pos = (case b of C_Ast.OnlyPos0 (pos,_) => pos
+                              |C_Ast.NodeInfo0 (pos,_,_) => pos)
+                       val mk_while_func = case get_invariant pos of NONE => mk_while_C
+                                                                 | SOME inv => mk_while_anno_C inv (@{term "unit"})
+                      in (case stack of
+                        (body::pace::cond::init::R) => (let val C' = mk_while_func
                                                                        (lifted_term sigma_i cond)
                                                                        (mk_seq_C body pace)
                                                         in   ((mk_seq_C init C'))::R end)
-                    |_ => raise WrongFormat("for"))
+                        |_ => raise WrongFormat("for")) end
      | "CCall0" => (let fun extract_fun_args (t :: R) args =
                             case t of
                             (* very bad way of checking if term represents a function *)
@@ -499,18 +497,11 @@ for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
                                                 then (args, Free(id, ty), R) 
                                                 else extract_fun_args R (Free(id, ty) :: args)
                              | arg => extract_fun_args R (arg :: args)
-                        val _ = writeln("TRACE10")
                         val (args, f, R) = extract_fun_args stack []
-                        val _ = writeln("TRACE12")
                         val Type (_, [arg_ty,r_ty]) = fastype_of f
-                        val _ = writeln("TRACE13")
                         val Type (_,[old_sigma_ty, r_ty]) = r_ty
-                        val _ = writeln("TRACE14: "^(@{make_string} r_ty))
                         val Type (_,[Type(_, [ret_ty, old_sigma1_ty])]) = r_ty
-                        val _ = writeln("TRACE15")
                         val new_args_ty = mk_tupleT (List.map fastype_of args)
-                        val _ = writeln("Old Args: "^(@{make_string} arg_ty))
-                        val _ = writeln("New Args: "^(@{make_string} new_args_ty))
                         val new_ty = new_args_ty --> sigma_i --> (Type (@{type_name "option"},[Type (@{type_name "prod"}, [ret_ty,sigma_i])]))
 
                         fun swap_ty (Const (name, _)) n_ty = Const (name, n_ty)
@@ -518,9 +509,8 @@ for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
 
                         val f_new = swap_ty f new_ty
                         val fun_args_term = mk_tuple args
-                        val _ = writeln("TRACE11")
                        in mk_call_C f_new (lifted_term sigma_i fun_args_term) :: R end)
-     | _ => convertExpr verbose sigma_i nEenv thy function_name a b stack )
+     | _ => convertExpr verbose sigma_i nEenv thy function_name get_invariant a b stack )
 
 end
 
@@ -564,6 +554,13 @@ fun convertCUnit verbose sigma_i env thy
      | s =>  (c)
 )
 
+fun get_loop_positions (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
+           (b:  C_Ast.nodeInfo )   
+           (c : C_Ast.positiona list) =
+      case tag of
+        "CWhile0" => (case b of C_Ast.OnlyPos0 (pos,_) => pos::c
+                              |C_Ast.NodeInfo0 (pos,_,_) => pos::c)
+        | _ => c
 end
 end
 

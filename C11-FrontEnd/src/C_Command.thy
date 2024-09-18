@@ -154,6 +154,7 @@ signature C_MODULE =
  sig
     structure Data_Accept    : GENERIC_DATA
     structure Data_In_Env    : GENERIC_DATA
+    structure Data_Last_Env  : GENERIC_DATA
     structure Data_In_Source : GENERIC_DATA
     structure Data_Term      : GENERIC_DATA
 
@@ -266,6 +267,11 @@ structure Data_In_Env = Generic_Data
    val empty = C_Env.empty_env_lang
    val merge = K empty)
 
+structure Data_Last_Env = Generic_Data
+  (type T = C_Env.env_lang
+   val empty = C_Env.empty_env_lang
+   val merge = K empty)
+
 structure Data_Accept = Generic_Data
   (type T = C_Grammar_Rule.ast_generic -> C_Env.env_lang -> Context.generic -> Context.generic
    fun empty _ _ = I
@@ -349,7 +355,8 @@ fun err0 _ _ pos =
 val err = pair () oooo err0
 
 fun accept0 f (env_lang:C_Env.env_lang) ast =
-  Data_In_Env.put env_lang
+  (fn ctx => Data_Last_Env.put (Data_In_Env.get ctx) ctx) 
+  #> Data_In_Env.put env_lang
   #> (fn context => f context ast env_lang (Data_Accept.get context ast env_lang context))
 
 fun accept (env_lang:C_Env.env_lang) (_, (ast, _, _)) =
