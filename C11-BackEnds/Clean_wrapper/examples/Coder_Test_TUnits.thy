@@ -11,6 +11,16 @@ fun transform_type typ = if typ = HOLogic.intT then "int"
                          else if typ = HOLogic.unitT then "unit"
                          else error "Unknown variable type"
 
+local open C_AbsEnv HOLogic in
+fun get_hol_type (C_Env.Parsed ret) params = let
+      val base_type =the (C11_TypeSpec_2_CleanTyp.conv_cDeclarationSpecifier_typ (SOME ret))
+      fun transform_type ((C_Ast.CArrDeclr0 _)::R) base_type = listT (transform_type R base_type)
+         | transform_type [] base_type = base_type
+      in transform_type params base_type end
+fun map_env_ident_to_identifier (name,(positions,_,data)) =
+     case #functionArgs data of C_Ast.None => C_AbsEnv.Identifier(name, if null positions then @{here} else hd positions,get_hol_type (#ret data) (#params data),Global)
+     |_=> Identifier(name, @{here},intT,FunctionCategory (Final, NONE))  (*this line is wrong because of different function types*)
+end
 
 fun declare_function idents name ast ret_ty recursive ctxt =
    let  val param_idents = filter (fn i => case i of C_AbsEnv.Identifier(_,_,_, C_AbsEnv.Parameter f_name) => f_name = name |_=>false) idents
@@ -71,19 +81,10 @@ fun declare_function idents name ast ret_ty recursive ctxt =
 local open C_AbsEnv HOLogic in
 fun handle_declarations translUnit ctxt =
      (let
-        fun get_hol_type (C_Env.Parsed ret) params = let
-              val base_type =the (C11_TypeSpec_2_CleanTyp.conv_cDeclarationSpecifier_typ (SOME ret))
-              fun transform_type ((C_Ast.CArrDeclr0 _)::R) base_type = listT (transform_type R base_type)
-                 | transform_type [] base_type = base_type
-              in transform_type params base_type end
-
-        fun map_prev_idents (name,(positions,_,data)) =
-             case #functionArgs data of C_Ast.None => C_AbsEnv.Identifier(name, if null positions then @{here} else hd positions,get_hol_type (#ret data) (#params data),Global)
-             |_=> Identifier(name, @{here},intT,FunctionCategory (Final, NONE))  (*this line is wrong because of different function types*)
         val env = (C_Module.Data_Last_Env.get ctxt)
         (*First we need to get all previously defined global vars and functions*)
         val m = (Symtab.dest (#idents(#var_table(env))))
-        val prev_idents =map map_prev_idents m
+        val prev_idents =map map_env_ident_to_identifier m
         (*the new identifiers are returned in reverse \<rightarrow> thus reverse *)
         val (new_idents, call_table) = C_AbsEnv.parseTranslUnitIdentifiers translUnit [] prev_idents Symtab.empty
 
@@ -121,6 +122,24 @@ fun handle_declarations_wrapper ast v2 ctxt =
 
 setup \<open>Context.theory_map (C_Module.Data_Accept.put (handle_declarations_wrapper))\<close> 
 
+setup \<open>C_Module.C_Term.map_expression 
+    (fn cexpr => fn env=> fn thy => let 
+    val sigma_i = (StateMgt.get_state_type (Local_Theory.target_of thy))
+    val idents =  (Symtab.dest (#idents(#var_table(env))))
+    val A_env = List.map map_env_ident_to_identifier idents
+
+in
+hd (C11_Ast_Lib.fold_cExpression (K I) 
+                                      (C11_Expr_2_Clean.convertExpr false sigma_i  A_env  @{theory} "" (K NONE))
+                                      cexpr [])
+ end
+
+)\<close>
+
+
+term\<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>3\<close>\<close>
+
+
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 
@@ -133,7 +152,7 @@ account for previously defined identifiers\<close>
 
 C\<open>int threefunc(){
   return 1+2;
-}\<close>
+}\<close>  
 
 find_theorems threefunc_core
 
