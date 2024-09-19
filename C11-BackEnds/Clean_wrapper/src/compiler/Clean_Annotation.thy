@@ -75,8 +75,9 @@ structure Data_Clean_Annotations = Generic_Data
    val empty = {preconditions=[], postconditions=[], invariants=[]}
    val merge = K empty)
 
-fun map_context_annotation_declaration annotation_type src range context =
+fun map_context_annotation_declaration annotation_type src range context0 =
 let 
+  val context =C_Module.Data_Surrounding_Env.put ((snd o C_Stack.Data_Lang.get') context0) context0
   fun get_fun_name [(SOME (C_Ast.Ident0 (C_Ast.SS_base (C_Ast.ST name), _, _)),_)] = name
       | get_fun_name (_::R) = get_fun_name R
       | get_fun_name _ = (warning "unable to find name of surrounding function for CLEAN annotation";"")
@@ -99,9 +100,7 @@ fun bind scan context_map ((stack1, (to_delay, stack2)), _) =
         , ( range
           , C_Inner_Syntax.bottom_up
               (fn v1 => fn context =>(
-                  writeln("SRC: "^(@{make_string} src));
-                  writeln("Range: "^(@{make_string} range));
-                  context_map src range context)
+                  context_map src range (C_Module.Data_Surrounding_Env.put (((snd o C_Stack.Data_Lang.get') context)) context))
                   )
           , Symtab.empty
           , to_delay)))

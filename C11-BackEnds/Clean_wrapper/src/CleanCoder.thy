@@ -99,8 +99,10 @@ fun read_N_coerce_global thy name ty =
              (case Long_Name.explode n of
                 [_, middle, base] => base = name andalso (String.substring (middle,0,6) = "global")
               | _ => false) 
-
+           val local_declarations = List.filter (fn (n,_)=> case Long_Name.explode n of (a::R)=> a ="Coder_Test_TUnits"|_=>false)  (#constants (Consts.dest consts))
+           val _ = writeln("Constants (Coder_Test_TUnits.*): "^(@{make_string} local_declarations))
            val longnames =  List.filter filter_by_shortname (#constants (Consts.dest consts))
+           val _ = writeln("TRACE1: "^(@{make_string} longnames))
            val longname = (fst o hd) longnames
            val s = drop_dark_matter(Syntax.string_of_typ_global thy ty)
            val str = longname ^ " :: " ^ s 

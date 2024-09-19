@@ -6,7 +6,7 @@ ML\<open>
 (*This is an override for the update_Root_Ast function that is registered in C_Command.*)
 
 fun transform_type typ = if typ = HOLogic.intT then "int" 
-                         else if typ = HOLogic.natT then "uint"
+                         else if typ = HOLogic.natT then "nat"
                          else if is_listTy typ then (transform_type (dest_listTy typ))^" list" 
                          else if typ = HOLogic.unitT then "unit"
                          else error "Unknown variable type"
@@ -18,8 +18,13 @@ fun get_hol_type (C_Env.Parsed ret) params = let
          | transform_type [] base_type = base_type
       in transform_type params base_type end
 fun map_env_ident_to_identifier (name,(positions,_,data)) =
-     case #functionArgs data of C_Ast.None => C_AbsEnv.Identifier(name, if null positions then @{here} else hd positions,get_hol_type (#ret data) (#params data),Global)
+     let fun get_ident_type C_Env.Global = Global 
+            |get_ident_type C_Env.Local = Local ""
+            |get_ident_type C_Env.Parameter = Parameter ""
+      in
+     case #functionArgs data of C_Ast.None => Identifier(name, if null positions then @{here} else hd positions,get_hol_type (#ret data) (#params data),get_ident_type (#scope data))
      |_=> Identifier(name, @{here},intT,FunctionCategory (Final, NONE))  (*this line is wrong because of different function types*)
+      end
 end
 
 fun declare_function idents name ast ret_ty recursive ctxt =
@@ -57,13 +62,14 @@ fun declare_function idents name ast ret_ty recursive ctxt =
         val get_invariant = get_invariant_for_position (List.map (fn inv => (#2 inv, #3 inv)) invariants) loop_pos_sorted
 
         fun get_translated_fun_bdy ctx _ = let
+              val _ = writeln("State type: "^(@{make_string} (StateMgt.get_state_type ctx)))
               val v = ((C11_Ast_Lib.fold_cStatement 
               C11_Stmt_2_Clean.regroup 
               (C11_Stmt_2_Clean.convertStmt false 
                                             (StateMgt.get_state_type ctx) 
                                             (local_idents@param_idents@global_idents) 
                                             (Proof_Context.theory_of ctx) 
-                                             name get_invariant)
+                                             name (K NONE))
               ast []))
               in hd v end
 
@@ -123,15 +129,19 @@ fun handle_declarations_wrapper ast v2 ctxt =
 setup \<open>Context.theory_map (C_Module.Data_Accept.put (handle_declarations_wrapper))\<close> 
 
 setup \<open>C_Module.C_Term.map_expression 
-    (fn cexpr => fn env=> fn thy => let 
-    val sigma_i = (StateMgt.get_state_type (Local_Theory.target_of thy))
+    (fn cexpr => fn env=> fn ctxt => let 
+    val sigma_i = (StateMgt.get_state_type o Context.proof_of )ctxt
     val idents =  (Symtab.dest (#idents(#var_table(env))))
     val A_env = List.map map_env_ident_to_identifier idents
-
+    val _ = writeln("State type: "^(@{make_string} sigma_i))
+    val _ = writeln("Env: "^(@{make_string} env))
+    val _ = writeln("A_Env: "^(@{make_string} A_env))
+    val _ = writeln("Ctxt: "^(@{make_string} (C_Stack.Data_Lang.get' ctxt)))
 in
-hd (C11_Ast_Lib.fold_cExpression (K I) 
+(*hd (C11_Ast_Lib.fold_cExpression (K I) 
                                       (C11_Expr_2_Clean.convertExpr false sigma_i  A_env  @{theory} "" (K NONE))
-                                      cexpr [])
+                                      cexpr []) *)
+ @{term "1::int"}
  end
 
 )\<close>
@@ -139,22 +149,180 @@ hd (C11_Ast_Lib.fold_cExpression (K I)
 
 term\<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>3\<close>\<close>
 
-
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
-
+ML\<open>
+val SPY_ENV =  Unsynchronized.ref(NONE:C_Env.env_lang option);
+val ml_int = 1\<close>
 
 C\<open>
-int globalvar_different_scope;
+int var1;
 \<close>
-text\<open>Todo: this fails because of parseTranslUnitIdentifiers - it needs to be rewritten to better
-account for previously defined identifiers\<close>
+C\<open>
+void function1(){
+  int var1;
+}
 
+void function2(){
+  int a;
+  a = var1;
+}
+\<close>
+
+C\<open>
+int globvar;
+int fun_with_pre_test(int u){
+  int localvar_123;
+  /*@ \<approx>setup \<open>fn a => fn b => fn env => (SPY_ENV := SOME env;writeln("setup"); I)\<close> */
+  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>u\<close> > ml_int\<close> */
+
+  return 1;
+}\<close>
+
+find_theorems globvar1
+
+ML\<open>
+val a = !SPY_ENV
+\<close>
+
+section\<open>Demonstration\<close>
+
+subsection\<open>Global definitions\<close>
+C\<open>
+int global_integer;
+unsigned global_nat;
+\<close>
+(*variables are declared accordingly*)
+find_theorems global_integer
+find_theorems global_nat
+term\<open>global_integer\<close>
+term\<open>global_nat\<close>
+
+
+
+
+subsection\<open>Function definitions\<close>
 C\<open>int threefunc(){
   return 1+2;
-}\<close>  
+}
+
+int sum(int p1, int p2){
+  return p1+p2;
+}
+
+void addToGlobalInteger(int value){
+  global_integer = global_integer+value;
+}
+\<close>
 
 find_theorems threefunc_core
+term\<open>threefunc\<close>
+find_theorems sum_core
+term\<open>sum\<close>
+
+
+
+
+subsection\<open>And function calls\<close>
+C\<open>
+void addPlusThree(int val){
+  int three; /*Init expression currently unsupported*/
+  three = threefunc();
+  addToGlobalInteger(three+val);
+}
+\<close>
+
+
+text\<open>we compare this to an equivalent definition\<close>
+function_spec addPlusThree1(val :: int) returns unit
+pre          "\<open>True\<close>" 
+post         "\<open>\<lambda>res::unit. True \<close>"
+local_vars   three :: int
+defines "p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C threefunc \<open>()\<close> ; assign_local three_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p);-
+         call\<^sub>C addToGlobalInteger \<open>(three + val)\<close>"
+
+find_theorems addPlusThree_core
+find_theorems addPlusThree1_core
+term\<open>addPlusThree\<close>
+term\<open>addPlusThree1\<close>
+
+
+
+
+subsection \<open>Recursive functions\<close>
+
+rec_function_spec recursive_add1(n::int) returns unit
+pre          "\<open>True\<close>" 
+post         "\<open>\<lambda>res::unit. True \<close>"
+local_vars   localvar1 :: int
+defines "if\<^sub>C \<open>n > 0\<close>  
+         then (\<open> global_integer :=  global_integer + 1\<close>);-
+               call\<^sub>C recursive_add1 \<open>(n-1)\<close>
+         else skip\<^sub>S\<^sub>E 
+         fi"
+
+C\<open>
+void recursive_add(int n){
+  if(n > 0){
+    global_integer = global_integer + 1;
+    recursive_add(n-1);
+  }
+}\<close>
+
+find_theorems recursive_add_core
+find_theorems recursive_add1_core
+term recursive_add
+term recursive_add1
+
+
+
+
+subsection\<open>(multidimensional) arrays are also supported\<close>
+C\<open>
+int globalArray[][];
+int something(){
+  int localvar;
+  localvar = globalArray[0][3];
+}
+\<close>
+
+
+
+
+subsection\<open>A fully annotated program\<close>
+text\<open>disclaimer: C_expr antiquotation does not yet work\<close>
+C\<open>
+int multiply(int a, int b){
+  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>a\<close> > 0 \<and> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>b\<close> > 0\<close> */
+  /*@ post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<lambda>ret::int. ret = \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>a*b\<close>\<close> */
+  int s;
+  int counter;
+  int counter_b;
+  counter = 0;
+  s = 0;
+
+  while(counter < a){
+    /*@ inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>counter*b\<close> = \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>s\<close> \<and> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>counter\<close> \<le> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>a\<close>\<close> */
+    counter_b = 0;
+    while(counter_b < b){
+      /*@ inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>counter_b\<close> \<le> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>b\<close>\<close> */      
+      counter_b = counter_b +1;
+    }
+    
+    s = s + counter_b;
+    counter = counter + 1;
+  }
+  return s;
+}
+\<close>
+
+
+
+
+
+
+
+section\<open>Some other tests\<close>
 
 C\<open>
 int intarr[][];
@@ -174,7 +342,6 @@ int sum3(int param1,int param2){
   x = sum1(param1, param2);
   return x;
 }\<close>
-term\<open>global_3_state.x\<close>
 find_theorems x
 
 C\<open>
@@ -191,8 +358,8 @@ term\<open>intarr\<close>
 C\<open>
 int a;
 int testfunction(int v1, int v2){
-  globalvar_different_scope = sum1(v1,v2);
-  return globalvar_different_scope;
+  global_integer = sum1(v1,v2);
+  return global_integer;
 }
 \<close>
 
@@ -222,38 +389,13 @@ function_spec testfunction1(param1 :: int, param2::int) returns int
 pre          "\<open>True\<close>" 
 post         "\<open>\<lambda>res::int. True \<close>"
 local_vars   localvar1 :: int
-defines "p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C sum1 \<open>(2::int, 3::int)\<close> ; assign_global globalvar_different_scope_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p);-
-         return\<^bsub>local_testfunction1_state.result_value_update\<^esub> \<open>globalvar_different_scope\<close>"
+defines "p\<^sub>t\<^sub>m\<^sub>p \<leftarrow> call\<^sub>C sum1 \<open>(2::int, 3::int)\<close> ; assign_global global_integer_update (\<lambda>\<sigma>. p\<^sub>t\<^sub>m\<^sub>p);-
+         return\<^bsub>local_testfunction1_state.result_value_update\<^esub> \<open>global_integer\<close>"
 
 find_theorems testfunction1_core
 term\<open>testfunction1_core\<close>
 
-text \<open>Recursive functions\<close>
 
-rec_function_spec recursive_function1(n::int) returns unit
-pre          "\<open>True\<close>" 
-post         "\<open>\<lambda>res::unit. True \<close>"
-local_vars   localvar1 :: int
-defines "if\<^sub>C \<open>n > 0\<close>  
-         then (\<open> globalvar_different_scope :=  globalvar_different_scope + 1\<close>);-
-               call\<^sub>C recursive_function1 \<open>(n-1)\<close>
-         else skip\<^sub>S\<^sub>E 
-         fi"
-
-
-
-C\<open>
-void recursive_function(int n){
-  if(n > 0){
-    globalvar_different_scope = globalvar_different_scope + 1;
-    recursive_function(n-1);
-  }
-}\<close>
-
-find_theorems recursive_function_core
-find_theorems recursive_function1_core
-term recursive_function
-term recursive_function1
 
 (*
 Recursions with return values are currently unsupported in CLEAN, but are about to be fixed by someone else
@@ -270,10 +412,12 @@ return\<^bsub>local_recursive_function2_state.result_value_update\<^esub> \<open
 text\<open>Now the pre and post conditions\<close>
 
 
+
 C\<open>
+int xx;
 int fun_with_pre(int u){
   int local1;
-  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>2 > 0\<close> */
+  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>xx\<close> > 0\<close> */
   /*@ post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>3 > 0\<close> */
   return local1;
 }
@@ -297,7 +441,7 @@ text\<open>Lets start with a simple example with two loops,
 
     The following program is fully annotated with pre-, and postcondition, aswell as 2 invariants\<close>
 C\<open>
-int multiply(int a, int b){
+int multiply1(int a, int b){
   /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>C\<open>a\<close> > 0\<close> */
   /*@ post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<lambda>ret::int. ret = C\<open>a*b\<close>\<close> */
   int sum;
@@ -331,6 +475,12 @@ int multiply(int a, int b){
   return sum;
 }
 \<close>
+
+C\<open>
+void somefunction123(){
+int localArray[];
+
+}\<close>
 
 find_theorems multiply_core
 

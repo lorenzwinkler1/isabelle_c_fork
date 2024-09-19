@@ -155,6 +155,7 @@ signature C_MODULE =
     structure Data_Accept    : GENERIC_DATA
     structure Data_In_Env    : GENERIC_DATA
     structure Data_Last_Env  : GENERIC_DATA
+    structure Data_Surrounding_Env  : GENERIC_DATA
     structure Data_In_Source : GENERIC_DATA
     structure Data_Term      : GENERIC_DATA
 
@@ -170,13 +171,13 @@ signature C_MODULE =
         val key_external_declaration: Input.source
         val key_statement: Input.source
         val key_translation_unit: Input.source
-        val map_default: (C_Grammar_Rule.ast_generic -> C_Env.env_lang -> local_theory -> term) -> theory -> theory
-        val map_expression: (C_Grammar_Rule_Lib.CExpr -> C_Env.env_lang -> local_theory -> term) -> theory -> theory
+        val map_default: (C_Grammar_Rule.ast_generic -> C_Env.env_lang -> Context.generic -> term) -> theory -> theory
+        val map_expression: (C_Grammar_Rule_Lib.CExpr -> C_Env.env_lang -> Context.generic -> term) -> theory -> theory
         val map_external_declaration:
-           (C_Grammar_Rule_Lib.CExtDecl -> C_Env.env_lang -> local_theory -> term) -> theory -> theory
-        val map_statement: (C_Grammar_Rule_Lib.CStat -> C_Env.env_lang -> local_theory -> term) -> theory -> theory
+           (C_Grammar_Rule_Lib.CExtDecl -> C_Env.env_lang -> Context.generic -> term) -> theory -> theory
+        val map_statement: (C_Grammar_Rule_Lib.CStat -> C_Env.env_lang -> Context.generic -> term) -> theory -> theory
         val map_translation_unit:
-           (C_Grammar_Rule_Lib.CTranslUnit -> C_Env.env_lang -> local_theory -> term) -> theory -> theory
+           (C_Grammar_Rule_Lib.CTranslUnit -> C_Env.env_lang -> Context.generic -> term) -> theory -> theory
         val tok0_expression: string * ('a * 'a -> (C_Grammar.Tokens.svalue, 'a) LALR_Parser_Eval.Token.token)
         val tok0_external_declaration: string * ('a * 'a -> (C_Grammar.Tokens.svalue, 'a) LALR_Parser_Eval.Token.token)
         val tok0_statement: string * ('a * 'a -> (C_Grammar.Tokens.svalue, 'a) LALR_Parser_Eval.Token.token)
@@ -272,13 +273,18 @@ structure Data_Last_Env = Generic_Data
    val empty = C_Env.empty_env_lang
    val merge = K empty)
 
+structure Data_Surrounding_Env = Generic_Data
+  (type T = C_Env.env_lang
+   val empty = C_Env.empty_env_lang
+   val merge = K empty)
+
 structure Data_Accept = Generic_Data
   (type T = C_Grammar_Rule.ast_generic -> C_Env.env_lang -> Context.generic -> Context.generic
    fun empty _ _ = I
    val merge = #2)
 
 structure Data_Term = Generic_Data
-  (type T = (C_Grammar_Rule.ast_generic -> C_Env.env_lang -> local_theory -> term) Symtab.table
+  (type T = (C_Grammar_Rule.ast_generic -> C_Env.env_lang -> Context.generic -> term) Symtab.table
    val empty = Symtab.empty
    val merge = #2)
 
@@ -357,7 +363,7 @@ val err = pair () oooo err0
 fun accept0 f (env_lang:C_Env.env_lang) ast =
   (fn ctx => Data_Last_Env.put (Data_In_Env.get ctx) ctx) 
   #> Data_In_Env.put env_lang
-  #> (fn context => f context ast env_lang (Data_Accept.get context ast env_lang context))
+  #> (fn context => (f context ast env_lang (Data_Accept.get context ast env_lang context)))
 
 fun accept (env_lang:C_Env.env_lang) (_, (ast, _, _)) =
   pair () o C_Env.map_context (accept0 (K (K (K I))) env_lang ast)
@@ -381,18 +387,19 @@ fun accept ctxt start_rule =
     val (key, pos) = Input.source_content key
   in
     ( start
-    , fn env_lang => fn (_, (ast, _, _)) =>
+    , fn env_lang => fn (_, (ast, _, _)) =>((*This env_lang also contains the previous environment, 
+        but returning this would completely override the new env (which would be bad in case of parsing input with ned declarations)*)
         C_Env.map_context'
           (accept0
-            (fn context =>
+            (fn context =>(
               pair oo (case Symtab.lookup (Data_Term.get context) key of
                          NONE => tap (fn _ => warning ("Representation function associated to\
                                                        \ \"" ^ key ^ "\"" ^ Position.here pos
                                                        ^ " not found (returning a dummy term)"))
                                      (fn _ => fn _ => @{term "()"})
-                       | SOME f => fn ast => fn env_lang => f ast env_lang ctxt))
+                       | SOME f => fn ast => fn env_lang => f ast env_lang (Context.Proof ctxt))))
             env_lang
-            ast))
+            ast)))
   end
 
 fun eval_in text context env start_rule =
@@ -431,9 +438,9 @@ fun parse_translation l = l |>
                 src
                 (case Context.get_generic_context () of
                    NONE => Context.Proof ctxt
-                 | SOME context => Context.mapping I (K ctxt) context)
-                (C_Stack.Data_Lang.get #> (fn NONE => env0 ctxt
-                                            | SOME (_, env_lang) => env_lang))
+                 | SOME context => Context.Proof ctxt)
+                (fn _ => (C_Stack.Data_Lang.get #> (fn NONE => env0 ctxt (*HERE: This is a "fix" for starting with the current C_Env when parsing antiquotations.*)
+                                            | SOME (_, env_lang) => env_lang)) (Context.Proof ctxt))
                 start_rule
                 (c_enclose "" "" src)
               end
@@ -939,7 +946,7 @@ fun command_ml environment catch_all debug get_file gthy =
 val ML = command_ml "" false;
 val SML = command_ml ML_Env.SML true;
 end;
-\<close>
+\<close>                                         
 
 subsubsection \<open>Initialization\<close>
 
