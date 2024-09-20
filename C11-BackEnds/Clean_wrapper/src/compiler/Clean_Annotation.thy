@@ -63,34 +63,42 @@ datatype antiq_hol = Invariant of string (* term *)
                    | End_spec of string (* term *)
                    | Calls of text_range list
                    | Owned_by of text_range
+                   | Measure of string
 
 (*In the following data structure the annotations are saved*)
 type annotation_data = {
-  preconditions: (string*term*Position.range) list,
-  postconditions: (string*term*Position.range) list,
-  invariants: (string*term*Position.range) list
+  preconditions: (string*(Context.generic -> term)*Position.range) list,
+  postconditions: (string*(Context.generic -> term)*Position.range) list,
+  invariants: (string*(Context.generic -> term)*Position.range) list,
+  measures: (string*(Context.generic -> term)*Position.range) list
 }
 structure Data_Clean_Annotations = Generic_Data
   (type T = annotation_data
-   val empty = {preconditions=[], postconditions=[], invariants=[]}
+   val empty = {preconditions=[], postconditions=[], invariants=[], measures=[]}
    val merge = K empty)
 
 fun map_context_annotation_declaration annotation_type src range context0 =
 let 
-  val context =C_Module.Data_Surrounding_Env.put ((snd o C_Stack.Data_Lang.get') context0) context0
+  val current_env =snd (C_Stack.Data_Lang.get' context0)
   fun get_fun_name [(SOME (C_Ast.Ident0 (C_Ast.SS_base (C_Ast.ST name), _, _)),_)] = name
       | get_fun_name (_::R) = get_fun_name R
       | get_fun_name _ = (warning "unable to find name of surrounding function for CLEAN annotation";"")
-  val term = Syntax.read_term (Context.proof_of context) (Token.inner_syntax_of src)
-  val function_name = (get_fun_name o #scopes o snd o C_Stack.Data_Lang.get') context
+  val term =fn ctxt=> 
+                (*Important change: Syntax.read_term does coerce the types of the terms 
+                  constructed by C_Expr antiquotation. Syntax.parse_term does not do that*)
+                Syntax.parse_term 
+                        (Context.proof_of (C_Module.Data_Surrounding_Env.put current_env ctxt)) 
+                        (Token.inner_syntax_of src)
+  val function_name = (get_fun_name o #scopes o snd o C_Stack.Data_Lang.get') context0
   val new_data = [(function_name, term, range)]
 
-  val new_context_map = Data_Clean_Annotations.map (fn {preconditions, postconditions, invariants} => {
+  val new_context_map = Data_Clean_Annotations.map (fn {preconditions, postconditions, invariants, measures} => {
       preconditions = case annotation_type of Spec _ => preconditions@new_data | _ => preconditions,
       postconditions = case annotation_type of End_spec _ => postconditions@new_data | _ => postconditions,
-      invariants =case annotation_type of Invariant _ => invariants@new_data | _ => invariants
+      invariants =case annotation_type of Invariant _ => invariants@new_data | _ => invariants,
+      measures =case annotation_type of Measure _ => measures@new_data | _ => measures
   })
-in new_context_map context end
+in new_context_map context0 end
 
 fun bind scan context_map ((stack1, (to_delay, stack2)), _) =
   C_Parse.range scan
@@ -100,7 +108,7 @@ fun bind scan context_map ((stack1, (to_delay, stack2)), _) =
         , ( range
           , C_Inner_Syntax.bottom_up
               (fn v1 => fn context =>(
-                  context_map src range (C_Module.Data_Surrounding_Env.put (((snd o C_Stack.Data_Lang.get') context)) context))
+                  context_map src range context)
                   )
           , Symtab.empty
           , to_delay)))
@@ -128,6 +136,7 @@ setup \<open>let open Clean_Annotation
        in command ("pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n", \<^here>) (Spec "")
        #> command ("post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n", \<^here>) (End_spec "")
        #> command ("inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n", \<^here>) (Invariant "")
+       #> command ("measure\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n", \<^here>) (Measure "")
        end\<close>
 
 end

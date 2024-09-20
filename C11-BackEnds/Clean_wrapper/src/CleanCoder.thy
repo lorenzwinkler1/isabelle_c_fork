@@ -100,9 +100,7 @@ fun read_N_coerce_global thy name ty =
                 [_, middle, base] => base = name andalso (String.substring (middle,0,6) = "global")
               | _ => false) 
            val local_declarations = List.filter (fn (n,_)=> case Long_Name.explode n of (a::R)=> a ="Coder_Test_TUnits"|_=>false)  (#constants (Consts.dest consts))
-           val _ = writeln("Constants (Coder_Test_TUnits.*): "^(@{make_string} local_declarations))
            val longnames =  List.filter filter_by_shortname (#constants (Consts.dest consts))
-           val _ = writeln("TRACE1: "^(@{make_string} longnames))
            val longname = (fst o hd) longnames
            val s = drop_dark_matter(Syntax.string_of_typ_global thy ty)
            val str = longname ^ " :: " ^ s 
@@ -144,7 +142,7 @@ fun node_content_parser (x : C11_Ast_Lib.node_content) =
       val id = hd(tl(String.tokens (fn x => x = #"\"")(drop_dark_matter a_markup)))
     in id end  (* no type inference *);
 
-fun convertExpr verbose (sigma_i: typ) env thy function_name get_invariant
+fun convertExpr verbose (sigma_i: typ) env thy function_name get_loop_annotations
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo )   
            (c : term list) =
@@ -285,20 +283,22 @@ translate integers in booleans. That's what term_to_bool t do.
                       handleDeclaration c
                    end
      |"CCall0" => c (* skip this wrapper *)
+     |"CNoArrSize0" => c
+     |"CArrDeclr0" => c
      | str => error("unsupported expression with parse tag: "^str)) (* global catch all *)
 
 fun lifted_term sigma_i term = Abs("\<sigma>", sigma_i, abstract_over (Free("\<sigma>", sigma_i), term))
 
-fun conv_Cexpr_lifted_term  sigma_i A_env thy function_name get_invariant C_expr = 
+fun conv_Cexpr_lifted_term  sigma_i A_env thy function_name get_loop_annotations C_expr = 
     let val e::R = (C11_Ast_Lib.fold_cExpression (K I)
-                               (convertExpr false sigma_i A_env thy function_name get_invariant) C_expr [])
+                               (convertExpr false sigma_i A_env thy function_name get_loop_annotations) C_expr [])
     in  lifted_term sigma_i e end
 
 (*** -------------- ***)
 
-fun conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CArrSize0 (_,C_expr),_)) C_env thy function_name get_invariant= 
+fun conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CArrSize0 (_,C_expr),_)) C_env thy function_name get_loop_annotations= 
             SOME(hd((C11_Ast_Lib.fold_cExpression (K I)
-                                 (convertExpr false dummyT C_env thy function_name get_invariant) C_expr [])))
+                                 (convertExpr false dummyT C_env thy function_name get_loop_annotations) C_expr [])))
    |conv_cDerivedDeclarator_cSizeExpr_term (C_Ast.CArrDeclr0 (_,C_Ast.CNoArrSize0 Z,_)) _ _ _ _= NONE
    |conv_cDerivedDeclarator_cSizeExpr_term (_)  _ _ _ _=  
             error("DeclarationSpec format not defined. [Clean restriction]")
@@ -346,7 +346,7 @@ fun block_to_term (Const("_END",_)::Const("_BEGIN",_)::R)
          in (foldl1 (uncurry mk_seq_C) (rev topS)) :: restS end
 
 
-fun convertStmt verbose sigma_i nEenv thy function_name get_invariant
+fun convertStmt verbose sigma_i nEenv thy function_name get_loop_annotations
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo ) 
            (stack : term list) =
@@ -469,8 +469,16 @@ if ... then ... else skip*)
                    )
      |"CWhile0" => let val pos = (case b of C_Ast.OnlyPos0 (pos,_) => pos
                               |C_Ast.NodeInfo0 (pos,_,_) => pos)
-                       val mk_while_func = case get_invariant pos of NONE => mk_while_C
-                                                                 | SOME inv => mk_while_anno_C inv (@{term "unit"})
+                       val (get_inv, get_measure) = get_loop_annotations pos
+                       val invariant_lifted =get_inv |> Option.map (fn get_inv=> (lifted_term sigma_i) (get_inv (Context.Theory thy)))
+                       val measure_lifted =get_measure |> Option.map (fn get_measure => (lifted_term sigma_i) ((@{term "nat"} $( get_measure (Context.Theory thy)))))
+                       val _ = writeln("Measure lifted: "^(@{make_string} measure_lifted)) 
+                       val mk_while_func = case (invariant_lifted,measure_lifted) 
+                            of (NONE,NONE) => mk_while_C
+                              |(SOME inv, SOME measure)=>mk_while_anno_C inv  measure (*Note the coercion to nat!*)
+                              |(SOME inv, NONE)=>mk_while_anno_C inv (lifted_term sigma_i @{term "1::nat"})
+                              |(NONE, SOME measure)=>mk_while_anno_C (lifted_term sigma_i @{term "True::bool"})  measure
+                                                                 
                       in (case stack of
                        (a::b::R) => (mk_while_func  (lifted_term sigma_i b)  a) :: R
                       |(a::R)    => (mk_while_func  (lifted_term sigma_i a)  
@@ -481,8 +489,15 @@ if ... then ... else skip*)
 for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
      |"CFor0" =>   let val pos = (case b of C_Ast.OnlyPos0 (pos,_) => pos
                               |C_Ast.NodeInfo0 (pos,_,_) => pos)
-                       val mk_while_func = case get_invariant pos of NONE => mk_while_C
-                                                                 | SOME inv => mk_while_anno_C inv (@{term "unit"})
+                       (*duplicate code from while*)
+                       val (get_inv, get_measure) = get_loop_annotations pos
+                       val invariant_lifted =get_inv |> Option.map (fn get_inv=> (lifted_term sigma_i) (get_inv (Context.Theory thy)))
+                       val measure_lifted =get_measure |> Option.map (fn get_measure => (lifted_term sigma_i) ( get_measure (Context.Theory thy)))
+                       val mk_while_func = case (invariant_lifted,measure_lifted) 
+                            of (NONE,NONE) => mk_while_C
+                              |(SOME inv, SOME measure)=>mk_while_anno_C inv measure
+                              |(SOME inv, NONE)=>mk_while_anno_C inv (lifted_term sigma_i @{term "1::nat"})
+                              |(NONE, SOME measure)=>mk_while_anno_C (lifted_term sigma_i @{term "True::bool"}) measure
                       in (case stack of
                         (body::pace::cond::init::R) => (let val C' = mk_while_func
                                                                        (lifted_term sigma_i cond)
@@ -512,7 +527,7 @@ for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
                         val f_new = swap_ty f new_ty
                         val fun_args_term = mk_tuple args
                        in mk_call_C f_new (lifted_term sigma_i fun_args_term) :: R end)
-     | _ => convertExpr verbose sigma_i nEenv thy function_name get_invariant a b stack )
+     | _ => convertExpr verbose sigma_i nEenv thy function_name get_loop_annotations a b stack )
 
 end
 
@@ -562,7 +577,10 @@ fun get_loop_positions (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content)
       case tag of
         "CWhile0" => (case b of C_Ast.OnlyPos0 (pos,_) => pos::c
                               |C_Ast.NodeInfo0 (pos,_,_) => pos::c)
+        |"CFor0" => (case b of C_Ast.OnlyPos0 (pos,_) => pos::c
+                              |C_Ast.NodeInfo0 (pos,_,_) => pos::c)
         | _ => c
+
 end
 end
 

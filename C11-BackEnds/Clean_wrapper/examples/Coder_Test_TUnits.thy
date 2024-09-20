@@ -34,33 +34,50 @@ fun declare_function idents name ast ret_ty recursive ctxt =
                                                       | C_AbsEnv.Identifier(_,_,_,C_AbsEnv.FunctionCategory _)=>true
                                                       | _ => false) idents
 
+        (*Obtain the parameters and local variables*)
         val params = map (fn C_AbsEnv.Identifier(name,pos,typ, _) => (Binding.make (name, pos), transform_type typ)) (param_idents)
         val locals = map (fn C_AbsEnv.Identifier(name,pos,typ, _) => (Binding.make (name, pos), transform_type typ, NoSyn)) (local_idents)
 
-        val invariants:((string*term*Position.range) list) = List.filter (fn (f_name,_,_) => f_name = name) 
-                                                                (#invariants (Clean_Annotation.Data_Clean_Annotations.get ctxt))
-                                                                                                                 
+        (*Invariants and measuress need to be matched to a loop. This is done by comparing the parse locations of all while loops.
+          The following are helper methods, to obtain the function get_invariant: positiona \<rightarrow> (context\<rightarrow>term) option*)
+        val invariants:((string*(Context.generic -> term)*Position.range) list) = List.filter (fn (f_name,_,_) => f_name = name) 
+                                                                (#invariants (Clean_Annotation.Data_Clean_Annotations.get ctxt)) 
+        val measures:((string*(Context.generic -> term)*Position.range) list) = List.filter (fn (f_name,_,_) => f_name = name) 
+                                                                (#measures (Clean_Annotation.Data_Clean_Annotations.get ctxt))                                                                                                       
         val loop_pos =Library.distinct (op =) (C11_Ast_Lib.fold_cStatement (fn a => fn b => a@b) C11_Unit_2_Clean.get_loop_positions ast [])
         fun compare_pos ((C_Ast.Position0 (pos1,_,_,_)),(C_Ast.Position0 (pos2,_,_,_))) = Int.compare (pos1,pos2)
         val loop_pos_sorted = Library.sort compare_pos loop_pos 
-
         fun range_less_than_pos (range:Position.range) (C_Ast.Position0 (pos,_,_,_)) = the (Position.offset_of (fst range)) < pos
-        fun get_invariant_for_position (((inv,inv_pos)::R_inv): (term*Position.range)list)
+        fun get_for_position (((inv,inv_pos)::R_inv): ((Context.generic -> term)*Position.range)list)
                                        (loop_positions: C_Ast.positiona list)
                                        (pos3: C_Ast.positiona)
                       (* search the first invariant, which is not declared before pos3 *)
-                      = (if range_less_than_pos inv_pos pos3 then get_invariant_for_position R_inv loop_positions pos3 
+                      = (if range_less_than_pos inv_pos pos3 then get_for_position R_inv loop_positions pos3 
                         else case loop_positions of (* we found the first invariant after pos3 *)
                               (* Now check, if the next loop definition is after the invariant definition. 
                                   Otherwise there is no invariant for the given loop *)
                               (pos1::pos2::R) => if pos3 = pos1 andalso range_less_than_pos inv_pos pos2 then SOME inv
-                                                   else get_invariant_for_position ((inv,inv_pos)::R_inv) (pos2::R) pos3
+                                                   else get_for_position ((inv,inv_pos)::R_inv) (pos2::R) pos3
                               | (pos1::R) => if pos3 = pos1 then SOME inv else NONE
                               | [] => NONE)
-           |get_invariant_for_position [] _ _ = NONE
-        
-        val get_invariant = get_invariant_for_position (List.map (fn inv => (#2 inv, #3 inv)) invariants) loop_pos_sorted
+           |get_for_position [] _ _ = NONE
+        fun get_invariant pos = (get_for_position (List.map (fn inv => (#2 inv, #3 inv)) invariants) loop_pos_sorted) pos
+        fun get_measure pos = (get_for_position (List.map (fn inv => (#2 inv, #3 inv)) measures) loop_pos_sorted) pos
+        fun get_loop_annotations pos = (get_invariant pos, get_measure pos)
 
+        (*generic function to get the first ele*)
+        val get_precond =Option.map (fn (_,e,_) => e) (List.find (fn (a,_,_) => a = name) (#preconditions (Clean_Annotation.Data_Clean_Annotations.get ctxt)))
+        val get_precond =Option.map (fn (_,e,_) => e) (List.find (fn (a,_,_) => a = name) (#postconditions (Clean_Annotation.Data_Clean_Annotations.get ctxt)))    
+
+        (*the translation of the precondition*)
+        fun get_translation NONE default ctxt= C11_Expr_2_Clean.lifted_term (StateMgt.get_state_type (ctxt)) default
+          | get_translation (SOME get_term) _ ctxt= let
+                    val term = get_term ctxt
+                    in
+                       C11_Expr_2_Clean.lifted_term (StateMgt.get_state_type ctxt) term
+                    end
+
+        (*The actual translation of the loop body*)
         fun get_translated_fun_bdy ctx _ = let
               val _ = writeln("State type: "^(@{make_string} (StateMgt.get_state_type ctx)))
               val v = ((C11_Ast_Lib.fold_cStatement 
@@ -69,7 +86,7 @@ fun declare_function idents name ast ret_ty recursive ctxt =
                                             (StateMgt.get_state_type ctx) 
                                             (local_idents@param_idents@global_idents) 
                                             (Proof_Context.theory_of ctx) 
-                                             name (K NONE))
+                                             name get_loop_annotations)
               ast []))
               in hd v end
 
@@ -77,7 +94,7 @@ fun declare_function idents name ast ret_ty recursive ctxt =
                                  locals = locals@[(Binding.name "dummylocalvariable","int", NoSyn)], (*There needs to be at least one local variable*)
                                  params = params,
                                  ret_type = transform_type ret_ty,
-                                 read_pre = fn ctx => Abs ("\<sigma>",(StateMgt.get_state_type ctx), @{term True}),
+                                 read_pre = fn ctx => Abs ("\<sigma>",(StateMgt.get_state_type ctx),  @{term True}),
                                  read_post = fn ctx => Abs ("\<sigma>",(StateMgt.get_state_type ctx), Abs ("ret",ret_ty, @{term True})),
                                  read_variant_opt = NONE,
                                  read_body = get_translated_fun_bdy}
@@ -129,19 +146,19 @@ fun handle_declarations_wrapper ast v2 ctxt =
 setup \<open>Context.theory_map (C_Module.Data_Accept.put (handle_declarations_wrapper))\<close> 
 
 setup \<open>C_Module.C_Term.map_expression 
-    (fn cexpr => fn env=> fn ctxt => let 
+    (fn cexpr => fn _ => fn ctxt => let 
     val sigma_i = (StateMgt.get_state_type o Context.proof_of )ctxt
+    val env = C_Module.Data_Surrounding_Env.get ctxt
     val idents =  (Symtab.dest (#idents(#var_table(env))))
     val A_env = List.map map_env_ident_to_identifier idents
-    val _ = writeln("State type: "^(@{make_string} sigma_i))
-    val _ = writeln("Env: "^(@{make_string} env))
-    val _ = writeln("A_Env: "^(@{make_string} A_env))
-    val _ = writeln("Ctxt: "^(@{make_string} (C_Stack.Data_Lang.get' ctxt)))
+    val _ = writeln("State t: "^(@{make_string} sigma_i))
+    val expr = (hd (C11_Ast_Lib.fold_cExpression (K I) 
+                                      (C11_Expr_2_Clean.convertExpr false sigma_i  A_env  (Context.theory_of ctxt) "" (K NONE))
+                                      cexpr [])) handle ERROR msg => (writeln("ERROR: "^(@{make_string}msg));@{term "1::int"})
+    val _ = writeln("Expression: "^(@{make_string} expr))
 in
-(*hd (C11_Ast_Lib.fold_cExpression (K I) 
-                                      (C11_Expr_2_Clean.convertExpr false sigma_i  A_env  @{theory} "" (K NONE))
-                                      cexpr []) *)
- @{term "1::int"}
+  expr
+(* @{term "1::int"}*)
  end
 
 )\<close>
@@ -155,31 +172,28 @@ ML\<open>
 val SPY_ENV =  Unsynchronized.ref(NONE:C_Env.env_lang option);
 val ml_int = 1\<close>
 
-C\<open>
-int var1;
-\<close>
-C\<open>
-void function1(){
-  int var1;
-}
-
-void function2(){
-  int a;
-  a = var1;
-}
-\<close>
-
+term\<open>nat\<close>
 C\<open>
 int globvar;
+unsigned nat1;
+unsigned global_nat;
 int fun_with_pre_test(int u){
-  int localvar_123;
+  int localvar;
+
+  localvar = u;
   /*@ \<approx>setup \<open>fn a => fn b => fn env => (SPY_ENV := SOME env;writeln("setup"); I)\<close> */
-  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>u\<close> > ml_int\<close> */
+  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>u\<close> > 1::int\<close> */
+
+  while(localvar>0){
+  /*@ inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>u\<close> \<ge> 0 \<close> */
+  /*@ measure\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>nat1\<close>\<close> */
+    localvar = localvar -1;
+  }
 
   return 1;
 }\<close>
 
-find_theorems globvar1
+find_theorems fun_with_pre_test_core
 
 ML\<open>
 val a = !SPY_ENV
@@ -325,7 +339,7 @@ int multiply(int a, int b){
 section\<open>Some other tests\<close>
 
 C\<open>
-int intarr[][];
+int intarr[][][];
 int x;
 \<close>
 term x
@@ -333,7 +347,7 @@ find_theorems x
 C\<open>
 int sum1(int param1,int param2){
   x = threefunc();
-  intarr[2][3] = x + param1 + param2;
+  intarr[2][3][1] = x + param1 + param2;
   return 1;
 }
 
@@ -343,7 +357,7 @@ int sum3(int param1,int param2){
   return x;
 }\<close>
 find_theorems x
-
+find_theorems sum1_core
 C\<open>
 int test_scope(){
   x = 1;
@@ -476,6 +490,8 @@ int multiply1(int a, int b){
 }
 \<close>
 
+C\<open>
+int globarr[];\<close>
 C\<open>
 void somefunction123(){
 int localArray[];
