@@ -139,7 +139,7 @@ fun conv_ParseStatus_CDeclSpecS (SOME(C_Env.Parsed S)) = SOME S
    |conv_ParseStatus_CDeclSpecS _ = NONE
 
 
-fun conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _)])) = SOME(HOLogic.intT)
+fun conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _)])) = SOME(HOLogic.natT)
    |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CIntType0 _)]))   = SOME(HOLogic.intT)
    |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CLongType0 _),
                                           CTypeSpec0 (CIntType0 _)]))   = SOME(HOLogic.intT)

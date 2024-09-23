@@ -611,9 +611,10 @@ fun mk_meta_eq (t, u) = meta_eq_const (fastype_of t) $ t $ u;
 
 fun   mk_pat_tupleabs [] t = t
     | mk_pat_tupleabs [(s,ty)] t = absfree(s,ty)(t)
-    | mk_pat_tupleabs ((s,ty)::R) t = HOLogic.mk_case_prod(absfree(s,ty)(mk_pat_tupleabs R t));
+    | mk_pat_tupleabs ((s,ty)::R) t = HOLogic.mk_case_prod(absfree(s,ty)(mk_pat_tupleabs R t))
 fun   mk_pat_tupleabs_wrapper [] t = absfree("unitparam",@{typ unit}) t
-    | mk_pat_tupleabs_wrapper R t = mk_pat_tupleabs R t
+    | mk_pat_tupleabs_wrapper R t = mk_pat_tupleabs R t 
+
 
 fun read_constname ctxt n = fst(dest_Const(Syntax.read_term ctxt n))
 
@@ -1166,7 +1167,7 @@ structure Function_Specification_Parser  =
            val _ = check_absence_old src'
            val bdg_ty = HOLogic.mk_tupleT(map (#2) params) --> f_sty HOLogic.boolT
            val eq =  mk_meta_eq(Free(Binding.name_of bdg, bdg_ty),src')
-           val args = (SOME(bdg,NONE,NoSyn), (Binding.empty_atts,eq),[],[]) 
+           val args = (SOME(bdg,NONE,NoSyn), (Binding.empty_atts,eq),[],[])
        in  StateMgt.cmd args ctxt end
 
    fun define_precond binding sty =

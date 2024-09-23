@@ -163,6 +163,8 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
                                                                  - (String.size "_scheme"))
                                               (*dangerous. will work only for the local case *)
                         val lid = local_state^"."^id
+                        val _ = writeln("Id: "^(@{make_string} id))
+                        val _ = writeln("Type: "^(@{make_string} ty))
                     in case cat of
                         C_AbsEnv.Global => read_N_coerce_global thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i) :: c
                       | C_AbsEnv.Local(_) => Const(@{const_name "comp"}, 
@@ -469,10 +471,12 @@ if ... then ... else skip*)
      |"CWhile0" => let val pos = (case b of C_Ast.OnlyPos0 (pos,_) => pos
                               |C_Ast.NodeInfo0 (pos,_,_) => pos)
                        val (get_inv, get_measure) = get_loop_annotations pos
-                       val invariant_lifted =get_inv |> Option.map (fn get_inv=> (lifted_term sigma_i) (get_inv (Context.Theory thy)))
-                       val _ = writeln("Invariant: "^(@{make_string} (get_inv |> Option.map (fn ginv => ginv (Context.Theory thy)))))
-                       val measure_lifted =get_measure |> Option.map (fn get_measure => (lifted_term sigma_i) ((@{term "nat"} $( get_measure (Context.Theory thy)))))
-                       val _ = writeln("Invariant lifted: "^(@{make_string} invariant_lifted)) 
+                       val invariant_lifted =get_inv 
+                                  |> Option.map 
+                                      (fn get_inv=>(Syntax.check_term (Proof_Context.init_global thy) ((lifted_term sigma_i) (get_inv (Context.Theory thy)))))
+                       val measure_lifted =get_measure 
+                                  |> Option.map 
+                                      (fn get_measure => Syntax.check_term (Proof_Context.init_global thy) ((lifted_term sigma_i) ( get_measure (Context.Theory thy))))
                        val mk_while_func = case (invariant_lifted,measure_lifted) 
                             of (NONE,NONE) => mk_while_C
                               |(SOME inv, SOME measure)=>mk_while_anno_C inv  measure (*Note the coercion to nat!*)

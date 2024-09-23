@@ -13,16 +13,18 @@ fun transform_type typ = if typ = HOLogic.intT then "int"
 
 local open C_AbsEnv HOLogic in
 fun get_hol_type (C_Env.Parsed ret) params = let
+      val _ = writeln("Ret: "^(@{make_string} ret))
       val base_type =the (C11_TypeSpec_2_CleanTyp.conv_cDeclarationSpecifier_typ (SOME ret))
+      val _ = writeln("BT: "^(@{make_string} base_type))
       fun transform_type ((C_Ast.CArrDeclr0 _)::R) base_type = listT (transform_type R base_type)
          | transform_type [] base_type = base_type
       in transform_type params base_type end
 fun map_env_ident_to_identifier (name,(positions,_,data)) =
-     let fun get_ident_type C_Env.Global = Global 
-            |get_ident_type C_Env.Local = Local ""
-            |get_ident_type C_Env.Parameter = Parameter ""
+     let fun get_ident_scope C_Env.Global = Global 
+            |get_ident_scope C_Env.Local = Local ""
+            |get_ident_scope C_Env.Parameter = Parameter ""
       in
-     case #functionArgs data of C_Ast.None => Identifier(name, if null positions then @{here} else hd positions,get_hol_type (#ret data) (#params data),get_ident_type (#scope data))
+     case #functionArgs data of C_Ast.None => Identifier(name, if null positions then @{here} else hd positions,get_hol_type (#ret data) (#params data),get_ident_scope (#scope data))
      |_=> Identifier(name, @{here},intT,FunctionCategory (Final, NONE))  (*this line is wrong because of different function types*)
       end
 end
@@ -37,6 +39,19 @@ fun declare_function idents name ast ret_ty recursive ctxt =
         (*Obtain the parameters and local variables*)
         val params = map (fn C_AbsEnv.Identifier(name,pos,typ, _) => (Binding.make (name, pos), transform_type typ)) (param_idents)
         val locals = map (fn C_AbsEnv.Identifier(name,pos,typ, _) => (Binding.make (name, pos), transform_type typ, NoSyn)) (local_idents)
+
+        (*This is necessary, as parameters are represented as free variables.
+          When the Invariants, post- and preconditions are read through the term antiquotations, 
+          Syntax.parse_term (Syntax.read_term does this too) would substitute them by another const,
+          which could be a local or global variable*)
+        fun remove_params_from_proof ctx = let
+             val param_names = List.map (fn C_AbsEnv.Identifier(n,_,_,_) => n) param_idents
+             fun filter_by_shortname param_names (n, _) =
+               List.exists (fn ele => ele = Long_Name.base_name n) param_names
+             val longnames =  List.filter (filter_by_shortname param_names) (#constants (Consts.dest (Sign.consts_of (Proof_Context.theory_of ctx))))
+             val thy0 = Proof_Context.theory_of ctx
+             val thy' = List.foldl (fn (longname, thy')=> thy' |> Sign.hide_const true longname)  thy0 (List.map fst longnames)
+             in Proof_Context.init_global thy' end
 
         (*Invariants and measuress need to be matched to a loop. This is done by comparing the parse locations of all while loops.
           The following are helper methods, to obtain the function get_invariant: positiona \<rightarrow> (context\<rightarrow>term) option*)
@@ -72,26 +87,14 @@ fun declare_function idents name ast ret_ty recursive ctxt =
         (*the translation of the precondition*)
         fun get_translation NONE default ctxt= C11_Expr_2_Clean.lifted_term (StateMgt.get_state_type (ctxt)) default
           | get_translation (SOME get_term) _ ctxt= let
-                    val term = get_term ctxt
+                    val term = get_term (Context.Proof (remove_params_from_proof ctxt))
+                    val lifted = C11_Expr_2_Clean.lifted_term (StateMgt.get_state_type ctxt) term
                     in
-                       C11_Expr_2_Clean.lifted_term (StateMgt.get_state_type ctxt) term
+                       Syntax.check_term ctxt lifted
                     end
-
         (*The actual translation of the loop body*)
         fun get_translated_fun_bdy ctx _ = let
-              val _ = writeln("State type: "^(@{make_string} (StateMgt.get_state_type ctx)))
-              (*This is necessary, as parameters are represented as free variables.
-                When the Invariants are read through the term antiquotations, Syntax.parse_term
-                (Syntax.read_term does this too) would substitute them by another const,
-                which could be a local or global variable*)
-           val param_names = List.map (fn C_AbsEnv.Identifier(n,_,_,_) => n) param_idents
-           fun filter_by_shortname param_names (n, _) =
-             List.exists (fn ele => ele = Long_Name.base_name n) param_names
-           val longnames =  List.filter (filter_by_shortname param_names) (#constants (Consts.dest (Sign.consts_of (Proof_Context.theory_of ctx))))
-           val thy0 = Proof_Context.theory_of ctx
-           val thy' = List.foldl (fn (longname, thy')=> thy' |> Sign.hide_const true longname)  thy0 (List.map fst longnames)
-           val ctx' = Proof_Context.init_global thy'
-
+              val ctx' = remove_params_from_proof ctx
               val v = ((C11_Ast_Lib.fold_cStatement
               C11_Stmt_2_Clean.regroup 
               (C11_Stmt_2_Clean.convertStmt false 
@@ -106,8 +109,8 @@ fun declare_function idents name ast ret_ty recursive ctxt =
                                  locals = locals@[(Binding.name "dummylocalvariable","int", NoSyn)], (*There needs to be at least one local variable*)
                                  params = params,
                                  ret_type = transform_type ret_ty,
-                                 read_pre = fn ctx => Abs ("\<sigma>",(StateMgt.get_state_type ctx),  @{term True}),
-                                 read_post = fn ctx => Abs ("\<sigma>",(StateMgt.get_state_type ctx), Abs ("ret",ret_ty, @{term True})),
+                                 read_pre = get_translation get_precond  (@{term True}),
+                                 read_post = get_translation get_postcond (Abs ("ret",ret_ty, @{term True})),
                                  read_variant_opt = NONE,
                                  read_body = get_translated_fun_bdy}
         val decl = Function_Specification_Parser.checkNsem_function_spec_gen {recursive = recursive} test_function_sem
@@ -161,12 +164,11 @@ setup \<open>C_Module.C_Term.map_expression
     (fn cexpr => fn _ => fn ctxt => let 
     val sigma_i = (StateMgt.get_state_type o Context.proof_of )ctxt
     val env = C_Module.Data_Surrounding_Env.get ctxt
+    val _ = writeln("Env: "^(@{make_string} env))
     val idents =  (Symtab.dest (#idents(#var_table(env))))
     val A_env = List.map map_env_ident_to_identifier idents
-(*     val _ = writeln("Identifiers: "^(@{make_string} A_env))
-    val _ = writeln("State t: "^(@{make_string} sigma_i)) *)
     val expr = (hd (C11_Ast_Lib.fold_cExpression (K I) 
-                                      (C11_Expr_2_Clean.convertExpr false sigma_i  A_env  (Context.theory_of ctxt) "" (K NONE))
+                                      (C11_Expr_2_Clean.convertExpr true sigma_i  A_env  (Context.theory_of ctxt) "" (K NONE))
                                       cexpr [])) handle ERROR msg => (writeln("ERROR: "^(@{make_string}msg));@{term "1::int"})
     val _ = writeln("Expression: "^(@{make_string} expr))
 in
@@ -175,42 +177,53 @@ in
  end
 
 )\<close>
-
-
-term\<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>3\<close>\<close>
-
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
+
 ML\<open>
-val SPY_ENV =  Unsynchronized.ref(NONE:C_Env.env_lang option);
-val ml_int = 1\<close>
+val a = (Abs ("\<sigma>", StateMgt.get_state_type ( @{context}),
+      Const ("Orderings.ord_class.greater_eq", @{typ "_"}) $ Const ("Groups.one_class.one",  @{typ "int"}) $
+        Const ("Groups.one_class.one", @{typ "int"})))
+
+val a' = absfree ("a",@{typ "int"}) (absfree ("b", @{typ "int"}) (Syntax.check_term @{context} a))
+
+val b = HOLogic.mk_case_prod a'
+\<close>
+
+
+C\<open>
+int multiply1(int a, int b){
+  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>1 \<ge> 1\<close> */
+  return a;
+}\<close>
+
 
 term\<open>nat\<close>
 C\<open>
+int u;
+int arrr[];
+\<close>
+C\<open>
 int globvar;
 unsigned nat1;
-unsigned global_nat;
+int u;
 int fun_with_pre_test(int u){
   int localvar;
 
   localvar = u;
-  /*@ \<approx>setup \<open>fn a => fn b => fn env => (SPY_ENV := SOME env;writeln("setup"); I)\<close> */
-  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>u\<close> > 1::int\<close> */
+  /* pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>u\<close> > 1\<close> */
+  /* post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<lambda>ret::int.\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>u\<close> > 1 \<and> ret > 0\<close> */
 
   while(localvar>0){
-  /*@ inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>u\<close> \<ge> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>localvar\<close> \<close> */
+  /* inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>u\<close> \<ge> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>localvar\<close> \<close> */
   /*@ measure\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>nat1\<close>\<close> */
     localvar = localvar -1;
   }
 
   return 1;
 }\<close>
-
 find_theorems fun_with_pre_test_core
 
-ML\<open>
-val a = !SPY_ENV
-\<close>
 
 section\<open>Demonstration\<close>
 
@@ -318,9 +331,12 @@ int something(){
 
 subsection\<open>A fully annotated program\<close>
 text\<open>disclaimer: C_expr antiquotation does not yet work\<close>
+
+
+
 C\<open>
 int multiply(int a, int b){
-  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>a\<close> > 0 \<and> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>b\<close> > 0\<close> */
+  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>1 \<ge> 1\<close> */
   /*@ post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<lambda>ret::int. ret = \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>a*b\<close>\<close> */
   int s;
   int counter;
@@ -445,11 +461,11 @@ int xx;
 int fun_with_pre(int u){
   int local1;
   /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>xx\<close> > 0\<close> */
-  /*@ post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>3 > 0\<close> */
+  /*@ post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<lambda>ret::int.3 > \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>u\<close>\<close> */
   return local1;
 }
 int fun_with_pre2(int u){
-  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>C\<open>u\<close> > 0\<close> */
+  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>u\<close>  > 0\<close> */
 
   return 1;
 }
@@ -469,7 +485,7 @@ text\<open>Lets start with a simple example with two loops,
     The following program is fully annotated with pre-, and postcondition, aswell as 2 invariants\<close>
 C\<open>int a;\<close>
 C\<open>
-int multiply1(int a, int b){
+int multiply2(int a, int b){
   /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>a\<close> > 0\<close> */
   /*@ post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<lambda>ret::int. ret = \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>a*b\<close>\<close> */
   int sum;
