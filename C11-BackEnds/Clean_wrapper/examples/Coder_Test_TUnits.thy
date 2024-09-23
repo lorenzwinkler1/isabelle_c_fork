@@ -66,8 +66,8 @@ fun declare_function idents name ast ret_ty recursive ctxt =
         fun get_loop_annotations pos = (get_invariant pos, get_measure pos)
 
         (*generic function to get the first ele*)
-        val get_precond =Option.map (fn (_,e,_) => e) (List.find (fn (a,_,_) => a = name) (#preconditions (Clean_Annotation.Data_Clean_Annotations.get ctxt)))
-        val get_precond =Option.map (fn (_,e,_) => e) (List.find (fn (a,_,_) => a = name) (#postconditions (Clean_Annotation.Data_Clean_Annotations.get ctxt)))    
+        val get_precond = Option.map (fn (_,e,_) => e) (List.find (fn (a,_,_) => a = name) (#preconditions (Clean_Annotation.Data_Clean_Annotations.get ctxt)))
+        val get_postcond = Option.map (fn (_,e,_) => e) (List.find (fn (a,_,_) => a = name) (#postconditions (Clean_Annotation.Data_Clean_Annotations.get ctxt)))    
 
         (*the translation of the precondition*)
         fun get_translation NONE default ctxt= C11_Expr_2_Clean.lifted_term (StateMgt.get_state_type (ctxt)) default
@@ -80,12 +80,24 @@ fun declare_function idents name ast ret_ty recursive ctxt =
         (*The actual translation of the loop body*)
         fun get_translated_fun_bdy ctx _ = let
               val _ = writeln("State type: "^(@{make_string} (StateMgt.get_state_type ctx)))
-              val v = ((C11_Ast_Lib.fold_cStatement 
+              (*This is necessary, as parameters are represented as free variables.
+                When the Invariants are read through the term antiquotations, Syntax.parse_term
+                (Syntax.read_term does this too) would substitute them by another const,
+                which could be a local or global variable*)
+           val param_names = List.map (fn C_AbsEnv.Identifier(n,_,_,_) => n) param_idents
+           fun filter_by_shortname param_names (n, _) =
+             List.exists (fn ele => ele = Long_Name.base_name n) param_names
+           val longnames =  List.filter (filter_by_shortname param_names) (#constants (Consts.dest (Sign.consts_of (Proof_Context.theory_of ctx))))
+           val thy0 = Proof_Context.theory_of ctx
+           val thy' = List.foldl (fn (longname, thy')=> thy' |> Sign.hide_const true longname)  thy0 (List.map fst longnames)
+           val ctx' = Proof_Context.init_global thy'
+
+              val v = ((C11_Ast_Lib.fold_cStatement
               C11_Stmt_2_Clean.regroup 
               (C11_Stmt_2_Clean.convertStmt false 
-                                            (StateMgt.get_state_type ctx) 
+                                            (StateMgt.get_state_type ctx') 
                                             (local_idents@param_idents@global_idents) 
-                                            (Proof_Context.theory_of ctx) 
+                                            (Proof_Context.theory_of ctx') 
                                              name get_loop_annotations)
               ast []))
               in hd v end
@@ -151,7 +163,8 @@ setup \<open>C_Module.C_Term.map_expression
     val env = C_Module.Data_Surrounding_Env.get ctxt
     val idents =  (Symtab.dest (#idents(#var_table(env))))
     val A_env = List.map map_env_ident_to_identifier idents
-    val _ = writeln("State t: "^(@{make_string} sigma_i))
+(*     val _ = writeln("Identifiers: "^(@{make_string} A_env))
+    val _ = writeln("State t: "^(@{make_string} sigma_i)) *)
     val expr = (hd (C11_Ast_Lib.fold_cExpression (K I) 
                                       (C11_Expr_2_Clean.convertExpr false sigma_i  A_env  (Context.theory_of ctxt) "" (K NONE))
                                       cexpr [])) handle ERROR msg => (writeln("ERROR: "^(@{make_string}msg));@{term "1::int"})
@@ -185,7 +198,7 @@ int fun_with_pre_test(int u){
   /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>u\<close> > 1::int\<close> */
 
   while(localvar>0){
-  /*@ inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>u\<close> \<ge> 0 \<close> */
+  /*@ inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>u\<close> \<ge> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>localvar\<close> \<close> */
   /*@ measure\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>nat1\<close>\<close> */
     localvar = localvar -1;
   }
@@ -220,7 +233,7 @@ C\<open>int threefunc(){
   return 1+2;
 }
 
-int sum(int p1, int p2){
+int sum5(int p1, int p2){
   return p1+p2;
 }
 
@@ -454,10 +467,11 @@ text\<open>Lets start with a simple example with two loops,
     which computes a*b, given a and b are positive!
 
     The following program is fully annotated with pre-, and postcondition, aswell as 2 invariants\<close>
+C\<open>int a;\<close>
 C\<open>
 int multiply1(int a, int b){
-  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>C\<open>a\<close> > 0\<close> */
-  /*@ post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<lambda>ret::int. ret = C\<open>a*b\<close>\<close> */
+  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>a\<close> > 0\<close> */
+  /*@ post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<lambda>ret::int. ret = \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>a*b\<close>\<close> */
   int sum;
   int counter;
   int counter_b;
@@ -470,15 +484,15 @@ int multiply1(int a, int b){
   sum = 0;
 
   while(counter < a){
-    /*@ inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>C\<open>counter\<close> \<le> a\<close> */
+    /*@ inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>counter\<close> \<le> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>a\<close>\<close> */
     counter = counter + 1;
   }
 
   while(counter > 0){
-    /*@ inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>C\<open>(a-counter)*b\<close> = sum \<and> counter \<ge> 0\<close> */
+    /* inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>(a-counter)*b\<close> = \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>sum\<close> \<and> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>counter\<close> \<ge> 0\<close> */
     counter_b = 0;
     while(counter_b < b){
-      /*@ inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>C\<open>counter_b\<close> \<le> b\<close>*/      
+      /* inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>C\<open>counter_b\<close> \<le> b\<close>*/      
       counter_b = counter_b +1;
     }
     

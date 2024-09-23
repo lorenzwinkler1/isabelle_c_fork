@@ -99,7 +99,6 @@ fun read_N_coerce_global thy name ty =
              (case Long_Name.explode n of
                 [_, middle, base] => base = name andalso (String.substring (middle,0,6) = "global")
               | _ => false) 
-           val local_declarations = List.filter (fn (n,_)=> case Long_Name.explode n of (a::R)=> a ="Coder_Test_TUnits"|_=>false)  (#constants (Consts.dest consts))
            val longnames =  List.filter filter_by_shortname (#constants (Consts.dest consts))
            val longname = (fst o hd) longnames
            val s = drop_dark_matter(Syntax.string_of_typ_global thy ty)
@@ -471,8 +470,9 @@ if ... then ... else skip*)
                               |C_Ast.NodeInfo0 (pos,_,_) => pos)
                        val (get_inv, get_measure) = get_loop_annotations pos
                        val invariant_lifted =get_inv |> Option.map (fn get_inv=> (lifted_term sigma_i) (get_inv (Context.Theory thy)))
+                       val _ = writeln("Invariant: "^(@{make_string} (get_inv |> Option.map (fn ginv => ginv (Context.Theory thy)))))
                        val measure_lifted =get_measure |> Option.map (fn get_measure => (lifted_term sigma_i) ((@{term "nat"} $( get_measure (Context.Theory thy)))))
-                       val _ = writeln("Measure lifted: "^(@{make_string} measure_lifted)) 
+                       val _ = writeln("Invariant lifted: "^(@{make_string} invariant_lifted)) 
                        val mk_while_func = case (invariant_lifted,measure_lifted) 
                             of (NONE,NONE) => mk_while_C
                               |(SOME inv, SOME measure)=>mk_while_anno_C inv  measure (*Note the coercion to nat!*)

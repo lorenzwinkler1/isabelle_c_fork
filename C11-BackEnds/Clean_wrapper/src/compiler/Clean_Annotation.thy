@@ -86,6 +86,7 @@ let
   val term =fn ctxt=> 
                 (*Important change: Syntax.read_term does coerce the types of the terms 
                   constructed by C_Expr antiquotation. Syntax.parse_term does not do that*)
+                (*It does substitute free variables though, which is quite an issue*)
                 Syntax.parse_term 
                         (Context.proof_of (C_Module.Data_Surrounding_Env.put current_env ctxt)) 
                         (Token.inner_syntax_of src)
