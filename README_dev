@@ -9,3 +9,6 @@ START FOR EXAMPLE:
 cd Isabelle_C
 isabelle jedit -d . C11-BackEnds/Clean_wrapper/examples/Coder_Test_ExprStmt.thy
 
+Branch LorenzWinkler:
+cd Isabelle_C
+isabelle jedit -d C11-FrontEnd -d C11-BackEnds/Clean C11-BackEnds/Clean_wrapper/examples/Coder_Test_TUnits.thy
