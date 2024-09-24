@@ -306,7 +306,7 @@ ML\<open>val C_Ast.CCompound0(a, b, c) = ast_stmt;\<close> \<comment> \<open>gra
 ML\<open> 
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt true sigma_i A_env0 @{theory} "" (K NONE)) 
+               (convertStmt true sigma_i A_env0 @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -331,7 +331,7 @@ val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt false sigma_i A_env0 @{theory} "" (K NONE)) 
+               (convertStmt false sigma_i A_env0 @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -351,7 +351,7 @@ val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt false sigma_i A_env0 @{theory} "" (K NONE)) 
+               (convertStmt false sigma_i A_env0 @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -372,7 +372,7 @@ val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt false sigma_i A_env0 @{theory} "" (K NONE)) 
+               (convertStmt false sigma_i A_env0 @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -392,7 +392,7 @@ val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt false sigma_i A_env0 @{theory} "" (K NONE)) 
+               (convertStmt false sigma_i A_env0 @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -413,7 +413,7 @@ val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt false sigma_i A_env0 @{theory} "" (K NONE)) 
+               (convertStmt false sigma_i A_env0 @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -439,7 +439,7 @@ ML\<open>val ast_stmt = @{C11_CStat}
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt false sigma_i A_env0 @{theory} "" (K NONE)) 
+               (convertStmt false sigma_i A_env0 @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -463,7 +463,7 @@ for(a = 0; a < 2; a = a + 1){
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt true sigma_i A_env0 @{theory} "" (K NONE)) 
+               (convertStmt true sigma_i A_env0 @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -490,7 +490,7 @@ ML\<open>val ast_stmt = @{C11_CStat}
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt false sigma_i A_env0 @{theory} "" (K NONE)) 
+               (convertStmt false sigma_i A_env0 @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -521,7 +521,7 @@ ML\<open>val sigma_i = StateMgt.get_state_type_global @{theory}\<close>
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt false sigma_i A_env0 @{theory} "" (K NONE)) 
+               (convertStmt false sigma_i A_env0 @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -558,7 +558,7 @@ ML\<open>val ast_ext_decl = @{C11_CExtDecl}
 (* initializers not yet supported; so this gives a local error *)
 ML \<open>
 val S =  (C11_Ast_Lib.fold_cExternalDeclaration regroup
-                  (convertExpr false sigma_i A_env1 @{theory} "" (K NONE)) (* DOES THIS MAKE SENSE ??? *)
+                  (convertExpr false sigma_i A_env1 @{theory} "" (K (NONE, NONE))) (* DOES THIS MAKE SENSE ??? *)
                   ast_ext_decl 
                   [])
 \<close>
@@ -736,7 +736,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt false sigma_i nEnv @{theory} "" (K NONE)) 
+               (convertStmt false sigma_i nEnv @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 foo_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -758,7 +758,7 @@ val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt false sigma_i nEnv @{theory} "" (K NONE)) 
+               (convertStmt false sigma_i nEnv @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -795,7 +795,7 @@ val nEnv1 = nEnv@localVarEnv
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt false sigma_i nEnv1 @{theory} "" (K NONE)) 
+               (convertStmt false sigma_i nEnv1 @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 

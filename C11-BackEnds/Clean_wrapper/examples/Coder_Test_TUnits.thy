@@ -158,7 +158,10 @@ fun handle_declarations_wrapper ast v2 ctxt =
   end
 \<close>
 
-setup \<open>Context.theory_map (C_Module.Data_Accept.put (handle_declarations_wrapper))\<close> 
+(*setup \<open>Context.theory_map (C_Module.Data_Accept.put (handle_declarations_wrapper))\<close> *)
+
+(* Note: The hook "C_Module.C_Term.map_translation_unit" is not adequate, as it is 
+         meant for the term antiquotation (its callback returns a term, not a theory/context *)
 
 setup \<open>C_Module.C_Term.map_expression 
     (fn cexpr => fn _ => fn ctxt => let 
