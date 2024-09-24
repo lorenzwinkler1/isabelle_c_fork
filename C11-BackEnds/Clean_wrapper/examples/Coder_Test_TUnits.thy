@@ -13,9 +13,7 @@ fun transform_type typ = if typ = HOLogic.intT then "int"
 
 local open C_AbsEnv HOLogic in
 fun get_hol_type (C_Env.Parsed ret) params = let
-      val _ = writeln("Ret: "^(@{make_string} ret))
       val base_type =the (C11_TypeSpec_2_CleanTyp.conv_cDeclarationSpecifier_typ (SOME ret))
-      val _ = writeln("BT: "^(@{make_string} base_type))
       fun transform_type ((C_Ast.CArrDeclr0 _)::R) base_type = listT (transform_type R base_type)
          | transform_type [] base_type = base_type
       in transform_type params base_type end
@@ -167,13 +165,11 @@ setup \<open>C_Module.C_Term.map_expression
     (fn cexpr => fn _ => fn ctxt => let 
     val sigma_i = (StateMgt.get_state_type o Context.proof_of )ctxt
     val env = C_Module.Data_Surrounding_Env.get ctxt
-    val _ = writeln("Env: "^(@{make_string} env))
     val idents =  (Symtab.dest (#idents(#var_table(env))))
     val A_env = List.map map_env_ident_to_identifier idents
     val expr = (hd (C11_Ast_Lib.fold_cExpression (K I) 
                                       (C11_Expr_2_Clean.convertExpr true sigma_i  A_env  (Context.theory_of ctxt) "" (K NONE))
                                       cexpr [])) handle ERROR msg => (writeln("ERROR: "^(@{make_string}msg));@{term "1::int"})
-    val _ = writeln("Expression: "^(@{make_string} expr))
 in
   expr
 (* @{term "1::int"}*)

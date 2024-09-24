@@ -163,8 +163,6 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
                                                                  - (String.size "_scheme"))
                                               (*dangerous. will work only for the local case *)
                         val lid = local_state^"."^id
-                        val _ = writeln("Id: "^(@{make_string} id))
-                        val _ = writeln("Type: "^(@{make_string} ty))
                     in case cat of
                         C_AbsEnv.Global => read_N_coerce_global thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i) :: c
                       | C_AbsEnv.Local(_) => Const(@{const_name "comp"}, 
