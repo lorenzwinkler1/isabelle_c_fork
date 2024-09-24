@@ -105,13 +105,14 @@ fun read_N_coerce_global thy name ty =
            val str = longname ^ " :: " ^ s 
        in  Syntax.read_term_global thy str end
 
-
 fun read_N_coerce thy name ty = 
        (* a very dirty hack ... but reconstructs the true \<open>const_name\<close> 
           along the subtype hierarchy, but coerces it to the current sigma*)
        let val s = drop_dark_matter(Syntax.string_of_typ_global thy ty)
            val str = name ^ " :: " ^ s 
        in  Syntax.read_term_global thy str end
+
+fun get_update_fun thy name = read_N_coerce thy (name^"_update")
 \<close>
 
 subsection\<open>C11 Expressions to Clean Terms\<close>
@@ -164,7 +165,9 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
                                               (*dangerous. will work only for the local case *)
                         val lid = local_state^"."^id
                     in case cat of
-                        C_AbsEnv.Global => read_N_coerce_global thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i) :: c
+                        C_AbsEnv.Global => let val v =  read_N_coerce_global thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i)
+                                               val _ = writeln("V: "^(@{make_string} v))in
+                                                v :: c end
                       | C_AbsEnv.Local(_) => Const(@{const_name "comp"}, 
                                                    (HOLogic.listT ty --> ty) 
                                                    --> (sigma_i --> HOLogic.listT ty) 
@@ -350,8 +353,8 @@ fun convertStmt verbose sigma_i nEenv thy function_name get_loop_annotations
            (b:  C_Ast.nodeInfo ) 
            (stack : term list) =
     ((if verbose then (writeln("tag:"^tag);print_node_info a b stack) else ());
-    case tag of
 
+    case tag of
      "CAssign0" => (case stack of
                       (rhs :: lhs ::  R) => 
                           ((let 
@@ -362,12 +365,18 @@ fun convertStmt verbose sigma_i nEenv thy function_name get_loop_annotations
                                           | Const ("List.nth", _) $ lhs_candidat $ _ => (getLongId lhs_candidat)
                                           | _ => error("(convertStmt) CAssign0 does not recognise term: "
                                                         ^(@{make_string} lhs)^"With stacK"^(@{make_string} stack)))
+                               val ident_id = getLongId lhs
                                val long_id = getLongId lhs
-                               val (id, lid) = extract_ids long_id sigma_i
-                               fun is_id (C_AbsEnv.Identifier(id_name, _, _, _)) = id_name = id
-                               val C_AbsEnv.Identifier(id, _, ty, cat) = 
+
+                               val C_AbsEnv.Identifier(_, _, ty, cat) = let
+                                    fun is_id (C_AbsEnv.Identifier(id_name, _, _, _)) = id_name = Long_Name.base_name ident_id in
                                          case List.find is_id nEenv of SOME x  => x
-                                             | _ => error("id not found: "^ long_id)
+                                             | _ => error("id not found: "^ ident_id) end
+                               val update_func_ty = case cat of C_AbsEnv.Global => ((ty --> ty) --> sigma_i --> sigma_i)
+                                                               |C_AbsEnv.Local _ => ((listT ty --> listT ty) --> sigma_i --> sigma_i)
+                                                               | _ => error ("Assignment to "^ident_id^" not possible (is it a parameter?)")
+                               val update_func = get_update_fun thy ident_id update_func_ty
+
                                fun get_base_type lhs ty = 
                                   case lhs of Const ("List.nth", typedef) $ lhs_part1 $ idx_term => 
                                                                        get_base_type lhs_part1 (dest_listTy ty)
@@ -398,42 +407,31 @@ fun convertStmt verbose sigma_i nEenv thy function_name get_loop_annotations
                                      case lhs_part of Const (@{const_name "nth"}, typedef) $ lhs_part1 $ idx_term => 
                                                                        Const (@{const_name "nth"}, typedef) $ (transform_lhs_for_rhs_transformation lhs_part1 final_term) $ idx_term
                                                      | _ => final_term
-
-                               val access_term = case cat of  C_AbsEnv.Global  =>  (read_N_coerce_global thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i))
-                                                              |_ =>  Const(@{const_name "comp"}, 
-                                                                           (HOLogic.listT ty --> ty) 
-                                                                           --> (sigma_i --> HOLogic.listT ty) 
-                                                                           --> sigma_i --> ty) 
-                                                                      $ Const(@{const_name "hd"}, HOLogic.listT ty --> ty) 
-                                                                      $ read_N_coerce thy lid (sigma_i --> HOLogic.listT ty) 
-                                                                      $ Free("\<sigma>",sigma_i)
+                               val _ = writeln("TRACE1")
+                               val access_term = case cat of  C_AbsEnv.Global  =>  lhs
+                                                              |_ =>  lhs
                                               
-
+                               val _ = writeln("TRACE2")
                                val lhs_tmp = transform_lhs_for_rhs_transformation lhs access_term
 
                                val new_rhs = transform_rhs_list_assignment lhs_tmp rhs (get_base_type lhs ty)
 
-                               val (id, lid) = (id ^ "_update", lid ^ "_update")
-                               
+                               val _ = writeln("TRACE")
 
                            in case cat of
                                 C_AbsEnv.Global => (if is_fun_assignment then ( mk_seq_assign_C rhs_old (((mk_assign_global_C 
-                                                            (read_N_coerce_global thy id 
-                                                           ((ty --> ty) --> sigma_i --> sigma_i)))
+                                                            update_func)
                                                        (lifted_term sigma_i new_rhs))) tempvarn tempvart) 
                                                      else (
                                                         ((mk_assign_global_C 
-                                                            (read_N_coerce_global thy id 
-                                                           ((ty --> ty) --> sigma_i --> sigma_i)))
+                                                            update_func)
                                                        (lifted_term sigma_i new_rhs))))::R
                               | C_AbsEnv.Parameter(_) => error "assignment to parameter not allowed in Clean"
                               | C_AbsEnv.Local(_) => (if is_fun_assignment then (mk_seq_assign_C rhs_old (mk_assign_local_C 
-                                                       (read_N_coerce thy lid 
-                                                           ((listT ty --> listT ty) --> sigma_i --> sigma_i))
+                                                       update_func
                                                        (lifted_term sigma_i new_rhs) ) tempvarn tempvart)
                                                       else ((mk_assign_local_C 
-                                                       (read_N_coerce thy lid 
-                                                           ((listT ty --> listT ty) --> sigma_i --> sigma_i))
+                                                       update_func
                                                        (lifted_term sigma_i new_rhs) )))::R
                               | s => error("(convertStmt) CAssign0 with cat " 
                                             ^ @{make_string} s ^ " is unrecognised")
