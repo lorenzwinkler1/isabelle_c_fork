@@ -142,6 +142,10 @@ fun node_content_parser (x : C11_Ast_Lib.node_content) =
       val id = hd(tl(String.tokens (fn x => x = #"\"")(drop_dark_matter a_markup)))
     in id end  (* no type inference *);
 
+fun is_call a = case a of 
+              Const (@{const_name "Clean.call\<^sub>C"},_) $_ $_ => true
+              |_ => false
+
 fun convertExpr verbose (sigma_i: typ) env thy function_name get_loop_annotations
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo )   
@@ -353,7 +357,11 @@ fun convertStmt verbose sigma_i nEenv thy function_name get_loop_annotations
            (b:  C_Ast.nodeInfo ) 
            (stack : term list) =
     ((if verbose then (writeln("tag:"^tag);print_node_info a b stack) else ());
-
+    if tag<>"CAssign0" andalso
+       tag<>"CExpr0" andalso
+       tag<>"CBlockStmt0"  andalso
+       case stack of (head::_) => is_call head |_=>false 
+          then error ("Function call only allowed on RHS of assignment. Tag: "^tag)  else ();
     case tag of
      "CAssign0" => (case stack of
                       (rhs :: lhs ::  R) => 
