@@ -16,7 +16,9 @@ fun get_hol_type (C_Env.Parsed ret) params = let
       val base_type =the (C11_TypeSpec_2_CleanTyp.conv_cDeclarationSpecifier_typ (SOME ret))
       fun transform_type ((C_Ast.CArrDeclr0 _)::R) base_type = listT (transform_type R base_type)
          | transform_type [] base_type = base_type
+         | transform_type ps _ = error ("First type parameter unknown (maybe pointers): "^(@{make_string} ps))
       in transform_type params base_type end
+    |get_hol_type a _ = error ("Can not get type of \""^(@{make_string} a)^"\"")
 fun map_env_ident_to_identifier (name,(positions,_,data)) =
      let fun get_ident_scope C_Env.Global = Global 
             |get_ident_scope C_Env.Local = Local ""
@@ -52,15 +54,17 @@ fun declare_function idents name ast ret_ty recursive ctxt =
              in Proof_Context.init_global thy' end
 
         (*Invariants and measuress need to be matched to a loop. This is done by comparing the parse locations of all while loops.
-          The following are helper methods, to obtain the function get_invariant: positiona \<rightarrow> (context\<rightarrow>term) option*)
+          The following are helper methods, to obtain the function get_invariant::positiona \<rightarrow> (context\<rightarrow>term) option*)
         val invariants:((string*(Context.generic -> term)*Position.range) list) = List.filter (fn (f_name,_,_) => f_name = name) 
                                                                 (#invariants (Clean_Annotation.Data_Clean_Annotations.get ctxt)) 
         val measures:((string*(Context.generic -> term)*Position.range) list) = List.filter (fn (f_name,_,_) => f_name = name) 
                                                                 (#measures (Clean_Annotation.Data_Clean_Annotations.get ctxt))                                                                                                       
         val loop_pos =Library.distinct (op =) (C11_Ast_Lib.fold_cStatement (fn a => fn b => a@b) C11_Unit_2_Clean.get_loop_positions ast [])
         fun compare_pos ((C_Ast.Position0 (pos1,_,_,_)),(C_Ast.Position0 (pos2,_,_,_))) = Int.compare (pos1,pos2)
+            |compare_pos a = error ("Unable to compare positions (for invariants and measures): "^(@{make_string} a))
         val loop_pos_sorted = Library.sort compare_pos loop_pos 
         fun range_less_than_pos (range:Position.range) (C_Ast.Position0 (pos,_,_,_)) = the (Position.offset_of (fst range)) < pos
+           |range_less_than_pos a b = error ("Unable to compare positions (for invariants and measures): "^(@{make_string} (a,b)))
         fun get_for_position (((inv,inv_pos)::R_inv): ((Context.generic -> term)*Position.range)list)
                                        (loop_positions: C_Ast.positiona list)
                                        (pos3: C_Ast.positiona)
@@ -71,7 +75,7 @@ fun declare_function idents name ast ret_ty recursive ctxt =
                                   Otherwise there is no invariant for the given loop *)
                               (pos1::pos2::R) => if pos3 = pos1 andalso range_less_than_pos inv_pos pos2 then SOME inv
                                                    else get_for_position ((inv,inv_pos)::R_inv) (pos2::R) pos3
-                              | (pos1::R) => if pos3 = pos1 then SOME inv else NONE
+                              | (pos1::_) => if pos3 = pos1 then SOME inv else NONE
                               | [] => NONE)
            |get_for_position [] _ _ = NONE
         fun get_invariant pos = (get_for_position (List.map (fn inv => (#2 inv, #3 inv)) invariants) loop_pos_sorted) pos
@@ -119,8 +123,7 @@ fun handle_declarations translUnit ctxt =
      (let
         val env = (C_Module.Data_Last_Env.get ctxt)
         (*First we need to get all previously defined global vars and functions*)
-        val m = (Symtab.dest (#idents(#var_table(env))))
-        val prev_idents =map map_env_ident_to_identifier m
+        val prev_idents =map map_env_ident_to_identifier (Symtab.dest (#idents(#var_table(env))))
         (*the new identifiers are returned in reverse \<rightarrow> thus reverse *)
         val (new_idents, call_table) = C_AbsEnv.parseTranslUnitIdentifiers translUnit [] prev_idents Symtab.empty
 
@@ -137,10 +140,11 @@ fun handle_declarations translUnit ctxt =
                      let  fun is_recursive NONE = false
                             |is_recursive (SOME calls) = List.exists (fn x => x=name) calls
                      in 
-                  (name,the (snd ast),ret_ty,  is_recursive (Symtab.lookup call_table name)) end) 
+                  (name,the (snd ast),ret_ty,  is_recursive (Symtab.lookup call_table name)) end
+                      | ident => error ("Expected function identifier. Instead: "^(@{make_string} ident)))
+                          
               (List.filter (fn a => case a of C_AbsEnv.Identifier(_,_,_,C_AbsEnv.FunctionCategory _) => true | _ => false) (rev new_idents))
         val function_declarations = List.map (fn (name,ast,ret_ty, recursive) => declare_function identifiers name ast ret_ty recursive ctxt) (fun_asts)
-
         val function_decl = fold (fn f => fn acc => f acc) function_declarations
     in
      Context.map_theory (function_decl o global_declaration) ctxt
@@ -168,7 +172,7 @@ setup \<open>C_Module.C_Term.map_expression
     val idents =  (Symtab.dest (#idents(#var_table(env))))
     val A_env = List.map map_env_ident_to_identifier idents
     val expr = (hd (C11_Ast_Lib.fold_cExpression (K I) 
-                                      (C11_Expr_2_Clean.convertExpr true sigma_i  A_env  (Context.theory_of ctxt) "" (K NONE))
+                                      (C11_Expr_2_Clean.convertExpr false sigma_i  A_env  (Context.theory_of ctxt) "" (K NONE))
                                       cexpr [])) handle ERROR msg => (writeln("ERROR: "^(@{make_string}msg));@{term "1::int"})
 in
   expr

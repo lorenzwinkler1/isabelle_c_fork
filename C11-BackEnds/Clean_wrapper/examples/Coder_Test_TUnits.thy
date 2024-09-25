@@ -1,6 +1,7 @@
 theory "Coder_Test_TUnits"
-  imports"../src/compiler/Clean_Annotation"
-         "../src/CleanTranslation"
+  imports
+          "../src/compiler/Clean_Annotation"
+          "../src/CleanTranslation"
 begin
 
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
