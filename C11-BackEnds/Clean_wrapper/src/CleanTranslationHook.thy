@@ -121,6 +121,7 @@ fun declare_function idents name ast ret_ty recursive ctxt =
 local open C_AbsEnv HOLogic in
 fun handle_declarations translUnit ctxt =
      (let
+        (*get the OLD environment, which simplifies the parseTranslUnitIdentifiers by a lot.*)
         val env = (C_Module.Data_Last_Env.get ctxt)
         (*First we need to get all previously defined global vars and functions*)
         val prev_idents =map map_env_ident_to_identifier (Symtab.dest (#idents(#var_table(env))))

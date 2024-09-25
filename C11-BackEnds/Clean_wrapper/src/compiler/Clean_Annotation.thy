@@ -79,7 +79,7 @@ structure Data_Clean_Annotations = Generic_Data
 
 fun map_context_annotation_declaration annotation_type src range context0 =
 let 
-  val current_env =snd (C_Stack.Data_Lang.get' context0)
+  val current_env =snd (C_Stack.Data_Lang.get' context0) (*important: antiquotation needs current env*)
   fun get_fun_name [(SOME (C_Ast.Ident0 (C_Ast.SS_base (C_Ast.ST name), _, _)),_)] = name
       | get_fun_name (_::R) = get_fun_name R
       | get_fun_name _ = (warning "unable to find name of surrounding function for CLEAN annotation";"")
