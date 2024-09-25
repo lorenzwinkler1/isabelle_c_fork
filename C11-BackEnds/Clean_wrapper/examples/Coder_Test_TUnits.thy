@@ -156,7 +156,7 @@ fun handle_declarations_wrapper ast v2 ctxt =
   end
 \<close>
 
-(*setup \<open>Context.theory_map (C_Module.Data_Accept.put (handle_declarations_wrapper))\<close> *)
+setup \<open>Context.theory_map (C_Module.Data_Accept.put (handle_declarations_wrapper))\<close>
 
 (* Note: The hook "C_Module.C_Term.map_translation_unit" is not adequate, as it is 
          meant for the term antiquotation (its callback returns a term, not a theory/context *)
@@ -289,7 +289,7 @@ term\<open>addPlusThree1\<close>
 
 
 subsection \<open>Recursive functions\<close>
-
+find_theorems global_integer
 rec_function_spec recursive_add1(n::int) returns unit
 pre          "\<open>True\<close>" 
 post         "\<open>\<lambda>res::unit. True \<close>"

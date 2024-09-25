@@ -366,75 +366,60 @@ fun convertStmt verbose sigma_i nEenv thy function_name get_loop_annotations
                                           | _ => error("(convertStmt) CAssign0 does not recognise term: "
                                                         ^(@{make_string} lhs)^"With stacK"^(@{make_string} stack)))
                                val ident_id = getLongId lhs
-                               val long_id = getLongId lhs
 
                                val C_AbsEnv.Identifier(_, _, ty, cat) = let
                                     fun is_id (C_AbsEnv.Identifier(id_name, _, _, _)) = id_name = Long_Name.base_name ident_id in
                                          case List.find is_id nEenv of SOME x  => x
                                              | _ => error("id not found: "^ ident_id) end
-                               val update_func_ty = case cat of C_AbsEnv.Global => ((ty --> ty) --> sigma_i --> sigma_i)
-                                                               |C_AbsEnv.Local _ => ((listT ty --> listT ty) --> sigma_i --> sigma_i)
+                               val (update_func_ty, mk_assign) = case cat of C_AbsEnv.Global => (((ty --> ty) --> sigma_i --> sigma_i), mk_assign_global_C)
+                                                               |C_AbsEnv.Local _ => (((listT ty --> listT ty) --> sigma_i --> sigma_i), mk_assign_local_C)
                                                                | _ => error ("Assignment to "^ident_id^" not possible (is it a parameter?)")
                                val update_func = get_update_fun thy ident_id update_func_ty
-
+                               
+                               val _ = writeln("Update func: "^(@{make_string} update_func))
                                fun get_base_type lhs ty = 
                                   case lhs of Const ("List.nth", typedef) $ lhs_part1 $ idx_term => 
                                                                        get_base_type lhs_part1 (dest_listTy ty)
                                                      | _ => ((if (is_listTy ty) then warning "Assigning list of elements to variable. This is not possible in C, however supported by Clean" else ());ty)
                                val tempvarn = "tmpvar"
+                               val tempvart = (get_base_type lhs ty)
                                val is_fun_assignment = (case rhs of  Const (@{const_name "Clean.call\<^sub>C"},_) $_ $_ => true
                                                                          | _ => false)
-                               val rhs_old = rhs
-                               val tempvart = (get_base_type lhs ty)
-                               val rhs = (if is_fun_assignment then Free (tempvarn, tempvart) else rhs)
-                               fun mk_list_type ty = Type(@{type_name "list"}, [ty]) (* This is from "isa_termstypes.ML" *)
+
+                               (*Here comes the array part. Since only entire "rows" of arrays can be replaced,
+                                 for the expression A[1][2] = b, the right hand side of the CLEAN-statement has
+                                 to include parts of the LHS, which makes this transformation rather ugly, especially
+                                 in combination with function calls.
+                                 Based on the LHS, the function get_array_assignment provides, for the above example,
+                                 a function: 
+                                 \<lambda>rhs. A[1:= (A!1 [2:= rhs])
+                                  *)
                                fun mk_list_update_t ty = Const(@{const_name "List.list_update"}, (* This is from "isa_termstypes.ML" *)
-                                                    mk_list_type ty --> natT -->
-                                                                 ty --> mk_list_type ty)
-                               fun transform_rhs_list_assignment lhs_part value ty= 
+                                                    listT ty --> natT --> ty --> listT ty)
+                               fun transform_rhs_list_assignment lhs_part ty value= 
                                   case lhs_part of  Const ("List.nth", typedef) $ lhs_part1 $ idx_term => (
                                       let 
-                                        
                                         val lst_update_t =  mk_list_update_t ty
                                         val updated = lst_update_t $ lhs_part1 $ idx_term $ value
                                       in
-                                        transform_rhs_list_assignment lhs_part1 updated (listT ty)
+                                        transform_rhs_list_assignment lhs_part1 (listT ty) updated 
                                       end
                                     )
-                                  | _ => value
+                                  | _ => value                                              
 
-                               fun transform_lhs_for_rhs_transformation lhs_part final_term =
-                                     case lhs_part of Const (@{const_name "nth"}, typedef) $ lhs_part1 $ idx_term => 
-                                                                       Const (@{const_name "nth"}, typedef) $ (transform_lhs_for_rhs_transformation lhs_part1 final_term) $ idx_term
-                                                     | _ => final_term
-                               val _ = writeln("TRACE1")
-                               val access_term = case cat of  C_AbsEnv.Global  =>  lhs
-                                                              |_ =>  lhs
-                                              
-                               val _ = writeln("TRACE2")
-                               val lhs_tmp = transform_lhs_for_rhs_transformation lhs access_term
+                               val get_array_assignment = transform_rhs_list_assignment lhs (get_base_type lhs ty) 
 
-                               val new_rhs = transform_rhs_list_assignment lhs_tmp rhs (get_base_type lhs ty)
 
-                               val _ = writeln("TRACE")
-
-                           in case cat of
-                                C_AbsEnv.Global => (if is_fun_assignment then ( mk_seq_assign_C rhs_old (((mk_assign_global_C 
-                                                            update_func)
-                                                       (lifted_term sigma_i new_rhs))) tempvarn tempvart) 
+                           in (if is_fun_assignment then ( mk_seq_assign_C 
+                                                            rhs 
+                                                            (((mk_assign update_func) 
+                                                              (lifted_term sigma_i (get_array_assignment (Free (tempvarn,tempvart)))))) 
+                                                            tempvarn 
+                                                            tempvart) 
                                                      else (
-                                                        ((mk_assign_global_C 
+                                                        ((mk_assign 
                                                             update_func)
-                                                       (lifted_term sigma_i new_rhs))))::R
-                              | C_AbsEnv.Parameter(_) => error "assignment to parameter not allowed in Clean"
-                              | C_AbsEnv.Local(_) => (if is_fun_assignment then (mk_seq_assign_C rhs_old (mk_assign_local_C 
-                                                       update_func
-                                                       (lifted_term sigma_i new_rhs) ) tempvarn tempvart)
-                                                      else ((mk_assign_local_C 
-                                                       update_func
-                                                       (lifted_term sigma_i new_rhs) )))::R
-                              | s => error("(convertStmt) CAssign0 with cat " 
-                                            ^ @{make_string} s ^ " is unrecognised")
+                                                       (lifted_term sigma_i (get_array_assignment rhs)))))::R
                            end))
                       |_ => raise WrongFormat("assign"))
      (*statements*)
