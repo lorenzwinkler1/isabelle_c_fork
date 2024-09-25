@@ -1,7 +1,7 @@
 theory "Coder_Test_TUnits"
   imports
           "../src/compiler/Clean_Annotation"
-          "../src/CleanTranslation"
+          "../src/CleanTranslationHook"
 begin
 
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
@@ -163,7 +163,7 @@ text\<open>disclaimer: C_expr antiquotation does not yet work\<close>
 
 C\<open>
 int multiply(int a, int b){
-  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>1 \<ge> 1\<close> */
+  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>(1::int) \<ge> 1\<close> */
   /*@ post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<lambda>ret::int. ret = \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>a*b\<close>\<close> */
   int s;
   int counter;
@@ -185,7 +185,7 @@ int multiply(int a, int b){
   return s;
 }
 \<close>
-
+find_theorems multiply_pre
 
 
 

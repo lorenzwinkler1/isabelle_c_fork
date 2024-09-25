@@ -1,4 +1,4 @@
-theory "CleanTranslation"
+theory "CleanTranslationHook"
   imports "../src/CleanCoder"  (* Coder_Test_Env_AEnv *)
           "../src/compiler/Clean_Annotation"
 begin
@@ -159,7 +159,18 @@ fun handle_declarations_wrapper ast v2 ctxt =
                     | _ => ctx1
   end
 \<close>
-
+setup \<open>C_Module.C_Term.map_expression 
+    (fn cexpr => fn _ => fn ctxt => let 
+    val sigma_i = (StateMgt.get_state_type o Context.proof_of )ctxt
+    val env = C_Module.Data_Surrounding_Env.get ctxt
+    val idents =  (Symtab.dest (#idents(#var_table(env))))
+    val A_env = List.map map_env_ident_to_identifier idents
+    val expr = (hd (C11_Ast_Lib.fold_cExpression (K I) 
+                                      (C11_Expr_2_Clean.convertExpr false sigma_i  A_env  (Context.theory_of ctxt) "" (K NONE))
+                                      cexpr [])) handle ERROR msg => (writeln("ERROR: "^(@{make_string}msg));@{term "1::int"})
+in
+  expr
+ end)\<close>
 setup \<open>Context.theory_map (C_Module.Data_Accept.put (handle_declarations_wrapper))\<close>
 
 (* Note: The hook "C_Module.C_Term.map_translation_unit" is not adequate, as it is 
