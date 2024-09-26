@@ -1433,7 +1433,6 @@ fun mk_return_C upd rhs =
 fun mk_assign_global_C upd rhs =
     let val (rty, sty) = case fastype_of upd of Type("fun",[Type("fun", [r_ty,_]),Type ("fun",[s_ty,_])]) => (r_ty, s_ty)
                                                   | _=>error "mk_assign_global_C: illegal type for update func"
-
         val rhs_ty = sty --> rty
         val mty = StateMgt_core.MON_SE_T HOLogic.unitT sty
     in Const(\<^const_name>\<open>assign_global\<close>, fastype_of upd --> rhs_ty --> mty) $ upd $ rhs end
@@ -1441,7 +1440,6 @@ fun mk_assign_global_C upd rhs =
 fun mk_assign_local_C upd rhs =
     let val (rty, sty) = case fastype_of upd of Type("fun",[Type("fun", [Type(_(*list*),[r_ty]),_]),Type ("fun",[s_ty,_])]) => (r_ty, s_ty)
                                                   | _=>error "mk_assign_local_C: illegal type for update func"
-
         val rhs_ty = sty --> rty
         val mty = StateMgt_core.MON_SE_T HOLogic.unitT sty
     in Const(\<^const_name>\<open>assign_local\<close>, fastype_of upd --> rhs_ty --> mty) $ upd $ rhs end

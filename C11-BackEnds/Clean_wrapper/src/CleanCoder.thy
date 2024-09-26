@@ -276,8 +276,12 @@ translate integers in booleans. That's what term_to_bool t do.
      |"CExpr0"  => c (* skip this wrapper *)
      |"CTypeSpec0" => c (* skip this wrapper *)
      |"CDeclr0" => c (* skip this wrapper *)
-     |"CInitExpr0" => error "init expression currently unsupported" (* skip this wrapper *)
-     |"CDecl0" =>  let fun handleDeclaration stack = tl stack 
+     |"CDecl0" =>  let  val _ = writeln("Stack head: "^(@{make_string} (hd c)))
+                        fun is_assignment (Const (@{const_name "assign_local"},_)) = true
+                           |is_assignment (Const (@{const_name "assign_global"},_)) = true
+                           |is_assignment  _ = false
+                        fun handleDeclaration [] = []
+                           |handleDeclaration (head::R) = if is_assignment head then (head::R) else R
                    in
                       handleDeclaration c
                    end
@@ -349,12 +353,8 @@ fun convertStmt verbose sigma_i nEenv thy function_name get_loop_annotations
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo ) 
            (stack : term list) =
-    ((if verbose then (writeln("tag:"^tag);print_node_info a b stack) else ());
-    if tag="CBinary0" andalso
-       case stack of (head::_) => is_call head |_=>false 
-          then error ("Function call only allowed on RHS of assignment. Tag: "^tag)  else ();
-    case tag of
-     "CAssign0" => (case stack of
+    
+    let fun handle_assign stack = (case stack of
                       (rhs :: lhs ::  R) => 
                           ((let
                                fun getLongId lhs  = (case lhs of
@@ -420,6 +420,14 @@ fun convertStmt verbose sigma_i nEenv thy function_name get_loop_annotations
                                 in assignment::R
                            end))
                       |_ => raise WrongFormat("assign"))
+
+     in ((if verbose then (writeln("tag:"^tag);print_node_info a b stack) else ());
+    if tag="CBinary0" andalso
+       case stack of (head::_) => is_call head |_=>false 
+          then error ("Function call only allowed on RHS of assignment. Tag: "^tag)  else ();
+    case tag of
+     "CAssign0" => handle_assign stack
+    |"CInitExpr0" => handle_assign stack
      (*statements*)
 (*for return, skip and break, we have makers except that they need types and terms that i didn't 
 understand so it's unfinished here*)
@@ -521,6 +529,7 @@ end
 
 (*** -------------- ***)
 
+end
 end
 \<close>
 

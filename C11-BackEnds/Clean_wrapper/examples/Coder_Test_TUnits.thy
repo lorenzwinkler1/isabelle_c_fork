@@ -8,6 +8,22 @@ declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 
 
+C\<open>
+int foo10(){
+  int b = 0, d123=4, ex=13;
+}
+\<close>
+find_theorems d123
+find_theorems foo10_core
+
+
+C\<open>
+int g;
+int foo1(){
+  g = -1;
+}
+\<close>
+
 
 C\<open>
 int foo(int a, int b){
