@@ -176,12 +176,19 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
 (*expressions*)
 (*At this point, what we do for binary or unary epressions is simple thanks to the makers. *)
      (*binary operations*)
-     |"CBinary0" => (case (drop_dark_matter sub_tag, c) of
+     |"CBinary0" => (let fun get_most_general_type t1 t2 = 
+                              if t1 = natT andalso t2=natT then natT else 
+                              if (t1 = natT orelse t1 = intT) andalso (t2=natT orelse t2=intT) then intT else
+                              if t1 <> natT andalso t1<>intT then t1 else t2 (*this should be the fallback for rational numbers*)
+                         fun get_ring_op_type t1 t2 =
+                            if get_most_general_type t1 t2 = natT then intT else get_most_general_type t1 t2
+                      in case (drop_dark_matter sub_tag, c) of
+
                       (*arithmetic operations*) 
-                      ("CAddOp0",b::a::R) => (Const(@{const_name "plus"}, fastype_of a --> fastype_of b --> intT) $ a $ b :: R)
-                    | ("CMulOp0",b::a::R) => (Const(@{const_name "times"}, fastype_of a --> fastype_of b --> intT) $ a $ b :: R)
-                    | ("CDivOp0",b::a::R) => (Const(@{const_name "divide"}, fastype_of a --> fastype_of b --> intT) $ a $ b :: R)
-                    | ("CSubOp0",b::a::R) => (Const(@{const_name "minus"}, fastype_of a --> fastype_of b --> intT) $ a $ b :: R)
+                      ("CAddOp0",b::a::R) => let val ty = get_most_general_type (fastype_of a) (fastype_of b) in (Const(@{const_name "plus"}, ty --> ty --> ty) $ a $ b :: R) end
+                    | ("CMulOp0",b::a::R) => let val ty = get_most_general_type (fastype_of a) (fastype_of b) in (Const(@{const_name "times"}, ty --> ty --> ty) $ a $ b :: R) end
+                    | ("CDivOp0",b::a::R) => let val ty = get_ring_op_type (fastype_of a) (fastype_of b) in (Const(@{const_name "divide"}, ty --> ty --> ty) $ a $ b :: R) end
+                    | ("CSubOp0",b::a::R) => let val ty = get_ring_op_type (fastype_of a) (fastype_of b) in (Const(@{const_name "minus"}, ty --> ty --> ty) $ a $ b :: R) end
                       (*boolean operations*) 
 (*for boolean operations, because in C boolean are in fact integers, we need to
 translate integers in booleans. That's what term_to_bool t do.
@@ -197,19 +204,23 @@ translate integers in booleans. That's what term_to_bool t do.
                     | ("CEqOp0", b::a::R) => (mk_eq ( a, b) :: R)
                     | ("CNeqOp0", b::a::R) => (mk_not (mk_eq ( a, b))::R)
                       (*comp*)
-                    | ("CLeOp0", b::a::R) => (Const(@{const_name "less"}, 
-                                                    fastype_of a --> fastype_of b --> boolT) 
-                                             $ a $ b :: R) 
-                    | ("CGrOp0", b::a::R) => (Const(@{const_name "less"}, 
-                                                    fastype_of a --> fastype_of b --> boolT) 
-                                             $ b $ a :: R) 
-                    | ("CLeqOp0", b::a::R) => (Const(@{const_name "less_eq"}, 
-                                                     fastype_of a --> fastype_of b --> boolT) 
-                                              $ a $ b :: R) 
-                    | ("CGeqOp0", b::a::R) => (Const(@{const_name "less_eq"}, 
-                                                     fastype_of a --> fastype_of b --> boolT) 
-                                              $ b $ a :: R)
-                    | _ => (writeln ("sub_tag all " ^sub_tag^" :>> "^ @{make_string} c);c ))
+                    | ("CLeOp0", b::a::R) => let val ty =get_most_general_type (fastype_of a) (fastype_of b)
+                                             in (Const(@{const_name "less"}, 
+                                                    ty --> ty --> boolT) 
+                                             $ a $ b :: R) end 
+                    | ("CGrOp0", b::a::R) => let val ty =get_most_general_type (fastype_of a) (fastype_of b)
+                                             in (Const(@{const_name "less"}, 
+                                                    ty --> ty --> boolT) 
+                                             $ b $ a :: R) end
+                    | ("CLeqOp0", b::a::R) => let val ty =get_most_general_type (fastype_of a) (fastype_of b)
+                                              in (Const(@{const_name "less_eq"}, 
+                                                     ty --> ty --> boolT) 
+                                              $ a $ b :: R) end
+                    | ("CGeqOp0", b::a::R) => let val ty =get_most_general_type (fastype_of a) (fastype_of b)
+                                              in (Const(@{const_name "less_eq"}, 
+                                                     ty -->  ty --> boolT) 
+                                              $ b $ a :: R)end
+                    | _ => (writeln ("sub_tag all " ^sub_tag^" :>> "^ @{make_string} c);c ) end)
      (*unary operations*)
      |"CUnary0" =>  (case (drop_dark_matter sub_tag, c) of
                     ("CNegOp0", a::R) => (mk_not (term_to_bool a) :: R)
@@ -219,7 +230,7 @@ translate integers in booleans. That's what term_to_bool t do.
 (*for the constants, we can use the makers*)
      |"CConst0"   => c (* skip this wrapper *)
      |"CInteger0" =>let val C11_Ast_Lib.data_int n = hd args
-                    in  (mk_number intT n)::c end
+                    in  (mk_number (if n>=0 then natT else intT) n)::c end
      |"CIntConst0"=> c (* skip this wrapper *)
      |"CString0"  => let val C11_Ast_Lib.data_string s = hd args
                      in  (mk_string s)::c end
@@ -345,7 +356,7 @@ fun convertStmt verbose sigma_i nEenv thy function_name get_loop_annotations
     case tag of
      "CAssign0" => (case stack of
                       (rhs :: lhs ::  R) => 
-                          ((let 
+                          ((let
                                fun getLongId lhs  = (case lhs of
                                             Const(name, _) $ _ => name
                                           | _ $ _ $ Const(name, _) $ _ => name
@@ -371,7 +382,6 @@ fun convertStmt verbose sigma_i nEenv thy function_name get_loop_annotations
                                val tempvart = (get_base_type lhs ty)
                                val is_fun_assignment = (case rhs of  Const (@{const_name "Clean.call\<^sub>C"},_) $_ $_ => true
                                                                          | _ => false)
-
                                (*Here comes the array part. Since only entire "rows" of arrays can be replaced,
                                  for the expression A[1][2] = b, the right hand side of the CLEAN-statement has
                                  to include parts of the LHS, which makes this transformation rather ugly, especially
@@ -396,16 +406,18 @@ fun convertStmt verbose sigma_i nEenv thy function_name get_loop_annotations
                                val get_array_assignment = transform_rhs_list_assignment lhs (get_base_type lhs ty) 
 
 
-                           in (if is_fun_assignment then ( mk_seq_assign_C 
+                               val assignment =if is_fun_assignment then ( mk_seq_assign_C 
                                                             rhs 
                                                             (((mk_assign update_func) 
                                                               (lifted_term sigma_i (get_array_assignment (Free (tempvarn,tempvart)))))) 
                                                             tempvarn 
                                                             tempvart) 
-                                                     else (
+                                                     else (   
                                                         ((mk_assign 
                                                             update_func)
-                                                       (lifted_term sigma_i (get_array_assignment rhs)))))::R
+                                                       (lifted_term sigma_i (get_array_assignment rhs))))
+                                val inferred_assignment = Syntax.check_term (Proof_Context.init_global thy) assignment
+                                in assignment::R
                            end))
                       |_ => raise WrongFormat("assign"))
      (*statements*)

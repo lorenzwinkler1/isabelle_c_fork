@@ -105,7 +105,7 @@ fun declare_function idents name ast ret_ty recursive ctxt =
                                             (Proof_Context.theory_of ctx') 
                                              name get_loop_annotations)
               ast []))
-              in hd v end
+              in ( hd) v end
 
         val test_function_sem = {binding = Binding.name name,
                                  locals = locals@[(Binding.name "dummylocalvariable","int", NoSyn)], (*There needs to be at least one local variable*)
@@ -127,7 +127,6 @@ fun handle_declarations translUnit ctxt =
         val prev_idents =map map_env_ident_to_identifier (Symtab.dest (#idents(#var_table(env))))
         (*the new identifiers are returned in reverse \<rightarrow> thus reverse *)
         val (new_idents, call_table) = C_AbsEnv.parseTranslUnitIdentifiers translUnit [] prev_idents Symtab.empty
-
         val identifiers = (rev new_idents)@prev_idents
         val map_idents = List.map (fn C_AbsEnv.Identifier(name,_,typ,_) => (Binding.name name, transform_type typ, NoSyn))
 

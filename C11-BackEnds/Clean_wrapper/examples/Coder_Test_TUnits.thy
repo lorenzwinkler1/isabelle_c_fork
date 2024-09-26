@@ -30,7 +30,14 @@ text\<open>Assigning numbers to a non-int variable causes issues\<close>
 C\<open>
 int bar1(){
   unsigned tmp;
-  tmp = 0;
+  tmp = tmp+0;
+}
+\<close>
+
+C\<open>
+unsigned glob_nat;
+int bar2(){
+  glob_nat = 3;
 }
 \<close>
 
