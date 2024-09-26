@@ -555,21 +555,21 @@ fun parseExternalDeclaration
                                         (selectFromNodeContent ["Ident0", "CTypeSpec0", 
                                                                 "CArrDeclr0", "CDeclr0", "CCall0"]) 
                                         statement [])
-
         (*we need to sort out the local identifiers of previous functions, as they are no longer accessible*)
         fun sortIdentifiers [] = ([],[])
-           |sortIdentifiers ((Identifier (name, pos, ty, Global))::R) = let
+           |sortIdentifiers (ident::R) = let
               val (prev_glob, prev_loc) = sortIdentifiers R
-              in ((Identifier (name, pos, ty, Global))::prev_glob, prev_loc) end
-           | sortIdentifiers (lident::R) = let
-              val (prev_glob, prev_loc) = sortIdentifiers R
-              in (prev_glob, lident::prev_loc) end
+              in case ident of Identifier (_,_,_,Global)=> (ident::prev_glob, prev_loc)
+                              |Identifier (_,_,_,FunctionCategory _) => (ident::prev_glob, prev_loc)
+                              |_ => (prev_glob, ident::prev_loc)
+              
+              end
 
-        val (previous_global_identifiers, previous_local_identifiers) = sortIdentifiers (paramIdentifiers @ identList)
-        val (newIdentList', functionCategory, newFunctionCallTable) = 
+        val (previous_global_identifiers, previous_local_identifiers) = sortIdentifiers (identList)
+        val (newIdentList', functionCategory, newFunctionCallTable) =
                                     parseLocals statementContentList functionName functionCallTable 
-                                        previous_global_identifiers oldIdents
-        val newIdentList = previous_local_identifiers @ newIdentList'
+                                        (paramIdentifiers@previous_global_identifiers) oldIdents
+        val newIdentList = newIdentList'@previous_local_identifiers
     in (Identifier(functionName, posL, functionReturnHOLType, 
                        FunctionCategory(functionCategory, SOME(statement))) :: newIdentList, 
                        newFunctionCallTable) 
