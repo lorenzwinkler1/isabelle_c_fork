@@ -13,8 +13,26 @@ int foo10(){
   int b = 0, d123=4, ex=13;
 }
 \<close>
+
+C\<open>
+int foo11(){
+  int var1,var2=3,var3, var4;
+}
+\<close>
+
+C\<open>
+int forloop(){
+  int b=3;
+  for(int i=0; i<10; i=i+1){
+    b=b+1;
+  }
+  return b;
+}
+\<close>
+
 find_theorems d123
 find_theorems foo10_core
+find_theorems forloop_core
 
 
 C\<open>

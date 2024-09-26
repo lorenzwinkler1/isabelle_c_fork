@@ -43,9 +43,6 @@ text\<open>
 - Only two types are currently mapped to isabelle types, 
   namely int -> int and unsigned -> nat.
 
-- Initialize expressions are not supported.
-  Instead of \<open>int i = 0;\<close> you have to write \<open>int i; i=0;\<close>
-
 - Function calls can only occur as statements or on the right hand side of an assignment.
   For example \<open>a = b + foo();\<close> is not allowed. This must be rewritten as \<open>tmp = foo(); a=b+tmp;\<close>
 

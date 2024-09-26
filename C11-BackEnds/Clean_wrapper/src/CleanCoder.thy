@@ -274,16 +274,20 @@ translate integers in booleans. That's what term_to_bool t do.
      |"CFloatConst0"=> (c) (* skip this wrapper *)
      |"CChars0" => (warning "bizarre rule in context float: CChars0"; c)
      |"CExpr0"  => c (* skip this wrapper *)
-     |"CTypeSpec0" => c (* skip this wrapper *)
-     |"CDeclr0" => c (* skip this wrapper *)
-     |"CDecl0" =>  let  val _ = writeln("Stack head: "^(@{make_string} (hd c)))
-                        fun is_assignment (Const (@{const_name "assign_local"},_)) = true
-                           |is_assignment (Const (@{const_name "assign_global"},_)) = true
+      (*this is a very dirty trick: when declaring variables "int a,b=3,c,d=4;", the accesses to a and c lie
+        on the stack, polluting it. All non-assignments are thus removed, up until this item is met on the stack*)
+     |"CTypeSpec0" => ((Free ("--startofdeclarations--",@{typ unit}))::c)
+     |"CDeclr0" => c
+     |"CDecl0" =>  let  val _ = writeln("CDecl")
+                        fun is_assignment ((Const (@{const_name "assign_local"},_))$_$_) = true
+                           |is_assignment ((Const (@{const_name "assign_global"},_))$_$_) = true
                            |is_assignment  _ = false
-                        fun handleDeclaration [] = []
-                           |handleDeclaration (head::R) = if is_assignment head then (head::R) else R
+                        fun remove_dead_idents [] = []
+                           |remove_dead_idents (Free("--startofdeclarations--",_)::R) = R
+                           |remove_dead_idents (head::R) = if is_assignment head then (head::remove_dead_idents R) 
+                                      else remove_dead_idents R
                    in
-                      handleDeclaration c
+                      remove_dead_idents c
                    end
      |"CCall0" => c (* skip this wrapper *)
      |"CNoArrSize0" => c
