@@ -1,3 +1,0 @@
-theory "Coder_Test_ExprStmt"
-  imports "../src/CleanCoder"  (* Coder_Test_Env_AEnv *)
-begin

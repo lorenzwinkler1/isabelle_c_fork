@@ -339,9 +339,7 @@ fun convertStmt verbose sigma_i nEenv thy function_name get_loop_annotations
            (b:  C_Ast.nodeInfo ) 
            (stack : term list) =
     ((if verbose then (writeln("tag:"^tag);print_node_info a b stack) else ());
-    if tag<>"CAssign0" andalso
-       tag<>"CExpr0" andalso
-       tag<>"CBlockStmt0"  andalso
+    if tag="CBinary0" andalso
        case stack of (head::_) => is_call head |_=>false 
           then error ("Function call only allowed on RHS of assignment. Tag: "^tag)  else ();
     case tag of

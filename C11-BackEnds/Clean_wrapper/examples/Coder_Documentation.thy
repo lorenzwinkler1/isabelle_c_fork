@@ -33,8 +33,8 @@ Furthermore each identifier has a field \<open>functionArgs\<close> which is an 
 When an identifier has \<open>functionArgs = NONE\<close>, then it is a variable. \<open>functionArgs=SOME []\<close> corresponds to a parameterless function.
 
 Nice to know:
-- The environment of the last completely parsed C-context can be retrieved using \<open>Data_In_Env\<close>.
-- Intermediate envs, containing parameters and local vars can be retrieved using \<open>Data_Lang.get'\<close>.
+- The environment of the last completely parsed C-context can be retrieved using \<open>C_Module.Data_In_Env\<close>.
+- Intermediate envs, containing parameters and local vars can be retrieved using \<open>C_Env.Data_Lang.get'\<close>.
 See C5.thy in the examples of C11-Frontend.
 \<close>
 
@@ -52,7 +52,7 @@ text\<open>
 - Recursive functions must have "void" as return value. This is caused by an issue within
   Clean and is about to be fixed. The current translation should work for this case then.
 
-- Scoping: refrain from defining local variables more than once. A read/write from a local variable
+- Scoping: refrain from defining variables more than once. A read/write from a local variable
   always affects the most recent definition. Scoping using curly braces does not work as in C!
     example:  
     \<open>int foo(){
@@ -62,7 +62,77 @@ text\<open>
         }
         return x;  // wrongly returns 5
       }\<close>
+  Also defining global variables twice within one translation unit will result in only one definition, 
+  thus the second definition does not "reset" the value of the variable
+
+- Method overloading: Do not use function names multiple times, as this will break the whole
+  translation process in several ways.
 \<close>
 
+section\<open>Some examples\<close>
+text\<open>See \<open>Coder_Test_T_Units\<close> for more examples\<close>
 
+C\<open>
+int sum_of_array(int arr[], int length){
+  int i;
+  int sum;
+  i = 0;
+  sum = 0;
+  while(i < length){
+    /*@ inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>i\<close> \<le> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>length\<close>\<close> */
+    /*@ measure\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>nat \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>length-i\<close>\<close> */
+    sum = sum + arr[i];
+    i = i+1;
+  }
+  return sum;
+}
+\<close>
+(*look at the annotated while loop - it has the inv as first and the measure as snd argument*)
+find_theorems sum_of_array_core
 
+text\<open>The following program would not work in C - Clean admits it however, but produces warnings\<close>
+C\<open>
+int A[5][4];
+int swap_rows(unsigned idx1, unsigned idx2){
+  int tmp[];
+  tmp = A[idx1];
+  A[idx1] = A[idx2];
+  A[idx2] = tmp;
+}
+\<close>
+find_theorems swap_rows_core
+
+text\<open>A fully annotated multiply\<close>
+C\<open>
+int multiply(int a, int b){
+  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>a\<close> \<ge> 0\<close> */
+  /*@ post\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<lambda>ret::int. ret = \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>a*b\<close>\<close> */
+  int sum;
+  int counter;
+  sum = 0;
+  counter = 0;
+
+  while(counter < a){
+    /*@ inv\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>\<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>counter*b\<close> = \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>sum\<close> \<and> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>counter\<close> \<le> \<^C>\<^sub>e\<^sub>x\<^sub>p\<^sub>r\<open>a\<close>\<close> */
+    sum = sum + b;
+    counter = counter + 1;
+  }
+  return sum;
+}
+\<close>
+find_theorems multiply
+find_theorems multiply_pre
+find_theorems multiply_post
+
+text\<open>A recursive function calculating the \<close>
+C\<open>
+int factorial_result;
+void factorial(int n){
+  if(n > 1){
+    factorial(n-1);
+    factorial_result = multiply(factorial_result, n);
+  }else{
+    factorial_result = 1;
+  }
+}\<close>
+find_theorems factorial_core
