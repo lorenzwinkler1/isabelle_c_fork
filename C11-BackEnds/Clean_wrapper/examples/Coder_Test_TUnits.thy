@@ -7,20 +7,37 @@ begin
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 
-ML\<open>
-val a = (Abs ("\<sigma>", StateMgt.get_state_type ( @{context}),
-      Const ("Orderings.ord_class.greater_eq", @{typ "_"}) $ Const ("Groups.one_class.one",  @{typ "int"}) $
-        Const ("Groups.one_class.one", @{typ "int"})))
 
-val a' = absfree ("a",@{typ "int"}) (absfree ("b", @{typ "int"}) (Syntax.check_term @{context} a))
 
-val b = HOLogic.mk_case_prod a'
+C\<open>
+int foo(int a, int b){
+}
+int bar(int b){
+  int a;
+  a = 2;
+}
+\<close>
+
+C\<open>
+int foo1(unsigned par){
+  unsigned tmp;
+  for (tmp = 0; tmp < tmp; tmp=tmp+1) { 
+  }
+}
+\<close>
+
+text\<open>Assigning numbers to a non-int variable causes issues\<close>
+C\<open>
+int bar1(){
+  unsigned tmp;
+  tmp = 0;
+}
 \<close>
 
 
 C\<open>
 int multiply1(int a, int b){
-  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>1 \<ge> 1\<close> */
+  /*@ pre\<^sub>C\<^sub>l\<^sub>e\<^sub>a\<^sub>n  \<open>(1::int) \<ge> 1\<close> */
   return a;
 }\<close>
 
