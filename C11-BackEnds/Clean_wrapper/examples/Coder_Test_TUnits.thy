@@ -34,11 +34,25 @@ find_theorems d123
 find_theorems foo10_core
 find_theorems forloop_core
 
-
+text\<open>Apparently currently it is decided based on the stack layout, whether an else branch exists.
+So a previous assignment destroys this code.\<close>
 C\<open>
 int g;
-int foo1(){
-  g = -1;
+int foo13(){
+  if(1){
+  }
+  if (g>0){
+     g=1;
+  }
+}
+\<close>
+C\<open>
+int g;
+int foo12(){
+  g = 0;
+  if (g>0){
+     g=1;
+  }
 }
 \<close>
 

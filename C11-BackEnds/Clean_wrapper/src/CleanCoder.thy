@@ -453,8 +453,12 @@ if ... then ... else skip*)
      | "CBlockStmt0" => stack
      | "CBlockDecl0" => stack
      | "CNestedFunDef0" =>  error"Nested Function Declarations not allowed in Clean"
-     | "CIf0" =>   (case stack of  
-                       (a::b::cond::R) => mk_if_C (lifted_term sigma_i cond) b a :: R
+     | "CIf0" =>   (case stack of (*checking based on how many elements are on the stack is wrong.
+                                    instead check the type of the condition. It must be a value (i.e. no function)*)
+                    (a::b::c::R) => (case fastype_of b of Type ("fun",_)=> mk_if_C (lifted_term sigma_i c) b a :: R (*b is not the condition*)
+                                                          | _ => (mk_if_C (lifted_term sigma_i b) (*b is the cond no else*)
+                                                                 (a)
+                                                                 (mk_skip_C sigma_i)::R))
                     |  (a::cond::R) => (mk_if_C (lifted_term sigma_i cond) 
                                                 (a)
                                                 (mk_skip_C sigma_i)::R)
