@@ -121,7 +121,7 @@ find_theorems multiply
 find_theorems multiply_pre
 find_theorems multiply_post
 
-text\<open>A recursive function calculating the \<close>
+text\<open>A recursive function calculating the factorial of n\<close>
 C\<open>
 int factorial_result;
 void factorial(int n){

@@ -139,6 +139,13 @@ fun convertExpr verbose (sigma_i: typ) env thy function_name _
            (b:  C_Ast.nodeInfo )   
            (c : term list) =
     ((if verbose then print_node_info a b c else ());
+    let fun get_most_general_type t1 t2 = 
+                              if t1 = natT andalso t2=natT then natT else 
+                              if (t1 = natT orelse t1 = intT) andalso (t2=natT orelse t2=intT) then intT else
+                              if t1 <> natT andalso t1<>intT then t1 else t2 (*this should be the fallback for rational numbers*)
+                         fun get_ring_op_type t1 t2 =
+                            if get_most_general_type t1 t2 = natT then intT else get_most_general_type t1 t2
+    in 
     case tag of
 (*variables*)
 (*here, we get the full name of the variable, then we return the term well named and typed.
@@ -176,14 +183,7 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
 (*expressions*)
 (*At this point, what we do for binary or unary epressions is simple thanks to the makers. *)
      (*binary operations*)
-     |"CBinary0" => (let fun get_most_general_type t1 t2 = 
-                              if t1 = natT andalso t2=natT then natT else 
-                              if (t1 = natT orelse t1 = intT) andalso (t2=natT orelse t2=intT) then intT else
-                              if t1 <> natT andalso t1<>intT then t1 else t2 (*this should be the fallback for rational numbers*)
-                         fun get_ring_op_type t1 t2 =
-                            if get_most_general_type t1 t2 = natT then intT else get_most_general_type t1 t2
-                      in case (drop_dark_matter sub_tag, c) of
-
+     |"CBinary0" => (case (drop_dark_matter sub_tag, c) of
                       (*arithmetic operations*) 
                       ("CAddOp0",b::a::R) => let val ty = get_most_general_type (fastype_of a) (fastype_of b) in (Const(@{const_name "plus"}, ty --> ty --> ty) $ a $ b :: R) end
                     | ("CMulOp0",b::a::R) => let val ty = get_most_general_type (fastype_of a) (fastype_of b) in (Const(@{const_name "times"}, ty --> ty --> ty) $ a $ b :: R) end
@@ -220,7 +220,7 @@ translate integers in booleans. That's what term_to_bool t do.
                                               in (Const(@{const_name "less_eq"}, 
                                                      ty -->  ty --> boolT) 
                                               $ b $ a :: R)end
-                    | _ => (writeln ("sub_tag all " ^sub_tag^" :>> "^ @{make_string} c);c ) end)
+                    | _ => (writeln ("sub_tag all " ^sub_tag^" :>> "^ @{make_string} c);c ))
      (*unary operations*)
      |"CUnary0" =>  (case (drop_dark_matter sub_tag, c) of
                     ("CNegOp0", a::R) => (mk_not (term_to_bool a) :: R)
@@ -278,8 +278,7 @@ translate integers in booleans. That's what term_to_bool t do.
         on the stack, polluting it. All non-assignments are thus removed, up until this item is met on the stack*)
      |"CTypeSpec0" => ((Free ("--startofdeclarations--",@{typ unit}))::c)
      |"CDeclr0" => c
-     |"CDecl0" =>  let  val _ = writeln("CDecl")
-                        fun is_assignment ((Const (@{const_name "assign_local"},_))$_$_) = true
+     |"CDecl0" =>  let  fun is_assignment ((Const (@{const_name "assign_local"},_))$_$_) = true
                            |is_assignment ((Const (@{const_name "assign_global"},_))$_$_) = true
                            |is_assignment  _ = false
                         fun remove_dead_idents [] = []
@@ -292,7 +291,9 @@ translate integers in booleans. That's what term_to_bool t do.
      |"CCall0" => c (* skip this wrapper *)
      |"CNoArrSize0" => c
      |"CArrDeclr0" => c
-     | str => error("unsupported expression with parse tag: "^str)) (* global catch all *)
+     | str => error("unsupported expression with parse tag: "^str^"and subtag: "^sub_tag)
+end) (* global catch all *)
+
 
 fun lifted_term sigma_i term = Abs("\<sigma>", sigma_i, abstract_over (Free("\<sigma>", sigma_i), term))
 

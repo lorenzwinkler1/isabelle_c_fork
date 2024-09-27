@@ -875,7 +875,7 @@ and fold_cExpression grp g ast st =
                    |> g (TT"CCast0") a
        | (CUnary0(unop:cUnaryOp, ex: 'a cExpression, a)) => 
                 st |> fold_cExpression grp g ex 
-                   |> g (TT("CUnary0 "^toString_cUnaryOp unop)) a
+                   |> g (TTT"CUnary0" (toString_cUnaryOp unop)) a
        | (CSizeofExpr0(ex:'a cExpression, a)) => 
                 st |> fold_cExpression grp g ex    |> g (TT"CSizeofExpr0") a
        | (CSizeofType0(decl:'a cDeclaration,a)) => 
