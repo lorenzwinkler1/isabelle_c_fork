@@ -67,10 +67,9 @@ exception WrongFormat of string
 exception UnknownTyp of string
 
 
-(*renvoie le type final d'une fonction, ou le type d'une constante*)
-fun lastype_of (Type(_, [x])) = x | lastype_of (Type(_, [_, y])) = y
 (*renvoie le type du premier attribut d'une fonction, ou le type d'une constante*)
-fun firstype_of (Type(_, [x])) = x | firstype_of (Type(_, x::_)) = x 
+fun firstype_of (Type(_, [x])) = x | firstype_of (Type(_, x::_)) = x
+   |firstype_of t = t
 
 (* Creates a result_update_term for the local state *)
 fun mk_result_update thy sigma_i=
@@ -80,19 +79,17 @@ fun mk_result_update thy sigma_i=
    val s' = String.substring(s, 0, size s - size "_scheme")^".result_value_update"
   in Syntax.read_term_global thy s' end;
 
-fun extract_ids long_id sigma_i =
-  let  val id = List.last(String.tokens (fn x => x = #".") long_id)
-       val Type(ty_name, _) = sigma_i;
-       val ty_name = ty_name |> String.tokens (fn x => x =  #".") |> tl |> hd
-       val local_state = String.substring (ty_name, 0, 
-                                           String.size ty_name 
-                                           - (String.size "_scheme"))
-                                                     (*dangerous. will work only for the local case *)
-  in  (id, local_state^"."^id) end
 
-fun read_N_coerce_global thy name ty =
-       (* a very dirty hack ... but reconstructs the true \<open>const_name\<close>  Sign.consts_of thy
+fun read_N_coerce thy name ty = 
+       (* a very dirty hack ... but reconstructs the true \<open>const_name\<close> 
           along the subtype hierarchy, but coerces it to the current sigma*)
+       let val s = drop_dark_matter(Syntax.string_of_typ_global thy ty)
+           val str = name ^ " :: " ^ s 
+       in  Syntax.read_term_global thy str end
+
+fun read_N_coerce_global thy name =
+       (*this function is necessary, to ensure that a global variable is selected, in case
+         a local variable is defined later (as later vars would get selected by default)*)
        let 
            val consts = Sign.consts_of thy
            fun filter_by_shortname (n, _) =
@@ -101,17 +98,9 @@ fun read_N_coerce_global thy name ty =
               | _ => false) 
            val longnames =  List.filter filter_by_shortname (#constants (Consts.dest consts))
            val longname = (fst o hd) longnames
-           val s = drop_dark_matter(Syntax.string_of_typ_global thy ty)
-           val str = longname ^ " :: " ^ s 
-       in  Syntax.read_term_global thy str end
+       in  read_N_coerce thy longname end
 
-
-fun read_N_coerce thy name ty = 
-       (* a very dirty hack ... but reconstructs the true \<open>const_name\<close> 
-          along the subtype hierarchy, but coerces it to the current sigma*)
-       let val s = drop_dark_matter(Syntax.string_of_typ_global thy ty)
-           val str = name ^ " :: " ^ s 
-       in  Syntax.read_term_global thy str end
+fun get_update_fun thy name = read_N_coerce thy (name^"_update")
 \<close>
 
 subsection\<open>C11 Expressions to Clean Terms\<close>
@@ -141,11 +130,22 @@ fun node_content_parser (x : C11_Ast_Lib.node_content) =
       val id = hd(tl(String.tokens (fn x => x = #"\"")(drop_dark_matter a_markup)))
     in id end  (* no type inference *);
 
-fun convertExpr verbose (sigma_i: typ) env thy function_name get_loop_annotations
+fun is_call a = case a of 
+              Const (@{const_name "Clean.call\<^sub>C"},_) $_ $_ => true
+              |_ => false
+
+fun convertExpr verbose (sigma_i: typ) env thy function_name _
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo )   
            (c : term list) =
     ((if verbose then print_node_info a b c else ());
+    let fun get_most_general_type t1 t2 = 
+                              if t1 = natT andalso t2=natT then natT else 
+                              if (t1 = natT orelse t1 = intT) andalso (t2=natT orelse t2=intT) then intT else
+                              if t1 <> natT andalso t1<>intT then t1 else t2 (*this should be the fallback for rational numbers*)
+                         fun get_ring_op_type t1 t2 =
+                            if get_most_general_type t1 t2 = natT then intT else get_most_general_type t1 t2
+    in 
     case tag of
 (*variables*)
 (*here, we get the full name of the variable, then we return the term well named and typed.
@@ -157,30 +157,26 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
                                                 SOME(identifier) => identifier
                                               | NONE => error("(convertExpr) identifier " 
                                                               ^ id ^ " not recognised")
-                        val Type(local_state_scheme, _) = sigma_i;
-                        val local_state = String.substring (local_state_scheme, 0, 
-                                                                String.size local_state_scheme 
-                                                                 - (String.size "_scheme"))
                                               (*dangerous. will work only for the local case *)
-                        val lid = local_state^"."^id
                     in case cat of
-                        C_AbsEnv.Global => read_N_coerce_global thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i) :: c
+                        C_AbsEnv.Global => read_N_coerce_global thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i)::c
                       | C_AbsEnv.Local(_) => Const(@{const_name "comp"}, 
                                                    (HOLogic.listT ty --> ty) 
                                                    --> (sigma_i --> HOLogic.listT ty) 
                                                    --> sigma_i --> ty) 
                                               $ Const(@{const_name "hd"}, HOLogic.listT ty --> ty) 
-                                              $ read_N_coerce thy lid (sigma_i --> HOLogic.listT ty) 
+                                              $ read_N_coerce thy id (sigma_i --> HOLogic.listT ty) 
                                               $ Free("\<sigma>",sigma_i) :: c
                       | C_AbsEnv.Parameter(_) => Free (id, ty) :: c
                       | C_AbsEnv.FunctionCategory(C_AbsEnv.MutuallyRecursive(_), _) =>
                                 error("Mutual recursion is not supported in Clean")
-                      | C_AbsEnv.FunctionCategory(a, b) =>
+                      | C_AbsEnv.FunctionCategory(_, _) =>
                             let fun get_call_const id = Syntax.read_term_global thy id
+                                (* There is no term corresponding to the function. Hence skip the 
+                                   initialization of the type and infer it from the call args (see CCall0)*)
                                 fun get_rec_call_ident id= Free(id, 
                                             (TVar (("'a", 0), [])) --> sigma_i --> (Type (@{type_name "option"}, [mk_tupleT [ty, sigma_i]])))
                             in (if function_name = id then get_rec_call_ident id else get_call_const id) :: c end
-                      | c => error("(convertExpr) unrecognised category : " ^ @{make_string} c)
                     end)
      |"Vars0" => c
      |"CVar0" => c
@@ -189,10 +185,10 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
      (*binary operations*)
      |"CBinary0" => (case (drop_dark_matter sub_tag, c) of
                       (*arithmetic operations*) 
-                      ("CAddOp0",b::a::R) => (Const(@{const_name "plus"}, fastype_of a --> fastype_of b --> intT) $ a $ b :: R)
-                    | ("CMulOp0",b::a::R) => (Const(@{const_name "times"}, fastype_of a --> fastype_of b --> intT) $ a $ b :: R)
-                    | ("CDivOp0",b::a::R) => (Const(@{const_name "divide"}, fastype_of a --> fastype_of b --> intT) $ a $ b :: R)
-                    | ("CSubOp0",b::a::R) => (Const(@{const_name "minus"}, fastype_of a --> fastype_of b --> intT) $ a $ b :: R)
+                      ("CAddOp0",b::a::R) => let val ty = get_most_general_type (fastype_of a) (fastype_of b) in (Const(@{const_name "plus"}, ty --> ty --> ty) $ a $ b :: R) end
+                    | ("CMulOp0",b::a::R) => let val ty = get_most_general_type (fastype_of a) (fastype_of b) in (Const(@{const_name "times"}, ty --> ty --> ty) $ a $ b :: R) end
+                    | ("CDivOp0",b::a::R) => let val ty = get_ring_op_type (fastype_of a) (fastype_of b) in (Const(@{const_name "divide"}, ty --> ty --> ty) $ a $ b :: R) end
+                    | ("CSubOp0",b::a::R) => let val ty = get_ring_op_type (fastype_of a) (fastype_of b) in (Const(@{const_name "minus"}, ty --> ty --> ty) $ a $ b :: R) end
                       (*boolean operations*) 
 (*for boolean operations, because in C boolean are in fact integers, we need to
 translate integers in booleans. That's what term_to_bool t do.
@@ -208,18 +204,22 @@ translate integers in booleans. That's what term_to_bool t do.
                     | ("CEqOp0", b::a::R) => (mk_eq ( a, b) :: R)
                     | ("CNeqOp0", b::a::R) => (mk_not (mk_eq ( a, b))::R)
                       (*comp*)
-                    | ("CLeOp0", b::a::R) => (Const(@{const_name "less"}, 
-                                                    fastype_of a --> fastype_of b --> boolT) 
-                                             $ a $ b :: R) 
-                    | ("CGrOp0", b::a::R) => (Const(@{const_name "less"}, 
-                                                    fastype_of a --> fastype_of b --> boolT) 
-                                             $ b $ a :: R) 
-                    | ("CLeqOp0", b::a::R) => (Const(@{const_name "less_eq"}, 
-                                                     fastype_of a --> fastype_of b --> boolT) 
-                                              $ a $ b :: R) 
-                    | ("CGeqOp0", b::a::R) => (Const(@{const_name "less_eq"}, 
-                                                     fastype_of a --> fastype_of b --> boolT) 
-                                              $ b $ a :: R)
+                    | ("CLeOp0", b::a::R) => let val ty =get_most_general_type (fastype_of a) (fastype_of b)
+                                             in (Const(@{const_name "less"}, 
+                                                    ty --> ty --> boolT) 
+                                             $ a $ b :: R) end 
+                    | ("CGrOp0", b::a::R) => let val ty =get_most_general_type (fastype_of a) (fastype_of b)
+                                             in (Const(@{const_name "less"}, 
+                                                    ty --> ty --> boolT) 
+                                             $ b $ a :: R) end
+                    | ("CLeqOp0", b::a::R) => let val ty =get_most_general_type (fastype_of a) (fastype_of b)
+                                              in (Const(@{const_name "less_eq"}, 
+                                                     ty --> ty --> boolT) 
+                                              $ a $ b :: R) end
+                    | ("CGeqOp0", b::a::R) => let val ty =get_most_general_type (fastype_of a) (fastype_of b)
+                                              in (Const(@{const_name "less_eq"}, 
+                                                     ty -->  ty --> boolT) 
+                                              $ b $ a :: R)end
                     | _ => (writeln ("sub_tag all " ^sub_tag^" :>> "^ @{make_string} c);c ))
      (*unary operations*)
      |"CUnary0" =>  (case (drop_dark_matter sub_tag, c) of
@@ -230,7 +230,7 @@ translate integers in booleans. That's what term_to_bool t do.
 (*for the constants, we can use the makers*)
      |"CConst0"   => c (* skip this wrapper *)
      |"CInteger0" =>let val C11_Ast_Lib.data_int n = hd args
-                    in  (mk_number intT n)::c end
+                    in  (mk_number (if n>=0 then natT else intT) n)::c end
      |"CIntConst0"=> c (* skip this wrapper *)
      |"CString0"  => let val C11_Ast_Lib.data_string s = hd args
                      in  (mk_string s)::c end
@@ -274,17 +274,26 @@ translate integers in booleans. That's what term_to_bool t do.
      |"CFloatConst0"=> (c) (* skip this wrapper *)
      |"CChars0" => (warning "bizarre rule in context float: CChars0"; c)
      |"CExpr0"  => c (* skip this wrapper *)
-     |"CTypeSpec0" => c (* skip this wrapper *)
-     |"CDeclr0" => c (* skip this wrapper *)
-     |"CInitExpr0" => error "init expression currently unsupported" (* skip this wrapper *)
-     |"CDecl0" =>  let fun handleDeclaration stack = tl stack 
+      (*this is a very dirty trick: when declaring variables "int a,b=3,c,d=4;", the accesses to a and c lie
+        on the stack, polluting it. All non-assignments are thus removed, up until this item is met on the stack*)
+     |"CTypeSpec0" => ((Free ("--startofdeclarations--",@{typ unit}))::c)
+     |"CDeclr0" => c
+     |"CDecl0" =>  let  fun is_assignment ((Const (@{const_name "assign_local"},_))$_$_) = true
+                           |is_assignment ((Const (@{const_name "assign_global"},_))$_$_) = true
+                           |is_assignment  _ = false
+                        fun remove_dead_idents [] = []
+                           |remove_dead_idents (Free("--startofdeclarations--",_)::R) = R
+                           |remove_dead_idents (head::R) = if is_assignment head then (head::remove_dead_idents R) 
+                                      else remove_dead_idents R
                    in
-                      handleDeclaration c
+                      remove_dead_idents c
                    end
      |"CCall0" => c (* skip this wrapper *)
      |"CNoArrSize0" => c
      |"CArrDeclr0" => c
-     | str => error("unsupported expression with parse tag: "^str)) (* global catch all *)
+     | str => error("unsupported expression with parse tag: "^str^"and subtag: "^sub_tag)
+end) (* global catch all *)
+
 
 fun lifted_term sigma_i term = Abs("\<sigma>", sigma_i, abstract_over (Free("\<sigma>", sigma_i), term))
 
@@ -349,12 +358,10 @@ fun convertStmt verbose sigma_i nEenv thy function_name get_loop_annotations
            (a as { tag, sub_tag, args }:C11_Ast_Lib.node_content) 
            (b:  C_Ast.nodeInfo ) 
            (stack : term list) =
-    ((if verbose then (writeln("tag:"^tag);print_node_info a b stack) else ());
-    case tag of
-
-     "CAssign0" => (case stack of
+    
+    let fun handle_assign stack = (case stack of
                       (rhs :: lhs ::  R) => 
-                          ((let 
+                          ((let
                                fun getLongId lhs  = (case lhs of
                                             Const(name, _) $ _ => name
                                           | _ $ _ $ Const(name, _) $ _ => name
@@ -362,83 +369,70 @@ fun convertStmt verbose sigma_i nEenv thy function_name get_loop_annotations
                                           | Const ("List.nth", _) $ lhs_candidat $ _ => (getLongId lhs_candidat)
                                           | _ => error("(convertStmt) CAssign0 does not recognise term: "
                                                         ^(@{make_string} lhs)^"With stacK"^(@{make_string} stack)))
-                               val long_id = getLongId lhs
-                               val (id, lid) = extract_ids long_id sigma_i
-                               fun is_id (C_AbsEnv.Identifier(id_name, _, _, _)) = id_name = id
-                               val C_AbsEnv.Identifier(id, _, ty, cat) = 
+                               val ident_id = getLongId lhs
+
+                               val C_AbsEnv.Identifier(_, _, ty, cat) = let
+                                    fun is_id (C_AbsEnv.Identifier(id_name, _, _, _)) = id_name = Long_Name.base_name ident_id in
                                          case List.find is_id nEenv of SOME x  => x
-                                             | _ => error("id not found: "^ long_id)
+                                             | _ => error("id not found: "^ ident_id) end
+                               val (update_func_ty, mk_assign) = case cat of C_AbsEnv.Global => (((ty --> ty) --> sigma_i --> sigma_i), mk_assign_global_C)
+                                                               |C_AbsEnv.Local _ => (((listT ty --> listT ty) --> sigma_i --> sigma_i), mk_assign_local_C)
+                                                               | _ => error ("Assignment to "^ident_id^" not possible (is it a parameter?)")
+                               val update_func = get_update_fun thy ident_id update_func_ty
                                fun get_base_type lhs ty = 
-                                  case lhs of Const ("List.nth", typedef) $ lhs_part1 $ idx_term => 
+                                  case lhs of Const ("List.nth", _) $ lhs_part1 $ _ => 
                                                                        get_base_type lhs_part1 (dest_listTy ty)
                                                      | _ => ((if (is_listTy ty) then warning "Assigning list of elements to variable. This is not possible in C, however supported by Clean" else ());ty)
                                val tempvarn = "tmpvar"
+                               val tempvart = (get_base_type lhs ty)
                                val is_fun_assignment = (case rhs of  Const (@{const_name "Clean.call\<^sub>C"},_) $_ $_ => true
                                                                          | _ => false)
-                               val rhs_old = rhs
-                               val tempvart = (get_base_type lhs ty)
-                               val rhs = (if is_fun_assignment then Free (tempvarn, tempvart) else rhs)
-                               fun mk_list_type ty = Type(@{type_name "list"}, [ty]) (* This is from "isa_termstypes.ML" *)
+                               (*Here comes the array part. Since only entire "rows" of arrays can be replaced,
+                                 for the expression A[1][2] = b, the right hand side of the CLEAN-statement has
+                                 to include parts of the LHS, which makes this transformation rather ugly, especially
+                                 in combination with function calls.
+                                 Based on the LHS, the function get_array_assignment provides, for the above example,
+                                 a function: 
+                                 \<lambda>rhs. A[1:= (A!1 [2:= rhs])
+                                  *)
                                fun mk_list_update_t ty = Const(@{const_name "List.list_update"}, (* This is from "isa_termstypes.ML" *)
-                                                    mk_list_type ty --> natT -->
-                                                                 ty --> mk_list_type ty)
-                               fun transform_rhs_list_assignment lhs_part value ty= 
-                                  case lhs_part of  Const ("List.nth", typedef) $ lhs_part1 $ idx_term => (
+                                                    listT ty --> natT --> ty --> listT ty)
+                               fun transform_rhs_list_assignment lhs_part ty value= 
+                                  case lhs_part of  Const ("List.nth", _) $ lhs_part1 $ idx_term => (
                                       let 
-                                        
                                         val lst_update_t =  mk_list_update_t ty
                                         val updated = lst_update_t $ lhs_part1 $ idx_term $ value
                                       in
-                                        transform_rhs_list_assignment lhs_part1 updated (listT ty)
+                                        transform_rhs_list_assignment lhs_part1 (listT ty) updated 
                                       end
                                     )
-                                  | _ => value
+                                  | _ => value                                              
 
-                               fun transform_lhs_for_rhs_transformation lhs_part final_term =
-                                     case lhs_part of Const (@{const_name "nth"}, typedef) $ lhs_part1 $ idx_term => 
-                                                                       Const (@{const_name "nth"}, typedef) $ (transform_lhs_for_rhs_transformation lhs_part1 final_term) $ idx_term
-                                                     | _ => final_term
+                               val get_array_assignment = transform_rhs_list_assignment lhs (get_base_type lhs ty) 
 
-                               val access_term = case cat of  C_AbsEnv.Global  =>  (read_N_coerce_global thy id (sigma_i --> ty) $ Free("\<sigma>",sigma_i))
-                                                              |_ =>  Const(@{const_name "comp"}, 
-                                                                           (HOLogic.listT ty --> ty) 
-                                                                           --> (sigma_i --> HOLogic.listT ty) 
-                                                                           --> sigma_i --> ty) 
-                                                                      $ Const(@{const_name "hd"}, HOLogic.listT ty --> ty) 
-                                                                      $ read_N_coerce thy lid (sigma_i --> HOLogic.listT ty) 
-                                                                      $ Free("\<sigma>",sigma_i)
-                                              
 
-                               val lhs_tmp = transform_lhs_for_rhs_transformation lhs access_term
-
-                               val new_rhs = transform_rhs_list_assignment lhs_tmp rhs (get_base_type lhs ty)
-
-                               val (id, lid) = (id ^ "_update", lid ^ "_update")
-                               
-
-                           in case cat of
-                                C_AbsEnv.Global => (if is_fun_assignment then ( mk_seq_assign_C rhs_old (((mk_assign_global_C 
-                                                            (read_N_coerce_global thy id 
-                                                           ((ty --> ty) --> sigma_i --> sigma_i)))
-                                                       (lifted_term sigma_i new_rhs))) tempvarn tempvart) 
-                                                     else (
-                                                        ((mk_assign_global_C 
-                                                            (read_N_coerce_global thy id 
-                                                           ((ty --> ty) --> sigma_i --> sigma_i)))
-                                                       (lifted_term sigma_i new_rhs))))::R
-                              | C_AbsEnv.Parameter(_) => error "assignment to parameter not allowed in Clean"
-                              | C_AbsEnv.Local(_) => (if is_fun_assignment then (mk_seq_assign_C rhs_old (mk_assign_local_C 
-                                                       (read_N_coerce thy lid 
-                                                           ((listT ty --> listT ty) --> sigma_i --> sigma_i))
-                                                       (lifted_term sigma_i new_rhs) ) tempvarn tempvart)
-                                                      else ((mk_assign_local_C 
-                                                       (read_N_coerce thy lid 
-                                                           ((listT ty --> listT ty) --> sigma_i --> sigma_i))
-                                                       (lifted_term sigma_i new_rhs) )))::R
-                              | s => error("(convertStmt) CAssign0 with cat " 
-                                            ^ @{make_string} s ^ " is unrecognised")
+                               val assignment =if is_fun_assignment then ( mk_seq_assign_C 
+                                                            rhs 
+                                                            (((mk_assign update_func) 
+                                                              (lifted_term sigma_i (get_array_assignment (Free (tempvarn,tempvart)))))) 
+                                                            tempvarn 
+                                                            tempvart) 
+                                                     else (   
+                                                        ((mk_assign 
+                                                            update_func)
+                                                       (lifted_term sigma_i (get_array_assignment rhs))))
+                                val inferred_assignment = Syntax.check_term (Proof_Context.init_global thy) assignment
+                                in assignment::R
                            end))
                       |_ => raise WrongFormat("assign"))
+
+     in ((if verbose then (writeln("tag:"^tag);print_node_info a b stack) else ());
+    if tag="CBinary0" andalso
+       case stack of (head::_) => is_call head |_=>false 
+          then error ("Function call only allowed on RHS of assignment. Tag: "^tag)  else ();
+    case tag of
+     "CAssign0" => handle_assign stack
+    |"CInitExpr0" => handle_assign stack
      (*statements*)
 (*for return, skip and break, we have makers except that they need types and terms that i didn't 
 understand so it's unfinished here*)
@@ -459,8 +453,12 @@ if ... then ... else skip*)
      | "CBlockStmt0" => stack
      | "CBlockDecl0" => stack
      | "CNestedFunDef0" =>  error"Nested Function Declarations not allowed in Clean"
-     | "CIf0" =>   (case stack of  
-                       (a::b::cond::R) => mk_if_C (lifted_term sigma_i cond) b a :: R
+     | "CIf0" =>   (case stack of (*checking based on how many elements are on the stack is wrong.
+                                    instead check the type of the condition. It must be a value (i.e. no function)*)
+                    (a::b::c::R) => (case fastype_of b of Type ("fun",_)=> mk_if_C (lifted_term sigma_i c) b a :: R (*b is not the condition*)
+                                                          | _ => (mk_if_C (lifted_term sigma_i b) (*b is the cond no else*)
+                                                                 (a)
+                                                                 (mk_skip_C sigma_i)::R))
                     |  (a::cond::R) => (mk_if_C (lifted_term sigma_i cond) 
                                                 (a)
                                                 (mk_skip_C sigma_i)::R)
@@ -507,24 +505,29 @@ for(ini, cond, evol){body} is translated as ini; while(cond){body; evol;}*)
                                                         in   ((mk_seq_C init C'))::R end)
                         |_ => raise WrongFormat("for")) end
      | "CCall0" => (let fun extract_fun_args (t :: R) args =
-                            case t of
+                            (case t of
                             (* very bad way of checking if term represents a function *)
                                Const(id, ty) => if not (firstype_of ty = sigma_i) 
                                                 then (args, Const(id, ty), R) 
                                                 else extract_fun_args R (Const(id, ty) :: args)
-                             |  Free(id, ty) => if id = function_name 
+                             |  Free(id, ty) => if id = function_name (*recursive call*)
                                                 then (args, Free(id, ty), R) 
                                                 else extract_fun_args R (Free(id, ty) :: args)
-                             | arg => extract_fun_args R (arg :: args)
+                             | arg => extract_fun_args R (arg :: args))
+                            |extract_fun_args [] _ = error ("\"CCall0\": couldnt find function in stack: "^(@{make_string} stack))
                         val (args, f, R) = extract_fun_args stack []
-                        val Type (_, [arg_ty,r_ty]) = fastype_of f
-                        val Type (_,[old_sigma_ty, r_ty]) = r_ty
-                        val Type (_,[Type(_, [ret_ty, old_sigma1_ty])]) = r_ty
+                        val ret_ty = case fastype_of f of Type (_, [_, (*args \<rightarrow>*)
+                                                          Type (_, [_, (*sigma \<rightarrow>*)
+                                                          Type (_, [ (*'a option*)
+                                                          Type(_, [ret_ty, _])])])]) => ret_ty (* (ret_type, sigma)*)
+                                                          | _ => error ("function type has wrong format: "^(@{make_string} (fastype_of f)))
+
                         val new_args_ty = mk_tupleT (List.map fastype_of args)
                         val new_ty = new_args_ty --> sigma_i --> (Type (@{type_name "option"},[Type (@{type_name "prod"}, [ret_ty,sigma_i])]))
 
                         fun swap_ty (Const (name, _)) n_ty = Const (name, n_ty)
                            |swap_ty (Free (name, _)) n_ty = Free (name, n_ty)
+                           |swap_ty _ _ = error "unexpected term at swap_ty"
 
                         val f_new = swap_ty f new_ty
                         val fun_args_term = mk_tuple args
@@ -535,6 +538,7 @@ end
 
 (*** -------------- ***)
 
+end
 end
 \<close>
 

@@ -1415,9 +1415,7 @@ fun mk_seq_C C C' = let val t = fastype_of C
 fun mk_seq_assign_C rhs lhs varname vartyp= let
                     val t1 = fastype_of rhs
                     val t2 = fastype_of lhs
-                    val abstractedTerm = Term.abstract_over ((Free (varname, vartyp)),lhs)
-                    val lambdaExpr = (Abs (varname,vartyp, abstractedTerm))
-                in Const(\<^const_name>\<open>bind_SE\<close>, t1 --> (vartyp --> t2) --> t2 ) $ rhs $ lambdaExpr end;
+                in Const(\<^const_name>\<open>bind_SE\<close>, t1 --> (vartyp --> t2) --> t2 ) $ rhs $ absfree (varname, vartyp) lhs end;
 
 fun mk_skip_C sty = Const(\<^const_name>\<open>skip\<^sub>S\<^sub>E\<close>, StateMgt_core.MON_SE_T HOLogic.unitT sty)
 
@@ -1425,34 +1423,26 @@ fun mk_break sty =
     Const(\<^const_name>\<open>break\<close>, StateMgt_core.MON_SE_T HOLogic.unitT sty )
 
 fun mk_return_C upd rhs =
-    let val ty = fastype_of rhs
-        val (sty,rty) = case ty of 
-                         Type("fun", [sty,rty]) => (sty,rty)
-                        | _  => error "mk_return_C: illegal type for body"
-        val upd_ty = (HOLogic.listT rty --> HOLogic.listT rty) --> sty --> sty
+    let val (rty, sty) = case fastype_of upd of Type("fun",[Type("fun", [Type(_(*list*),[r_ty]),_]),Type ("fun",[s_ty,_])]) => (r_ty, s_ty)
+                                                  | _=>error "mk_return_C: illegal type for update func"
+
         val rhs_ty = sty --> rty
         val mty = StateMgt_core.MON_SE_T HOLogic.unitT sty
-    in Const(\<^const_name>\<open>return\<^sub>C\<close>, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
+    in Const(\<^const_name>\<open>return\<^sub>C\<close>, fastype_of upd --> rhs_ty --> mty) $ upd $ rhs end
 
 fun mk_assign_global_C upd rhs =
-    let val ty = fastype_of rhs 
-        val (sty,rty) = case ty of 
-                         Type("fun", [sty,rty]) => (sty,rty)
-                        | _  => error "mk_assign_global_C: illegal type for body"
-        val upd_ty = (rty --> rty) --> sty --> sty
+    let val (rty, sty) = case fastype_of upd of Type("fun",[Type("fun", [r_ty,_]),Type ("fun",[s_ty,_])]) => (r_ty, s_ty)
+                                                  | _=>error "mk_assign_global_C: illegal type for update func"
         val rhs_ty = sty --> rty
         val mty = StateMgt_core.MON_SE_T HOLogic.unitT sty
-    in Const(\<^const_name>\<open>assign_global\<close>, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
+    in Const(\<^const_name>\<open>assign_global\<close>, fastype_of upd --> rhs_ty --> mty) $ upd $ rhs end
 
 fun mk_assign_local_C upd rhs =
-    let val ty = fastype_of rhs 
-        val (sty,rty) = case ty of 
-                         Type("fun", [sty,rty]) => (sty,rty)
-                        | _  => error "mk_assign_local_C: illegal type for body"
-        val upd_ty = (HOLogic.listT rty --> HOLogic.listT rty) --> sty --> sty
+    let val (rty, sty) = case fastype_of upd of Type("fun",[Type("fun", [Type(_(*list*),[r_ty]),_]),Type ("fun",[s_ty,_])]) => (r_ty, s_ty)
+                                                  | _=>error "mk_assign_local_C: illegal type for update func"
         val rhs_ty = sty --> rty
         val mty = StateMgt_core.MON_SE_T HOLogic.unitT sty
-    in Const(\<^const_name>\<open>assign_local\<close>, upd_ty --> rhs_ty --> mty) $ upd $ rhs end
+    in Const(\<^const_name>\<open>assign_local\<close>, fastype_of upd --> rhs_ty --> mty) $ upd $ rhs end
 
 fun mk_call_C opn args =
     let val ty = fastype_of opn 

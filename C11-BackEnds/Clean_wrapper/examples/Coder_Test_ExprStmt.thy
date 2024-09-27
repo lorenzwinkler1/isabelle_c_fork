@@ -203,7 +203,7 @@ val S'' = conv_Cexpr_lifted_term  sigma_i A_env2 @{theory} "" (K NONE) ast_expr
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 \<comment> \<open>type-check of the latter\<close>
-ML\<open> Sign.certify_term @{theory} S \<close>
+ML\<open> Sign.certify_term @{theory} (Syntax.check_term @{context} S) \<close>
 
 (* This local variable space also creates the update function for the return_result. *)
 local_vars_test  (test_return "int")
@@ -257,7 +257,7 @@ val S = conv_Cexpr_lifted_term  sigma_i A_env1 @{theory} "" (K NONE) ast_expr
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 \<comment> \<open>type-check of the latter\<close>
-ML\<open> Sign.certify_term @{theory} S \<close>
+ML\<open>Sign.certify_term @{theory} (Syntax.check_term @{context} S)\<close>
 
 
 (*7*****************************************************************************************************)
@@ -280,7 +280,7 @@ val S = conv_Cexpr_lifted_term  sigma_i A_env0 @{theory} "" (K NONE) ast_expr
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 \<comment> \<open>type-check of the latter\<close>
-ML\<open> Sign.certify_term @{theory} S \<close>
+ML\<open>Sign.certify_term @{theory} (Syntax.check_term @{context} S)\<close>
 
 section \<open>statements\<close>
 
@@ -316,7 +316,7 @@ val [S] =  (C11_Ast_Lib.fold_cStatement
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 \<comment> \<open>type-check of the latter\<close>
-ML\<open> Sign.certify_term @{theory} S \<close>
+ML\<open>Sign.certify_term @{theory} (Syntax.check_term @{context} S)\<close>
 
 
 text\<open>Write to array\<close>
@@ -448,7 +448,7 @@ val [S] =  (C11_Ast_Lib.fold_cStatement
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 \<comment> \<open>type-check of the latter\<close>
-ML\<open> Sign.certify_term @{theory} S \<close>
+ML\<open>Sign.certify_term @{theory} (Syntax.check_term @{context} S)\<close>
 
 (*3*****************************************************************************************************)
 
@@ -472,7 +472,7 @@ val [S] =  (C11_Ast_Lib.fold_cStatement
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 \<comment> \<open>type-check of the latter\<close>
-ML\<open> Sign.certify_term @{theory} S \<close>
+ML\<open>Sign.certify_term @{theory} (Syntax.check_term @{context} S)\<close>
 
 (*4*****************************************************************************************************)
 
@@ -499,7 +499,7 @@ val [S] =  (C11_Ast_Lib.fold_cStatement
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 \<comment> \<open>type-check of the latter\<close>
-ML\<open> Sign.certify_term @{theory} S \<close>
+ML\<open>Sign.certify_term @{theory} (Syntax.check_term @{context} S)\<close>
 
 
 (*5*****************************************************************************************************)
@@ -537,7 +537,7 @@ ML\<open> read_N_coerce @{theory} "a" (sigma_i --> intT)\<close>
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 \<comment> \<open>type-check of the latter\<close>
-ML\<open> Sign.certify_term @{theory} S \<close>
+ML\<open>Sign.certify_term @{theory} (Syntax.check_term @{context} S)\<close>
 (* a very serious problem : the inheritance on state spaces is not appropriately mirrored. *)
 
 
@@ -744,7 +744,7 @@ val [S] =  (C11_Ast_Lib.fold_cStatement
 
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
-ML\<open>Sign.certify_term @{theory} S\<close>
+ML\<open>Sign.certify_term @{theory} (Syntax.check_term @{context} S)\<close>
 
 subsection\<open>Call with no return type\<close>
 (*Methods call only with sideeffects*)
@@ -769,7 +769,7 @@ term assign_to_a
 
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
-ML\<open>Sign.certify_term @{theory} S\<close>
+ML\<open>Sign.certify_term @{theory} (Syntax.check_term @{context} S)\<close>
 
 subsection\<open>Call with return type\<close>
 consts fun_with_ret_value :: "(int) \<Rightarrow> (int,'a local_test_return_state_scheme)MON\<^sub>S\<^sub>E "
@@ -806,7 +806,7 @@ term assign_to_a
 
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
-ML\<open>Sign.certify_term @{theory} S\<close>
+ML\<open>Sign.certify_term @{theory} (Syntax.check_term @{context} S)\<close>
 
 section \<open>Experiments with Local Scopes\<close>
 

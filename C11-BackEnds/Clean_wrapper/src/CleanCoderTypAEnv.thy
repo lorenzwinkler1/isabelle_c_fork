@@ -555,9 +555,21 @@ fun parseExternalDeclaration
                                         (selectFromNodeContent ["Ident0", "CTypeSpec0", 
                                                                 "CArrDeclr0", "CDeclr0", "CCall0"]) 
                                         statement [])
-        val (newIdentList, functionCategory, newFunctionCallTable) = 
+        (*we need to sort out the local identifiers of previous functions, as they are no longer accessible*)
+        fun sortIdentifiers [] = ([],[])
+           |sortIdentifiers (ident::R) = let
+              val (prev_glob, prev_loc) = sortIdentifiers R
+              in case ident of Identifier (_,_,_,Global)=> (ident::prev_glob, prev_loc)
+                              |Identifier (_,_,_,FunctionCategory _) => (ident::prev_glob, prev_loc)
+                              |_ => (prev_glob, ident::prev_loc)
+              
+              end
+
+        val (previous_global_identifiers, previous_local_identifiers) = sortIdentifiers (identList)
+        val (newIdentList', functionCategory, newFunctionCallTable) =
                                     parseLocals statementContentList functionName functionCallTable 
-                                        (paramIdentifiers @ identList) oldIdents
+                                        (paramIdentifiers@previous_global_identifiers) oldIdents
+        val newIdentList = newIdentList'@previous_local_identifiers
     in (Identifier(functionName, posL, functionReturnHOLType, 
                        FunctionCategory(functionCategory, SOME(statement))) :: newIdentList, 
                        newFunctionCallTable) 
