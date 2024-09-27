@@ -846,6 +846,7 @@ end
 ML    \<open>(Symtab.dest)(StateMgt_core.get_state_field_tab_global @{theory})\<close>
 setup \<open>conv_transl_unit ast_unit\<close>
 ML    \<open>(Symtab.dest)(StateMgt_core.get_state_field_tab_global @{theory})\<close>
+(* A Cadaver ... *)
 setup \<open>conv_transl_unit ast_unit'\<close>
 ML    \<open>(Symtab.dest)(StateMgt_core.get_state_field_tab_global @{theory});\<close>
 

@@ -14,7 +14,7 @@ C\<open>int global1;\<close>
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] [] Symtab.empty 
 val () = List.app printIdentifier identifiers
 end
 \<close>
@@ -24,7 +24,7 @@ C\<open>int global2[];
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] [] Symtab.empty
 val () = List.app printIdentifier identifiers
 end
 \<close>
@@ -34,7 +34,7 @@ unsigned int global6, global7;\<close>
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] [] Symtab.empty
 val () = List.app printIdentifier identifiers
 end
 \<close>
@@ -46,7 +46,7 @@ int c = foo(a), d;
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] [] Symtab.empty
 val () = List.app printIdentifier identifiers
 end\<close>
 
@@ -60,7 +60,7 @@ void test() {
 
 ML\<open>
 local open C_AbsEnv in
-val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] [] Symtab.empty
 val () = List.app printIdentifier nEnv
 end\<close>
 
@@ -80,7 +80,7 @@ C\<open>int identity(int a) {
 
 ML\<open>
 local open C_AbsEnv in
-val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] [] Symtab.empty
 val () = List.app printIdentifier nEnv
 val ast_stmt = extractStatement nEnv "identity"
 end
@@ -98,7 +98,7 @@ val lookup=Symtab.lookup state_field p *)
 
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt false sigma_i nEnv @{theory} )
+              (convertStmt false sigma_i nEnv @{theory} "" (K (NONE, NONE)))
               ast_stmt []);
 \<close>
 
@@ -138,7 +138,7 @@ float add(int a, int b) {
 
 ML\<open>
 local open C_AbsEnv in
-val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] [] Symtab.empty
 val () = List.app printIdentifier nEnv
 val add_ast = @{C11_CTranslUnit}
 val ast_stmt = extractStatement nEnv "add"
@@ -150,7 +150,7 @@ ML\<open>
 
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt false sigma_i nEnv @{theory} )
+              (convertStmt false sigma_i nEnv @{theory} "" (K (NONE,NONE)) )
               ast_stmt []);
 \<close>
 
@@ -180,7 +180,7 @@ int increment(int a) {
 
 ML\<open>
 local open C_AbsEnv in
-val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] [] Symtab.empty
 val () = List.app printIdentifier nEnv
 val ast_stmt = extractStatement nEnv "increment";
 end
@@ -190,7 +190,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt false sigma_i nEnv @{theory})
+              (convertStmt false sigma_i nEnv @{theory} "" (K(NONE,NONE))) 
               ast_stmt [])
            handle ERROR _ => [S];
 \<close>
@@ -212,7 +212,7 @@ void foo() {
 
 ML\<open>
 local open C_AbsEnv in
-val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] [] Symtab.empty
 val () = List.app printIdentifier nEnv
 val ast_stmt = extractStatement nEnv "foo";
 end
@@ -222,7 +222,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt true sigma_i nEnv @{theory} )
+              (convertStmt true sigma_i nEnv @{theory} "" (K(NONE,NONE)))
               ast_stmt []);
 \<close>
 
@@ -231,7 +231,7 @@ val final_term = mk_final_term identifiers "foo" S
 \<close>
 
 ML\<open>
-Sign.certify_term @{theory} final_term
+Sign.certify_term @{theory} (Syntax.check_term @{context} final_term)
 \<close>
 
 ML\<open>
@@ -256,14 +256,16 @@ local_vars_test  (paws "unit")
 ML\<open>val sigma_i = StateMgt.get_state_type_global @{theory}\<close>
 ML\<open>val init_ident = [C_AbsEnv.Identifier("swap", Position.none, @{typ "unit"}, C_AbsEnv.FunctionCategory(C_AbsEnv.Final, NONE))]\<close>             
 
+
+(* TODO: should also be defined analogously to unsigned int, unsigned long, ... *)
 C\<open>
-void paws(unsigned int a, unsigned int b) {
+void paws(unsigned a, unsigned b) {
   swap(a, b);
 }\<close>
 
 ML\<open>
 local open C_AbsEnv in
-val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} init_ident Symtab.empty
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} init_ident [] Symtab.empty 
 val () = List.app printIdentifier nEnv
 val ast_stmt = extractStatement nEnv "paws";
 end
@@ -272,7 +274,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt true sigma_i nEnv @{theory})
+              (convertStmt true sigma_i nEnv @{theory} "" (K(NONE,NONE)))
               ast_stmt []);
 \<close>
 
@@ -338,9 +340,10 @@ int bar(int a, int b) {
 }
 \<close>
 
+
 ML\<open>
 local open C_AbsEnv in
-val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} init_idents Symtab.empty
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} init_idents [Identifier("c",@{here},HOLogic.intT, Global)] Symtab.empty
 val () = List.app printIdentifier nEnv
 val ast_stmt = extractStatement nEnv "bar";
 
@@ -351,7 +354,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt true sigma_i nEnv @{theory})
+              (convertStmt true sigma_i nEnv @{theory} "" (K(NONE,NONE)))
               ast_stmt []);
 \<close>
 
@@ -360,7 +363,7 @@ val final_term = mk_final_term identifiers "bar" S
 \<close>
 
 ML\<open>
-Sign.certify_term @{theory} final_term
+Sign.certify_term @{theory} (Syntax.check_term @{context} final_term)
 \<close>
 
 ML\<open>
@@ -382,7 +385,7 @@ int factorial(int n) {
 
 ML\<open>
 local open C_AbsEnv in
-val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] [] Symtab.empty
 val () = List.app printIdentifier nEnv
 val ast_stmt = extractStatement nEnv "factorial";
 end
@@ -393,7 +396,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt false sigma_i nEnv @{theory} )
+              (convertStmt false sigma_i nEnv @{theory} "" (K(NONE,NONE)))
               ast_stmt [])
            handle ERROR _ => (writeln "correct crash: recursion not supported"; 
                               [@{term "undefined"}])
@@ -425,7 +428,7 @@ writeln (Syntax.string_of_term_global @{theory} final_term);
 
 ML\<open>
 local open C_AbsEnv in
-val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] [] Symtab.empty
 val () = List.app printIdentifier nEnv
 end\<close>
 
@@ -436,14 +439,14 @@ local_vars_test  (is_even "int")
 ML\<open>val sigma_i = StateMgt.get_state_type_global @{theory}\<close>
 
 C\<open>
-int is_even(unsigned int n) {
+int is_even(unsigned  n) {
     if (n == 0)
         return 0;
     else
         return is_odd(n - 1);
 }
 
-int is_odd(unsigned int n) {
+int is_odd(unsigned  n) {
     if (n == 0)
         return -1;
     else
@@ -453,7 +456,7 @@ int is_odd(unsigned int n) {
 
 ML\<open>
 local open C_AbsEnv in
-val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] [] Symtab.empty
 val () = List.app printIdentifier nEnv
 val ast_stmt = extractStatement nEnv "is_even";
 end
@@ -463,7 +466,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt false sigma_i nEnv @{theory})
+              (convertStmt false sigma_i nEnv @{theory} "" (K(NONE,NONE)))
               ast_stmt []) 
             handle ERROR _ => (writeln "correct crash: recursion not supported"; 
                               [@{term "undefined"}]);
@@ -495,7 +498,7 @@ int sqrt(int a) {
 ML\<open>
 local open C_AbsEnv in
 val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} 
-                                  init_idents Symtab.empty
+                                  init_idents [] Symtab.empty
 val () = List.app printIdentifier nEnv
 val ast_stmt = extractStatement nEnv "sqrt";
 end
@@ -504,7 +507,7 @@ end
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt false sigma_i nEnv @{theory})
+              (convertStmt false sigma_i nEnv @{theory} "" (K(NONE,NONE)))
               ast_stmt []);
 \<close>
 
@@ -513,7 +516,7 @@ val final_term = mk_final_term identifiers "sqrt" S
 \<close>
 
 ML\<open>
-Sign.certify_term @{theory} final_term
+Sign.certify_term @{theory} (Syntax.check_term @{context} final_term)
 \<close>
 
 ML\<open>
@@ -542,16 +545,17 @@ int allzeros(int t[], int n) {
 ML\<open>
 local open C_AbsEnv in
 val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} 
-                                      nEnv_0 Symtab.empty
+                                      nEnv_0 [] Symtab.empty
 val () = List.app printIdentifier nEnv
 val ast_stmt = extractStatement nEnv "allzeros";
 end
 \<close>
 
+(* PROBLEM *)
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 
-              (convertStmt false sigma_i nEnv @{theory})
+              (convertStmt false sigma_i nEnv @{theory} "" (K(NONE,NONE)))
               ast_stmt []);
 \<close>
 
@@ -575,7 +579,7 @@ int binarysearch(int t[], int n, int v) {
 
 ML\<open>
 local open C_AbsEnv in
-val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val (identifiers, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] [] Symtab.empty
 val () = List.app printIdentifier identifiers
 end\<close>
 
@@ -598,7 +602,7 @@ int linearsearch(int x, int t[], int n) {
 
 ML\<open>
 local open C_AbsEnv in
-val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] [] Symtab.empty
 val () = List.app printIdentifier nEnv
 end\<close>
 
@@ -644,7 +648,7 @@ printf("Sorted list in ascending order:\n");
 
 ML\<open>
 local open C_AbsEnv in
-val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] Symtab.empty
+val (nEnv, callTable) = parseTranslUnitIdentifiers @{C11_CTranslUnit} [] [] Symtab.empty
 val () = List.app printIdentifier nEnv
 end\<close>
 
@@ -699,7 +703,9 @@ fun convertEnv (name,(pos_list,serial,{ global = true , params = [] , ret = Pars
 end
 \<close>
 
-ML\<open>val (name,(pos_list,serial,{ global = true , params = P as (C_Ast.CFunDeclr0 G::R) , ret =  Z })) = nth menv 5;
+ML\<open>nth menv 5\<close>
+ML\<open>val (name,(pos_list,serial,{ scope = C_Env.Global , functionArgs=_,
+                                params = P as (C_Ast.CFunDeclr0 G::R) , ret =  Z })) = nth menv 5;
    val curried_w_dummyreturn = C11_TypeSpec_2_CleanTyp.conv_CDerivedDecl_typ P dummyT
    val (tyS,ty) = strip_type curried_w_dummyreturn
    val uncurried_w_dummyreturn = HOLogic.mk_tupleT tyS --> ty
@@ -707,18 +713,13 @@ ML\<open>val (name,(pos_list,serial,{ global = true , params = P as (C_Ast.CFunD
 ML\<open>nth menv 5;
    \<close>
 
-(* So ne scheisse. Der return-type ist zwar im AST sichtbar, aber nicht im globalen (Isabelle_C) 
-   Environment. Da findet sich lediglich : previous in stack. Das verkompliziert die Sache.
-
-   Immerhin:
-*)
-
-ML\<open>map_filter convertEnv menv\<close>
+(* dies ist ein Versuch, ein return in einem globalen Kontext auszufuehren. 
+   Dieser Test macht keinen Sinn.
 
 ML\<open> 
 val [body] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
-               (convertStmt false (StateMgt_core.get_state_type @{context}) nEnv_0 @{theory}) 
+               (convertStmt false (StateMgt_core.get_state_type @{context}) nEnv_0 @{theory} "" (K(NONE,NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
                 ast_stmt  \<comment> \<open>C11 ast\<close>
                 []        \<comment> \<open>mt stack\<close>); 
@@ -740,3 +741,4 @@ val local_thy = Function_Specification_Parser.define_body_core add_bind ret_typ 
 Function_Specification_Parser.define_body_core add_bind args_ty sty param_list body ctxt
 (*Function_Specification_Parser.define_body_main { recursive = false } add_bind ret_typ sty param_list NONE 0 ctxt*)
 \<close>
+*)

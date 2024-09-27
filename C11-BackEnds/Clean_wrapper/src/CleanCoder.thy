@@ -71,6 +71,8 @@ exception UnknownTyp of string
 fun firstype_of (Type(_, [x])) = x | firstype_of (Type(_, x::_)) = x
    |firstype_of t = t
 
+fun lastype_of (Type(_, [x])) = x | lastype_of (Type(_, [_ , y])) = y 
+
 (* Creates a result_update_term for the local state *)
 fun mk_result_update thy sigma_i=
   let

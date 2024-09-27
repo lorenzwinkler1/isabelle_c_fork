@@ -12,7 +12,7 @@ fun map_option f (SOME X) = SOME(f X)
 
 fun lookup_Cid_info (C_env:C_Module.Data_In_Env.T) id = Symtab.lookup(#idents(#var_table C_env)) id
 
-fun is_global_Cid Cenv Cid     = map_option (#global o #3) (lookup_Cid_info Cenv Cid);
+fun is_global_Cid Cenv Cid     = map_option (#scope o #3) (lookup_Cid_info Cenv Cid);
 fun is_fun_Cid Cenv Cid        = map_option ((fn [C_Ast.CFunDeclr0 _] => true | _ => false) 
                                                o (#params o #3)) 
                                             (lookup_Cid_info Cenv Cid);
@@ -104,8 +104,9 @@ ML\<open>val sigma_i = StateMgt.get_state_type_global @{theory}\<close>
 declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
 declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
 
-C\<open> int a[10+12][34][] = 1;
-   short int f(int x [][], long double y)
+C\<open>int a[10+12][34][] = 1;
+   \<close>
+C\<open> short int f(int x [][], long /* double */ y)
      {int y; x=x;
       /*@@ \<approx>setup \<open>@{print_env'}\<close> */
       /*@@ highlight */}

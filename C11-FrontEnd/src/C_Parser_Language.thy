@@ -332,7 +332,8 @@ struct
                                                                                 | [] => ""
                                                                                 | _ => "unknown"
         fun transformDeclaration decl =
-                  case decl of (CDecl0 ([CTypeSpec0 (typespec)],[((Some (CDeclr0 (nameIdent,potentialArrDeclarations,_,_,_)),_),_)],_)) => (getVarName nameIdent,decl)  
+                  case decl of 
+                          (CDecl0 ([CTypeSpec0 (typespec)],[((Some (CDeclr0 (nameIdent,potentialArrDeclarations,_,_,_)),_),_)],_)) => (getVarName nameIdent,decl)  
     in
     case ident of [CFunDeclr0 (Right (declarations,_),_,_)] => Some (map transformDeclaration declarations)
                                                | _ => None
