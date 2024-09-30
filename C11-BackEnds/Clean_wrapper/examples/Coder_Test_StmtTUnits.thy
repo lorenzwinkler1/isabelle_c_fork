@@ -259,7 +259,7 @@ ML\<open>val init_ident = [C_AbsEnv.Identifier("swap", Position.none, @{typ "uni
 
 (* TODO: should also be defined analogously to unsigned int, unsigned long, ... *)
 C\<open>
-void paws(unsigned a, unsigned b) {
+void paws(unsigned int a, unsigned b) {
   swap(a, b);
 }\<close>
 

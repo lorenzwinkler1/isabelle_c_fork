@@ -324,16 +324,19 @@ struct
        (map (markup_init o Position.make_entity_markup {def = def} id varN o pair name) ps)
     end)
   fun extractFunctionArgs ident =
-    let fun getVarName nameDecl = case nameDecl of Some (Ident0 (SS_base (ST name),_,_)) => name
-                                              | _ => "unknown"
-        fun getTypeSuffix potentialArrDeclaration = case potentialArrDeclaration of ((CArrDeclr0 (_,(CNoArrSize0 false),_)):: Rest) => "[]"^(getTypeSuffix ( Rest))
-                                                                                | ((CArrDeclr0 (_,(CArrSize0 _),_)):: Rest) => "[somesize]"^(getTypeSuffix ( Rest))
-                                                                                | ((CPtrDeclr0 _):: Rest) => "*"^(getTypeSuffix Rest)
-                                                                                | [] => ""
-                                                                                | _ => "unknown"
-        fun transformDeclaration decl =
-                  case decl of 
-                          (CDecl0 ([CTypeSpec0 (typespec)],[((Some (CDeclr0 (nameIdent,potentialArrDeclarations,_,_,_)),_),_)],_)) => (getVarName nameIdent,decl)  
+    let (* Copied from CleanCoder... *)
+        fun node_content_parser (x : C11_Ast_Lib.node_content) =
+          let fun drop_dark_matter x =(XML.content_of o YXML.parse_body) x 
+              val  C11_Ast_Lib.data_string a_markup = hd(#args(x))
+              val id = hd(tl(String.tokens (fn x => x = #"\"")(drop_dark_matter a_markup)))
+            in id end  (* no type inference *);
+
+        fun handle_node (node_content:C11_Ast_Lib.node_content) b a_list = if #tag node_content = "Ident0" then
+            (node_content_parser node_content)::a_list else []
+        fun find_cdeclr0 declaration= C11_Ast_Lib.fold_cDeclaration (fn a => fn b => a@b) handle_node declaration []
+        fun transformDeclaration decl = (* get the CDeclr0 element to extract the name*)
+                  case find_cdeclr0 decl of [] => (warning "unable to parse identifier name of function arg";("unknown",decl))
+                        | (a::_) => (a,decl)  
     in
     case ident of [CFunDeclr0 (Right (declarations,_),_,_)] => Some (map transformDeclaration declarations)
                                                | _ => None
