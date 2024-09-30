@@ -551,7 +551,6 @@ val ast_stmt = extractStatement nEnv "allzeros";
 end
 \<close>
 
-(* PROBLEM *)
 ML\<open>
 val [S] =  (C11_Ast_Lib.fold_cStatement 
               regroup 

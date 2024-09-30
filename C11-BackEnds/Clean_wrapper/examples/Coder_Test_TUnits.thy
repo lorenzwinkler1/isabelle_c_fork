@@ -39,7 +39,7 @@ So a previous assignment destroys this code.\<close>
 C\<open>
 int g;
 int foo13(){
-  if(1){
+  if(1 != 0){ // instead of if(1) we must write if(1!=0), since nat cannot be coerced to bool
   }
   if (g>0){
      g=1;
