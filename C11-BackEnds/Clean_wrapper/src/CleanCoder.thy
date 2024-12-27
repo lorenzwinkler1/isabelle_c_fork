@@ -67,6 +67,60 @@ exception WrongFormat of string
 exception UnknownTyp of string
 
 
+val type_fixes:(((typ* typ) -> bool)*(term -> (term*(term list)))) list = [
+  (fn (t1,t2) => t1 = HOLogic.intT andalso t2 = HOLogic.natT, 
+   fn t => ((Const (@{const_name "Int.nat"}, HOLogic.intT --> HOLogic.natT) $ t),[
+    Const (@{const_name "Orderings.ord_class.less_eq"}, HOLogic.intT --> HOLogic.intT --> HOLogic.boolT)$(HOLogic.mk_number HOLogic.intT 0)$t
+    ]))
+  ]
+
+fun fix_term (t: term) =
+  let
+    (* Helper function to traverse the term and check for mismatches *)
+    fun traverse (t: term) =
+      let val _ = writeln("Term: "^(@{make_string} t)) in
+      case t of
+        (f $ arg) =>
+          let
+            val f_type = Term.fastype_of f
+            val arg_type = case arg of (Bound _) => TVar (("'a", 0),[]) |_=> Term.fastype_of arg
+          in
+            case f_type of
+              Type (_, [expected_type, _]) =>
+                let in
+                if expected_type <> arg_type then let
+                  val fix_m = List.find (fn (is_applicable, _) => is_applicable (arg_type, expected_type)) type_fixes     
+                  val _ = writeln("Expected: "^(@{make_string} expected_type))
+                  val _ = writeln("Actual: "^(@{make_string} arg_type))
+                   in case fix_m of (* Found mismatch  \<rightarrow> see if there is a fix*)
+                    SOME (_, fix) => let val (new_arg, assertions) = fix arg 
+                    val (f_new, as1) = traverse f
+                    val (arg_new, as2) = traverse new_arg in
+                      (f_new $ arg_new, as1@as2@assertions) end
+                    | NONE => let 
+                    val (f_new, as1) = traverse f
+                    val (arg_new, as2) = traverse arg in
+                    (f_new $ arg_new, as1@as2) end
+                end
+                else
+                  (* Recurse into subterms *)
+                  let 
+                    val (f_new, as1) = traverse f
+                    val (arg_new, as2) = traverse arg in
+                    (f_new $ arg_new,as1@as2) end end
+            | _ => (t, [])
+          end
+      | Abs (x,y, bdy) => apfst (fn b => Abs(x,y,b)) (traverse bdy)
+      | _ => (t, []) end
+  in
+    traverse t
+  end;
+
+fun map_assertion sigma_i t = let
+  val assertion_monad_type = sigma_i --> (Type (@{type_name "option"}, [HOLogic.mk_tupleT [HOLogic.boolT, sigma_i]]))
+  in Const(@{const_name "assert_SE"},  (sigma_i --> HOLogic.boolT) --> assertion_monad_type)$ Abs("\<sigma>", sigma_i, t) end
+
+
 (*renvoie le type du premier attribut d'une fonction, ou le type d'une constante*)
 fun firstype_of (Type(_, [x])) = x | firstype_of (Type(_, x::_)) = x
    |firstype_of t = t
@@ -109,7 +163,6 @@ subsection\<open>C11 Expressions to Clean Terms\<close>
 
 
 ML\<open>
-
 (*
 verbose : boolean (to do some printing and help to debug)
 sigma_i : typ (actual type)
@@ -259,12 +312,7 @@ translate integers in booleans. That's what term_to_bool t do.
      |"CIndex0" => (case c of 
                      (idx::root::R) => let fun destListT arg =
                                             case arg of (Type(@{type_name list},[t])) => t
-                                           val idx_term = case fastype_of idx of
-                                                            Type(@{type_name "nat"},[]) => idx
-                                                          | Type(@{type_name "int"},[]) =>
-                                                                 (Const (@{const_name "Int.nat"}, 
-                                                                         intT --> natT) $ idx)
-                                                          | _ => error "illegal index type"
+                                           val idx_term = idx
                                        in   Const(@{const_name List.nth},
                                                   fastype_of root 
                                                   --> natT 
@@ -423,8 +471,11 @@ fun convertStmt verbose sigma_i nEenv thy function_name get_loop_annotations
                                                         ((mk_assign 
                                                             update_func)
                                                        (lifted_term sigma_i (get_array_assignment rhs))))
-                                val inferred_assignment = Syntax.check_term (Proof_Context.init_global thy) assignment
-                                in assignment::R
+                                val fixed_assignment = fix_term assignment
+                                val _ = writeln("Fixed: "^(@{make_string} fixed_assignment))
+                                val inferred_assignment = Syntax.check_term (Proof_Context.init_global thy) (fst fixed_assignment)
+                                val assertions = List.map (map_assertion sigma_i) (snd fixed_assignment)
+                                in inferred_assignment::assertions@R
                            end))
                       |_ => raise WrongFormat("assign"))
 
@@ -441,7 +492,9 @@ understand so it's unfinished here*)
      |"CReturn0" => let
                         val rhs = hd stack
                         val res_upd = mk_result_update thy sigma_i
-                    in (mk_return_C res_upd (lifted_term sigma_i rhs)) :: (tl stack) end
+                        val fixed_rhs = fix_term rhs
+                        val assertions = List.map (map_assertion sigma_i) (List.map (fn t =>abstract_over (Free("\<sigma>", sigma_i),t)) (snd fixed_rhs))
+                    in (mk_return_C res_upd (lifted_term sigma_i (fst fixed_rhs))) :: assertions@(tl stack) end
      |"CSkip0"  => (mk_skip_C sigma_i)::stack
      |"CBreak0" => (mk_break sigma_i)::stack
 (*for statements with a body, we need to create a sequence. if statements or expressions

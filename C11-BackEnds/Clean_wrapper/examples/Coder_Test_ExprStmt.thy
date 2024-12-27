@@ -257,7 +257,7 @@ val S = conv_Cexpr_lifted_term  sigma_i A_env1 @{theory} "" (K NONE) ast_expr
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
 
 \<comment> \<open>type-check of the latter\<close>
-ML\<open>Sign.certify_term @{theory} (Syntax.check_term @{context} S)\<close>
+ML\<open>Sign.certify_term @{theory} (Syntax.check_term @{context} (fst (fix_term S)))\<close>
 
 
 (*7*****************************************************************************************************)
@@ -329,7 +329,7 @@ val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
 \<close>
 
 ML\<open>
-val [S] =  (C11_Ast_Lib.fold_cStatement 
+val [S, Assertion] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
                (convertStmt false sigma_i A_env0 @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
@@ -349,7 +349,7 @@ val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
 \<close>
 
 ML\<open>
-val [S] =  (C11_Ast_Lib.fold_cStatement 
+val [S, Assertion] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
                (convertStmt false sigma_i A_env0 @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
@@ -370,7 +370,7 @@ val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
 \<close>
 
 ML\<open>
-val [S] =  (C11_Ast_Lib.fold_cStatement 
+val [S, Assertion] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
                (convertStmt false sigma_i A_env0 @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
@@ -390,7 +390,7 @@ val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
 \<close>
 
 ML\<open>
-val [S] =  (C11_Ast_Lib.fold_cStatement 
+val [S, Assertion] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
                (convertStmt false sigma_i A_env0 @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
@@ -399,6 +399,7 @@ val [S] =  (C11_Ast_Lib.fold_cStatement
 \<close>
 
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
+ML\<open>writeln (Syntax.string_of_term_global @{theory} Assertion);\<close>
 
 ML\<open> Sign.certify_term @{theory} S \<close>
 
@@ -411,7 +412,7 @@ val env_stmt = @{C\<^sub>e\<^sub>n\<^sub>v}
 \<close>
 
 ML\<open>
-val [S] =  (C11_Ast_Lib.fold_cStatement 
+val [S, Assertion1, Assertion2, Assertion3] =  (C11_Ast_Lib.fold_cStatement 
                regroup    \<comment> \<open>real rearrangements of stack for statement compounds\<close>
                (convertStmt false sigma_i A_env0 @{theory} "" (K (NONE, NONE))) 
                           \<comment> \<open>combinator handlicng an individual statement\<close>
@@ -420,6 +421,9 @@ val [S] =  (C11_Ast_Lib.fold_cStatement
 \<close>
 
 ML\<open>writeln (Syntax.string_of_term_global @{theory} S);\<close>
+ML\<open>writeln (Syntax.string_of_term_global @{theory} Assertion1);\<close>
+ML\<open>writeln (Syntax.string_of_term_global @{theory} Assertion2);\<close>
+ML\<open>writeln (Syntax.string_of_term_global @{theory} Assertion3);\<close>
 
 ML\<open> Sign.certify_term @{theory} S \<close>
 

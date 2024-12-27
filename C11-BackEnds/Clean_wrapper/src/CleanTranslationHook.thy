@@ -97,7 +97,7 @@ fun declare_function idents name ast ret_ty recursive ctxt =
         (*The actual translation of the loop body*)
         fun get_translated_fun_bdy ctx _ = let
               val ctx' = remove_params_from_proof ctx
-              val v = ((C11_Ast_Lib.fold_cStatement
+              val v = hd ((C11_Ast_Lib.fold_cStatement
               C11_Stmt_2_Clean.regroup 
               (C11_Stmt_2_Clean.convertStmt false 
                                             (StateMgt.get_state_type ctx') 
@@ -105,7 +105,7 @@ fun declare_function idents name ast ret_ty recursive ctxt =
                                             (Proof_Context.theory_of ctx') 
                                              name get_loop_annotations)
               ast []))
-              in ( hd) v end
+              in v end
 
         val test_function_sem = {binding = Binding.name name,
                                  locals = locals@[(Binding.name "dummylocalvariable","int", NoSyn)], (*There needs to be at least one local variable*)
