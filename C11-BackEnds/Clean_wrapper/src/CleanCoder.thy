@@ -74,6 +74,13 @@ val type_fixes:(((typ* typ) -> bool)*(term -> (term*(term list)))) list = [
     ]))
   ]
 
+fun replace_bound depth t free_var=
+          case t of
+          Bound n => if n = depth then free_var else (Bound n)
+          | Abs (n, typ, b) => Abs (n, typ, replace_bound (depth +1) b free_var)
+          | f $ a => replace_bound depth f free_var $ replace_bound depth a free_var
+          | _ => t
+
 fun fix_term (t: term) =
   let
     (* Helper function to traverse the term and check for mismatches *)
@@ -82,7 +89,7 @@ fun fix_term (t: term) =
       case t of
         (f $ arg) =>
           let
-            val f_type = Term.fastype_of f
+            val f_type = case arg of (Bound _) => TVar (("'b", 0),[]) |_=> Term.fastype_of f
             val arg_type = case arg of (Bound _) => TVar (("'a", 0),[]) |_=> Term.fastype_of arg
           in
             case f_type of
@@ -110,10 +117,20 @@ fun fix_term (t: term) =
                     (f_new $ arg_new,as1@as2) end end
             | _ => (t, [])
           end
-      | Abs (x,y, bdy) => apfst (fn b => Abs(x,y,b)) (traverse bdy)
+      | Abs (x,y, bdy) =>
+        let val t2 = traverse (replace_bound 0 bdy (Free (x,y)))
+            val _ = writeln("Bdy: "^(@{make_string} bdy))
+            val _ = writeln("T2: "^(@{make_string} t2))
+            val t3 = apfst (fn b => Abs (x,y, abstract_over (Free(x,y), b))) t2 
+            val t4 = apsnd (fn bl => List.map (fn b => abstract_over (Free(x,y), b)) bl) t3
+            val _ = writeln("T3: "^(@{make_string} t3)) in
+            t4
+        end
       | _ => (t, []) end
+  
+    val t1 = traverse t
   in
-    traverse t
+    t1
   end;
 
 fun map_assertion sigma_i t = let
