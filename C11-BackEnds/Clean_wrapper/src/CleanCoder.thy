@@ -85,20 +85,17 @@ fun fix_term (t: term) =
   let
     (* Helper function to traverse the term and check for mismatches *)
     fun traverse (t: term) =
-      let val _ = writeln("Term: "^(@{make_string} t)) in
       case t of
         (f $ arg) =>
           let
-            val f_type = case arg of (Bound _) => TVar (("'b", 0),[]) |_=> Term.fastype_of f
-            val arg_type = case arg of (Bound _) => TVar (("'a", 0),[]) |_=> Term.fastype_of arg
+            val f_type = Term.fastype_of f
+            val arg_type =  Term.fastype_of arg
           in
             case f_type of
               Type (_, [expected_type, _]) =>
                 let in
                 if expected_type <> arg_type then let
-                  val fix_m = List.find (fn (is_applicable, _) => is_applicable (arg_type, expected_type)) type_fixes     
-                  val _ = writeln("Expected: "^(@{make_string} expected_type))
-                  val _ = writeln("Actual: "^(@{make_string} arg_type))
+                  val fix_m = List.find (fn (is_applicable, _) => is_applicable (arg_type, expected_type)) type_fixes
                    in case fix_m of (* Found mismatch  \<rightarrow> see if there is a fix*)
                     SOME (_, fix) => let val (new_arg, assertions) = fix arg 
                     val (f_new, as1) = traverse f
@@ -126,7 +123,7 @@ fun fix_term (t: term) =
             val _ = writeln("T3: "^(@{make_string} t3)) in
             t4
         end
-      | _ => (t, []) end
+      | _ => (t, [])
   
     val t1 = traverse t
   in
@@ -489,7 +486,6 @@ fun convertStmt verbose sigma_i nEenv thy function_name get_loop_annotations
                                                             update_func)
                                                        (lifted_term sigma_i (get_array_assignment rhs))))
                                 val fixed_assignment = fix_term assignment
-                                val _ = writeln("Fixed: "^(@{make_string} fixed_assignment))
                                 val inferred_assignment = Syntax.check_term (Proof_Context.init_global thy) (fst fixed_assignment)
                                 val assertions = List.map (map_assertion sigma_i) (snd fixed_assignment)
                                 in inferred_assignment::assertions@R

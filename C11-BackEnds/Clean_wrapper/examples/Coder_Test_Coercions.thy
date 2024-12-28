@@ -4,6 +4,10 @@ theory "Coder_Test_Coercions"
           "../src/CleanTranslationHook"
 begin
 
+declare [[C\<^sub>e\<^sub>n\<^sub>v\<^sub>0 = last]]
+declare [[C\<^sub>r\<^sub>u\<^sub>l\<^sub>e\<^sub>0 = "translation_unit"]]
+
+
 ML\<open>
 @{term "a \<ge> 2"}
 \<close>
@@ -16,7 +20,7 @@ C\<open>
 int b;
 int a[];
 
-void test(){
+void test(int c){
   b =  a[b];
 }
 \<close>
@@ -31,4 +35,10 @@ int test1(){
 \<close>
 
 find_theorems test1_core
+
+C\<open>
+void test2(){
+  b = test1();
+}\<close>
+
 
