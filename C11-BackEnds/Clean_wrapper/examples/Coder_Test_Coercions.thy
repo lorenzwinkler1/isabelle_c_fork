@@ -18,12 +18,10 @@ section\<open>int to nat coercions\<close>
 C\<open>
 int b;
 int a[];
-
 void test(int c){
   b =  a[b];
 }
 \<close>
-
 find_theorems test_core
 
 C\<open>
@@ -57,12 +55,22 @@ void test_bool1(int c, int d,int e){
 
 C\<open>
 void test_bool2(int c, int d,int e){
-  global_bool = d & e; // bitwise and
+  global_bool = d & e; // bitwise and TODO: This might be wrong?
 }
 \<close>
+
+find_theorems test_bool2_core
 
 C\<open>
 void test_bool3(int c, int d,int e){
   global_bool = d && e; // logical and
 }
+\<close>
+
+text\<open>Direction boolean --> integer\<close>
+C\<open>
+void test_bool4(int c, int d){
+  b = c || d;
+}
+
 \<close>
