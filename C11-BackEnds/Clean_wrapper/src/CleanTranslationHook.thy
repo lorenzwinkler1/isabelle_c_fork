@@ -9,6 +9,7 @@ fun transform_type typ = if typ = HOLogic.intT then "int"
                          else if typ = HOLogic.natT then "nat"
                          else if is_listTy typ then (transform_type (dest_listTy typ))^" list" 
                          else if typ = HOLogic.unitT then "unit"
+                         else if typ = HOLogic.boolT then "bool"
                          else error "Unknown variable type"
 
 local open C_AbsEnv HOLogic in

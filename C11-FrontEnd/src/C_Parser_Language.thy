@@ -335,9 +335,8 @@ struct
             (node_content_parser node_content)::a_list else a_list
         fun find_cdeclr0 declaration= C11_Ast_Lib.fold_cDeclaration (fn a => fn b => a@b) handle_node declaration []
         fun transformDeclaration decl = (* get the CDeclr0 element to extract the name*)
-                  let val _ = writeln("Decl: "^(@{make_string} decl)) in
                   case find_cdeclr0 decl of [] => (warning "unable to parse identifier name of function arg";("unknown",decl))
-                        | (a::_) => (a,decl) end
+                        | (a::_) => (a,decl)
     in
     case ident of [CFunDeclr0 (Right (declarations,_),_,_)] => Some (map transformDeclaration declarations)
                                                | _ => None

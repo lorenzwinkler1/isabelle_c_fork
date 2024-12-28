@@ -162,7 +162,7 @@ fun conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CUnsigType0 _)])) = SOME(H
                                           CTypeSpec0 (CCharType0 _)]))  = SOME(HOLogic.charT)
    |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CSignedType0 _),
                                           CTypeSpec0 (CCharType0 _)]))  = SOME(HOLogic.charT)
-   |conv_cDeclarationSpecifier_typ _ = error("Type format not defined. [Clean restriction]")
+   |conv_cDeclarationSpecifier_typ (SOME([CTypeSpec0 (CBoolType0 _)])) = SOME(HOLogic.boolT)
 
 
 fun conv_cDerivedDeclarator_typS (CArrDeclr0 (_, _ ,_) :: R) = 
@@ -286,6 +286,7 @@ fun str2HOLogic str =
   case str of
     "CIntType0" => HOLogic.intT
   | "CUnsigType0" => HOLogic.natT
+  | "CBoolType0" => HOLogic.boolT
   | s => error ("Unknown: " ^ s)
 
 (* Infers the name of the node_content, which should be #tag node_content = "Ident0 *)

@@ -55,23 +55,25 @@ a typed \<lambda>-term which encoded the semanticaly equivalent program in Clean
 subsection\<open>Auxilliary Functions: Elementary Term Conversions\<close>
 
 ML\<open>
-
-fun term_to_bool term = case term of
-        Const ("Groups.one_class.one", _) => \<^term>\<open>True\<close>
-      | Const ("Groups.zero_class.zero", _) => \<^term>\<open>False\<close> 
-      |(Const ("Num.numeral_class.numeral", _) $ _) => \<^term>\<open>True\<close>
-      |_ => term
-
 exception EmptyList
 exception WrongFormat of string
 exception UnknownTyp of string
 
 
 val type_fixes:(((typ* typ) -> bool)*(term -> (term*(term list)))) list = [
-  (fn (t1,t2) => t1 = HOLogic.intT andalso t2 = HOLogic.natT, 
+  (fn (actual, expected) => actual = HOLogic.intT andalso expected = HOLogic.natT, 
    fn t => ((Const (@{const_name "Int.nat"}, HOLogic.intT --> HOLogic.natT) $ t),[
     Const (@{const_name "Orderings.ord_class.less_eq"}, HOLogic.intT --> HOLogic.intT --> HOLogic.boolT)$(HOLogic.mk_number HOLogic.intT 0)$t
-    ]))
+    ])),
+
+  (fn (actual, expected) => actual = HOLogic.intT andalso expected = HOLogic.boolT,
+   fn t => ((Const (@{const_name "HOL.Not"}, HOLogic.boolT --> HOLogic.boolT)) $ ((Const (@{const_name "HOL.eq"}, HOLogic.intT --> HOLogic.intT --> HOLogic.boolT)) $ t $ (HOLogic.mk_number HOLogic.intT 0)),[])),
+
+  (fn (actual, expected) => actual = HOLogic.boolT andalso expected = HOLogic.intT,
+    fn t => ((Const (@{const_name "If"}, HOLogic.boolT --> HOLogic.intT --> HOLogic.intT --> HOLogic.intT) $
+        t$
+        HOLogic.mk_number HOLogic.intT 1 $
+        HOLogic.mk_number HOLogic.intT 0), []))
   ]
 
 fun replace_bound depth t free_var=
@@ -85,14 +87,29 @@ fun fix_term (t: term) =
   let
     (* Helper function to traverse the term and check for mismatches *)
     fun traverse (t: term) =
-      case t of
+      let in case t of
         (f $ arg) =>
           let
             val f_type = Term.fastype_of f
             val arg_type =  Term.fastype_of arg
           in
             case f_type of
-              Type (_, [expected_type, _]) =>
+              Type (_, [(Type ("fun", [_,ret_ty])),_]) => let
+                val Type("fun", [_,arg_ret_ty]) = arg_type
+                val fix_m = List.find (fn (is_applicable, _) => is_applicable (arg_ret_ty, ret_ty)) type_fixes
+
+                in
+                 case (fix_m, arg) of (* Found mismatch  \<rightarrow> see if there is a fix*)
+                    (SOME (_, fix), Abs(var, ty, bdy)) => let val (fixed_bdy, assertions) = fix bdy 
+                    val (f_new, as1) = traverse f
+                    val (new_bdy, as2) = traverse fixed_bdy in
+                      (f_new $ Abs(var,ty,abstract_over (Free(var,ty), new_bdy)), as1@(List.map (fn b => abstract_over (Free(var,ty), b)) as2@assertions)) end
+                    | _ => let 
+                    val (f_new, as1) = traverse f
+                    val (arg_new, as2) = traverse arg in
+                    (f_new $ arg_new, as1@as2) end
+                end
+              |Type (_, [expected_type, _]) =>
                 let in
                 if expected_type <> arg_type then let
                   val fix_m = List.find (fn (is_applicable, _) => is_applicable (arg_type, expected_type)) type_fixes
@@ -116,14 +133,12 @@ fun fix_term (t: term) =
           end
       | Abs (x,y, bdy) =>
         let val t2 = traverse (replace_bound 0 bdy (Free (x,y)))
-            val _ = writeln("Bdy: "^(@{make_string} bdy))
-            val _ = writeln("T2: "^(@{make_string} t2))
             val t3 = apfst (fn b => Abs (x,y, abstract_over (Free(x,y), b))) t2 
             val t4 = apsnd (fn bl => List.map (fn b => abstract_over (Free(x,y), b)) bl) t3
-            val _ = writeln("T3: "^(@{make_string} t3)) in
+            in
             t4
         end
-      | _ => (t, [])
+      | _ => (t, []) end
   
     val t1 = traverse t
   in
@@ -259,16 +274,11 @@ Bound 0 is usefull for the statements, and can easily be deleted if necessary*)
                     | ("CDivOp0",b::a::R) => let val ty = get_ring_op_type (fastype_of a) (fastype_of b) in (Const(@{const_name "divide"}, ty --> ty --> ty) $ a $ b :: R) end
                     | ("CSubOp0",b::a::R) => let val ty = get_ring_op_type (fastype_of a) (fastype_of b) in (Const(@{const_name "minus"}, ty --> ty --> ty) $ a $ b :: R) end
                       (*boolean operations*) 
-(*for boolean operations, because in C boolean are in fact integers, we need to
-translate integers in booleans. That's what term_to_bool t do.
-  -if t integer and t = 0 then false else if t integer and t > 0 then true else t
-  -for example, 1 \<and> 0 will be true \<and> false, and 1000 \<or> a will be true \<or> a
-*)
-                    | ("CAndOp0", b::a::R) => (mk_conj (term_to_bool a, term_to_bool b) :: R)
-                    | ("CLndOp0", b::a::R) => (mk_conj (term_to_bool a, term_to_bool b) :: R)
-                    | ("COrOp0", b::a::R) => (mk_disj (term_to_bool a, term_to_bool b) :: R)
-                    | ("CLorOp0", b::a::R) => (mk_disj (term_to_bool a, term_to_bool b) :: R)
-                    | ("CXorOp0", b::a::R) => (mk_not (mk_eq (term_to_bool a, term_to_bool b))::R)
+                    | ("CAndOp0", b::a::R) => (mk_conj (a, b) :: R)
+                    | ("CLndOp0", b::a::R) => (mk_conj (a, b) :: R)
+                    | ("COrOp0", b::a::R) => (mk_disj (a, b) :: R)
+                    | ("CLorOp0", b::a::R) => (mk_disj (a, b) :: R)
+                    | ("CXorOp0", b::a::R) => (mk_not (mk_eq (a, b))::R)
                       (*equality*)
                     | ("CEqOp0", b::a::R) => (mk_eq ( a, b) :: R)
                     | ("CNeqOp0", b::a::R) => (mk_not (mk_eq ( a, b))::R)
@@ -292,7 +302,7 @@ translate integers in booleans. That's what term_to_bool t do.
                     | _ => (writeln ("sub_tag all " ^sub_tag^" :>> "^ @{make_string} c);c ))
      (*unary operations*)
      |"CUnary0" =>  (case (drop_dark_matter sub_tag, c) of
-                    ("CNegOp0", a::R) => (mk_not (term_to_bool a) :: R)
+                    ("CNegOp0", a::R) => (mk_not (a) :: R)
                     |("CMinOp0", a::R) => (Const(@{const_name uminus}, fastype_of a --> intT) $ a :: R)
                     |_ => (writeln ("unknown sub_tag for CUnary0"^sub_tag); c))
      (*constants*)

@@ -62,6 +62,8 @@ text\<open>
   Also defining global variables twice within one translation unit will result in only one definition, 
   thus the second definition does not "reset" the value of the variable
 
+- A bigger issue: redefining a global variable as local variable in a function does not work at all.
+
 - Method overloading: Do not use function names multiple times, as this will break the whole
   translation process in several ways.
 \<close>
